@@ -47,7 +47,7 @@ function service(
     { get: () => g } as unknown as ChainGatewayProvider,
     {
       assertCanSign: () => {},
-      run: async () => ({ stage: "submitted", txId: "txid" }),
+      runTron: async () => ({ stage: "submitted", txId: "txid" }),
       ...pipeline,
     } as unknown as TxPipeline,
     () => now,
@@ -98,6 +98,19 @@ describe("TronRewardService.withdraw", () => {
     });
   });
 
+  it.each(["", "-1", "1.5", "abc"])(
+    "fails on a malformed claimable reward %j instead of reading it as none",
+    async (reward) => {
+      const svc = service({
+        getReward: async () => reward,
+        getAccountState: async () => accountState(),
+      });
+      await expect(svc.withdraw(scope, NET, {})).rejects.toMatchObject({
+        code: "invalid_node_response",
+      });
+    },
+  );
+
   it("rejects inside the 24h withdraw interval", async () => {
     const now = 1_700_000_000_000;
     const svc = service(
@@ -130,7 +143,7 @@ describe("TronRewardService.withdraw", () => {
     });
 
     const confirmed = service(baseGateway, {
-      run: async () => ({ stage: "confirmed", txId: "txid", withdrawnSun: sunAmount("12") }),
+      runTron: async () => ({ stage: "confirmed", txId: "txid", withdrawnSun: sunAmount("12") }),
     }).withdraw(scope, NET, {});
     await expect(confirmed).resolves.toMatchObject({
       kind: "reward-withdraw",

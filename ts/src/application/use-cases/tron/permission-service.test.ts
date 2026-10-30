@@ -3,7 +3,7 @@ import type { AccountPermissionsView, Signer } from "../../../domain/types/index
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { AccountStore } from "../../ports/account-store.js";
-import { TxPipeline, type TxPipelineParams } from "../../services/pipeline/index.js";
+import { TxPipeline, type TronTxPipelineParams } from "../../services/pipeline/index.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import { SigningService } from "../../services/signing/signing-service.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
@@ -83,10 +83,10 @@ function setup(
     prepareTransaction: vi.fn((tx) => tx),
     encodeTransactionHex: vi.fn(() => "abcd"),
   } as unknown as TronGateway;
-  let captured: TxPipelineParams | undefined;
+  let captured: TronTxPipelineParams | undefined;
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (params: TxPipelineParams) => {
+    runTron: vi.fn(async (params: TronTxPipelineParams) => {
       captured = params;
       const tx = await params.build(A);
       if (options.outcome) return options.outcome;
@@ -162,7 +162,7 @@ describe("TRON permission service", () => {
       code: "insufficient_balance",
     });
     expect(gateway.buildAccountPermissionUpdate).not.toHaveBeenCalled();
-    expect(pipeline.run).not.toHaveBeenCalled();
+    expect(pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("rejects insufficient balance on --dry-run too", async () => {

@@ -60,7 +60,7 @@ TRON only:
 
 | Option | Description |
 |---|---|
-| `--abi <json>` | Contract ABI as a JSON array string; required unless `--artifact` supplies one |
+| `--abi <json>` | Contract ABI as a JSON array string; on TRON, exactly one of `--abi` or `--artifact` |
 | `--fee-limit <sun>` | Max energy fee to burn, in SUN (default 100000000) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
@@ -140,7 +140,7 @@ echo "$PW" | wallet-cli contract deploy --artifact ./build/contracts/Token.json 
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported` — TRON signing only, `auth_failed`, `nonce_too_low` — `--dry-run` with an already-mined `--nonce`, raised before the predicted contract address is computed, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact or bytecode file at that path), or `invalid_value` for: none or more than one of `--artifact` / `--code` / `--code-file`; `--constructor-args` with no type source; `--constructor-params` together with `--artifact`; an artifact with no creation bytecode; a TRON deploy with neither `--artifact` nor `--abi`, or with both; or an ABI constructor without a string `stateMutability`.
+`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported` — TRON signing only, `auth_failed`, `nonce_too_low` — `--dry-run` with an already-mined `--nonce`, raised before the predicted contract address is computed, `rpc_error`, `timeout`) · `2` usage error — `file_not_found` (no artifact or bytecode file at that path), `invalid_option` for none or more than one of `--artifact` / `--code` / `--code-file`, or a TRON deploy with neither `--artifact` nor `--abi`, or with both; or `invalid_value` for: `--constructor-args` with no type source; `--constructor-params` together with `--artifact`; an artifact with no creation bytecode; or an ABI constructor without a string `stateMutability`.
 
 ## See also
 

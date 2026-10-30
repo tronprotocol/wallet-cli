@@ -1,61 +1,6 @@
 [
   {
     "type": "dependency",
-    "from": "src/application/use-cases/bai-wallet-binding.ts",
-    "to": "src/application/use-cases/message-service.ts",
-    "unresolvedTo": "./message-service.js",
-    "dependencyTypes": ["local", "type-only", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "application-imports-no-use-case"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/application/use-cases/tron/multisig-collaboration-service.ts",
-    "to": "src/application/use-cases/tron/multisig-service.ts",
-    "unresolvedTo": "./multisig-service.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "application-imports-no-use-case"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/application/use-cases/tron/multisig-service.ts",
-    "to": "src/application/use-cases/tron/sig-service.ts",
-    "unresolvedTo": "./sig-service.js",
-    "dependencyTypes": ["local", "type-only", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "application-imports-no-use-case"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/application/use-cases/tron/vote-service.ts",
-    "to": "src/application/use-cases/tron/stake-service.ts",
-    "unresolvedTo": "./stake-service.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "application-imports-no-use-case"
-    }
-  },
-  {
-    "type": "dependency",
-    "from": "src/adapters/outbound/ledger/index.ts",
-    "to": "src/adapters/outbound/chain/tron/tx-integrity.ts",
-    "unresolvedTo": "../chain/tron/tx-integrity.js",
-    "dependencyTypes": ["local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "integrations-do-not-import-each-other"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "src/adapters/outbound/x402/gasfree-errors.test.ts",
     "to": "@bankofai/x402-tron/gasfree/client",
     "unresolvedTo": "@bankofai/x402-tron/gasfree/client",

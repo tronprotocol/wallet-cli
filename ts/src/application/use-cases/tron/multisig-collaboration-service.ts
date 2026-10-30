@@ -13,9 +13,15 @@ import type {
   TronLinkSignatureProgressView,
   TronTransactionArtifact,
 } from "../../../domain/types/index.js";
-import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  CliError,
+  errorMessage,
+  inputRef,
+  UsageError,
+} from "../../../domain/errors/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
-import { TronMultisigService } from "./multisig-service.js";
+import type { TronCheckedSigner } from "./tron-signing.js";
 import { normalizeTxHash } from "../../../domain/family/index.js";
 
 const LIST_LIMIT = 20;
@@ -34,7 +40,7 @@ export class TronMultisigCollaborationService {
   constructor(
     private readonly collaboration: TronLinkCollaborationPort,
     private readonly gateways: ChainGatewayProvider,
-    private readonly multisig: TronMultisigService,
+    private readonly multisig: TronCheckedSigner,
     private readonly now: () => number = () => Date.now(),
   ) {}
 
@@ -81,7 +87,10 @@ export class TronMultisigCollaborationService {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(unsignedHex);
     if ((transaction.signature?.length ?? 0) !== 0) {
-      throw new UsageError("invalid_value", "TronLink --create requires an unsigned transaction");
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`TronLink ${inputRef("create")} requires an unsigned transaction`,
+      );
     }
 
     const signed = await this.multisig.signChecked(scope, network, unsignedHex);

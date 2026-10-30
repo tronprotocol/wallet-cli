@@ -252,13 +252,13 @@ async function executeChainCommand(
   caps.check(spec, net);
 
   if (spec.passwordMode) {
-    const initialized = deps.keystore.isInitialized();
+    const initialized = deps.accounts.isInitialized();
     const mode = spec.passwordMode === "establish" ? (initialized ? "verify" : "set") : "verify";
-    await deps.secrets.primePassword({ mode, verify: (pw) => deps.keystore.verifyPassword(pw) });
+    await deps.secrets.primePassword({ mode, verify: (pw) => deps.accounts.verifyPassword(pw) });
   }
 
   await gapFillRequiredFields(executionSpec, argv, deps.prompter, () =>
-    deps.keystore.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
+    deps.accounts.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
   );
   const input = parseInputSchema(effectiveInput, argv);
 
@@ -308,13 +308,13 @@ async function executeCommand(
   // Without passwordMode, authentication is lazy so key-free paths need no password.
   // Prime the password before prompting for other fields.
   if (cmd.passwordMode) {
-    const initialized = deps.keystore.isInitialized();
+    const initialized = deps.accounts.isInitialized();
     const mode = cmd.passwordMode === "establish" ? (initialized ? "verify" : "set") : "verify";
-    await deps.secrets.primePassword({ mode, verify: (pw) => deps.keystore.verifyPassword(pw) });
+    await deps.secrets.primePassword({ mode, verify: (pw) => deps.accounts.verifyPassword(pw) });
   }
 
   await gapFillRequiredFields(cmd, argv, deps.prompter, () =>
-    deps.keystore.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
+    deps.accounts.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
   );
   const input = parseInput(cmd, argv);
 
@@ -356,7 +356,7 @@ function activeAccountLabel(
 ): string | undefined {
   if (cmd.wallet === "none") return undefined;
   try {
-    return deps.keystore.describe(ctx.activeAccount).label;
+    return deps.accounts.describe(ctx.activeAccount).label;
   } catch {
     return undefined;
   }

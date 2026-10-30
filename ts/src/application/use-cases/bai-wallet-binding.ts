@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type { TransactionScope } from "../contracts/execution-scope.js";
-import type { MessageService } from "./message-service.js";
+import type { MessageSigner } from "../services/signing/message-signer.js";
 import type { BaiRechargeApi } from "../ports/bai-recharge.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
@@ -18,7 +18,7 @@ export function requireBaiChain(network: NetworkDescriptor): string {
 // Caller must check live binding status and signing credentials first.
 export class BaiWalletBinding {
   constructor(
-    private readonly messages: Pick<MessageService, "sign">,
+    private readonly messages: Pick<MessageSigner, "sign">,
     private readonly now: () => number = Date.now,
     private readonly nonce: () => string = () => randomBytes(16).toString("hex"),
   ) {}

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AtomicFileStore } from "./fs/index.js";
-import { MigrationRunner, type MigrationStep } from "./migration.js";
+import { FileDataMigrations, MigrationRunner, type MigrationStep } from "./migration.js";
 
 function root(): string {
   return mkdtempSync(join(tmpdir(), "migration-"));
@@ -248,5 +248,55 @@ describe("MigrationRunner re-reads under the lock", () => {
       wallets: [{ id: "wlt_b.0" }],
     });
     expect(existsSync(`${wallets}.v1.bak`)).toBe(false);
+  });
+});
+
+describe("FileDataMigrations", () => {
+  it("plans each stale file with its versions and backup path", () => {
+    const wallets = join(root(), "wallets.json");
+    writeFileSync(wallets, JSON.stringify({ version: 1, wallets: [] }));
+
+    const plan = new FileDataMigrations(new AtomicFileStore(), [bumpStep(wallets)]).plan();
+
+    expect(plan).toEqual({
+      pending: [{ path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` }],
+      needsPassword: false,
+    });
+  });
+
+  it("plans nothing when every file is current", () => {
+    const wallets = join(root(), "wallets.json");
+    writeFileSync(wallets, JSON.stringify({ version: 2, wallets: [] }));
+
+    expect(new FileDataMigrations(new AtomicFileStore(), [bumpStep(wallets)]).plan()).toEqual({
+      pending: [],
+      needsPassword: false,
+    });
+  });
+
+  it("applies the planned files through their steps and hands over the password", () => {
+    const wallets = join(root(), "wallets.json");
+    writeFileSync(wallets, JSON.stringify({ version: 1, wallets: [] }));
+    const step: MigrationStep = {
+      ...bumpStep(wallets),
+      needsPassword: () => true,
+      migrate: (doc, password) => ({ ...(doc as object), version: 2, sawPassword: password }),
+    };
+    const migrations = new FileDataMigrations(new AtomicFileStore(), [step]);
+    const plan = migrations.plan();
+
+    const retained = migrations.apply(plan.pending, "hunter2");
+
+    expect(plan.needsPassword).toBe(true);
+    expect(retained).toEqual([]);
+    expect(JSON.parse(readFileSync(wallets, "utf8"))).toEqual({
+      version: 2,
+      wallets: [],
+      sawPassword: "hunter2",
+    });
+    expect(JSON.parse(readFileSync(`${wallets}.v1.bak`, "utf8"))).toEqual({
+      version: 1,
+      wallets: [],
+    });
   });
 });

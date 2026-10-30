@@ -5,7 +5,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { TextFormatters } from "../render/index.js";
 import { readBoundedTextFile } from "./artifact.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { tronExpirationRefine, txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 
 const showFields = z.object({});
 
@@ -56,23 +56,8 @@ export const permissionUpdateSpec: ChainSpec = {
     "There is no confirmation prompt: it warns about a permanent lockout but does not block the\n" +
     "submission, so rehearse with --dry-run first.",
   baseFields: updateFields,
-  exclusive: [{ label: "the new permission structure", flags: ["file", "json"] }],
-  baseRefine: (input, context) => {
-    if ([input.dryRun, input.signOnly, input.buildOnly].filter(Boolean).length > 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["dryRun"],
-        message: "choose at most one of --dry-run, --sign-only, --build-only",
-      });
-    }
-    if (input.expiration !== undefined && !input.signOnly && !input.buildOnly) {
-      context.addIssue({
-        code: "custom",
-        path: ["expiration"],
-        message: "--expiration is only valid with --sign-only or --build-only",
-      });
-    }
-  },
+  exclusive: [{ label: "the new permission structure", flags: ["file", "json"] }, txModeExclusive],
+  baseRefine: tronExpirationRefine,
   examples: [
     { cmd: "wallet-cli permission update --file permissions.json --dry-run" },
     { cmd: "wallet-cli permission update --file permissions.json --wait --password-stdin" },

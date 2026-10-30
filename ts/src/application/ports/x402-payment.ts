@@ -7,29 +7,53 @@ import type {
   X402PaymentFacts,
 } from "../contracts/x402-payer.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
+import type { BaseUnits } from "../../domain/amounts/index.js";
+import type { X402Scheme } from "../../domain/x402/families.js";
 
-export interface X402PayInput {
-  url: string;
-  method: string;
-  headers: string[];
-  body?: string | Uint8Array;
-  token?: string;
-  asset?: string;
-  decimals?: number;
-  scheme?: "exact" | "exact_gasfree";
-  maxAmount?: string;
-  maxRawAmount?: string;
-  // Check against every offered x402 requirement.
-  expectedPayTo?: string;
-  exactAmount?: string;
-  dryRun?: boolean;
-  out?: string;
-  gasfreeRelay?: string;
-  maxGasfreeFee?: string;
-  maxGasfreeFeeRaw?: string;
+export interface HttpHeader {
+  readonly name: string;
+  readonly value: string;
 }
 
-export type X402RequestInput = Omit<X402PayInput, "dryRun">;
+// The request to an x402 endpoint and the offers its payment may accept; the first match is selected.
+export interface X402PaymentRequest {
+  readonly url: string;
+  readonly method: string;
+  readonly headers: readonly HttpHeader[];
+  readonly body?: string | Uint8Array;
+  // New file for the response bytes, chosen by the user.
+  readonly out?: string;
+  readonly scheme?: X402Scheme;
+  // Registered token symbol.
+  readonly token?: string;
+  // Family-native asset address.
+  readonly asset?: string;
+  // Precision of `asset` when the registry does not know it.
+  readonly decimals?: number;
+  readonly expectedPayTo?: string;
+  readonly exactRawAmount?: BaseUnits;
+  // official, gasfree, or an HTTPS relay URL.
+  readonly gasfreeRelay?: string;
+}
+
+// Ceilings the payer set for the selected requirement.
+export interface X402PayerLimits {
+  // Absent leaves the SDK's built-in spend control in force.
+  readonly maxRawAmount?: BaseUnits;
+  // The payer signer enforces the GasFree fee ceiling; this only records that one is set.
+  readonly gasfreeFeeCapped: boolean;
+}
+
+// The settlement receipt a paid endpoint returned. A field whose wire type is wrong is absent,
+// except `payer`, which keeps such a value as its JSON text so it never matches an address.
+export interface X402Settlement {
+  // True only when the receipt says success: true.
+  readonly success: boolean;
+  // x402 network id as reported.
+  readonly network?: string;
+  readonly transaction?: string;
+  readonly payer?: string;
+}
 
 // JSON as the endpoint returned it.
 export type X402Json =
@@ -61,8 +85,10 @@ export interface X402ResponseResult {
   readonly delivered: boolean;
   readonly settled: boolean;
   readonly payer?: { readonly address: string };
-  // Settlement receipt as the payment response header carried it.
+  // Settlement receipt as the payment response header carried it, for display.
   readonly paymentResponse?: X402Json;
+  // The same receipt, normalized.
+  readonly settlement?: X402Settlement;
   // Present when the body was written to a file instead of returned.
   readonly output?: { readonly path: string; readonly bytes: number };
   // Parsed JSON for a JSON content type, otherwise the text.
@@ -91,6 +117,7 @@ export interface X402PaymentCapabilities {
   readonly approver: Permit2Approver;
   // Checked before any payment or approval leaves the process.
   readonly guard: BroadcastGuard;
+  readonly limits: X402PayerLimits;
 }
 
 export type X402Resource =
@@ -98,7 +125,6 @@ export type X402Resource =
   | {
       kind: "payment-required";
       inspection: X402Inspection;
-      facts: X402PaymentFacts;
       pay(capabilities: X402PaymentCapabilities): Promise<X402PaidResult>;
       close(): Promise<void>;
     };
@@ -107,11 +133,12 @@ export interface X402PaymentPort {
   /** Local configuration checks only; no signing or I/O. */
   validateConfiguration?(
     network: NetworkDescriptor,
-    input: Pick<X402PayInput, "gasfreeRelay">,
+    input: Pick<X402PaymentRequest, "gasfreeRelay">,
   ): void;
+  facts(network: NetworkDescriptor): X402PaymentFacts;
   request(
     scope: TransactionScope,
     network: NetworkDescriptor,
-    input: X402RequestInput,
+    input: X402PaymentRequest,
   ): Promise<X402Resource>;
 }

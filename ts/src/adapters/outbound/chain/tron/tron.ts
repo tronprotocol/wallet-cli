@@ -70,7 +70,7 @@ import {
   normalizeTransactionHex,
   refreshTransactionIdentity,
 } from "./transaction-codec.js";
-import { decodeOperations } from "../../../../domain/permission/index.js";
+import { decodeOperations, isActivePermissionId } from "../../../../domain/permission/index.js";
 import { addressCodec, FAMILIES } from "../../../../domain/family/index.js";
 import {
   FetchHttpTransport,
@@ -517,12 +517,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   // Keep the raw response body for lossless numeric parsing.
-  async #post(path: string, body: unknown): Promise<string> {
+  async #post(path: string, body: unknown, signal?: AbortSignal): Promise<string> {
     return this.#transport.requestText({
       method: "POST",
       path,
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
     });
   }
 
@@ -627,12 +628,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return decodeReceivedAmount(await this.getTransactionInfoById(txid), token, recipient);
   }
 
-  async getTransactionInfoById(txid: string): Promise<TronTxInfo> {
+  async getTransactionInfoById(txid: string, signal?: AbortSignal): Promise<TronTxInfo> {
     // Read full-node inclusion receipts without waiting for solidification.
     return this.#wrap("getTransactionInfo", async () =>
       parseTronTxInfo(
         normalizeTxInfoValue(
-          parseLosslessJson(await this.#post("/wallet/gettransactioninfobyid", { value: txid })),
+          parseLosslessJson(
+            await this.#post("/wallet/gettransactioninfobyid", { value: txid }, signal),
+          ),
         ),
       ),
     );
@@ -2059,7 +2062,7 @@ function permissionGroupFromNode(
 
 function activePermissionFromNode(value: unknown, index: number): ActivePermissionView {
   const group = permissionGroupFromNode(value, `active[${index}]`, index + 2);
-  if (group.id < 2 || group.id > 9) {
+  if (!isActivePermissionId(group.id)) {
     throw new ChainError(
       "provider_error",
       `TRON node returned invalid active[${index}] permission id`,

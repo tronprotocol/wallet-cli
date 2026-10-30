@@ -1,6 +1,7 @@
 import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { expect, it, vi } from "vitest";
 import { X402PaymentClient } from "./payment-client.js";
+import { baseUnitAmount } from "../../../domain/amounts/index.js";
 
 const address = "0x060f7fd9c9622bdcf9f2887c8171d6e6b4b4ba17";
 const network = { id: "eip155:56", family: "evm", chainId: "56" };
@@ -11,6 +12,8 @@ function fixture(
   token = "USDT",
   asset = "0x55d398326f99059fF775485246999027B3197955",
   expectedPayTo = address,
+  // One whole token in the asset's base units.
+  oneToken = "1000000000000000000",
 ) {
   const resolve = vi.fn(() => {
     throw new Error("must not resolve signer");
@@ -47,7 +50,7 @@ function fixture(
       method: "POST",
       headers: [],
       expectedPayTo,
-      exactAmount: "1",
+      exactRawAmount: baseUnitAmount(oneToken),
       maxAmount: "1",
       token,
       dryRun,
@@ -78,10 +81,10 @@ it.each([
     "TSNEPtuCagKEgF2EU4pAKWLzXLz1bekfTE",
   ],
 ])("checks the token precision and destination on %s", async (net, token, asset, to) => {
-  await expect(fixture(to, "1000000", net, token, asset, to).pay(true)).resolves.toMatchObject({
-    paymentRequired: true,
-  });
-  const underpaid = fixture(to, "999999", net, token, asset, to);
+  await expect(
+    fixture(to, "1000000", net, token, asset, to, "1000000").pay(true),
+  ).resolves.toMatchObject({ paymentRequired: true });
+  const underpaid = fixture(to, "999999", net, token, asset, to, "1000000");
   await expect(underpaid.pay()).rejects.toMatchObject({ code: "no_matching_requirement" });
   expect(underpaid.resolve).not.toHaveBeenCalled();
 });

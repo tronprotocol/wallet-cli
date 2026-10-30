@@ -107,7 +107,7 @@ function services() {
   };
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (p: PipelineParams) => {
+    runTron: vi.fn(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       const fee = await p.estimate(tx);
       if (p.mode === "dry-run") return { stage: "plan", tx, fee };

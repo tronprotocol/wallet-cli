@@ -18,12 +18,26 @@ import {
 } from "../../domain/family/index.js";
 import { resembledFamily } from "../../domain/contact/index.js";
 import { KeystoreV3 } from "../../domain/keystore/index.js";
-import type { AccountDescriptor, Bytes, WarningView } from "../../domain/types/index.js";
-import { ExecutionError, UsageError, WalletError } from "../../domain/errors/index.js";
+import type {
+  AccountDescriptor,
+  AccountSelector,
+  Bytes,
+  WarningView,
+} from "../../domain/types/index.js";
+import {
+  errorMessage,
+  ExecutionError,
+  followUp,
+  inputRef,
+  UsageError,
+  WalletError,
+  type UserMessage,
+} from "../../domain/errors/index.js";
 import type { BackupWriter } from "../ports/backup-writer.js";
 import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
 import type { WalletRepository } from "../ports/wallet-repository.js";
+import { AccountSelection } from "../services/account-selection.js";
 
 const mutationStatus = (created: boolean): "created" | "existing" =>
   created ? "created" : "existing";
@@ -64,13 +78,26 @@ export interface DeriveRequest {
 }
 
 export class WalletService {
+  readonly #selection: AccountSelection;
+
   constructor(
     private readonly wallets: WalletRepository,
     private readonly ledger: LedgerDevice,
     private readonly backups: BackupWriter,
     private readonly backupRecordStore: BackupRecordStore,
     private readonly now: () => number = Date.now,
-  ) {}
+  ) {
+    this.#selection = new AccountSelection(wallets);
+  }
+
+  // The account a command acts on: the requested one, else the active one.
+  selectAccount(requested?: string): AccountSelector {
+    return this.#selection.select(requested);
+  }
+
+  accountAddress(account: AccountSelector, family: ChainFamily): string {
+    return this.#selection.address(account, family);
+  }
 
   create(label?: string) {
     const mnemonic = Derivation.generateMnemonic(128);
@@ -119,9 +146,10 @@ export class WalletService {
   }
 
   current(requestedAccount?: string) {
-    const account = requestedAccount ?? this.wallets.activeAccount();
-    if (!account)
-      throw new WalletError("missing_wallet_address", "no active account; import one first");
+    const account = this.#selection.select(
+      requestedAccount,
+      errorMessage`no active account; import one first`,
+    );
     return withoutDerivationPath(this.wallets.describe(account));
   }
 
@@ -146,19 +174,16 @@ export class WalletService {
         if (!/^wlt_[^.]+$/.test(id)) {
           throw new UsageError(
             "invalid_value",
-            `--seed-id takes a seed id (wlt_…), not '${request.seedId}'; copy it from the HD group header in \`list\``,
+            errorMessage`${inputRef("seedId")} takes a seed id (wlt_…), not '${request.seedId}'; copy it from the HD group header in \`${followUp("account-list")}\``,
           );
         }
         return this.wallets.resolveWallet(id);
       }
 
-      const account = request.account ?? this.wallets.activeAccount();
-      if (!account) {
-        throw new WalletError(
-          "missing_wallet_address",
-          "no active account; select an HD account with --account or pass --seed-id",
-        );
-      }
+      const account = this.#selection.select(
+        request.account,
+        errorMessage`no active account; select an HD account with ${inputRef("account")} or pass ${inputRef("seedId")}`,
+      );
       return this.wallets.resolveAccount(account).wallet;
     })();
 
@@ -166,8 +191,8 @@ export class WalletService {
       throw new UsageError(
         "seed_not_found",
         request.seedId !== undefined
-          ? `${wallet.source.type} wallet is not HD; --seed-id must name an HD seed wallet`
-          : `${wallet.source.type} account is not HD; select an account belonging to an HD wallet or pass --seed-id <wlt_…>`,
+          ? errorMessage`${wallet.source.type} wallet is not HD; ${inputRef("seedId")} must name an HD seed wallet`
+          : errorMessage`${wallet.source.type} account is not HD; select an account belonging to an HD wallet or pass ${inputRef("seedId")} <wlt_…>`,
       );
     }
     const result = this.wallets.addAccount(wallet.id, request.index, request.label);
@@ -233,7 +258,7 @@ export class WalletService {
   }
 
   /** `warn` names accounts that this version's default mnemonic recovery will not rediscover. */
-  backup(account: string, requestedPath?: string, warn?: (message: string) => void) {
+  backup(account: string, requestedPath?: string, warn?: (message: UserMessage) => void) {
     const { wallet } = this.wallets.resolveAccount(account);
     const source = wallet.source;
     const seed = source.type === "seed" ? this.wallets.decryptSeed(source.vaultId) : undefined;
@@ -255,20 +280,16 @@ export class WalletService {
       // A mnemonic covers the whole seed; check every account’s recovery path.
       const stranded = legacyAccounts(seed!, source.addresses);
       if (stranded.length > 0 && warn) {
+        const one = stranded.length === 1;
+        const steps = stranded
+          .map((a) => errorMessage`  ${followUp("keystore-backup", `${wallet.id}.${a.index}`)}`)
+          .reduce((all, step) => errorMessage`${all}\n${step}`);
         warn(
-          `this version's default mnemonic recovery will NOT recreate ${stranded
+          errorMessage`this version's default mnemonic recovery will NOT recreate ${stranded
             .map((a) => `${wallet.id}.${a.index} (${a.path})`)
-            .join(", ")} — ` +
-            `${stranded.length === 1 ? "that account was" : "those accounts were"} derived at a TRON path this version no longer produces, ` +
-            `but the recovery phrase can still derive ${stranded.length === 1 ? "that key" : "those keys"} at the listed ${stranded.length === 1 ? "path" : "paths"}. ` +
-            `Export ${stranded.length === 1 ? "it" : "each"} separately before deleting anything:\n` +
-            stranded
-              .map(
-                (a) =>
-                  `  wallet-cli backup ${wallet.id}.${a.index} --keystore --network tron:728126428 --password-stdin`,
-              )
-              .join("\n") +
-            `\nFollow ${LEGACY_DERIVATION_RECOVERY_GUIDE}`,
+            .join(
+              ", ",
+            )} — ${one ? "that account was" : "those accounts were"} derived at a TRON path this version no longer produces, but the recovery phrase can still derive ${one ? "that key" : "those keys"} at the listed ${one ? "path" : "paths"}. Export ${one ? "it" : "each"} separately before deleting anything:\n${steps}\nFollow ${LEGACY_DERIVATION_RECOVERY_GUIDE}`,
         );
       }
     } else if (source.type === "privateKey") {
@@ -284,7 +305,7 @@ export class WalletService {
 
     const file = this.backups.write(descriptor.accountId, requestedPath, payload, "native");
     // Native backups cover every family, including raw private-key backups.
-    this.#recordExport("backup", descriptor, file.out);
+    this.#recordExport("native-export", descriptor, file.out);
     return { ...descriptor, secretType, format: "native" as const, ...file };
   }
 
@@ -307,7 +328,7 @@ export class WalletService {
       KeystoreV3.encrypt(privateKey, masterPassword, keystoreAddress(family, privateKey)),
       "keystore",
     );
-    this.#recordExport("backup --keystore", descriptor, file.out, family);
+    this.#recordExport("keystore-export", descriptor, file.out, family);
     return {
       ...descriptor,
       family,
@@ -407,7 +428,7 @@ export class WalletService {
     } catch (error) {
       throw new ExecutionError(
         "audit_append_failed",
-        `the ${operation === "backup" ? "backup" : "keystore"} file was written to ${out}, but recording it in the export log failed: ${(error as Error).message}`,
+        `the ${operation === "native-export" ? "backup" : "keystore"} file was written to ${out}, but recording it in the export log failed: ${(error as Error).message}`,
         { out, fileMode: "0600" },
       );
     }

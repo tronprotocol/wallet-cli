@@ -14,12 +14,9 @@ import {
   transactionMode,
   transactionRequiresSigner,
 } from "../../../services/transaction-mode.js";
-import {
-  LiquidityTransactions,
-  UNLIMITED_ALLOWANCE,
-  type ApprovalPlan,
-} from "../sunswap/liquidity-transactions.js";
-import { ChainError } from "../../../../domain/errors/index.js";
+import { LiquidityTransactions, type ApprovalPlan } from "../sunswap/liquidity-transactions.js";
+import { UNLIMITED_ALLOWANCE } from "../../../../domain/token/allowance.js";
+import { ChainError, errorMessage, followUp, inputRef } from "../../../../domain/errors/index.js";
 import {
   toBaseUnits,
   type Sun,
@@ -79,7 +76,7 @@ export class SunPumpCurveTradeService {
     if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
     const trxSun = sunAmount(
-      toBaseUnits(input.amount, FAMILIES.tron.nativeDecimals, "TRX", "--trx"),
+      toBaseUnits(input.amount, FAMILIES.tron.nativeDecimals, "TRX", inputRef("trx")),
     );
     const quoted = await this.launchpad.quoteBuy(network, facts.address, trxSun);
 
@@ -125,7 +122,7 @@ export class SunPumpCurveTradeService {
     if (!input.quote) resolveTronAccount(scope);
     const facts = await this.#tradeableToken(network, input.token);
     const tokensIn = baseUnitAmount(
-      toBaseUnits(input.amount, facts.decimals, facts.symbol, "--amount"),
+      toBaseUnits(input.amount, facts.decimals, facts.symbol, inputRef("amount")),
     );
     // Sale proceeds are net; add the fee only to calculate the gross fee rate.
     const quoted = await quoteCurveSale(this.launchpad, network, facts, tokensIn);
@@ -244,7 +241,7 @@ export class SunPumpCurveTradeService {
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -260,7 +257,7 @@ export class SunPumpCurveTradeService {
         ...priced,
       };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(
         scope,
         network,
@@ -321,7 +318,7 @@ function assertTradeable(state: LaunchpadState, token: string): void {
   }
   throw new ChainError(
     "launchpad_trading_closed",
-    `${token} has launched and left the bonding curve; trade it with \`sunswap swap\` instead`,
+    errorMessage`${token} has launched and left the bonding curve; trade it with \`${followUp("sunswap-swap")}\` instead`,
   );
 }
 

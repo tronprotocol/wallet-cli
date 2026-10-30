@@ -3,7 +3,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
 import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
@@ -28,7 +28,7 @@ const scope: TransactionScope = {
 };
 
 function harness(overrides: Partial<TronGateway> = {}) {
-  const captured: TxPipelineParams[] = [];
+  const captured: TronTxPipelineParams[] = [];
   const gateway = {
     encodeTransactionHex: vi.fn(() => "0a02deadbeef"),
     getWitness: async () => ({ address: OWNER, voteCount: "1", url: "u" }),
@@ -79,7 +79,7 @@ function harness(overrides: Partial<TronGateway> = {}) {
 
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: async (params: TxPipelineParams) => {
+    runTron: async (params: TronTxPipelineParams) => {
       captured.push(params);
       return { stage: "submitted", txId: "tx", feeSun: 0 } as never;
     },

@@ -1,6 +1,8 @@
-import type { Globals } from "../adapters/inbound/cli/contracts/index.js";
-import { coerceGlobalValue, globalTokenMaps } from "../adapters/inbound/cli/globals/index.js";
-import type { SecretPaths } from "../adapters/inbound/cli/input/secret/index.js";
+import { hideBin } from "yargs/helpers";
+import type { Globals } from "../contracts/index.js";
+import { coerceGlobalValue, globalTokenMaps } from "./index.js";
+import type { SecretPaths } from "../input/secret/index.js";
+import { UsageError } from "../../../../domain/errors/index.js";
 
 const {
   valueFlags: VALUE_FLAGS,
@@ -12,6 +14,11 @@ export interface InvalidGlobal {
   flag: string;
   value: string;
   reason: string;
+}
+
+// The tokens after the node binary and script path.
+export function commandTokens(argv: string[]): string[] {
+  return hideBin(argv);
 }
 
 // Select output and secret channels before constructing the CLI adapter.
@@ -69,4 +76,18 @@ export function hasCommand(tokens: string[]): boolean {
     return true;
   }
   return false;
+}
+
+export function stdinConflictError(stdinFlags: string[]): UsageError | undefined {
+  if (stdinFlags.length <= 1) return undefined;
+  return new UsageError(
+    "invalid_option",
+    `${stdinFlags.join(" and ")} cannot be combined: only one secret may be read from stdin per run`,
+  );
+}
+
+export function invalidGlobalError(invalid: InvalidGlobal[]): UsageError | undefined {
+  const bad = invalid[0];
+  if (bad === undefined) return undefined;
+  return new UsageError("invalid_value", `invalid ${bad.flag} value "${bad.value}": ${bad.reason}`);
 }

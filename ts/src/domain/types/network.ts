@@ -2,6 +2,8 @@ import type { OutputMode } from "./primitives.js";
 
 export type NetworkId = string; // canonical, e.g. "tron:3448148188"
 export type AccountRef = string; // "wlt_x.0" (HD) / "wlt_k" (privateKey)
+// The account a command acts on: an AccountRef, or an address the account store resolves per family.
+export type AccountSelector = AccountRef | string;
 
 export type FeeModel = "legacy" | "eip1559" | "tron-resource" | "evm-gas";
 

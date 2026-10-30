@@ -12,7 +12,7 @@ export interface ErrorCodeEntry {
 
 export const ERROR_CODES = {
   usage_error: { exit: 2, retry: "never", meaning: "the command line could not be parsed" },
-  unknown_command: { exit: 2, retry: "never", meaning: "no such command path, including under --help / --json-schema" },
+  unknown_command: { exit: 2, retry: "never", meaning: "no such command path, including under help or schema discovery" },
   invalid_option: { exit: 2, retry: "never", meaning: "an option is not accepted here, or contradicts another one" },
   missing_option: { exit: 2, retry: "never", meaning: "a required option was not given" },
   invalid_value: { exit: "either", retry: "never", meaning: "an option's value is not of the shape that option takes" },
@@ -86,7 +86,7 @@ export const ERROR_CODES = {
   payer_mismatch: { exit: 1, retry: "never", meaning: "the payload names a payer other than the signing account" },
   fee_cap_exceeded: { exit: 1, retry: "never", meaning: "the payload's fee exceeds the ceiling the caller set" },
   signed_payload_mismatch: { exit: 1, retry: "never", meaning: "the signature is not for the struct that was requested" },
-  dry_run_violation: { exit: 1, retry: "never", meaning: "a --dry-run path attempted to broadcast; the attempt was barred" },
+  dry_run_violation: { exit: 1, retry: "never", meaning: "a dry-run path attempted to broadcast; the attempt was barred" },
   invalid_permission: { exit: 2, retry: "never", meaning: "no such permission group on the account, or it cannot be used here" },
   not_authorized: { exit: 1, retry: "never", meaning: "the account is not permitted to perform this operation" },
   already_signed: { exit: 1, retry: "never", meaning: "this account has already signed the transaction" },

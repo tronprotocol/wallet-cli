@@ -7,6 +7,7 @@ import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
 import { maskCredentials } from "./mask.js";
+import { cliMessage, errorEnvelope } from "./errors.js";
 
 export interface OutputFormatter {
   // Return the result frame for streams.result.
@@ -50,7 +51,12 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
   }
 
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void {
-    const env = OutputEnvelope.error(ctx?.commandId ?? "", ctx?.net, err.toEnvelope(), this.meta());
+    const env = OutputEnvelope.error(
+      ctx?.commandId ?? "",
+      ctx?.net,
+      errorEnvelope(err),
+      this.meta(),
+    );
     this.streams.result(maskCredentials(toJson(env), this.credentials));
   }
 
@@ -121,7 +127,7 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   }
 
   error(err: CliError): void {
-    const line = `error [${err.code}]: ${err.textMessage}`;
+    const line = `error [${err.code}]: ${cliMessage(err.userMessage).textMessage}`;
     const candidates = renderErrorDetails(err.details);
     const text = candidates ? `${line}\n${candidates}` : line;
     this.streams.errorLine(sanitizeText(maskCredentials(text, this.credentials)));

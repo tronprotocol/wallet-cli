@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { decodeEvmApprove, toX402Wallet, type X402WalletOptions } from "./signer-bridge.js";
+import {
+  decodeEvmApprove,
+  signEvmPaymentTransaction,
+  signTronPermit2Approval,
+  toX402Wallet,
+  type X402WalletOptions,
+} from "./signer-bridge.js";
 import {
   withPayerPolicy,
   type PayerPolicy,
@@ -52,10 +58,11 @@ it.each([null, "0x1234", []])(
 // The production payer: the application's policy around the signer, then the SDK bridge.
 const bridged = (
   payer: UnguardedPayer,
-  policy: PayerPolicy & Omit<X402WalletOptions, "family" | "feeCapped">,
+  policy: PayerPolicy & Omit<X402WalletOptions, "signTransaction" | "feeCapped">,
 ) =>
   toX402Wallet(withPayerPolicy(payer, policy), {
     ...policy,
+    signTransaction: policy.family === "evm" ? signEvmPaymentTransaction : signTronPermit2Approval,
     feeCapped: policy.maxGasfreeFee !== undefined || policy.maxGasfreeFeeRaw !== undefined,
   });
 

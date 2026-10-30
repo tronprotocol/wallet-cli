@@ -1,10 +1,9 @@
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { evmFeeMode } from "../../../domain/fees/evm-gas.js";
+import { NATIVE_TRANSFER_GAS, nativeTransferCostWei } from "../../../domain/evm/index.js";
 import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-
-const NATIVE_TRANSFER_GAS = 21_000;
 
 function decimal(value: unknown): number | null {
   try {
@@ -41,7 +40,7 @@ export class EvmChainService {
       ...(eip1559 ? { baseFeeWei: fee.baseFeeWei, priorityFeeWei } : {}),
       gasPriceWei,
       transferGas: NATIVE_TRANSFER_GAS,
-      transferCostWei: (BigInt(gasPriceWei) * BigInt(NATIVE_TRANSFER_GAS)).toString(10),
+      transferCostWei: nativeTransferCostWei(gasPriceWei),
     };
   }
 

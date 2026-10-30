@@ -63,3 +63,22 @@ describe("transaction-info realised amounts survive as exact decimal strings", (
     expect((await client().getTransactionInfoById("abc")).blockNumber).toBeUndefined();
   });
 });
+
+describe("transaction-info polling honours the caller's signal", () => {
+  it("does not send the request once the signal has aborted", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        init.signal?.throwIfAborted();
+        sent.push(init.body);
+        return { ok: true, status: 200, text: async () => "{}" } as never;
+      }),
+    );
+
+    await expect(client().getTransactionInfoById("abc", AbortSignal.abort())).rejects.toMatchObject(
+      { code: "timeout" },
+    );
+    expect(sent).toEqual([]);
+  });
+});

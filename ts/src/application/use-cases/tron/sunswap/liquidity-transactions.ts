@@ -30,12 +30,8 @@ import {
   ExecutionError,
   UsageError,
 } from "../../../../domain/errors/index.js";
-
-// 100 TRX.
-export const DEFAULT_FEE_LIMIT_SUN = sunAmount("100000000");
-
-// Max uint256: a TRC20 allowance that spending never lowers.
-export const UNLIMITED_ALLOWANCE = baseUnitAmount(2n ** 256n - 1n);
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
+import { isUnlimitedAllowance } from "../../../../domain/token/allowance.js";
 
 export interface ApprovalPlan {
   readonly token: string;
@@ -250,7 +246,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     options: { mode: ResolvedTransactionMode; estimable: boolean; feeLimit?: Sun },
   ): Promise<TxOutcome> {
     const gateway = this.gateways.get(network, "tron");
-    return this.pipeline.run({
+    return this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -294,7 +290,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
         decimals: side.facts.decimals,
         spender,
         amount,
-        isUnlimited: amount === UNLIMITED_ALLOWANCE,
+        isUnlimited: isUnlimitedAllowance(amount),
         currentAllowance: current,
       });
     }
@@ -396,13 +392,9 @@ function approvalProgressError(error: unknown, approvalTxIds: readonly string[])
   if (approvalTxIds.length === 0) return error;
   const classified = classifyError(error);
   const ErrorType = classified.kind === "usage" ? UsageError : ExecutionError;
-  const progress = errorMessage`; approval transactions already submitted: ${approvalTxIds.join(", ")}`;
   return new ErrorType(
     classified.code,
-    {
-      message: classified.message + progress.message,
-      textMessage: classified.textMessage + progress.textMessage,
-    },
+    errorMessage`${classified.userMessage}; approval transactions already submitted: ${approvalTxIds.join(", ")}`,
     {
       ...classified.details,
       approvalTxIds: [...approvalTxIds],

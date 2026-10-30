@@ -9,7 +9,6 @@ import type {
   TronTransactionArtifact,
   TypedDataPayload,
 } from "../../../domain/types/index.js";
-import type { ChainFamily } from "../../../domain/family/chain-family.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { EvmAddress, tronHexFromHash20, tronHexToBase58 } from "../../../domain/address/index.js";
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
@@ -23,7 +22,12 @@ export interface X402Wallet {
 }
 
 export interface X402WalletOptions {
-  readonly family: ChainFamily;
+  // The payment family's way to sign a transaction the SDK asks for.
+  readonly signTransaction: (
+    payer: PayerSigner,
+    tx: unknown,
+    options: X402WalletOptions,
+  ) => Promise<unknown>;
   // Whether the payment request set a GasFree fee ceiling.
   readonly feeCapped?: boolean;
   readonly warn?: (message: string) => void;
@@ -137,23 +141,31 @@ export function toX402Wallet(payer: PayerSigner, options: X402WalletOptions): X4
       warnUncappedFee(payload, options);
       return prefixedHex((await payer.signTypedData(payload)).signature);
     },
-    async signTransaction(tx) {
-      if (options.family === "evm") {
-        const input = evmTransactionInput(tx);
-        return evmRawTransaction(await payer.signTransaction(input, decodeEvmApprove(input)));
-      }
-      // The signer checks the SDK's transaction against its raw_data_hex before signing.
-      const transaction = tx as TronTransactionArtifact;
-      const { signed, approval } = await payer.signPermit2Approval(
-        transaction,
-        decodeTronApprove(transaction),
-      );
-      // The signer verifies txID against raw_data_hex.
-      const txId = (signed as { txID?: unknown })?.txID ?? (tx as { txID?: unknown })?.txID;
-      if (typeof txId === "string") options.onApprovalSigned?.({ ...approval, txId });
-      return signed;
-    },
+    signTransaction: (tx) => options.signTransaction(payer, tx, options),
   };
+}
+
+// EVM: the SDK's transaction is the payment's own approve, signed under the payer policy.
+export async function signEvmPaymentTransaction(payer: PayerSigner, tx: unknown): Promise<string> {
+  const input = evmTransactionInput(tx);
+  return evmRawTransaction(await payer.signTransaction(input, decodeEvmApprove(input)));
+}
+
+// TRON: the SDK's transaction is a Permit2 approval; the signer checks it against raw_data_hex.
+export async function signTronPermit2Approval(
+  payer: PayerSigner,
+  tx: unknown,
+  options: Pick<X402WalletOptions, "onApprovalSigned">,
+): Promise<unknown> {
+  const transaction = tx as TronTransactionArtifact;
+  const { signed, approval } = await payer.signPermit2Approval(
+    transaction,
+    decodeTronApprove(transaction),
+  );
+  // The signer verifies txID against raw_data_hex.
+  const txId = (signed as { txID?: unknown })?.txID ?? (tx as { txID?: unknown })?.txID;
+  if (typeof txId === "string") options.onApprovalSigned?.({ ...approval, txId });
+  return signed;
 }
 
 // x402 uses viem's gas; wallet signers use ethers' gasLimit.

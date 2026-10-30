@@ -1,4 +1,4 @@
-import { sameX402Network } from "../../../domain/x402/network-id.js";
+import { sameX402Network, x402NetworkFamily } from "../../../domain/x402/network-id.js";
 import { isTxHash } from "../../../domain/family/index.js";
 export function successfulSettlement(value: unknown, expectedNetwork?: string): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -6,5 +6,6 @@ export function successfulSettlement(value: unknown, expectedNetwork?: string): 
   if (settlement.success !== true || typeof settlement.network !== "string") return false;
   if (expectedNetwork && !sameX402Network(settlement.network, expectedNetwork)) return false;
   if (typeof settlement.transaction !== "string") return false;
-  return isTxHash(settlement.network.startsWith("tron:") ? "tron" : "evm", settlement.transaction);
+  const family = x402NetworkFamily(settlement.network);
+  return family !== undefined && isTxHash(family, settlement.transaction);
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { buildExecutionContext, RuntimeDeps } from "./index.js";
 import { StreamManager } from "../stream/index.js";
 import { createOutputFormatter } from "../output/index.js";
@@ -35,56 +35,38 @@ describe("ExecutionContext.emit (progress events)", () => {
   });
 });
 
-describe("ExecutionContext direct address target", () => {
-  it("resolves a valid --account address without requiring a local wallet record", () => {
-    const address = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
-    const { ctx } = ctxWith("json", { account: address });
-    expect(ctx.activeAccount).toBe(address);
-    expect(ctx.resolveAddress("tron")).toBe(address);
-  });
-});
-
-describe("resolveAddress on a family the account does not have", () => {
-  const EVM = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
-
-  function ctxForEvmWatch() {
+describe("ExecutionContext account selection", () => {
+  function ctxWithAccounts(account?: string) {
     const sm = new StreamManager(
       "json",
       false,
       () => {},
       () => {},
     );
+    const accounts = {
+      selectAccount: vi.fn((requested?: string) => requested ?? "wlt_a.0"),
+      accountAddress: vi.fn((selected: string, family: string) => `${family}:${selected}`),
+    };
     const deps = {
       config: { timeoutMs: 1 },
       streams: sm,
       formatter: createOutputFormatter("json", sm, 0),
-      keystore: {
-        activeAccount: () => "wlt_w",
-        resolveAccount: () => ({
-          wallet: { id: "wlt_w", source: { type: "watch", family: "evm", address: EVM } },
-          index: -1,
-        }),
-      },
+      accounts,
     } as unknown as RuntimeDeps;
-    return buildExecutionContext({ output: "json", verbose: false } as Globals, deps);
+    const globals = { output: "json", verbose: false, account } as Globals;
+    return { ctx: buildExecutionContext(globals, deps), accounts };
   }
 
-  it("reports family_mismatch rather than a bare missing address", () => {
-    let code: string | undefined;
-    try {
-      ctxForEvmWatch().resolveAddress("tron");
-    } catch (e) {
-      code = (e as { code?: string }).code;
-    }
-    expect(code).toBe("family_mismatch");
+  it("asks the account use case once, with the --account value", () => {
+    const { ctx, accounts } = ctxWithAccounts("main");
+    expect(ctx.activeAccount).toBe("main");
+    expect(ctx.activeAccount).toBe("main");
+    expect(accounts.selectAccount).toHaveBeenCalledExactlyOnceWith("main");
   });
 
-  it("names the account's own family and how to switch", () => {
-    expect(() => ctxForEvmWatch().resolveAddress("tron")).toThrow(/evm/);
-    expect(() => ctxForEvmWatch().resolveAddress("tron")).toThrow(/--network|defaultNetwork/);
-  });
-
-  it("still returns the address for a family the account does have", () => {
-    expect(ctxForEvmWatch().resolveAddress("evm")).toBe(EVM);
+  it("resolves an address through the selected account", () => {
+    const { ctx, accounts } = ctxWithAccounts();
+    expect(ctx.resolveAddress("tron")).toBe("tron:wlt_a.0");
+    expect(accounts.accountAddress).toHaveBeenCalledWith("wlt_a.0", "tron");
   });
 });

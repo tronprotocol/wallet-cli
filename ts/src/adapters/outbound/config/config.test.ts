@@ -3,6 +3,7 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigLoader, NetworkRegistry } from "./index.js";
+import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
 
 function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
@@ -11,6 +12,18 @@ function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   if (mode !== undefined) chmodSync(path, mode);
   return { ...process.env, WALLET_CLI_HOME: root };
 }
+
+describe("ConfigLoader defaults", () => {
+  it("applies the application defaults when config.yaml sets none", () => {
+    const config = ConfigLoader.load(envWithConfig(""));
+    expect({
+      defaultNetwork: config.defaultNetwork,
+      defaultOutput: config.defaultOutput,
+      timeoutMs: config.timeoutMs,
+      waitTimeoutMs: config.waitTimeoutMs,
+    }).toEqual(CONFIG_DEFAULTS);
+  });
+});
 
 describe("ConfigLoader defaultNetwork", () => {
   it("loads explicit defaultNetwork", () => {

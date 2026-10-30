@@ -4,7 +4,7 @@ import type {
   NetworkDescriptor,
 } from "../../../domain/types/index.js";
 import { planEvmFee } from "../../../domain/fees/evm-gas.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, UsageError, type UserMessage } from "../../../domain/errors/index.js";
 import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
 import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
 import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
@@ -38,7 +38,7 @@ export interface EvmBuildRequest {
 export interface EvmBuildResult {
   tx: EvmUnsignedTx;
   fee: EvmFeeReport;
-  warnings?: string[];
+  warnings?: Array<string | UserMessage>;
 }
 
 function overridesOf(input: EvmGasInput) {
@@ -85,7 +85,7 @@ export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmB
     declaredFeeModel: network.feeModel,
     overrides: overridesOf(input),
   });
-  const warnings = [...(plan.warnings ?? [])];
+  const warnings: Array<string | UserMessage> = [...(plan.warnings ?? [])];
   if (
     input.nonce !== undefined &&
     pendingNonce !== undefined &&

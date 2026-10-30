@@ -15,9 +15,9 @@ import { resolveTronAccount } from "../services/tron-account.js";
 import { tronConfirmation } from "../services/tron-confirmation.js";
 import { X402_APPROVE_FEE_LIMIT_SUN } from "../services/x402/payer-policy.js";
 import { assertTronSignerAuthorized, tronTransactionHooks } from "./tron/multisig-authorization.js";
+import { UNLIMITED_ALLOWANCE } from "../../domain/token/allowance.js";
 
 const APPROVE = "approve(address,uint256)";
-const MAX_UINT256 = ((1n << 256n) - 1n).toString();
 
 // The payment is signed only after the approval is confirmed and the allowance has landed.
 export class X402Permit2Approvals {
@@ -56,18 +56,16 @@ export class X402Permit2Approvals {
     const owner = resolveTronAccount(scope);
     const parameters: TronContractParameter[] = [
       { type: "address", value: request.spender },
-      { type: "uint256", value: MAX_UINT256 },
+      { type: "uint256", value: UNLIMITED_ALLOWANCE },
     ];
     const approvalScope = waitingScope(scope);
     scope.emit({ type: "activity", message: "Sending the one-time Permit2 approval…" });
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: approvalScope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       mode: "broadcast",
-      dryRun: false,
-      broadcast: true,
       permissionId: 0,
       ...tronTransactionHooks(gateway),
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),

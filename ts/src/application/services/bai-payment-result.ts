@@ -1,15 +1,15 @@
 import { CHAIN_FAMILIES, isTxHash, sameAddress } from "../../domain/family/index.js";
 import { TransportError } from "../../domain/errors/index.js";
-import { sameX402Network } from "../../domain/x402/network-id.js";
+import { sameX402Network, x402NetworkFamily } from "../../domain/x402/network-id.js";
 import type { X402ResponseResult } from "../ports/x402-payment.js";
 
 /** Only a successful x402 settlement can be reported to B.AI as a payment. */
 export function baiPaymentResult(
-  payment: Pick<X402ResponseResult, "settled" | "payer" | "paymentResponse">,
+  payment: Pick<X402ResponseResult, "settled" | "payer" | "settlement">,
   network: string,
 ) {
-  const settlement = record(payment.paymentResponse);
-  const payer = record(payment.payer)?.address;
+  const { settlement } = payment;
+  const payer = payment.payer?.address;
   const txHash = settlement?.transaction;
   const invalid = (reason: string) =>
     invalidSettlement(reason, txHash, settlement?.network, network);
@@ -18,13 +18,13 @@ export function baiPaymentResult(
     throw invalid("settlement_unconfirmed");
   if (typeof settlement.network !== "string" || !sameX402Network(settlement.network, network))
     throw invalid("network_mismatch");
-  if (typeof txHash !== "string" || !isTxHash(network.startsWith("tron:") ? "tron" : "evm", txHash))
+  const family = x402NetworkFamily(network);
+  if (typeof txHash !== "string" || family === undefined || !isTxHash(family, txHash))
     throw invalid("invalid_transaction_hash");
   if (typeof payer !== "string" || !payer) throw invalid("missing_payer");
   if (
     settlement.payer !== undefined &&
-    (typeof settlement.payer !== "string" ||
-      !sameAddress(network.startsWith("eip155:") ? "evm" : "tron", settlement.payer, payer))
+    (typeof settlement.payer !== "string" || !sameAddress(family, settlement.payer, payer))
   ) {
     throw invalid("payer_mismatch");
   }
@@ -58,10 +58,4 @@ function invalidSettlement(
         : {}),
     },
   );
-}
-
-function record(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
 }

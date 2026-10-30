@@ -51,7 +51,7 @@ describe("EvmContractService.call", () => {
   });
 });
 
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, EvmTxPipelineParams } from "../../services/pipeline/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 
 function scope(): TransactionScope {
@@ -84,7 +84,7 @@ function writeHarness() {
   const built: Record<string, unknown>[] = [];
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (params: TxPipelineParams) => {
+    runEvm: vi.fn(async (params: EvmTxPipelineParams) => {
       const tx = (await params.build(OWNER)) as Record<string, unknown>;
       built.push(tx);
       return { stage: "plan" as const, tx, fee: await params.estimate(tx) };
@@ -154,7 +154,6 @@ describe("EvmContractService.deploy", () => {
       source: "signature" as const,
       signature: "constructor(uint256)",
       values: [42],
-      flag: "--constructor-args",
     };
 
     await service.deploy(scope(), net, { bytecode: "0x6080", constructorArgs } as never);
@@ -202,7 +201,7 @@ describe("EvmContractService.send — approve", () => {
     };
     const pipeline = {
       assertCanSign: vi.fn(),
-      run: vi.fn(async (params: TxPipelineParams) => ({
+      runEvm: vi.fn(async (params: EvmTxPipelineParams) => ({
         stage: "plan" as const,
         tx: await params.build(OWNER),
         fee: {},

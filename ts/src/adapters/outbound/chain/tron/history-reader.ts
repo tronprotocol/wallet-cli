@@ -87,6 +87,7 @@ export class TronGridHistoryReader implements HistoryPort {
       from: record?.from,
       to: record?.to,
       counterparty: record?.from === owner ? record?.to : record?.from,
+      // TRC20 rows are Transfer events, which only successful executions emit.
       status: "ok",
     };
   }
@@ -122,8 +123,8 @@ function historyRecords(text: string): unknown[] {
   } catch {
     body = undefined;
   }
+  // TronGrid lists always carry a data array, empty when there is no history.
   const data = body && typeof body === "object" ? (body as { data?: unknown }).data : null;
-  if (data === undefined) return [];
   if (!Array.isArray(data)) {
     throw new ChainError("invalid_node_response", "TRON account history response is malformed");
   }

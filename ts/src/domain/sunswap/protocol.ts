@@ -1,5 +1,5 @@
 // Unknown or lowercase scopes return empty API results; validate and normalize locally.
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 
 export const SUNSWAP_PROTOCOLS = ["ALL", "V1", "V1_5", "V2", "V3", "V4", "CURVE"] as const;
 
@@ -19,7 +19,10 @@ export function normaliseProtocol(
 ): SunSwapProtocol {
   const upper = value.trim().toUpperCase();
   if (!permitted.includes(upper as SunSwapProtocol)) {
-    throw new UsageError("invalid_value", `--protocol must be one of ${permitted.join(", ")}`);
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("protocol")} must be one of ${permitted.join(", ")}`,
+    );
   }
   return upper as SunSwapProtocol;
 }

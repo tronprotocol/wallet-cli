@@ -2,17 +2,18 @@ import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs
 import { join } from "node:path";
 import type { ContactRepository } from "../../../application/ports/contact-repository.js";
 import type { ChainFamily, ContactEntry } from "../../../domain/types/index.js";
-import { ExecutionError, UsageError } from "../../../domain/errors/index.js";
+import { ExecutionError } from "../../../domain/errors/index.js";
 import {
-  assertContactAddable,
   createContact,
   hasDuplicateContactName,
+  MAX_CONTACTS,
+  withContact,
+  withoutContact,
 } from "../../../domain/contact/index.js";
 import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 
 const MAX_CONTACT_FILE_BYTES = 4 * 1024 * 1024;
-const MAX_CONTACTS = 10_000;
 
 interface ContactDocument {
   version: 1;
@@ -32,16 +33,11 @@ export class ContactBook implements ContactRepository {
   add(entry: ContactEntry): ContactEntry {
     return this.store.withLock(this.#path, () => {
       const document = this.#read();
-      assertContactAddable(allEntries(document), entry);
-      const entries = document.entries[entry.family] ?? [];
-      if (entries.length >= MAX_CONTACTS) {
-        throw new UsageError(
-          "limit_exceeded",
-          `contact book cannot exceed ${MAX_CONTACTS} entries`,
-        );
-      }
-      entries.push(entry);
-      document.entries[entry.family] = entries.sort((a, b) => a.nameKey.localeCompare(b.nameKey));
+      document.entries[entry.family] = withContact(
+        allEntries(document),
+        document.entries[entry.family] ?? [],
+        entry,
+      );
       this.store.writeJson(this.#path, document);
       return entry;
     });
@@ -70,15 +66,10 @@ export class ContactBook implements ContactRepository {
   remove(family: ChainFamily, nameKey: string): ContactEntry {
     return this.store.withLock(this.#path, () => {
       const document = this.#read();
-      const entries = document.entries[family] ?? [];
-      const index = entries.findIndex((entry) => entry.nameKey === nameKey);
-      if (index < 0) {
-        throw new UsageError("contact_not_found", `contact not found: ${nameKey}`);
-      }
-      const [removed] = entries.splice(index, 1);
+      const { entries, removed } = withoutContact(document.entries[family] ?? [], nameKey);
       document.entries[family] = entries;
       this.store.writeJson(this.#path, document);
-      return removed!;
+      return removed;
     });
   }
 

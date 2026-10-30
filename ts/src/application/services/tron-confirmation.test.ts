@@ -4,18 +4,27 @@ import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { TronGateway } from "../ports/chain/tron-gateway.js";
 import type { TronTransactionArtifact } from "../../domain/types/index.js";
 import { parseTronTxInfo } from "../../adapters/outbound/chain/tron/tron-responses.js";
+import { cliMessage } from "../../adapters/inbound/cli/output/errors.js";
 
-function scope(over: Partial<TransactionScope> = {}): TransactionScope & { warnings: string[] } {
+function scope(
+  over: Partial<TransactionScope> = {},
+): TransactionScope & { warnings: string[]; cliWarnings: string[] } {
   const warnings: string[] = [];
+  const cliWarnings: string[] = [];
   return {
     warnings,
+    cliWarnings,
     wait: true,
     waitTimeoutMs: 10,
     timeoutMs: 1000,
     activeAccount: {} as never,
     resolveAddress: () => "T",
     emit: () => {},
-    warn: (m: string) => warnings.push(m),
+    warn: (m) => {
+      const text = typeof m === "string" || !("code" in m) ? m : m.message;
+      warnings.push(typeof text === "string" ? text : text.message);
+      cliWarnings.push(typeof text === "string" ? text : cliMessage(text).message);
+    },
     ...over,
   };
 }
@@ -54,6 +63,9 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
     expect(s.warnings).toHaveLength(1);
     expect(s.warnings[0]).toContain("not confirmed");
     expect(s.warnings[0]).toContain("abc");
+    expect(s.cliWarnings[0]).toBe(
+      "--wait: abc not confirmed within 0ms; returning submitted (it may still confirm on-chain)",
+    );
   });
 
   it("wait requested but broadcast returned no txid → submitted + a warning", async () => {
@@ -67,6 +79,9 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toHaveLength(1);
     expect(s.warnings[0]).toContain("no txid");
+    expect(s.cliWarnings[0]).toBe(
+      "--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)",
+    );
   });
 
   it("no --wait → submitted, no warning (silence is correct here)", async () => {
@@ -209,5 +224,23 @@ describe("tronConfirmation requires an execution result for contract execution",
     );
     expect(out.stage).toBe("submitted");
     expect(s.warnings[0]).toContain("not confirmed");
+  });
+});
+
+describe("tronConfirmation bounds each poll by the wait budget", () => {
+  it("passes the remaining budget to the node call and ends the wait when it aborts", async () => {
+    const signals: Array<AbortSignal | undefined> = [];
+    const g = {
+      getTransactionInfoById: (_id: string, signal?: AbortSignal) => {
+        signals.push(signal);
+        return new Promise((_resolve, reject) =>
+          signal?.addEventListener("abort", () => reject(new Error("aborted"))),
+        );
+      },
+    } as unknown as TronGateway;
+
+    expect(await tronConfirmation(g, scope({ waitTimeoutMs: 30 }))("abc", NATIVE)).toBeUndefined();
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(true);
   });
 });

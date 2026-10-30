@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { composeCliRuntime } from "./composition.js";
 import type { NetworkDescriptor } from "../domain/types/index.js";
 import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
-import { X402HttpServer } from "../adapters/outbound/x402/server.js";
+import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
+import { paywallTerms } from "../application/use-cases/x402-paywall.js";
 import { sunpumpApiBaseUrl } from "../adapters/outbound/sunpump/api-transport.js";
 import { SunPumpLaunchpadContracts } from "../adapters/outbound/sunpump/launchpad-contracts.js";
 import { requireBaiChain } from "../application/use-cases/bai-wallet-binding.js";
@@ -26,15 +27,20 @@ const ADAPTER_GATES: Record<string, Probe> = {
   "sunpump.market": (n) => sunpumpApiBaseUrl(n),
   "sunpump.launch": (n) => sunpumpApiBaseUrl(n),
   "sunpump.curve": (n) => new SunPumpLaunchpadContracts({} as never).launchpadAddress(n),
-  "x402.serve": (n, explicit) =>
-    new X402HttpServer().validate(n, {
-      payTo: PAY_TO[n.family],
-      scheme: "exact",
-      host: "127.0.0.1",
-      port: 4020,
-      facilitatorUrl: "https://facilitator.example",
-      ...(explicit ? { asset: ASSET[n.family], decimals: 6 } : {}),
-    }),
+  "x402.serve": (n, explicit) => {
+    paywallTerms(
+      n,
+      {
+        payTo: PAY_TO[n.family],
+        scheme: "exact",
+        host: "127.0.0.1",
+        port: 4020,
+        facilitatorUrl: "https://facilitator.example",
+        ...(explicit ? { asset: ASSET[n.family], decimals: 6 } : {}),
+      },
+      new X402FacilitatorClient(),
+    );
+  },
 };
 
 let previousHome: string | undefined;

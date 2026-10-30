@@ -53,7 +53,7 @@ export interface EvmGateway extends NativeBalanceReader<Wei>, Broadcaster {
   // Null when the node has no record of the hash.
   getTransactionByHash(hash: string): Promise<EvmTxView | null>;
   // Normalized mined receipt, or null while pending; success reflects execution status.
-  getTransactionReceipt(hash: string): Promise<EvmReceipt | null>;
+  getTransactionReceipt(hash: string, signal?: AbortSignal): Promise<EvmReceipt | null>;
   // Input and result are hex DATA.
   call(to: string, data: string): Promise<string>;
   // Returns raw hex DATA.
@@ -126,12 +126,13 @@ export interface EvmRawTransaction {
   readonly transaction: EvmUnsignedTx;
 }
 
-// Types come from the ABI or explicit signature, never inferred from values.
-// flag identifies the signature option in encoding errors.
+// Types come from the ABI, an explicit signature, or the types given with each value; never
+// inferred from values.
 export type DeployConstructorArgs =
   | { source: "none" }
   | { source: "abi"; abi: unknown; values: unknown[] }
-  | { source: "signature"; signature: string; values: unknown[]; flag: string };
+  | { source: "signature"; signature: string; values: unknown[] }
+  | { source: "typed-params"; types: string[]; values: unknown[] };
 
 export interface ChainGatewayMap {
   tron: TronGateway;

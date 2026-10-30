@@ -11,6 +11,8 @@ export interface HttpRequest {
   readonly path?: string;
   readonly body?: string;
   readonly headers?: Readonly<Record<string, string>>;
+  // Caller deadline on top of the endpoint timeout; an aborted request is never sent.
+  readonly signal?: AbortSignal;
 }
 
 export interface HttpTransport {
@@ -81,7 +83,9 @@ export class FetchHttpTransport implements HttpTransport {
         method: request.method,
         headers,
         body: request.body,
-        signal: AbortSignal.timeout(this.config.timeoutMs),
+        signal: request.signal
+          ? AbortSignal.any([AbortSignal.timeout(this.config.timeoutMs), request.signal])
+          : AbortSignal.timeout(this.config.timeoutMs),
         ...(Object.keys(this.config.headers).length === 0 ? {} : { redirect: "error" }),
       });
       if (!response.ok) throw new HttpTransportError("http_status", response.status);

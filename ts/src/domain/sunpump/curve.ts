@@ -1,4 +1,4 @@
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError, type InputRef } from "../errors/index.js";
 
 export const LAUNCHPAD_STATE = {
   NOT_EXIST: 0,
@@ -19,22 +19,25 @@ const MIN_SLIPPAGE_BIPS = 1;
 const MAX_SLIPPAGE_BIPS = 5000;
 
 // Converts a decimal fraction to basis points without floating-point rounding.
-export function slippageToBips(value: string, flag = "--slippage"): number {
+export function slippageToBips(value: string, input: InputRef = inputRef("slippage")): number {
   const trimmed = value.trim();
   if (!/^\d*\.?\d+$/.test(trimmed)) {
-    throw new UsageError("invalid_value", `${flag} must be a decimal fraction, e.g. 0.05 for 5%`);
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${input} must be a decimal fraction, e.g. 0.05 for 5%`,
+    );
   }
   const [whole, fraction = ""] = trimmed.split(".");
   // Slippage input uses whole basis points; reject finer precision instead of rounding.
   if (fraction.length > 4) {
     throw new UsageError(
       "invalid_value",
-      `${flag} is finer than one basis point (0.0001), which the contract cannot express`,
+      errorMessage`${input} is finer than one basis point (0.0001), which the contract cannot express`,
     );
   }
   const bips = Number(`${whole || "0"}${fraction.padEnd(4, "0")}`);
   if (bips < MIN_SLIPPAGE_BIPS || bips > MAX_SLIPPAGE_BIPS) {
-    throw new UsageError("invalid_value", `${flag} must be between 0.0001 and 0.5`);
+    throw new UsageError("invalid_value", errorMessage`${input} must be between 0.0001 and 0.5`);
   }
   return bips;
 }
@@ -51,13 +54,16 @@ export function selectFloor(
   fallback: string = DEFAULT_CURVE_SLIPPAGE,
 ): { kind: "slippage"; bips: number } | { kind: "min-out"; amount: string } {
   if (slippage !== undefined && minOut !== undefined) {
-    throw new UsageError("invalid_option", "choose at most one of --slippage and --min-out");
+    throw new UsageError(
+      "invalid_option",
+      errorMessage`choose at most one of ${inputRef("slippage")} and ${inputRef("minOut")}`,
+    );
   }
   if (minOut !== undefined) {
     if (!/^\d+$/.test(minOut.trim())) {
       throw new UsageError(
         "invalid_amount",
-        "--min-out must be a whole number in the token's smallest unit",
+        errorMessage`${inputRef("minOut")} must be a whole number in the token's smallest unit`,
       );
     }
     return { kind: "min-out", amount: minOut.trim() };

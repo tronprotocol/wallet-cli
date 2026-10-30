@@ -1,15 +1,14 @@
 import { fork, spawn } from "node:child_process";
-import { mkdtemp, open } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { ExecutionError } from "../domain/errors/index.js";
 import type { X402ServeDetails, X402ServerHandle } from "../application/ports/x402-server.js";
+import type { X402DaemonLog } from "../adapters/outbound/x402/daemon-log.js";
 
 // Announce the detached daemon only after its listener is ready.
-export async function startX402Daemon(): Promise<X402ServerHandle> {
-  const directory = await mkdtemp(join(tmpdir(), "wallet-cli-x402-"));
-  const logFile = join(directory, "access.log");
-  const log = await open(logFile, "wx", 0o600);
+export async function startX402Daemon(
+  createLog: () => Promise<X402DaemonLog>,
+): Promise<X402ServerHandle> {
+  const log = await createLog();
+  const logFile = log.path;
   // Bun executables have a virtual entrypoint that cannot be forked as a script.
   const standalone =
     Boolean(process.versions.bun) &&

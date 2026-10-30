@@ -5,7 +5,7 @@ import type { TronStakeService } from "../../../../application/use-cases/tron/st
 import { RESOURCES } from "../../../../domain/resources/index.js";
 import { Schemas } from "../schemas/index.js";
 import { ciEnum } from "../arity/index.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { txModeExclusive, txModeFields, tronTxModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 const resourceField = (description: string) =>
@@ -42,6 +42,7 @@ function stakeCommand(
       summary,
       requires: options.requires,
       baseFields: fields,
+      exclusive: [txModeExclusive],
       baseRefine: options.refine,
       examples: [{ cmd: `wallet-cli stake ${action}` }],
       formatText: TextFormatters.txReceipt,

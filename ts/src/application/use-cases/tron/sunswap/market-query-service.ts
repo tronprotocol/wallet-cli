@@ -11,7 +11,7 @@ import type {
 } from "../../../ports/sunswap/market-data.js";
 import type { TokenRepository } from "../../../ports/token-repository.js";
 import { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
-import { UsageError } from "../../../../domain/errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../../../../domain/errors/index.js";
 import { TronAddress } from "../../../../domain/address/index.js";
 import {
   isPoolId,
@@ -199,9 +199,7 @@ export class SunSwapMarketQueryService {
     if (!found.complete && found.pools.length < end) {
       scope.warn({
         code: "sunswap_scan_truncated",
-        message:
-          `only the first ${SUNSWAP_MARKET_WINDOW} pools of this ordering could be scanned, and ` +
-          `more than ${SUNSWAP_MARKET_WINDOW} pools meet --min-tvl, so this list may be incomplete`,
+        message: errorMessage`only the first ${SUNSWAP_MARKET_WINDOW} pools of this ordering could be scanned, and more than ${SUNSWAP_MARKET_WINDOW} pools meet ${inputRef("minTvl")}, so this list may be incomplete`,
       });
     }
     return shown(found.pools.slice(query.offset, end), !found.complete || found.pools.length > end);
@@ -313,7 +311,10 @@ export class SunSwapMarketQueryService {
   #descending(sort: string): boolean {
     if (sort === "desc") return true;
     if (sort === "asc") return false;
-    throw new UsageError("invalid_value", "--sort must be one of asc, desc");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("sort")} must be one of asc, desc`,
+    );
   }
 
   #searchKeyword(value: string): string {
@@ -374,12 +375,15 @@ export class SunSwapMarketQueryService {
     const listed = (query.addresses ?? []).filter((value) => value.trim() !== "");
     const symbol = query.token?.trim() ?? "";
     if (symbol !== "" && listed.length > 0) {
-      throw new UsageError("invalid_option", "give either a token symbol or --address, not both");
+      throw new UsageError(
+        "invalid_option",
+        errorMessage`give either a token symbol or ${inputRef("address")}, not both`,
+      );
     }
     if (symbol === "" && listed.length === 0) {
       throw new UsageError(
         "missing_option",
-        "this command requires a token symbol or --address <addresses>",
+        errorMessage`this command requires a token symbol or ${inputRef("address")} <addresses>`,
       );
     }
     if (symbol !== "") return [this.#resolveSymbol(network, symbol, "price")];

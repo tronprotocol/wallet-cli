@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { TronVoteService } from "./vote-service.js";
-import { TronStakeService } from "./stake-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -42,13 +41,22 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
   const gateways = { get: () => g } as unknown as ChainGatewayProvider;
   const pipe = {
     assertCanSign: () => {},
-    run: async () => ({ stage: "submitted", txId: "txid" }),
+    runTron: async () => ({ stage: "submitted", txId: "txid" }),
     ...pipeline,
   } as unknown as TxPipeline;
-  return new TronVoteService(gateways, pipe, new TronStakeService(gateways, pipe));
+  return new TronVoteService(gateways, pipe);
 }
 
 describe("TronVoteService.cast", () => {
+  it("refuses more vote entries than one transaction carries", async () => {
+    const svc = service({ getAccountResources: async () => votingPower(100, 0) });
+    const entries = Array.from({ length: 31 }, () => `${SR1}=1`);
+    await expect(svc.cast(scope, NET, { for: entries })).rejects.toMatchObject({
+      code: "invalid_value",
+      message: "for accepts at most 30 entries",
+    });
+  });
+
   it("rejects a full vote allocation above voting power", async () => {
     const svc = service({
       getAccountResources: async () => votingPower(100, 0),
@@ -99,6 +107,31 @@ describe("TronVoteService.cast", () => {
 });
 
 describe("TronVoteService.list/status", () => {
+  it("fails on a malformed vote count instead of ranking the witness last", async () => {
+    const svc = service({
+      getWitnesses: async () => [
+        { address: SR1, voteCount: "100" },
+        { address: SR2, voteCount: "1e3" },
+      ],
+      getBrokerage: async () => 20,
+    });
+    await expect(svc.list(NET, { limit: 2 })).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
+  });
+
+  it("ranks vote counts beyond the safe-integer range exactly", async () => {
+    const svc = service({
+      getWitnesses: async () => [
+        { address: SR1, voteCount: "9007199254740992" },
+        { address: SR2, voteCount: "9007199254740993" },
+      ],
+      getBrokerage: async () => 20,
+    });
+    const { witnesses } = await svc.list(NET, { limit: 2 });
+    expect(witnesses.map((witness) => witness.address)).toEqual([SR2, SR1]);
+  });
+
   it("sorts witnesses by vote count and converts brokerage to reward ratio", async () => {
     const svc = service({
       getWitnesses: async () => [

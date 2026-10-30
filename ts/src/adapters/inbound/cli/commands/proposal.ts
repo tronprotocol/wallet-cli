@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronProposalService } from "../../../../application/use-cases/tron/proposal-service.js";
 import { ciEnum } from "../arity/index.js";
-import { governanceTxModeFields, governanceTxRefine } from "./shared.js";
+import { governanceTxModeFields, tronExpirationRefine, txModeExclusive } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 export const proposalListSpec: ChainSpec = {
@@ -68,7 +68,8 @@ const proposalWriteBase = {
   auth: "required" as const,
   broadcasts: true,
   capability: "proposal.write",
-  baseRefine: governanceTxRefine,
+  exclusive: [txModeExclusive],
+  baseRefine: tronExpirationRefine,
   formatText: TextFormatters.governanceReceipt,
 };
 

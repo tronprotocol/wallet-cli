@@ -1,16 +1,19 @@
 import type {
   AccountRef,
   ChainFamily,
+  EvmUnsignedTx,
   FeeReport,
   NetworkDescriptor,
   SignedTxOf,
+  TronTransactionArtifact,
   TxConfirmation,
   TxOutcome,
   UnsignedTx,
 } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { OWNER_PERMISSION_ID } from "../../../domain/permission/index.js";
 import type { SignOrigin, SigningService } from "../signing/signing-service.js";
 import { authoritativeTxId, localTxId as txIdOf, submitWithTxId } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
@@ -21,32 +24,59 @@ export interface SignerAuthorization {
   assertBroadcastable(): void;
 }
 
-export interface TxPipelineParams<T extends UnsignedTx = UnsignedTx> {
+interface TxPipelineRun<T extends UnsignedTx> {
   ctx: TransactionScope;
   net: NetworkDescriptor;
   account: AccountRef;
   broadcaster: Broadcaster;
   build: (signerAddress: string) => Promise<T>;
   estimate: (tx: T) => Promise<FeeReport>;
-  dryRun: boolean;
-  buildOnly?: boolean;
-  broadcast: boolean;
-  mode?: TransactionExecutionMode;
+  mode: TransactionExecutionMode;
+  signerOptions?: { requireSoftware?: boolean };
+  // Must encode the complete transaction.
+  artifact: (tx: T | SignedTxOf<T>) => string;
+  // Returns undefined on timeout; errors preserve the submitted outcome.
+  confirm: (txId: string, signed: SignedTxOf<T>) => Promise<TxConfirmation | undefined>;
+}
+
+export interface TronLifecycleSteps {
+  /** Bind permission/expiration and recompute transaction identity before signing. */
+  prepare: (
+    tx: TronTransactionArtifact,
+    options: { permissionId: number; expiration?: number },
+  ) => Promise<TronTransactionArtifact> | TronTransactionArtifact;
+  /** Extend a newly built unsigned device transaction before signing. Never used for imports. */
+  prepareForSigning: (
+    tx: TronTransactionArtifact,
+    timeoutMs: number,
+  ) => Promise<TronTransactionArtifact> | TronTransactionArtifact;
+  /** Expiry guard, run again after the signer returns. */
+  assertNotExpired: (tx: TronTransactionArtifact) => void;
+  artifact: (tx: TronTransactionArtifact) => string;
+}
+
+export interface TronTxPipelineParams
+  extends TxPipelineRun<TronTransactionArtifact>, TronLifecycleSteps {
+  permissionId: number;
+  expiration?: number;
+  // Runs before key decryption or device interaction and returns a post-signing broadcast gate.
+  // Null skips the online permission-approval check.
+  preflight:
+    ((tx: TronTransactionArtifact, signerAddress: string) => Promise<SignerAuthorization>) | null;
+}
+
+export interface EvmTxPipelineParams extends TxPipelineRun<EvmUnsignedTx> {
+  // EVM has no permission groups or caller-set expiration; only the defaults are accepted.
   permissionId?: number;
   expiration?: number;
-  signerOptions?: { requireSoftware?: boolean };
-  /** Bind permission/expiration and recompute transaction identity before signing. */
-  prepare?: (tx: T, options: { permissionId: number; expiration?: number }) => Promise<T> | T;
-  /** Extend a newly built unsigned device transaction before signing. Never used for imports. */
-  prepareForSigning?: (tx: T, timeoutMs: number) => Promise<T> | T;
-  /** Chain-specific expiry guard, including a second check after the signer returns. */
-  assertNotExpired?: (tx: T | SignedTxOf<T>) => void;
-  // Required for build-only; must encode the complete transaction.
-  artifact?: (tx: T | SignedTxOf<T>) => string;
-  // Runs before key decryption or device interaction; may return a post-signing broadcast gate.
-  preflight?: (tx: T, signerAddress: string) => Promise<SignerAuthorization | void>;
-  // Returns undefined on timeout; errors preserve the submitted outcome.
-  confirm?: (txId: string, signed: SignedTxOf<T>) => Promise<TxConfirmation | undefined>;
+}
+
+interface LifecycleSteps<T extends UnsignedTx> {
+  prepare: (tx: T) => Promise<T> | T;
+  // Runs only for a device signer.
+  prepareForSigning: (tx: T, timeoutMs: number) => Promise<T> | T;
+  assertNotExpired: (tx: T | SignedTxOf<T>) => void;
+  preflight: (tx: T, signerAddress: string) => Promise<SignerAuthorization | undefined>;
 }
 
 export class TxPipeline {
@@ -82,38 +112,60 @@ export class TxPipeline {
     return { stage: "signed", signed, address: signer.address, txId: txIdOf(signed) };
   }
 
-  async run<T extends UnsignedTx>(p: TxPipelineParams<T>): Promise<TxOutcome> {
-    const mode: TransactionExecutionMode =
-      p.mode ??
-      (p.dryRun ? "dry-run" : p.buildOnly ? "build-only" : p.broadcast ? "broadcast" : "sign-only");
+  runTron(p: TronTxPipelineParams): Promise<TxOutcome> {
+    return this.#run(p, {
+      prepare: (tx) =>
+        p.prepare(tx, {
+          permissionId: p.permissionId,
+          ...(p.expiration === undefined ? {} : { expiration: p.expiration }),
+        }),
+      // A caller-set expiration is kept as requested.
+      prepareForSigning: (tx, timeoutMs) =>
+        p.expiration === undefined ? p.prepareForSigning(tx, timeoutMs) : tx,
+      assertNotExpired: (tx) => p.assertNotExpired(tx),
+      preflight: async (tx, signerAddress) =>
+        p.preflight ? p.preflight(tx, signerAddress) : undefined,
+    });
+  }
+
+  runEvm(p: EvmTxPipelineParams): Promise<TxOutcome> {
+    return this.#run(p, {
+      prepare: (tx) => {
+        if (
+          (p.permissionId ?? OWNER_PERMISSION_ID) !== OWNER_PERMISSION_ID ||
+          p.expiration !== undefined
+        ) {
+          throw new UsageError(
+            "invalid_option",
+            errorMessage`this chain adapter cannot apply ${inputRef("permissionId")} or ${inputRef("expiration")}`,
+          );
+        }
+        return tx;
+      },
+      prepareForSigning: (tx) => tx,
+      assertNotExpired: () => {},
+      preflight: async () => undefined,
+    });
+  }
+
+  async #run<T extends UnsignedTx>(
+    p: TxPipelineRun<T>,
+    steps: LifecycleSteps<T>,
+  ): Promise<TxOutcome> {
+    const mode = p.mode;
     if (p.ctx.wait && mode !== "broadcast") {
       throw new UsageError(
         "invalid_option",
-        "--wait cannot be used with --dry-run, --sign-only, or --build-only",
+        errorMessage`${inputRef("wait")} cannot be used with ${inputRef("dryRun")}, ${inputRef("signOnly")}, or ${inputRef("buildOnly")}`,
       );
     }
 
     // Adapters bound RPC time; the signing entry separately bounds device interaction.
     const ownerAddress = p.ctx.resolveAddress(p.net.family);
-    let tx = await p.build(ownerAddress);
-    if (p.prepare) {
-      tx = await p.prepare(tx, {
-        permissionId: p.permissionId ?? 0,
-        ...(p.expiration === undefined ? {} : { expiration: p.expiration }),
-      });
-    } else if ((p.permissionId ?? 0) !== 0 || p.expiration !== undefined) {
-      throw new UsageError(
-        "invalid_option",
-        "this chain adapter cannot apply --permission-id or --expiration",
-      );
-    }
+    let tx = await steps.prepare(await p.build(ownerAddress));
     const fee = await p.estimate(tx);
     if (mode === "dry-run") return { stage: "plan", tx, fee };
-    if (mode === "build-only") {
-      if (!p.artifact)
-        throw new UsageError("invalid_option", "this chain adapter cannot produce transaction hex");
-      return { stage: "built", tx, hex: p.artifact(tx), fee };
-    }
+    if (mode === "build-only") return { stage: "built", tx, hex: p.artifact(tx), fee };
 
     this.signers.assertCanSign(p.account, p.net.family, p.signerOptions);
     const signer = this.signers.resolve(p.account, p.net.family);
@@ -123,11 +175,9 @@ export class TxPipeline {
         "resolved signer address changed during transaction construction",
       );
     }
-    if (signer.kind === "device" && p.expiration === undefined && p.prepareForSigning) {
-      tx = await p.prepareForSigning(tx, p.ctx.timeoutMs);
-    }
-    p.assertNotExpired?.(tx);
-    const authorization = await p.preflight?.(tx, signer.address);
+    if (signer.kind === "device") tx = await steps.prepareForSigning(tx, p.ctx.timeoutMs);
+    steps.assertNotExpired(tx);
+    const authorization = await steps.preflight(tx, signer.address);
     const signed = await this.signing.sign(p.ctx, {
       network: p.net,
       origin: "built",
@@ -135,13 +185,13 @@ export class TxPipeline {
       payload: { kind: "transaction", transaction: tx },
     });
 
-    p.assertNotExpired?.(signed);
+    steps.assertNotExpired(signed);
 
     if (mode === "sign-only") {
       return {
         stage: "signed",
         signed,
-        ...(p.artifact ? { hex: p.artifact(signed) } : {}),
+        hex: p.artifact(signed),
         fee,
         address: signer.address,
         txId: txIdOf(signed),
@@ -153,10 +203,10 @@ export class TxPipeline {
     const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) =>
       p.ctx.warn(m),
     );
-    if (!p.ctx.wait || !p.confirm || !txId) {
+    if (!p.ctx.wait || !txId) {
       if (p.ctx.wait && !txId) {
         p.ctx.warn(
-          "--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)",
+          errorMessage`${inputRef("wait")} requested but the broadcast returned no txid; returning submitted (unconfirmed)`,
         );
       }
       return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
@@ -170,7 +220,7 @@ export class TxPipeline {
     }
     if (!confirmed) {
       p.ctx.warn(
-        `--wait: ${txId} not confirmed within ${p.ctx.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`,
+        errorMessage`${inputRef("wait")}: ${txId} not confirmed within ${p.ctx.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`,
       );
       return { stage: "submitted", ...result, txId };
     }

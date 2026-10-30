@@ -149,3 +149,52 @@ it("strips terminal control sequences from remote catalog warnings before warnin
   expect(warn.mock.calls[0]![0]).toContain("stale");
   expect(warn.mock.calls[0]![0]).toContain("catalog");
 });
+
+describe("x402 pay headers", () => {
+  const run = async (header: string[]) => {
+    const registry = new CommandRegistry();
+    const svc = service();
+    registerX402Commands(registry, svc);
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    await pay.run({} as never, { id: "eip155:56" } as never, {
+      url: "https://example.test",
+      method: "GET",
+      header,
+    });
+    return svc.pay as ReturnType<typeof vi.fn>;
+  };
+
+  it("splits each header argument at its first colon before calling the use case", async () => {
+    const pay = await run(["X-Test:  a:b ", "Accept: */*"]);
+    expect(pay.mock.calls[0]![2]).toMatchObject({
+      headers: [
+        { name: "X-Test", value: "a:b" },
+        { name: "Accept", value: "*/*" },
+      ],
+    });
+  });
+
+  it.each(["not-a-header", ": value"])("rejects %j before calling the use case", async (line) => {
+    await expect(run([line])).rejects.toMatchObject({
+      code: "invalid_value",
+      message: '--header must use "Name: value"',
+    });
+  });
+});
+
+describe("x402 roundtrip output", () => {
+  it("returns the served and paid views without the normalized settlement", async () => {
+    const registry = new CommandRegistry();
+    const svc = service();
+    (svc.roundtrip as ReturnType<typeof vi.fn>).mockResolvedValue({
+      serve: { payUrl: "u" },
+      pay: { settled: true },
+      settlement: { success: true },
+    });
+    registerX402Commands(registry, svc);
+    const roundtrip = registry.resolveNeutral(["x402", "roundtrip"])!;
+    await expect(
+      roundtrip.run({} as never, { id: "eip155:56" } as never, { payTo: "p", scheme: "exact" }),
+    ).resolves.toEqual({ serve: { payUrl: "u" }, pay: { settled: true } });
+  });
+});

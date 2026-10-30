@@ -23,34 +23,34 @@ describe("tickSpacing", () => {
   });
 
   it("refuses a tier outside the four, naming them", () => {
-    expect(() => tickSpacing(2500)).toThrow(/--fee must be one of 100, 500, 3000, 10000/);
-    expect(() => tickSpacing(0)).toThrow(/--fee must be one of/);
+    expect(() => tickSpacing(2500)).toThrow(/^fee must be one of 100, 500, 3000, 10000/);
+    expect(() => tickSpacing(0)).toThrow(/^fee must be one of/);
   });
 });
 
 describe("assertAligned", () => {
   it("accepts a tick on the grid", () => {
-    expect(() => assertAligned(-276360, 60, "--tick-lower")).not.toThrow();
-    expect(() => assertAligned(0, 60, "--tick-lower")).not.toThrow();
+    expect(() => assertAligned(-276360, 60, "tickLower")).not.toThrow();
+    expect(() => assertAligned(0, 60, "tickLower")).not.toThrow();
   });
 
   it("refuses an unaligned tick rather than moving it", () => {
-    expect(() => assertAligned(-276374, 60, "--tick-lower")).toThrow(
-      /--tick-lower must be a multiple of the tick spacing for this fee tier \(60\)/,
+    expect(() => assertAligned(-276374, 60, "tickLower")).toThrow(
+      /^tickLower must be a multiple of the tick spacing for this fee tier \(60\)/,
     );
   });
 
   it("refuses a tick outside the representable range", () => {
-    expect(() => assertAligned(MIN_TICK - 60, 60, "--tick-lower")).toThrow(/must be between/);
-    expect(() => assertAligned(MAX_TICK + 60, 60, "--tick-upper")).toThrow(/must be between/);
+    expect(() => assertAligned(MIN_TICK - 60, 60, "tickLower")).toThrow(/must be between/);
+    expect(() => assertAligned(MAX_TICK + 60, 60, "tickUpper")).toThrow(/must be between/);
   });
 
   it("refuses a non-integer tick", () => {
-    expect(() => assertAligned(1.5, 1, "--tick-lower")).toThrow(/must be an integer tick index/);
+    expect(() => assertAligned(1.5, 1, "tickLower")).toThrow(/must be an integer tick index/);
   });
 
   it("names the flag it was checking", () => {
-    expect(() => assertAligned(7, 60, "--tick-upper")).toThrow(/--tick-upper/);
+    expect(() => assertAligned(7, 60, "tickUpper")).toThrow(/^tickUpper /);
   });
 });
 
@@ -83,8 +83,8 @@ describe("defaultTickRange", () => {
   it.each([1, 10, 12, 60, 200])("produces a range assertAligned accepts, spacing %i", (spacing) => {
     for (const tick of [MIN_TICK, 0, MAX_TICK]) {
       const range = defaultTickRange(tick, spacing);
-      expect(() => assertAligned(range.tickLower, spacing, "--tick-lower")).not.toThrow();
-      expect(() => assertAligned(range.tickUpper, spacing, "--tick-upper")).not.toThrow();
+      expect(() => assertAligned(range.tickLower, spacing, "tickLower")).not.toThrow();
+      expect(() => assertAligned(range.tickUpper, spacing, "tickUpper")).not.toThrow();
     }
   });
 });
@@ -100,8 +100,8 @@ describe("alignTick", () => {
 describe("assertRange", () => {
   it("requires the range to have width and to run upward", () => {
     expect(() => assertRange(-120, 120)).not.toThrow();
-    expect(() => assertRange(120, 120)).toThrow(/--tick-lower must be below --tick-upper/);
-    expect(() => assertRange(120, -120)).toThrow(/--tick-lower must be below --tick-upper/);
+    expect(() => assertRange(120, 120)).toThrow(/^tickLower must be below tickUpper/);
+    expect(() => assertRange(120, -120)).toThrow(/^tickLower must be below tickUpper/);
   });
 });
 
@@ -142,7 +142,7 @@ describe("alignTick rounds to the nearest multiple", () => {
   );
 
   it("still refuses a misaligned tick the caller typed", () => {
-    expect(() => assertAligned(-499, 10, "--tick-lower")).toThrow(/multiple of the tick spacing/);
-    expect(() => assertAligned(-500, 10, "--tick-lower")).not.toThrow();
+    expect(() => assertAligned(-499, 10, "tickLower")).toThrow(/multiple of the tick spacing/);
+    expect(() => assertAligned(-500, 10, "tickLower")).not.toThrow();
   });
 });

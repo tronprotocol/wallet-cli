@@ -69,7 +69,11 @@ it("does not retry when B.AI has not indexed the transaction; the hash and reaso
     ...request,
     creditStatus: "unconfirmed",
     code: "TX_NOT_FOUND_OR_INVALID",
-    warning: expect.stringContaining("not indexed the transaction yet"),
+    warning: {
+      message:
+        "B.AI has not indexed the transaction yet; report it again in a minute with `bai-report-recharge`",
+      parts: expect.arrayContaining([{ followUp: "bai-report-recharge" }]),
+    },
     retryPayment: false,
   });
   expect(reportTxHash).toHaveBeenCalledOnce();

@@ -1,4 +1,4 @@
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 
 // Fee in millionths (3000 = 0.3%) to tick spacing.
 export const V3_FEE_TIERS = {
@@ -24,7 +24,7 @@ export function tickSpacing(fee: number): number {
   if (spacing === undefined) {
     throw new UsageError(
       "invalid_value",
-      `--fee must be one of ${Object.keys(V3_FEE_TIERS).join(", ")}`,
+      errorMessage`${inputRef("fee")} must be one of ${Object.keys(V3_FEE_TIERS).join(", ")}`,
     );
   }
   return spacing;
@@ -48,18 +48,24 @@ export function clampTick(tick: number): number {
   return Math.min(MAX_TICK, Math.max(MIN_TICK, tick));
 }
 
-// Reject user boundaries instead of rounding them and changing the position.
-export function assertAligned(tick: number, spacing: number, flag: string): void {
+// Reject user boundaries instead of rounding them and changing the position; field names the input.
+export function assertAligned(tick: number, spacing: number, field: string): void {
   if (!Number.isInteger(tick)) {
-    throw new UsageError("invalid_value", `${flag} must be an integer tick index`);
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef(field)} must be an integer tick index`,
+    );
   }
   if (tick < MIN_TICK || tick > MAX_TICK) {
-    throw new UsageError("invalid_value", `${flag} must be between ${MIN_TICK} and ${MAX_TICK}`);
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef(field)} must be between ${MIN_TICK} and ${MAX_TICK}`,
+    );
   }
   if (tick % spacing !== 0) {
     throw new UsageError(
       "invalid_value",
-      `${flag} must be a multiple of the tick spacing for this fee tier (${spacing})`,
+      errorMessage`${inputRef(field)} must be a multiple of the tick spacing for this fee tier (${spacing})`,
     );
   }
 }
@@ -78,6 +84,9 @@ export function defaultTickRange(
 
 export function assertRange(tickLower: number, tickUpper: number): void {
   if (tickLower >= tickUpper) {
-    throw new UsageError("invalid_value", "--tick-lower must be below --tick-upper");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("tickLower")} must be below ${inputRef("tickUpper")}`,
+    );
   }
 }

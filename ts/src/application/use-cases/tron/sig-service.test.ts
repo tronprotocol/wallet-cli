@@ -85,10 +85,18 @@ function setup(signerOverride?: Signer, referenceBlock: TronReferenceBlockStatus
     resolve: vi.fn(() => signer),
   } as unknown as SignerResolver;
   const gateways = { get: vi.fn(() => gateway) } as unknown as ChainGatewayProvider;
+  const artifacts = { write: vi.fn() };
   return {
-    service: new TronSigService(gateways, signers, new SigningService(gateways), () => NOW),
+    service: new TronSigService(
+      gateways,
+      signers,
+      new SigningService(gateways),
+      artifacts,
+      () => NOW,
+    ),
     signer,
     gateway,
+    artifacts,
   };
 }
 
@@ -113,6 +121,29 @@ describe("TRON artifact signing", () => {
         contractType: "TransferContract",
       },
     });
+  });
+
+  it("writes the signed hex to the chosen file and reports it", async () => {
+    const { service, artifacts } = setup();
+    const result = await service.sign(
+      scope(),
+      NETWORK,
+      unsignedHex(),
+      { origin: "offline" },
+      "signed.hex",
+    );
+    expect(artifacts.write).toHaveBeenCalledExactlyOnceWith("signed.hex", result.hex);
+    expect(result.out).toBe("signed.hex");
+  });
+
+  it("writes nothing when no file is chosen or signing fails", async () => {
+    const { service, artifacts } = setup();
+    const result = await service.sign(scope(), NETWORK, unsignedHex(), { origin: "offline" });
+    expect(result).not.toHaveProperty("out");
+    await expect(
+      service.sign(scope(), NETWORK, unsignedHex(NOW), { origin: "offline" }, "signed.hex"),
+    ).rejects.toMatchObject({ code: "tx_expired" });
+    expect(artifacts.write).not.toHaveBeenCalled();
   });
 
   it("rejects an expired artifact before invoking the signer", async () => {

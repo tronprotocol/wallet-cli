@@ -8,7 +8,7 @@ import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TronHistoryReader } from "../../ports/chain/tron-history-reader.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 
 const net: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -184,15 +184,15 @@ function writeService(
     prepareTransaction: vi.fn((transaction) => transaction),
     encodeTransactionHex: vi.fn(() => "abcd"),
   } as unknown as TronGateway;
-  let captured: TxPipelineParams | undefined;
+  let captured: TronTxPipelineParams | undefined;
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (params: TxPipelineParams) => {
+    runTron: vi.fn(async (params: TronTxPipelineParams) => {
       captured = params;
       if (options.outcome) return options.outcome;
       const transaction = await params.build(OWNER);
       const fee = await params.estimate(transaction);
-      if (params.buildOnly) {
+      if (params.mode === "build-only") {
         return {
           stage: "built" as const,
           tx: transaction,
@@ -319,7 +319,7 @@ describe("TronAccountService account lifecycle writes", () => {
         dryRun: true,
       }),
     ).rejects.toMatchObject({ code: "account_already_active" });
-    expect(pipeline.run).not.toHaveBeenCalled();
+    expect(pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("enforces the complete activation fee for dry-run and broadcast", async () => {
@@ -334,7 +334,7 @@ describe("TronAccountService account lifecycle writes", () => {
       code: "insufficient_balance",
       details: { balance: "1099999", required: "1100000" },
     });
-    expect(pipeline.run).not.toHaveBeenCalled();
+    expect(pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("allows an offline account build even when the payer balance is currently low", async () => {

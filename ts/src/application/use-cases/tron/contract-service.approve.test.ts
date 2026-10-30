@@ -3,7 +3,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronContractService } from "./contract-service.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
 
@@ -36,7 +36,7 @@ describe("TronContractService.send — approve", () => {
       estimateResources: vi.fn(async () => ({ feeModel: "tron-resource", energy: 1 })),
     } as unknown as TronGateway;
     const pipeline = {
-      run: vi.fn(async (params: TxPipelineParams) => ({
+      runTron: vi.fn(async (params: TronTxPipelineParams) => ({
         stage: "plan" as const,
         tx: await params.build(OWNER),
         fee: {},

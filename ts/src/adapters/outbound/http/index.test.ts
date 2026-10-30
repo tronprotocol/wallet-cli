@@ -171,3 +171,22 @@ describe("FetchHttpTransport", () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 });
+
+describe("FetchHttpTransport caller signal", () => {
+  it("never sends a request whose caller signal has already aborted", async () => {
+    const sent: string[] = [];
+    const transport = new FetchHttpTransport(
+      networkHttpConfig(network(), 1000),
+      async (url, init) => {
+        init?.signal?.throwIfAborted();
+        sent.push(String(url));
+        return new Response("ok");
+      },
+    );
+
+    await expect(
+      transport.requestText({ method: "GET", signal: AbortSignal.abort() }),
+    ).rejects.toMatchObject({ name: "HttpTransportError", kind: "timeout" });
+    expect(sent).toEqual([]);
+  });
+});

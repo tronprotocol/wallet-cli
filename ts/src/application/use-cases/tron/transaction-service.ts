@@ -6,7 +6,8 @@ import type {
   TxParties,
   TxStatusView,
 } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { TRX_TRANSFER_BANDWIDTH_BURN_SUN } from "../../../domain/fees/tron.js";
 import {
   fromBaseUnits,
   positiveBaseUnits,
@@ -58,13 +59,14 @@ export class TronTransactionService {
     const recipient = this.recipients.resolve("tron", input.to);
     const resolved = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
     positiveBaseUnits(resolved.rawAmount, "amount");
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>
         resolved.contract
@@ -97,7 +99,10 @@ export class TronTransactionService {
           : Promise.resolve(
               resolved.assetId
                 ? { feeModel: "tron-resource", note: "TRC10 transfer uses bandwidth only" }
-                : { feeModel: "tron-resource", bandwidthBurnSunIfNoFreeze: 100000 },
+                : {
+                    feeModel: "tron-resource",
+                    bandwidthBurnSunIfNoFreeze: TRX_TRANSFER_BANDWIDTH_BURN_SUN,
+                  },
             ),
     });
     return {
@@ -173,7 +178,7 @@ export class TronTransactionService {
     if (matches.length > 1) {
       throw new UsageError(
         "ambiguous_token_symbol",
-        `token symbol ${symbol} matches multiple tokens; use --contract or --asset-id`,
+        errorMessage`token symbol ${symbol} matches multiple tokens; use ${inputRef("contract")} or ${inputRef("assetId")}`,
       );
     }
     return matches[0]!;

@@ -63,7 +63,7 @@
     "unknown_command": {
       "exit": 2,
       "retry": "never",
-      "meaning": "no such command path, including under --help / --json-schema"
+      "meaning": "no such command path, including under help or schema discovery"
     },
     "invalid_option": {
       "exit": 2,
@@ -368,7 +368,7 @@
     "dry_run_violation": {
       "exit": 1,
       "retry": "never",
-      "meaning": "a --dry-run path attempted to broadcast; the attempt was barred"
+      "meaning": "a dry-run path attempted to broadcast; the attempt was barred"
     },
     "invalid_permission": {
       "exit": 2,
@@ -905,6 +905,17 @@
         "eip155:84532": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -967,6 +978,17 @@
         "eip155:84532": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1096,6 +1118,17 @@
       "examples": [
         "wallet-cli 8004 register ipfs://bafy... --network nile --password-stdin"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1159,6 +1192,17 @@
         "eip155:84532": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1269,6 +1313,17 @@
         "eip155:84532": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1338,6 +1393,17 @@
         "eip155:84532": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1778,6 +1844,15 @@
             "constructor-params"
           ],
           "select": "at-most-one"
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -1790,7 +1865,7 @@
             "minLength": 1
           },
           "code": {
-            "description": "contract creation bytecode, hex-encoded; provide exactly one of --artifact, --code or --code-file",
+            "description": "contract creation bytecode, hex-encoded",
             "type": "string",
             "minLength": 1
           },
@@ -1824,7 +1899,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "gasLimit": {
@@ -1886,6 +1961,17 @@
         "wallet-cli contract send --contract TR7... --method \"transfer(address,uint256)\" --params '[...]' --network nile",
         "wallet-cli contract send --contract 0xA0b8... --method \"transfer(address,uint256)\" --params '[...]' --network sepolia"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1921,7 +2007,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "gasLimit": {
@@ -2390,6 +2476,15 @@
           "flags": [
             "token",
             "contract"
+          ],
+          "select": "at-most-one"
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
           ],
           "select": "at-most-one"
         }

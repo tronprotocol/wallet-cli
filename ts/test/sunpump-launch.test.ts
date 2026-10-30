@@ -93,7 +93,7 @@ describe("the logo", () => {
     ]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_option");
-    expect(r.json.error.message).toContain("two ways of supplying one logo");
+    expect(r.json.error.message).toContain("cannot be combined with --image-base64");
   });
 
   it("refuses a missing --image file, and names the path", () => {

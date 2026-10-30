@@ -4,7 +4,10 @@ import {
   contactNameKey,
   contactNote,
   createContact,
+  MAX_CONTACTS,
   resemblesAddress,
+  withContact,
+  withoutContact,
 } from "./index.js";
 
 const ADDRESS = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
@@ -100,6 +103,46 @@ describe("createContact — canonical address", () => {
   it("names the argument that was wrong when the address is not one", () => {
     expect(() => createContact("evm", "alice", "0xnope")).toThrowError(
       expect.objectContaining({ code: "invalid_address" }),
+    );
+  });
+});
+
+describe("withContact", () => {
+  const alice = createContact("tron", "alice", ADDRESS);
+  const bob = createContact("tron", "Bob", "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7");
+
+  it("returns the family's contacts in name order", () => {
+    expect(withContact([bob], [bob], alice)).toEqual([alice, bob]);
+  });
+
+  it("refuses a name or address any family already holds", () => {
+    const evmAlice = createContact("evm", "ALICE", "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    expect(() => withContact([evmAlice], [], alice)).toThrowError(
+      expect.objectContaining({ code: "already_exists" }),
+    );
+  });
+
+  it("refuses a family that is full", () => {
+    const full = Array.from({ length: MAX_CONTACTS }, () => bob);
+    expect(() => withContact([], full, alice)).toThrowError(
+      expect.objectContaining({
+        code: "limit_exceeded",
+        message: `contact book cannot exceed ${MAX_CONTACTS} entries`,
+      }),
+    );
+  });
+});
+
+describe("withoutContact", () => {
+  const alice = createContact("tron", "alice", ADDRESS);
+
+  it("removes the contact and returns it", () => {
+    expect(withoutContact([alice], "alice")).toEqual({ entries: [], removed: alice });
+  });
+
+  it("reports a missing contact", () => {
+    expect(() => withoutContact([alice], "bob")).toThrowError(
+      expect.objectContaining({ code: "contact_not_found", message: "contact not found: bob" }),
     );
   });
 });

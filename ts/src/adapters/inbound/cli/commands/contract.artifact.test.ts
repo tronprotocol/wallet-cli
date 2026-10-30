@@ -128,7 +128,6 @@ describe("contract deploy — where the constructor's types come from", () => {
       source: "signature",
       signature: "constructor(uint256,string)",
       values: ["42", "hello"],
-      flag: "--constructor-signature",
     });
   });
 
@@ -140,10 +139,9 @@ describe("contract deploy — where the constructor's types come from", () => {
     });
 
     expect(deploy.mock.calls[0]![2].constructorArgs).toEqual({
-      source: "signature",
-      signature: "constructor(uint256,string)",
+      source: "typed-params",
+      types: ["uint256", "string"],
       values: ["42", "hello"],
-      flag: "--constructor-params",
     });
   });
 
@@ -240,8 +238,30 @@ describe("contract deploy — TRON's ABI requirement", () => {
     return issues.map((i) => i.message).join(" | ");
   };
 
+  const tronIssues = (input: Record<string, unknown>) =>
+    (
+      chainInputSchema(contractDeploySpec, contractDeployTronBinding({} as never)).input.safeParse({
+        dryRun: false,
+        signOnly: false,
+        buildOnly: false,
+        feeLimit: "1",
+        permissionId: 0,
+        ...input,
+      }).error?.issues ?? []
+    ).map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+      code: (i as { params?: { errorCode?: string } }).params?.errorCode,
+    }));
+
   it("still demands an ABI when neither flag supplies one", () => {
-    expect(check({ code: "6080" })).toMatch(/TRON needs the contract's ABI/);
+    expect(tronIssues({ code: "6080" })).toEqual([
+      {
+        path: "abi",
+        message: "provide exactly one of --abi or --artifact",
+        code: "invalid_option",
+      },
+    ]);
   });
 
   it("is satisfied by --artifact", () => {
@@ -253,7 +273,13 @@ describe("contract deploy — TRON's ABI requirement", () => {
   });
 
   it("refuses both at once rather than choosing", () => {
-    expect(check({ abi: "[]", artifact: "./a.json" })).toMatch(/pass one/);
+    expect(tronIssues({ abi: "[]", artifact: "./a.json" })).toEqual([
+      {
+        path: "abi",
+        message: "provide exactly one of --abi or --artifact",
+        code: "invalid_option",
+      },
+    ]);
   });
 
   it("says plainly that a signature cannot replace the ABI here", () => {

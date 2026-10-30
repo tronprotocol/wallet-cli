@@ -1,5 +1,5 @@
 // The market API serves whole pages, so offsets must align to the limit.
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 
 export interface OffsetWindow {
   readonly offset: number;
@@ -14,15 +14,21 @@ export interface PageWindow {
 
 export function offsetWindowToPage({ offset, limit }: OffsetWindow): PageWindow {
   if (!Number.isInteger(limit) || limit <= 0) {
-    throw new UsageError("invalid_value", "--limit must be a positive integer");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("limit")} must be a positive integer`,
+    );
   }
   if (!Number.isInteger(offset) || offset < 0) {
-    throw new UsageError("invalid_value", "--offset must be an integer of 0 or more");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("offset")} must be an integer of 0 or more`,
+    );
   }
   if (offset % limit !== 0) {
     throw new UsageError(
       "invalid_value",
-      `--offset must be a multiple of --limit (${limit}); this service pages by whole pages`,
+      errorMessage`${inputRef("offset")} must be a multiple of ${inputRef("limit")} (${limit}); this service pages by whole pages`,
     );
   }
   return { pageNo: offset / limit + 1, pageSize: limit };
@@ -35,7 +41,7 @@ export function refuseBeyondMarketWindow({ offset, limit }: OffsetWindow): void 
   if (offset + limit > SUNSWAP_MARKET_WINDOW) {
     throw new UsageError(
       "invalid_value",
-      `--offset + --limit may not exceed ${SUNSWAP_MARKET_WINDOW}; the data service exposes only the first ${SUNSWAP_MARKET_WINDOW} rows of each ordering`,
+      errorMessage`${inputRef("offset")} + ${inputRef("limit")} may not exceed ${SUNSWAP_MARKET_WINDOW}; the data service exposes only the first ${SUNSWAP_MARKET_WINDOW} rows of each ordering`,
     );
   }
 }

@@ -63,7 +63,7 @@
     "unknown_command": {
       "exit": 2,
       "retry": "never",
-      "meaning": "no such command path, including under --help / --json-schema"
+      "meaning": "no such command path, including under help or schema discovery"
     },
     "invalid_option": {
       "exit": 2,
@@ -368,7 +368,7 @@
     "dry_run_violation": {
       "exit": 1,
       "retry": "never",
-      "meaning": "a --dry-run path attempted to broadcast; the attempt was barred"
+      "meaning": "a dry-run path attempted to broadcast; the attempt was barred"
     },
     "invalid_permission": {
       "exit": 2,
@@ -902,6 +902,17 @@
         "tron:2494104990": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -982,6 +993,17 @@
         "tron:2494104990": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1126,6 +1148,17 @@
       "examples": [
         "wallet-cli 8004 register ipfs://bafy... --network nile --password-stdin"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1207,6 +1240,17 @@
         "tron:2494104990": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1332,6 +1376,17 @@
         "tron:2494104990": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1419,6 +1474,17 @@
         "tron:2494104990": "supported"
       },
       "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -1508,6 +1574,17 @@
       "examples": [
         "wallet-cli account activate --address T... --dry-run",
         "wallet-cli account activate --address T... --wait --password-stdin"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1735,6 +1812,15 @@
             "name",
             "id"
           ]
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -1859,6 +1945,17 @@
       },
       "examples": [
         "wallet-cli asset issue --name MyToken --supply 1000000000 --price 1:100 --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --wait"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2052,6 +2149,17 @@
       "examples": [
         "wallet-cli asset participate 1000124 --pay 100 --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -2132,6 +2240,17 @@
       "examples": [
         "wallet-cli asset unfreeze --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -2199,6 +2318,17 @@
       },
       "examples": [
         "wallet-cli asset update --url https://mytoken.io/v2 --wait"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2560,6 +2690,17 @@
       "examples": [
         "wallet-cli contract clear-abi TQ5... --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -2580,7 +2721,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -2718,6 +2859,22 @@
             "constructor-params"
           ],
           "select": "at-most-one"
+        },
+        {
+          "label": "the contract ABI on TRON",
+          "flags": [
+            "abi",
+            "artifact"
+          ]
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -2730,7 +2887,7 @@
             "minLength": 1
           },
           "code": {
-            "description": "contract creation bytecode, hex-encoded; provide exactly one of --artifact, --code or --code-file",
+            "description": "contract creation bytecode, hex-encoded",
             "type": "string",
             "minLength": 1
           },
@@ -2764,11 +2921,11 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "abi": {
-            "description": "contract ABI as a JSON array string; required unless --artifact supplies one",
+            "description": "contract ABI as a JSON array string",
             "type": "string",
             "minLength": 1
           },
@@ -2871,6 +3028,17 @@
         "wallet-cli contract send --contract TR7... --method \"transfer(address,uint256)\" --params '[...]' --network nile",
         "wallet-cli contract send --contract 0xA0b8... --method \"transfer(address,uint256)\" --params '[...]' --network sepolia"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -2906,7 +3074,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "callValueSun": {
@@ -2972,6 +3140,17 @@
       "examples": [
         "wallet-cli contract set-origin-energy-limit TQ5... 50000000 --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -2997,7 +3176,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -3051,6 +3230,17 @@
       "examples": [
         "wallet-cli contract set-user-resource-percent TQ5... 100 --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -3077,7 +3267,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -3138,6 +3328,15 @@
             "amounts",
             "raw-amounts"
           ]
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -3231,6 +3430,15 @@
             "amount",
             "raw-amount"
           ]
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -3438,6 +3646,15 @@
             "slippage"
           ],
           "select": "at-most-one"
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -3554,6 +3771,15 @@
             "amount",
             "raw-amount"
           ]
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -3888,6 +4114,15 @@
             "file",
             "json"
           ]
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -3969,6 +4204,17 @@
         "wallet-cli proposal approve 47",
         "wallet-cli proposal approve 47 --cancel"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -3996,7 +4242,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -4051,6 +4297,17 @@
         "wallet-cli proposal create --set getTransactionFee=15 --wait",
         "wallet-cli proposal create --set getTransactionFee=15 --set getCreateAccountFee=200000 --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4076,7 +4333,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -4129,6 +4386,17 @@
       "examples": [
         "wallet-cli proposal delete 48"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4151,7 +4419,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -4342,6 +4610,17 @@
         "wallet-cli reward withdraw",
         "wallet-cli reward withdraw --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4410,6 +4689,17 @@
       "examples": [
         "wallet-cli stake cancel-unfreeze"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4477,6 +4767,17 @@
       },
       "examples": [
         "wallet-cli stake delegate"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -4632,6 +4933,17 @@
       "examples": [
         "wallet-cli stake freeze"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4744,6 +5056,17 @@
       "examples": [
         "wallet-cli stake undelegate"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4833,6 +5156,17 @@
       "examples": [
         "wallet-cli stake unfreeze"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4917,6 +5251,17 @@
       "examples": [
         "wallet-cli stake withdraw"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -4986,6 +5331,16 @@
         "wallet-cli sunpump buy <token-address> --trx 1 --quote --network tron",
         "wallet-cli sunpump buy <token-address> --trx 1 --dry-run --network tron",
         "wallet-cli sunpump buy <token-address> --trx 1 --slippage 0.05 --wait --network tron"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5068,6 +5423,16 @@
         "wallet-cli sunpump launch --name \"My Token\" --symbol MYT --description \"a demo token\" --dry-run",
         "wallet-cli sunpump launch --name \"My Token\" --symbol MYT --description \"a demo token\" --network tron"
       ],
+      "exclusive": [
+        {
+          "label": "the logo",
+          "flags": [
+            "image",
+            "image-base64"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -5089,7 +5454,7 @@
             "type": "string"
           },
           "imageBase64": {
-            "description": "the logo as a base64 string; mutually exclusive with --image",
+            "description": "the logo as a base64 string",
             "type": "string"
           },
           "twitterUrl": {
@@ -5146,6 +5511,16 @@
         "wallet-cli sunpump sell <token-address> --amount 1000 --quote --network tron",
         "wallet-cli sunpump sell <token-address> --amount 1000 --dry-run --network tron",
         "wallet-cli sunpump sell <token-address> --amount 1000 --slippage 0.05 --wait --network tron"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5448,6 +5823,16 @@
         "wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 --tick-spacing 10 --create-pool --sqrt-price 79228162514264337593543950336 --amount0 5 --amount1 5 --wait",
         "wallet-cli sunswap add-liquidity --protocol V4 --position-id 12 --token0 TRX --token1 USDT --amount0 5 --dry-run"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -5579,6 +5964,16 @@
         "wallet-cli sunswap collect-fees --protocol V3 --position-id 686 --dry-run",
         "wallet-cli sunswap collect-fees --protocol V3 --position-id 686 --recipient TM56HhEWoaw2UevQh86k9AUjJqj9QVvmFC --wait",
         "wallet-cli sunswap collect-fees --protocol V4 --position-id 1 --wait"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -5964,6 +6359,16 @@
         "wallet-cli sunswap remove-liquidity --protocol V3 --position-id 686 --liquidity 1000 --wait",
         "wallet-cli sunswap remove-liquidity --protocol V4 --position-id 12 --token0 TRX --token1 USDT --liquidity 1000 --dry-run"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -6066,6 +6471,16 @@
         "wallet-cli sunswap swap TRX <token-address> 1 --quote --network tron",
         "wallet-cli sunswap swap TRX <token-address> 1 --dry-run --network tron",
         "wallet-cli sunswap swap <token-address> TRX 1000 --wait --network tron"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -6300,7 +6715,7 @@
             "minLength": 1
           },
           "assetId": {
-            "description": "TRC10 numeric asset id; provide exactly one of --asset-id or --contract",
+            "description": "TRC10 numeric asset id",
             "type": "string",
             "pattern": "^\\d+$"
           }
@@ -6355,7 +6770,7 @@
             "minLength": 1
           },
           "assetId": {
-            "description": "TRC10 numeric asset id; provide exactly one of --asset-id or --contract",
+            "description": "TRC10 numeric asset id",
             "type": "string",
             "pattern": "^\\d+$"
           }
@@ -6410,7 +6825,7 @@
             "minLength": 1
           },
           "assetId": {
-            "description": "TRC10 numeric asset id; provide exactly one of --asset-id or --contract",
+            "description": "TRC10 numeric asset id",
             "type": "string",
             "pattern": "^\\d+$"
           }
@@ -6500,7 +6915,7 @@
             "minLength": 1
           },
           "assetId": {
-            "description": "TRC10 numeric asset id; provide exactly one of --asset-id or --contract",
+            "description": "TRC10 numeric asset id",
             "type": "string",
             "pattern": "^\\d+$"
           }
@@ -6801,6 +7216,15 @@
             "asset-id"
           ],
           "select": "at-most-one"
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
         }
       ],
       "inputSchema": {
@@ -7068,6 +7492,17 @@
       "examples": [
         "wallet-cli vote cast --for TZ4...=600 --for TT5...=400"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -7231,6 +7666,17 @@
       "examples": [
         "wallet-cli witness create --url https://sr.example --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -7252,7 +7698,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -7305,6 +7751,17 @@
       "examples": [
         "wallet-cli witness set-brokerage 20 --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -7327,7 +7784,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {
@@ -7380,6 +7837,17 @@
       "examples": [
         "wallet-cli witness update --url https://sr.example/v2 --wait"
       ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
@@ -7401,7 +7869,7 @@
           },
           "buildOnly": {
             "default": false,
-            "description": "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
+            "description": "build an unsigned transaction without signing or broadcasting",
             "type": "boolean"
           },
           "permissionId": {

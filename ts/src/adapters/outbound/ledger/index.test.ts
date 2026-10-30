@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { utils as tronUtils } from "tronweb";
 import { Ledger } from "./index.js";
+import { assertTronTxIntegrity } from "../chain/tron/tx-integrity.js";
+import { ChainError } from "../../../domain/errors/index.js";
 
 const { closeSpy, transactionSignSpy, hashSignSpy, tip712Calls, failures } = vi.hoisted(() => ({
   closeSpy: vi.fn(async () => {}),
@@ -88,14 +90,18 @@ const RAW_TX = (() => {
 
 describe("Ledger adapter timeout", () => {
   it("bounds a hung device signMessage by timeoutMs", async () => {
-    await expect(new Ledger(20).signMessage("tron", PATH, "hi")).rejects.toMatchObject({
+    await expect(
+      new Ledger(assertTronTxIntegrity, 20).signMessage("tron", PATH, "hi"),
+    ).rejects.toMatchObject({
       code: "timeout",
     });
   });
 
   it("closes the transport when a hung signMessage times out", async () => {
     closeSpy.mockClear();
-    await expect(new Ledger(20).signMessage("tron", PATH, "hi")).rejects.toMatchObject({
+    await expect(
+      new Ledger(assertTronTxIntegrity, 20).signMessage("tron", PATH, "hi"),
+    ).rejects.toMatchObject({
       code: "timeout",
     });
     await vi.waitFor(() => expect(closeSpy).toHaveBeenCalled(), { timeout: 500 });
@@ -103,7 +109,9 @@ describe("Ledger adapter timeout", () => {
 
   it("closes the transport when a hung signTransaction times out", async () => {
     closeSpy.mockClear();
-    await expect(new Ledger(20).signTransaction("tron", PATH, RAW_TX)).rejects.toMatchObject({
+    await expect(
+      new Ledger(assertTronTxIntegrity, 20).signTransaction("tron", PATH, RAW_TX),
+    ).rejects.toMatchObject({
       code: "timeout",
     });
     await vi.waitFor(() => expect(closeSpy).toHaveBeenCalled(), { timeout: 500 });
@@ -111,7 +119,9 @@ describe("Ledger adapter timeout", () => {
 
   it("closes the transport when a hung getAddress times out", async () => {
     closeSpy.mockClear();
-    await expect(new Ledger(20).getAddress("tron", PATH)).rejects.toMatchObject({
+    await expect(
+      new Ledger(assertTronTxIntegrity, 20).getAddress("tron", PATH),
+    ).rejects.toMatchObject({
       code: "timeout",
     });
     await vi.waitFor(() => expect(closeSpy).toHaveBeenCalled(), { timeout: 500 });
@@ -119,7 +129,9 @@ describe("Ledger adapter timeout", () => {
 
   it("closes the transport when a hung appConfig times out", async () => {
     closeSpy.mockClear();
-    await expect(new Ledger(20).appConfig("tron")).rejects.toMatchObject({ code: "timeout" });
+    await expect(new Ledger(assertTronTxIntegrity, 20).appConfig("tron")).rejects.toMatchObject({
+      code: "timeout",
+    });
     await vi.waitFor(() => expect(closeSpy).toHaveBeenCalled(), { timeout: 500 });
   });
 });
@@ -130,9 +142,15 @@ describe("Ledger transaction signing", () => {
     hashSignSpy.mockClear();
     const warning = vi.fn();
     const tx = { ...(RAW_TX as object), signature: ["earlier-signature"] };
-    const signed = await new Ledger(2000).signTransaction("tron", PATH, tx as never, undefined, {
-      onWarning: warning,
-    });
+    const signed = await new Ledger(assertTronTxIntegrity, 2000).signTransaction(
+      "tron",
+      PATH,
+      tx as never,
+      undefined,
+      {
+        onWarning: warning,
+      },
+    );
     expect(transactionSignSpy).toHaveBeenLastCalledWith(
       "44'/195'/0'/0/0",
       (RAW_TX as { raw_data_hex: string }).raw_data_hex,
@@ -150,9 +168,15 @@ describe("Ledger transaction signing", () => {
     transactionSignSpy.mockResolvedValueOnce("cc".repeat(65));
     hashSignSpy.mockClear();
     const warning = vi.fn();
-    const signed = await new Ledger(2000).signTransaction("tron", PATH, RAW_TX, undefined, {
-      onWarning: warning,
-    });
+    const signed = await new Ledger(assertTronTxIntegrity, 2000).signTransaction(
+      "tron",
+      PATH,
+      RAW_TX,
+      undefined,
+      {
+        onWarning: warning,
+      },
+    );
     expect(signed).toMatchObject({ signature: ["cc".repeat(65)] });
     expect(hashSignSpy).not.toHaveBeenCalled();
     expect(warning).not.toHaveBeenCalled();
@@ -166,7 +190,9 @@ describe("Ledger transaction signing", () => {
   ])("does not fall back on other signing errors: %s", async (error) => {
     transactionSignSpy.mockRejectedValueOnce(error);
     hashSignSpy.mockClear();
-    await expect(new Ledger(2000).signTransaction("tron", PATH, RAW_TX)).rejects.toBeDefined();
+    await expect(
+      new Ledger(assertTronTxIntegrity, 2000).signTransaction("tron", PATH, RAW_TX),
+    ).rejects.toBeDefined();
     expect(hashSignSpy).not.toHaveBeenCalled();
   });
 
@@ -174,7 +200,7 @@ describe("Ledger transaction signing", () => {
     hashSignSpy.mockClear();
     transactionSignSpy.mockClear();
     await expect(
-      new Ledger(2000).signTransaction("tron", PATH, {
+      new Ledger(assertTronTxIntegrity, 2000).signTransaction("tron", PATH, {
         ...(RAW_TX as object),
         txID: "00".repeat(32),
       } as never),
@@ -186,7 +212,9 @@ describe("Ledger transaction signing", () => {
   it("retains the hash-signing app setting error after fallback", async () => {
     transactionSignSpy.mockRejectedValueOnce(new Error("Too many bytes to encode."));
     hashSignSpy.mockRejectedValueOnce(Object.assign(new Error("disabled"), { statusCode: 0x6a8c }));
-    await expect(new Ledger(2000).signTransaction("tron", PATH, RAW_TX)).rejects.toMatchObject({
+    await expect(
+      new Ledger(assertTronTxIntegrity, 2000).signTransaction("tron", PATH, RAW_TX),
+    ).rejects.toMatchObject({
       code: "ledger_setting_required",
     });
   });
@@ -195,7 +223,9 @@ describe("Ledger transaction signing", () => {
     transactionSignSpy.mockRejectedValueOnce(new Error("Too many bytes to encode."));
     hashSignSpy.mockImplementationOnce(() => new Promise(() => {}));
     closeSpy.mockClear();
-    await expect(new Ledger(20).signTransaction("tron", PATH, RAW_TX)).rejects.toMatchObject({
+    await expect(
+      new Ledger(assertTronTxIntegrity, 20).signTransaction("tron", PATH, RAW_TX),
+    ).rejects.toMatchObject({
       code: "timeout",
     });
     expect(closeSpy).toHaveBeenCalled();
@@ -204,10 +234,24 @@ describe("Ledger transaction signing", () => {
   it("refuses a transaction whose txID does not hash its raw_data_hex, before reaching the device", async () => {
     const tampered = { ...(RAW_TX as object), txID: "00".repeat(32) };
     await expect(
-      new Ledger(2000).signTransaction("tron", PATH, tampered as never),
+      new Ledger(assertTronTxIntegrity, 2000).signTransaction("tron", PATH, tampered as never),
     ).rejects.toMatchObject({
       code: "tx_integrity",
     });
+  });
+});
+
+describe("Ledger TRON integrity check", () => {
+  it("runs the injected check on the transaction before reaching the device", async () => {
+    transactionSignSpy.mockClear();
+    const check = vi.fn(() => {
+      throw new ChainError("tx_integrity", "refused");
+    });
+    await expect(
+      new Ledger(check, 2000).signTransaction("tron", PATH, RAW_TX),
+    ).rejects.toMatchObject({ code: "tx_integrity" });
+    expect(check).toHaveBeenCalledWith(RAW_TX);
+    expect(transactionSignSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -216,7 +260,9 @@ describe("Ledger abort signal", () => {
     closeSpy.mockClear();
     const ac = new AbortController();
     // Attach the rejection handler before aborting to avoid an unhandled rejection.
-    const settled = new Ledger(60_000).signMessage("tron", PATH, "hi", ac.signal).catch((e) => e);
+    const settled = new Ledger(assertTronTxIntegrity, 60_000)
+      .signMessage("tron", PATH, "hi", ac.signal)
+      .catch((e) => e);
     ac.abort();
     await vi.waitFor(() => expect(closeSpy).toHaveBeenCalled(), { timeout: 1000 });
     expect(await settled).toMatchObject({ code: "cancelled" });
@@ -227,7 +273,7 @@ describe("Ledger abort signal", () => {
     const ac = new AbortController();
     failures.tip712Hang = true;
     try {
-      const settled = new Ledger(60_000)
+      const settled = new Ledger(assertTronTxIntegrity, 60_000)
         .signTypedData(
           "tron",
           PATH,
@@ -256,7 +302,7 @@ describe("Ledger app-setting errors", () => {
     failures.tip712 = apdu;
     try {
       await expect(
-        new Ledger(2000).signTypedData("tron", PATH, {
+        new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
           domain: { name: "X", version: "1", chainId: 1 },
           types: { A: [{ name: "x", type: "uint256" }] },
           message: { x: "1" },
@@ -276,7 +322,7 @@ describe("Ledger unsupported instruction (0x6d00)", () => {
     failures.tip712 = apdu;
     let err: unknown;
     try {
-      await new Ledger(2000).signTypedData("tron", PATH, {
+      await new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
         domain: { name: "X", version: "1", chainId: 1 },
         types: { A: [{ name: "x", type: "uint256" }] },
         message: { x: "1" },
@@ -301,7 +347,7 @@ describe("Ledger incorrect data (0x6a80)", () => {
     failures.tip712 = apdu;
     let err: unknown;
     try {
-      await new Ledger(2000).signTypedData("tron", PATH, {
+      await new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
         domain: { name: "X", version: "1", chainId: 1 },
         types: { A: [{ name: "x", type: "uint256" }] },
         message: { x: "1" },
@@ -331,7 +377,11 @@ describe("Ledger TIP-712", () => {
 
   it("sends the locally computed domain and struct hashes to the device", async () => {
     tip712Calls.length = 0;
-    const out = await new Ledger(2000).signTypedData("tron", PATH, { domain, types, message });
+    const out = await new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
+      domain,
+      types,
+      message,
+    });
 
     expect(tip712Calls).toHaveLength(1);
     expect(tip712Calls[0]!.path).toBe("44'/195'/0'/0/0");
@@ -353,7 +403,11 @@ describe("Ledger TIP-712", () => {
     const rs = "12".repeat(32) + "34".repeat(32);
     failures.tip712Signature = rs + input.toString(16).padStart(2, "0");
     try {
-      const out = await new Ledger(2000).signTypedData("tron", PATH, { domain, types, message });
+      const out = await new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
+        domain,
+        types,
+        message,
+      });
       expect(out.signature).toBe(`0x${rs}${expected.toString(16)}`);
     } finally {
       failures.tip712Signature = "aa".repeat(64) + "00";
@@ -371,7 +425,11 @@ describe("Ledger TIP-712", () => {
     failures.tip712Signature = signature;
     try {
       await expect(
-        new Ledger(2000).signTypedData("tron", PATH, { domain, types, message }),
+        new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
+          domain,
+          types,
+          message,
+        }),
       ).rejects.toMatchObject({ code: "encoding_error" });
     } finally {
       failures.tip712Signature = "aa".repeat(64) + "00";
@@ -381,7 +439,7 @@ describe("Ledger TIP-712", () => {
   it("rejects a payload that cannot be hashed before touching the device", async () => {
     tip712Calls.length = 0;
     await expect(
-      new Ledger(2000).signTypedData("tron", PATH, {
+      new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
         domain,
         types,
         message: { trader: "nope", size: "1" },
@@ -395,7 +453,9 @@ describe("Ledger device states", () => {
   it("reports an unreachable device as device_not_found, not auth_required", async () => {
     failures.open = Object.assign(new Error("NoDevice"), { id: "NoDevice" });
     try {
-      await expect(new Ledger(2000).getAddress("tron", PATH)).rejects.toMatchObject({
+      await expect(
+        new Ledger(assertTronTxIntegrity, 2000).getAddress("tron", PATH),
+      ).rejects.toMatchObject({
         code: "device_not_found",
       });
     } finally {
@@ -410,7 +470,9 @@ describe("Ledger device states", () => {
     ]) {
       failures.open = e;
       try {
-        await expect(new Ledger(2000).getAddress("tron", PATH)).rejects.toMatchObject({
+        await expect(
+          new Ledger(assertTronTxIntegrity, 2000).getAddress("tron", PATH),
+        ).rejects.toMatchObject({
           code: "device_locked",
         });
       } finally {
@@ -423,7 +485,7 @@ describe("Ledger device states", () => {
     failures.tip712 = Object.assign(new Error("Locked device (0x5515)"), { statusCode: 0x5515 });
     try {
       await expect(
-        new Ledger(2000).signTypedData("tron", PATH, {
+        new Ledger(assertTronTxIntegrity, 2000).signTypedData("tron", PATH, {
           domain: { name: "X", version: "1", chainId: 1 },
           types: { A: [{ name: "x", type: "uint256" }] },
           message: { x: "1" },
@@ -442,7 +504,7 @@ describe("recoverable Ledger failures", () => {
       failures.tip712 = Object.assign(new Error("IOService:/sensitive/native/path"), { name });
       try {
         await expect(
-          new Ledger(1000).signTypedData("tron", PATH, {
+          new Ledger(assertTronTxIntegrity, 1000).signTypedData("tron", PATH, {
             domain: { name: "test", version: "1", chainId: 1 },
             types: { Test: [{ name: "value", type: "uint256" }] },
             message: { value: "1" },
@@ -461,7 +523,9 @@ describe("recoverable Ledger failures", () => {
 it("keeps unknown open failures distinct and does not expose OS paths", async () => {
   failures.open = new Error("cannot open IOService:/sensitive/native/path");
   try {
-    const error = await new Ledger(1000).getAddress("tron", PATH).catch((e) => e);
+    const error = await new Ledger(assertTronTxIntegrity, 1000)
+      .getAddress("tron", PATH)
+      .catch((e) => e);
     expect(error.code).toBe("device_unavailable");
     expect(error.message).toContain("Ledger Live");
     expect(error.message).not.toContain("IOService");
@@ -473,7 +537,9 @@ it("gives an app hint for 0x6d02 without treating it as a user rejection", async
   transactionSignSpy.mockRejectedValueOnce(
     Object.assign(new Error("UNKNOWN_APDU"), { statusCode: 0x6d02 }),
   );
-  await expect(new Ledger(1000).signTransaction("tron", PATH, RAW_TX)).rejects.toMatchObject({
+  await expect(
+    new Ledger(assertTronTxIntegrity, 1000).signTransaction("tron", PATH, RAW_TX),
+  ).rejects.toMatchObject({
     code: "ledger_unsupported",
     message: expect.stringContaining("correct app"),
   });

@@ -74,6 +74,22 @@ describe("normalizeTypedData", () => {
     expect(normalizeTypedData({ domain: DOMAIN, types: TYPES, message }).message).toEqual(message);
   });
 
+  it("drops undefined members so the payload holds only JSON values", () => {
+    const p = normalizeTypedData({
+      domain: { ...DOMAIN, salt: undefined },
+      types: TYPES,
+      message: { trader: "T1", size: "1", extra: { inner: undefined } },
+    });
+    expect(Object.keys(p.domain)).not.toContain("salt");
+    expect(p.message).toStrictEqual({ trader: "T1", size: "1", extra: {} });
+  });
+
+  it("rejects an undefined array element", () => {
+    expect(() =>
+      normalizeTypedData({ domain: DOMAIN, types: TYPES, message: { list: [1, undefined] } }),
+    ).toThrow(/message/);
+  });
+
   it("rejects a primaryType that is not declared", () => {
     expect(() =>
       normalizeTypedData({ domain: DOMAIN, types: TYPES, primaryType: "Nope", message: {} }),
@@ -148,7 +164,7 @@ describe("normalizeTypedData", () => {
       expect(error).toBeInstanceOf(CliError);
       const cliError = error as CliError;
       expect(cliError.code).toBe("invalid_payload");
-      expect(cliError.exitCode()).toBe(2);
+      expect(cliError.kind).toBe("usage");
     });
   });
 });

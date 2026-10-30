@@ -5,7 +5,8 @@ import { parse as parseYaml } from "yaml";
 import type { Config, NetworkDescriptor, OutputMode } from "../../../domain/types/index.js";
 import type { NetworkRegistry as INetworkRegistry } from "../../../application/ports/network-registry.js";
 import { UsageError } from "../../../domain/errors/index.js";
-import { BUILTIN_ALIASES, BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
+import { BUILTIN_ALIASES, BUILTIN_NETWORKS } from "./builtins.js";
+import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
 import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
 import type { ChainFamily } from "../../../domain/family/index.js";
 import {
@@ -36,10 +37,10 @@ export class ConfigLoader {
     for (const [id, d] of Object.entries(BUILTIN_NETWORKS)) networks[id] = { ...d };
     const aliases: Record<string, string> = { ...BUILTIN_ALIASES };
 
-    let defaultNetwork: string | undefined = DEFAULT_CONFIG.defaultNetwork;
-    let defaultOutput: OutputMode = DEFAULT_CONFIG.defaultOutput;
-    let timeoutMs = DEFAULT_CONFIG.timeoutMs;
-    let waitTimeoutMs = DEFAULT_CONFIG.waitTimeoutMs;
+    let defaultNetwork: string | undefined = CONFIG_DEFAULTS.defaultNetwork;
+    let defaultOutput: OutputMode = CONFIG_DEFAULTS.defaultOutput;
+    let timeoutMs = CONFIG_DEFAULTS.timeoutMs;
+    let waitTimeoutMs = CONFIG_DEFAULTS.waitTimeoutMs;
     let price: Config["price"];
     let tronlinkSecretId: string | undefined;
     let tronlinkSecretKey: string | undefined;
@@ -338,6 +339,6 @@ export class NetworkRegistry implements INetworkRegistry {
   }
 
   resolveDefault(): NetworkDescriptor {
-    return this.resolve(this.config.defaultNetwork ?? DEFAULT_CONFIG.defaultNetwork);
+    return this.resolve(this.config.defaultNetwork ?? CONFIG_DEFAULTS.defaultNetwork);
   }
 }

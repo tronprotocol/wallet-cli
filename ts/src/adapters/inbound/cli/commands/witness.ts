@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronWitnessService } from "../../../../application/use-cases/tron/witness-service.js";
-import { governanceTxModeFields, governanceTxRefine } from "./shared.js";
+import { governanceTxModeFields, tronExpirationRefine, txModeExclusive } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import {
   MAX_PERCENT,
@@ -25,7 +25,8 @@ const witnessWriteBase = {
   auth: "required" as const,
   broadcasts: true,
   capability: "witness.manage",
-  baseRefine: governanceTxRefine,
+  exclusive: [txModeExclusive],
+  baseRefine: tronExpirationRefine,
   formatText: TextFormatters.governanceReceipt,
 };
 

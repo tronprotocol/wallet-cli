@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { sunpumpLaunchSpec, sunpumpLaunchTronBinding } from "./launch.js";
+import { chainInputSchema } from "../../shell/index.js";
 import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
 import type { NetworkDescriptor } from "../../../../../domain/types/index.js";
 import type { ExecutionContext } from "../../contracts/execution-context.js";
@@ -12,11 +13,10 @@ interface SafeParse {
   error?: { issues: (z.core.$ZodIssue & { params?: { errorCode?: string } })[] };
 }
 
-const schema = (
-  sunpumpLaunchSpec.baseFields as unknown as {
-    superRefine: (refine: unknown) => { safeParse: (value: unknown) => SafeParse };
-  }
-).superRefine(sunpumpLaunchSpec.baseRefine as unknown);
+const schema = chainInputSchema(
+  sunpumpLaunchSpec,
+  sunpumpLaunchTronBinding({} as SunPumpTokenLaunchService),
+).input as unknown as { safeParse: (value: unknown) => SafeParse };
 
 function refusals(value: Record<string, unknown>): { path: string; code?: string }[] {
   return (schema.safeParse(value).error?.issues ?? []).map((issue) => ({
@@ -64,7 +64,7 @@ describe("the optional options", () => {
 
   it("refuses --image and --image-base64 together as invalid_option", () => {
     expect(refusals({ ...BASE, image: "./logo.png", imageBase64: "QQ==" })).toEqual([
-      { path: "imageBase64", code: "invalid_option" },
+      { path: "image", code: "invalid_option" },
     ]);
     expect(schema.safeParse({ ...BASE, image: "./logo.png" }).success).toBe(true);
     expect(schema.safeParse({ ...BASE, imageBase64: "QQ==" }).success).toBe(true);

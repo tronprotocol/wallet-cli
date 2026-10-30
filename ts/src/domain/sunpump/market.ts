@@ -1,4 +1,4 @@
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 
 export const SUNPUMP_ORDER_BY = {
   created: "tokenCreatedInstant",
@@ -22,11 +22,14 @@ export function sunpumpSortParam(orderBy: string, sort: string): string {
   if (field === undefined) {
     throw new UsageError(
       "invalid_value",
-      `--order-by must be one of ${SUNPUMP_ORDER_BY_NAMES.join(", ")}`,
+      errorMessage`${inputRef("orderBy")} must be one of ${SUNPUMP_ORDER_BY_NAMES.join(", ")}`,
     );
   }
   if (sort !== "asc" && sort !== "desc") {
-    throw new UsageError("invalid_value", "--sort must be one of asc, desc");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("sort")} must be one of asc, desc`,
+    );
   }
   return `${field}:${sort.toUpperCase()}`;
 }

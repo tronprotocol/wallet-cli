@@ -1,17 +1,28 @@
-import { describe, expect, it } from "vitest";
-import { toSmallestUnit } from "./server.js";
-
-describe("x402 server amount conversion", () => {
-  it("converts without floating point loss", () => {
-    expect(toSmallestUnit("1.000001", 6)).toBe("1000001");
-    expect(() => toSmallestUnit("0.0000001", 6)).toThrow(/at most 6/);
-  });
-});
-
-import { X402HttpServer } from "./server.js";
+import { expect, it } from "vitest";
 import { createServer } from "node:net";
 import { request } from "node:http";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { X402PaywallHttpServer } from "./paywall-server.js";
+import { X402FacilitatorClient } from "../../../outbound/x402/facilitator-client.js";
+import { Paywall, paywallTerms } from "../../../../application/use-cases/x402-paywall.js";
+import type { X402ServeInput } from "../../../../application/ports/x402-server.js";
+import type { NetworkDescriptor } from "../../../../domain/types/index.js";
+
+// The production stack: application paywall, outbound facilitator client, this HTTP host.
+async function startPaywall(
+  network: NetworkDescriptor,
+  input: X402ServeInput,
+  fetcher?: typeof fetch,
+  log: (line: string) => void = () => {},
+) {
+  const facilitator = new X402FacilitatorClient(fetcher, 1000);
+  const paywall = new Paywall(facilitator, paywallTerms(network, input, facilitator));
+  return new X402PaywallHttpServer(log, () => {}).start(paywall, {
+    host: input.host,
+    port: input.port,
+    accessLog: "json",
+    daemon: false,
+  });
+}
 
 async function withServer(
   settlement: object,
@@ -23,14 +34,14 @@ async function withServer(
   await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
   const port = (socket.address() as { port: number }).port;
   await new Promise<void>((resolve) => socket.close(() => resolve()));
-  const server = new X402HttpServer(async (url, init) => {
+  const facilitator: typeof fetch = async (url, init) => {
     if (String(url).endsWith("/supported"))
       return Response.json({ kinds: [{ x402Version: 2, scheme, network: "tron:0xcd8690dc" }] });
     return fetcher
       ? fetcher(url, init)
       : Response.json(String(url).endsWith("/verify") ? { isValid: true } : settlement);
-  });
-  const handle = await server.start(
+  };
+  const handle = await startPaywall(
     { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as NetworkDescriptor,
     {
       host: "127.0.0.1",
@@ -41,6 +52,7 @@ async function withServer(
       scheme,
       facilitatorUrl: "https://fake.invalid",
     },
+    facilitator,
   );
   try {
     await run(port);
@@ -203,26 +215,18 @@ it("publishes discovery from the same payment requirement", async () => {
     });
   });
 });
-it.each(["0", "1e3", (1n << 256n).toString()])("refuses invalid server amount %s", (amount) => {
-  expect(() => toSmallestUnit(amount, 6)).toThrow(
-    expect.objectContaining({ code: "invalid_amount" }),
-  );
-});
 it("reports a port collision without stopping the first server", async () => {
   await withServer({}, async (port) => {
     await expect(
-      new X402HttpServer().start(
-        { id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor,
-        {
-          host: "127.0.0.1",
-          port,
-          amount: "1",
-          token: "USDC",
-          scheme: "exact",
-          payTo: "0x1111111111111111111111111111111111111111",
-          facilitatorUrl: "https://example.test",
-        },
-      ),
+      startPaywall({ id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor, {
+        host: "127.0.0.1",
+        port,
+        amount: "1",
+        token: "USDC",
+        scheme: "exact",
+        payTo: "0x1111111111111111111111111111111111111111",
+        facilitatorUrl: "https://example.test",
+      }),
     ).rejects.toMatchObject({ code: "port_in_use" });
     expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200);
   });
@@ -248,7 +252,6 @@ it("advertises legacy-compatible TRON wire IDs and an empty GasFree extra", asyn
 
 it("serves raw amounts, explicit registered assets and validity, with sanitized access logs", async () => {
   const logs: string[] = [];
-  const server = new X402HttpServer(undefined, 1000, (line) => logs.push(line));
   const net = { id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor;
   const input = {
     host: "127.0.0.1",
@@ -262,8 +265,7 @@ it("serves raw amounts, explicit registered assets and validity, with sanitized 
     resourceUrl: "https://resource.example/pay",
     facilitatorUrl: "https://fake.invalid",
   };
-  expect(() => server.validate(net, { ...input, decimals: 18 })).toThrow(/precision/);
-  const handle = await server.start(net, input);
+  const handle = await startPaywall(net, input, undefined, (line) => logs.push(line));
   try {
     const base = String(handle.details.payUrl).replace(/\/pay$/, "");
     for (const path of ["/health", "/.well-known/x402", "/pay", "/secret-path"]) {
@@ -281,5 +283,58 @@ it("serves raw amounts, explicit registered assets and validity, with sanitized 
     expect(logs.join("")).not.toMatch(/never-log|secret-path|Authorization/);
   } finally {
     await handle.close();
+  }
+});
+
+it("answers a refused verification with 400 and a failed one with 502", async () => {
+  for (const [verify, status] of [
+    [async () => Response.json({ isValid: false, invalidReason: "insufficient_funds" }), 400],
+    [async () => Response.json({}, { status: 500 }), 502],
+  ] as const) {
+    await withServer(
+      {},
+      async (port) => {
+        const response = await fetch(`http://127.0.0.1:${port}/pay`, {
+          headers: {
+            "payment-signature": Buffer.from(
+              JSON.stringify({ x402Version: 2, payload: {} }),
+            ).toString("base64"),
+          },
+        });
+        expect(response.status).toBe(status);
+        expect(await response.json()).toMatchObject({ phase: "verify" });
+      },
+      verify,
+    );
+  }
+});
+
+it("logs text and diagnostic access lines through the supplied sinks", async () => {
+  const facilitator = new X402FacilitatorClient(undefined, 1000);
+  const net = { id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor;
+  const input = {
+    host: "127.0.0.1",
+    port: 0,
+    payTo: "0x1111111111111111111111111111111111111111",
+    token: "USDC",
+    scheme: "exact" as const,
+    facilitatorUrl: "https://fake.invalid",
+  };
+  for (const accessLog of ["text", "diagnostic"] as const) {
+    const lines: string[] = [];
+    const debug: string[] = [];
+    const paywall = new Paywall(facilitator, paywallTerms(net, input, facilitator));
+    const handle = await new X402PaywallHttpServer(
+      (line) => lines.push(line),
+      (line) => debug.push(line),
+    ).start(paywall, { host: "127.0.0.1", port: 0, accessLog, daemon: false });
+    try {
+      await (await fetch(handle.details.payUrl)).arrayBuffer();
+    } finally {
+      await handle.close();
+    }
+    const written = accessLog === "text" ? lines : debug;
+    expect(written).toEqual([expect.stringMatching(/^Payment required: HTTP 402 \(\d+ ms\)$/)]);
+    expect(accessLog === "text" ? debug : lines).toEqual([]);
   }
 });

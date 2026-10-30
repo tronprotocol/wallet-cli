@@ -90,3 +90,21 @@ describe("evmConfirmation", () => {
     expect(out!.contractAddress).toBe("0xdead");
   });
 });
+
+describe("evmConfirmation bounds each poll by the wait budget", () => {
+  it("passes the remaining budget to the node call and ends the wait when it aborts", async () => {
+    const signals: Array<AbortSignal | undefined> = [];
+    const gateway = {
+      getTransactionReceipt: (_hash: string, signal?: AbortSignal) => {
+        signals.push(signal);
+        return new Promise((_resolve, reject) =>
+          signal?.addEventListener("abort", () => reject(new Error("aborted"))),
+        );
+      },
+    } as unknown as EvmGateway;
+
+    expect(await evmConfirmation(gateway, scope(30))(HASH)).toBeUndefined();
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.aborted).toBe(true);
+  });
+});

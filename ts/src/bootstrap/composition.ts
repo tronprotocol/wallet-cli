@@ -1,9 +1,13 @@
 import { processBroadcastGuard } from "../application/services/broadcast-guard.js";
-import { MessageService } from "../application/use-cases/message-service.js";
+import { MessageSigner } from "../application/services/signing/message-signer.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { setTimeout as delay } from "node:timers/promises";
-import { DEFAULT_X402_FACILITATOR_URL } from "../adapters/outbound/config/x402-builtins.js";
+import { DEFAULT_X402_FACILITATOR_URL } from "../application/services/x402/facilitator.js";
 import { BaiWalletBinding } from "../application/use-cases/bai-wallet-binding.js";
+import { baiReportDelayMs } from "../application/use-cases/bai-report-delay.js";
+import { MigrationService } from "../application/use-cases/migration-service.js";
+import { FileDataMigrations } from "../adapters/outbound/persistence/migration.js";
+import { migrationSteps } from "./migration-steps.js";
 import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
 import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";
 import type { OutputMode } from "../domain/types/index.js";
@@ -15,6 +19,7 @@ import { SecureBackupWriter } from "../adapters/outbound/persistence/backup-writ
 import { FileBackupRecordStore } from "../adapters/outbound/persistence/backup-records.js";
 import { Keystore } from "../adapters/outbound/keystore/index.js";
 import { Ledger } from "../adapters/outbound/ledger/index.js";
+import { assertTronTxIntegrity } from "../adapters/outbound/chain/tron/tx-integrity.js";
 import { TokenBook } from "../adapters/outbound/tokenbook/index.js";
 import { createPriceProvider } from "../adapters/outbound/price/index.js";
 import { ChainGatewayRegistry } from "../adapters/outbound/chain/tron/index.js";
@@ -71,8 +76,9 @@ import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
 import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.js";
 import { X402Service } from "../application/use-cases/x402-service.js";
 import { registerX402Commands } from "../adapters/inbound/cli/commands/x402.js";
-import { X402HttpServer } from "../adapters/outbound/x402/server.js";
-import { hasDefaultServeToken } from "../adapters/outbound/x402/tokens.js";
+import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
+import { createX402DaemonLog } from "../adapters/outbound/x402/daemon-log.js";
+import { X402PaywallHttpServer } from "../adapters/inbound/http/x402/paywall-server.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -95,7 +101,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const prompter = createPrompter();
   const secrets = new SecretResolver(streams, options.secretPaths, prompter);
   const keystore = new Keystore(root, store, () => secrets.masterPassword());
-  const ledger = new Ledger(timeoutMs);
+  const ledger = new Ledger(assertTronTxIntegrity, timeoutMs);
   const walletService = new WalletService(
     keystore,
     ledger,
@@ -120,8 +126,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
     timeoutMs,
   );
   const routerPlanner = new SunSwapRouterPlanner(gatewayProvider);
+  const x402Facilitator = new X402FacilitatorClient(undefined, timeoutMs);
   const capabilityRegistry = new CapabilityRegistry(config.aliases, {
-    x402ServeDefaultToken: (network) => hasDefaultServeToken(network.id),
+    x402TokenRegistered: (network, symbol) =>
+      x402Facilitator.assetBySymbol(network, "exact", symbol) !== undefined,
   });
   const signerResolver = new SignerResolver(
     keystore,
@@ -148,11 +156,16 @@ export function composeCliRuntime(options: BootstrapOptions) {
     signerResolver,
     new X402ProviderCatalog(undefined, undefined, timeoutMs),
     networkRegistry,
-    new ManagedX402Server(
-      new X402HttpServer(undefined, timeoutMs, undefined, (line) =>
-        streams.diagnostic("debug", line),
+    {
+      facilitator: x402Facilitator,
+      host: new ManagedX402Server(
+        new X402PaywallHttpServer(
+          (line) => streams.errorLine(line),
+          (line) => streams.diagnostic("debug", line),
+        ),
+        createX402DaemonLog,
       ),
-    ),
+    },
     new X402Permit2Approvals(gatewayProvider, txPipeline),
     signing,
   );
@@ -162,10 +175,13 @@ export function composeCliRuntime(options: BootstrapOptions) {
       new BaiClient(config, timeoutMs),
       () => new Date(),
       x402Service,
-      new BaiWalletBinding(new MessageService(signerResolver, signing)),
+      new BaiWalletBinding(new MessageSigner(signerResolver, signing)),
       new BaiRechargeClient(config, timeoutMs),
       { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
-      { initialDelayMs: baiReportDelayMs(), wait: delay },
+      {
+        initialDelayMs: baiReportDelayMs(process.env.WALLET_CLI_BAI_REPORT_DELAY_MS),
+        wait: delay,
+      },
       gatewayProvider,
       keystore,
     ),
@@ -236,15 +252,14 @@ export function composeCliRuntime(options: BootstrapOptions) {
     networkRegistry,
     streams,
     secrets,
-    keystore,
+    accounts: walletService,
     prompter,
     formatter,
   };
   const session: SessionRef = {};
 
   return {
-    root,
-    store,
+    migrations: new MigrationService(new FileDataMigrations(store, migrationSteps(root, store))),
     config,
     credentials,
     streams,
@@ -259,8 +274,3 @@ export function composeCliRuntime(options: BootstrapOptions) {
 }
 
 export type CliRuntime = ReturnType<typeof composeCliRuntime>;
-
-function baiReportDelayMs(): number {
-  const raw = process.env.WALLET_CLI_BAI_REPORT_DELAY_MS;
-  return raw !== undefined && /^\d{1,7}$/.test(raw) ? Number(raw) : 15_000;
-}

@@ -12,39 +12,19 @@ function expectCode(fn: () => unknown, code: string) {
 
 describe("transactionMode", () => {
   it("no flag → broadcast (default)", () => {
-    expect(transactionMode({})).toEqual({
-      mode: "broadcast",
-      dryRun: false,
-      buildOnly: false,
-      broadcast: true,
-      permissionId: 0,
-    });
+    expect(transactionMode({})).toEqual({ mode: "broadcast", permissionId: 0 });
   });
 
   it("--dry-run → build + estimate only", () => {
-    expect(transactionMode({ dryRun: true })).toMatchObject({
-      mode: "dry-run",
-      dryRun: true,
-      broadcast: false,
-    });
+    expect(transactionMode({ dryRun: true })).toEqual({ mode: "dry-run", permissionId: 0 });
   });
 
   it("--sign-only → sign, do not broadcast", () => {
-    expect(transactionMode({ signOnly: true })).toMatchObject({
-      mode: "sign-only",
-      dryRun: false,
-      broadcast: false,
-    });
+    expect(transactionMode({ signOnly: true })).toEqual({ mode: "sign-only", permissionId: 0 });
   });
 
   it("--build-only → unsigned transaction without broadcast", () => {
-    expect(transactionMode({ buildOnly: true })).toEqual({
-      mode: "build-only",
-      dryRun: false,
-      buildOnly: true,
-      broadcast: false,
-      permissionId: 0,
-    });
+    expect(transactionMode({ buildOnly: true })).toEqual({ mode: "build-only", permissionId: 0 });
   });
 
   it("--dry-run + --sign-only → invalid_option", () => {
@@ -62,5 +42,17 @@ describe("transactionMode", () => {
     expectCode(() => transactionMode({ expiration: 1_000 }), "invalid_option");
     expectCode(() => transactionMode({ signOnly: true, expiration: 86_400_001 }), "invalid_option");
     expectCode(() => transactionMode({ permissionId: 10 }), "invalid_option");
+  });
+
+  it("names inputs by field, not by flag", () => {
+    expect(() => transactionMode({ dryRun: true, buildOnly: true })).toThrow(
+      "choose at most one of dryRun, signOnly, buildOnly",
+    );
+    expect(() => transactionMode({ permissionId: 10 })).toThrow(
+      "permissionId must be an integer from 0 to 9",
+    );
+    expect(() => transactionMode({ expiration: 1_000 })).toThrow(
+      "expiration is only valid with signOnly or buildOnly",
+    );
   });
 });

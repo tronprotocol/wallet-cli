@@ -15,5 +15,9 @@ export interface GasFreeProvider {
     network: NetworkDescriptor,
     authorization: SignedGasFreeAuthorization,
   ): Promise<GasFreeTransferRecord>;
-  trace(network: NetworkDescriptor, traceId: string): Promise<GasFreeTransferRecord>;
+  trace(
+    network: NetworkDescriptor,
+    traceId: string,
+    signal?: AbortSignal,
+  ): Promise<GasFreeTransferRecord>;
 }

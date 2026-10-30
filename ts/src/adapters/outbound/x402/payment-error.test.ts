@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import { sdkPaymentError, providerPaymentError, unsentPaymentError } from "./payment-error.js";
 import { errorMessage, UsageError, TransportError } from "../../../domain/errors/index.js";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
 it.each([
   ["sdkPaymentError", sdkPaymentError],
@@ -15,7 +16,7 @@ it.each([
     const error = classify(original, "sign");
     expect(error.textMessage).toContain("missing\\nFAKE_LOG");
     expect(error.textMessage).not.toContain("\n");
-    expect(error.toEnvelope().message).toContain("missing\nFAKE_LOG");
+    expect(errorEnvelope(error).message).toContain("missing\nFAKE_LOG");
     expect(error.textMessage.endsWith("; no payment was sent")).toBe(
       classify === unsentPaymentError,
     );
@@ -38,7 +39,7 @@ it.each([403, 429, 502])(
         retryPayment: false,
       },
     });
-    expect(JSON.stringify(result.toEnvelope())).not.toContain("SECRET");
+    expect(JSON.stringify(errorEnvelope(result))).not.toContain("SECRET");
   },
 );
 it("classifies the SDK HTTP wrapper without disclosing arbitrary text", () => {
@@ -71,12 +72,14 @@ it("retains failed settlement hash and safe reason without calling it successful
       retryPayment: false,
     },
   });
-  expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  expect(JSON.stringify(errorEnvelope(error))).not.toContain("SECRET");
   expect(
-    providerPaymentError("SECRET", "settle", {
-      transaction: "SECRET",
-      network: "SECRET",
-    }).toEnvelope(),
+    errorEnvelope(
+      providerPaymentError("SECRET", "settle", {
+        transaction: "SECRET",
+        network: "SECRET",
+      }),
+    ),
   ).not.toHaveProperty("details.candidateTxHash");
 });
 
@@ -111,7 +114,7 @@ it("retains only numeric Retry-After hints", () => {
     { response: { status: 429, headers: { "retry-after": "https://secret.example/token" } } },
     "settle",
   );
-  expect(JSON.stringify(unsafe.toEnvelope())).not.toContain("secret");
+  expect(JSON.stringify(errorEnvelope(unsafe))).not.toContain("secret");
 });
 
 it("classifies a missing GasFree asset before payment creation without exposing SDK text", () => {

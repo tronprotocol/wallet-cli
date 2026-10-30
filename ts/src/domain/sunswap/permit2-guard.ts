@@ -2,6 +2,9 @@
 import { tronHash20Hex } from "../address/index.js";
 import { ChainError } from "../errors/index.js";
 
+// Lifetime of a Permit2 grant: short-lived, yet long enough to confirm approvals and sign.
+export const PERMIT2_GRANT_TTL_SECONDS = 3600;
+
 // Expected addresses are base58; amounts are base units.
 export interface PermitExpectation {
   readonly token: string;

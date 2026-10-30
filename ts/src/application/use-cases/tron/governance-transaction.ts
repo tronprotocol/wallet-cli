@@ -1,9 +1,8 @@
 import type { GovernanceTransactionInput } from "../../contracts/transaction-input.js";
 export type { GovernanceTransactionInput } from "../../contracts/transaction-input.js";
-import { UsageError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { transactionMode } from "../../services/transaction-mode.js";
+import { receiptOf, transactionMode, type TxOutcomeView } from "../../services/transaction-mode.js";
 
 export function governanceTransactionMode(
   pipeline: TxPipeline,
@@ -12,13 +11,7 @@ export function governanceTransactionMode(
   options: { requireSoftware?: boolean } = {},
 ) {
   const mode = transactionMode(input);
-  if (input.expiration !== undefined && !input.signOnly && !input.buildOnly) {
-    throw new UsageError(
-      "invalid_option",
-      "--expiration is only valid with --sign-only or --build-only",
-    );
-  }
-  if (!input.dryRun && !input.buildOnly) {
+  if (mode.mode === "sign-only" || mode.mode === "broadcast") {
     pipeline.assertCanSign(
       scope.activeAccount,
       "tron",
@@ -28,9 +21,15 @@ export function governanceTransactionMode(
   return mode;
 }
 
-export function transactionResource(
-  data: Readonly<Record<string, unknown>>,
-): Record<string, unknown> | undefined {
+export interface TronTransactionResource {
+  netUsage?: number;
+  netFeeSun?: number;
+  energyUsage?: number;
+  energyFeeSun?: number;
+}
+
+export function transactionResource(view: TxOutcomeView): TronTransactionResource | undefined {
+  const data = receiptOf(view);
   const resource = {
     netUsage: data.netUsed,
     netFeeSun: data.netFeeSun,

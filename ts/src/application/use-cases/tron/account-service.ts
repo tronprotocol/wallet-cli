@@ -1,5 +1,6 @@
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { accountText } from "../../../domain/account/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
@@ -37,7 +38,10 @@ export class TronAccountService {
     input: TransactionModeInput & { address: string },
   ) {
     if (!ADDRESS.validate(input.address)) {
-      throw new UsageError("invalid_value", "--address must be a valid TRON address");
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`${inputRef("address")} must be a valid TRON address`,
+      );
     }
     // Ledger cannot sign AccountCreateContract; reject before RPC.
     if (transactionRequiresSigner(input)) {
@@ -67,13 +71,14 @@ export class TronAccountService {
         { balance: balanceSun, required: fee.minimumFeeSun },
       );
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => gateway.buildAccountCreate(owner, input.address),
       estimate: async () => ({ ...fee, balanceSun }),
@@ -100,14 +105,17 @@ export class TronAccountService {
     input: TransactionModeInput & { name?: string; id?: string },
   ) {
     if ((input.name === undefined) === (input.id === undefined)) {
-      throw new UsageError("invalid_option", "provide exactly one of --name or --id");
+      throw new UsageError(
+        "invalid_option",
+        errorMessage`provide exactly one of ${inputRef("name")} or ${inputRef("id")}`,
+      );
     }
     const field = input.name !== undefined ? ("name" as const) : ("id" as const);
-    // Ledger supports AccountUpdateContract (--name), but not SetAccountIdContract (--id).
+    // Ledger supports AccountUpdateContract (name), but not SetAccountIdContract (id).
     if (transactionRequiresSigner(input)) {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: field === "id" });
     }
-    const value = validateAccountText(field, input.name ?? input.id!);
+    const value = accountText(field, input.name ?? input.id!);
     const address = scope.resolveAddress("tron");
     const gateway = this.gateways.get(network, "tron");
     const account = await gateway.getAccountState(address);
@@ -126,13 +134,14 @@ export class TronAccountService {
         throw new ChainError("id_taken", `account id is already in use: ${value}`);
       }
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) =>
         field === "name"
@@ -275,18 +284,4 @@ async function accountCreateFee(gateway: TronGateway) {
     systemContractFeeSun: systemContractFeeSun.toString(),
     minimumFeeSun: (createAccountFeeSun + systemContractFeeSun).toString(),
   };
-}
-
-function validateAccountText(field: "name" | "id", input: string): string {
-  const bytes = Buffer.byteLength(input, "utf8");
-  const minimum = field === "id" ? 8 : 1;
-  if (bytes < minimum || bytes > 32 || /[\p{Cc}\p{Cf}]/u.test(input)) {
-    throw new UsageError(
-      "invalid_value",
-      field === "id"
-        ? "--id must be 8-32 safe UTF-8 bytes"
-        : "--name must be 1-32 safe UTF-8 bytes",
-    );
-  }
-  return input;
 }

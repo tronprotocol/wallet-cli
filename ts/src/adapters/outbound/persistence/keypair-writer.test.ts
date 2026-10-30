@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SecureKeypairWriter } from "./keypair-writer.js";
 import type { UsageError } from "../../../domain/errors/index.js";
+import { exitCodeOf } from "../../inbound/cli/output/errors.js";
 
 const roots: string[] = [];
 
@@ -102,7 +103,7 @@ describe("SecureKeypairWriter", () => {
       expect.unreachable("expected the write to be refused");
     } catch (error) {
       expect(error).toMatchObject({ code: "output_exists", kind: "usage" });
-      expect((error as UsageError).exitCode()).toBe(2);
+      expect(exitCodeOf(error as UsageError)).toBe(2);
     }
   });
 

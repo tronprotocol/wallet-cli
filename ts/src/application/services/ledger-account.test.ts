@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { resolveLedgerPath } from "./ledger-account.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
+import { errorEnvelope } from "../../adapters/inbound/cli/output/errors.js";
 
 function fakeLedger(pinned: Record<string, string> = {}): LedgerDevice {
   return {
@@ -22,11 +23,13 @@ describe("resolveLedgerPath", () => {
   });
 
   it("rejects a --path whose coin_type contradicts the app", async () => {
-    await expect(
-      resolveLedgerPath(fakeLedger(), "tron", { path: "m/44'/60'/0'/0/0" }),
-    ).rejects.toMatchObject({
-      code: "invalid_option",
-    });
+    const err = await resolveLedgerPath(fakeLedger(), "tron", { path: "m/44'/60'/0'/0/0" }).catch(
+      (e) => e,
+    );
+    expect(err.code).toBe("invalid_option");
+    expect(errorEnvelope(err).message).toBe(
+      "--path coin_type 60 does not match --app tron (expected 195)",
+    );
   });
 
   it("rejects a value that is not a derivation path with invalid_path", async () => {
@@ -70,9 +73,9 @@ describe("resolveLedgerPath", () => {
       scanLimit: 3,
     }).catch((e) => e);
     expect(err.code).toBe("ledger_address_not_found");
-    expect(err.message).toContain("--scan-limit");
-    expect(err.message).toContain("--index");
-    expect(err.message).toContain("--path");
+    expect(errorEnvelope(err).message).toBe(
+      "address not found among the first 3 Ledger Live accounts; increase --scan-limit, select a known account with --index, or register its exact derivation path with --path",
+    );
   });
 
   it("offers the concise recovery choices without wallet-specific guidance", async () => {
@@ -81,9 +84,7 @@ describe("resolveLedgerPath", () => {
       scanLimit: 3,
     }).catch((e) => e);
     expect(err.message).toContain("Ledger Live");
-    expect(err.message).toContain("--scan-limit");
-    expect(err.message).toContain("--index");
-    expect(err.message).toContain("--path");
+    expect(err.message).toContain("increase scanLimit");
     expect(err.message).not.toMatch(/MetaMask|MEW|MyCrypto/);
   });
 });

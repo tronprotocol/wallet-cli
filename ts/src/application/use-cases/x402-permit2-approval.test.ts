@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { X402Permit2Approvals } from "./x402-permit2-approval.js";
-import type { TxPipeline, TxPipelineParams } from "../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../services/pipeline/index.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
 import type { TxOutcome } from "../../domain/types/index.js";
 import { TransportError } from "../../domain/errors/index.js";
@@ -18,7 +18,7 @@ function harness(outcome: TxOutcome | Error, allowanceAfter = "1000000") {
     estimateResources: vi.fn(async () => ({ feeModel: "tron-resource", energy: 1 })),
   };
   const gateways = { get: vi.fn(() => gateway) } as unknown as ChainGatewayProvider;
-  const run = vi.fn(async (_params: TxPipelineParams) => {
+  const run = vi.fn(async (_params: TronTxPipelineParams) => {
     if (outcome instanceof Error) throw outcome;
     return outcome;
   });
@@ -32,11 +32,9 @@ function harness(outcome: TxOutcome | Error, allowanceAfter = "1000000") {
     warn: vi.fn(),
   };
   const readAllowance = vi.fn(async () => allowanceAfter);
-  const approver = new X402Permit2Approvals(gateways, { run } as unknown as TxPipeline).approver(
-    scope,
-    NETWORK,
-    FACTS,
-  );
+  const approver = new X402Permit2Approvals(gateways, {
+    runTron: run,
+  } as unknown as TxPipeline).approver(scope, NETWORK, FACTS);
   const request = { token: USDT, spender: PERMIT2, requiredAllowance: "1000000", readAllowance };
   return { approver, request, run, gateway, readAllowance };
 }
@@ -53,7 +51,7 @@ describe("X402Permit2Approvals", () => {
       feeLimitSun: 100_000_000,
     });
     const params = h.run.mock.calls[0]![0];
-    expect(params).toMatchObject({ mode: "broadcast", dryRun: false, broadcast: true });
+    expect(params).toMatchObject({ mode: "broadcast", permissionId: 0 });
     expect(params.broadcaster).toBe(h.gateway);
     expect(params.ctx.wait).toBe(true);
     expect(params.confirm).toEqual(expect.any(Function));

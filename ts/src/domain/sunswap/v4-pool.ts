@@ -1,5 +1,5 @@
 // V4 keeps TRX native; substituting WTRX selects a different pool.
-import { ChainError, UsageError } from "../errors/index.js";
+import { ChainError, errorMessage, followUp, inputRef, UsageError } from "../errors/index.js";
 import { TronAddress, tronAddressBytes } from "../address/index.js";
 import { NATIVE_TRX_ADDRESS } from "./tokens.js";
 
@@ -22,7 +22,7 @@ export function assertSortedPair(token0: string, token1: string): void {
   if (second === 0n) {
     throw new UsageError(
       "invalid_value",
-      "--token1 cannot be native TRX: TRX is the zero address, so it sorts before every token and is always currency0. Pass it as --token0",
+      errorMessage`${inputRef("token1")} cannot be native TRX: TRX is the zero address, so it sorts before every token and is always currency0. Pass it as ${inputRef("token0")}`,
     );
   }
   if (first === second) {
@@ -32,7 +32,7 @@ export function assertSortedPair(token0: string, token1: string): void {
   if (first > second) {
     throw new UsageError(
       "invalid_value",
-      `--token0 and --token1 are the wrong way round: a V4 pool key requires the numerically smaller address first, so pass --token0 ${token1.trim()} --token1 ${token0.trim()}. This is not cosmetic — --sqrt-price is the price of the second currency measured in the first, so a reversed pair would create the pool at the reciprocal of the price you meant`,
+      errorMessage`${inputRef("token0")} and ${inputRef("token1")} are the wrong way round: a V4 pool key requires the numerically smaller address first, so pass ${inputRef("token0")} ${token1.trim()} ${inputRef("token1")} ${token0.trim()}. This is not cosmetic — ${inputRef("sqrtPrice")} is the price of the second currency measured in the first, so a reversed pair would create the pool at the reciprocal of the price you meant`,
     );
   }
 }
@@ -75,7 +75,7 @@ export function resolveV4Pool(input: V4PoolTargetInput): V4PoolTarget {
     if (input.sqrtPrice !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--sqrt-price is the starting price of a NEW pool and is only accepted with --create-pool; an existing pool already has a price",
+        errorMessage`${inputRef("sqrtPrice")} is the starting price of a NEW pool and is only accepted with ${inputRef("createPool")}; an existing pool already has a price`,
       );
     }
     return { kind: "existing", ...requireV4PoolKey(input) };
@@ -84,40 +84,40 @@ export function resolveV4Pool(input: V4PoolTargetInput): V4PoolTarget {
   if (input.sqrtPrice === undefined) {
     throw new UsageError(
       "missing_option",
-      "--sqrt-price is required with --create-pool: a new pool has no price until one is set, and the first deposit's range is meaningless without it",
+      errorMessage`${inputRef("sqrtPrice")} is required with ${inputRef("createPool")}: a new pool has no price until one is set, and the first deposit's range is meaningless without it`,
     );
   }
   if (!/^\d+$/.test(input.sqrtPrice.trim()) || BigInt(input.sqrtPrice.trim()) === 0n) {
     throw new UsageError(
       "invalid_value",
-      "--sqrt-price must be a positive whole number: it is the price in Q64.96 fixed point, not a decimal ratio",
+      errorMessage`${inputRef("sqrtPrice")} must be a positive whole number: it is the price in Q64.96 fixed point, not a decimal ratio`,
     );
   }
   return { kind: "create", ...requireV4PoolKey(input), sqrtPriceX96: input.sqrtPrice.trim() };
 }
 
 export function requireV4PoolKey(input: V4PoolTargetInput): V4PoolKey {
-  for (const [flag, value] of [
-    ["--token0", input.token0],
-    ["--token1", input.token1],
+  for (const [field, value] of [
+    ["token0", input.token0],
+    ["token1", input.token1],
   ] as const) {
     if (value === undefined) {
       throw new UsageError(
         "missing_option",
-        `${flag} is required on V4: a pool is named by its parts — both currencies, the fee tier, the tick spacing and the hook`,
+        errorMessage`${inputRef(field)} is required on V4: a pool is named by its parts — both currencies, the fee tier, the tick spacing and the hook`,
       );
     }
   }
   if (input.fee === undefined) {
     throw new UsageError(
       "missing_option",
-      "--fee is required on V4: the fee tier is part of the pool's identity, so the pair alone does not name a pool",
+      errorMessage`${inputRef("fee")} is required on V4: the fee tier is part of the pool's identity, so the pair alone does not name a pool`,
     );
   }
   if (input.tickSpacing === undefined) {
     throw new UsageError(
       "missing_option",
-      "--tick-spacing is required on V4 and has no default: two V4 pools at the SAME fee tier can have different tick spacings — measured, USDC/USDT at fee 500 has spacing 12 while TRX/USDT at fee 500 has spacing 10 — so it cannot be derived from --fee. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks",
+      errorMessage`${inputRef("tickSpacing")} is required on V4 and has no default: two V4 pools at the SAME fee tier can have different tick spacings — measured, USDC/USDT at fee 500 has spacing 12 while TRX/USDT at fee 500 has spacing 10 — so it cannot be derived from ${inputRef("fee")}. '${followUp("sunswap-pool-list-v4")}' publishes each pool's tickSpacing and hooks`,
     );
   }
   // Report missing flags before checking pair order.

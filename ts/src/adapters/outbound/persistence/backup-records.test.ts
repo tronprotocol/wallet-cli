@@ -7,7 +7,7 @@ import { BACKUP_RECORD_LIMIT, FileBackupRecordStore } from "./backup-records.js"
 import type { BackupRecord } from "../../../application/ports/backup-records.js";
 
 const record = (n: number): BackupRecord => ({
-  operation: n % 2 === 0 ? "backup" : "backup --keystore",
+  operation: n % 2 === 0 ? "native-export" : "keystore-export",
   accountId: `wlt_a.${n}`,
   account: `T${n}`,
   label: n === 0 ? null : `acct-${n}`,
@@ -99,5 +99,25 @@ describe("FileBackupRecordStore", () => {
     expect(readFileSync(join(root, "backup-records.json"), "utf8")).toBe(
       '{"version":1,"records":[',
     );
+  });
+
+  it("loads records stored with the command spelling as the semantic operation", () => {
+    const legacy = [
+      { ...record(1), operation: "backup --keystore" },
+      { ...record(2), operation: "backup" },
+    ];
+    writeFileSync(
+      join(root, "backup-records.json"),
+      JSON.stringify({ version: 1, records: legacy }),
+    );
+    expect(store.list().map((r) => r.operation)).toEqual(["keystore-export", "native-export"]);
+
+    store.append(record(3));
+    const stored = JSON.parse(readFileSync(join(root, "backup-records.json"), "utf8"));
+    expect(stored.records.map((r: BackupRecord) => r.operation)).toEqual([
+      "keystore-export",
+      "keystore-export",
+      "native-export",
+    ]);
   });
 });

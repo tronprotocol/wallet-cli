@@ -64,7 +64,15 @@ function fixture(opts: { tty: boolean }) {
   const shellOpts: ShellOptions = {
     registry,
     globals: { output: "text", verbose: false },
-    deps: { config, networkRegistry, streams, secrets, keystore, prompter, formatter },
+    deps: {
+      config,
+      networkRegistry,
+      streams,
+      secrets,
+      accounts: walletService,
+      prompter,
+      formatter,
+    },
     targetResolver: new TargetResolver({ networkRegistry, keystore }),
     caps: new CapabilityRegistry(),
     streams,

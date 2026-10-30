@@ -9,6 +9,7 @@ import { ChainError } from "../../../domain/errors/index.js";
 import type { Permit2ApproveRequest } from "../../../application/contracts/x402-payer.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { exitCodeOf } from "../../inbound/cli/output/errors.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -419,7 +420,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
   const input = {
     url: "https://payment.example",
     method: "GET",
-    headers: [] as string[],
+    headers: [],
     token: "USDT",
     maxAmount: "1",
   };
@@ -545,7 +546,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
             approval,
           },
         });
-        expect(result.exitCode()).toBe(2);
+        expect(exitCodeOf(result)).toBe(2);
       } else {
         expect(result).toMatchObject({ delivered: true, settled: true, approval });
       }

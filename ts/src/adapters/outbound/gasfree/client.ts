@@ -117,10 +117,20 @@ export class GasFreeClient implements GasFreeProvider {
     return transferRecord(await this.#request(network, "POST", "/api/v1/gasfree/submit", body));
   }
 
-  async trace(network: NetworkDescriptor, traceId: string): Promise<GasFreeTransferRecord> {
+  async trace(
+    network: NetworkDescriptor,
+    traceId: string,
+    signal?: AbortSignal,
+  ): Promise<GasFreeTransferRecord> {
     const normalized = traceIdentifier(traceId);
     return transferRecord(
-      await this.#request(network, "GET", `/api/v1/gasfree/${encodeURIComponent(normalized)}`),
+      await this.#request(
+        network,
+        "GET",
+        `/api/v1/gasfree/${encodeURIComponent(normalized)}`,
+        undefined,
+        signal,
+      ),
     );
   }
 
@@ -129,6 +139,7 @@ export class GasFreeClient implements GasFreeProvider {
     method: "GET" | "POST",
     suffix: string,
     body?: unknown,
+    callerSignal?: AbortSignal,
   ): Promise<unknown> {
     const metadata = endpoint(network);
     const credentials = this.#credentials();
@@ -143,6 +154,9 @@ export class GasFreeClient implements GasFreeProvider {
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const signal = callerSignal
+      ? AbortSignal.any([controller.signal, callerSignal])
+      : controller.signal;
     try {
       const response = await this.fetchImpl(`${metadata.baseUrl}${path}`, {
         method,
@@ -153,7 +167,7 @@ export class GasFreeClient implements GasFreeProvider {
           ...(encoded === undefined ? {} : { "content-type": "application/json" }),
         },
         body: encoded,
-        signal: controller.signal,
+        signal,
         redirect: "error",
         referrerPolicy: "no-referrer",
         cache: "no-store",
@@ -175,6 +189,9 @@ export class GasFreeClient implements GasFreeProvider {
       if (error instanceof CliError) throw error;
       if (controller.signal.aborted) {
         throw new ChainError("timeout", `GasFree request timed out after ${this.timeoutMs}ms`);
+      }
+      if (callerSignal?.aborted) {
+        throw new ChainError("timeout", "GasFree request exceeded the wait time");
       }
       throw new TransportError("provider_error", "GasFree service request failed");
     } finally {

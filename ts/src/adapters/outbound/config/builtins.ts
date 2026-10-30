@@ -131,10 +131,3 @@ export const BUILTIN_ALIASES: Record<string, string> = {
   base: "eip155:8453",
   "base-sepolia": "eip155:84532",
 };
-
-export const DEFAULT_CONFIG = {
-  defaultNetwork: "tron:728126428",
-  defaultOutput: "text" as const,
-  timeoutMs: 60000,
-  waitTimeoutMs: 60000,
-};

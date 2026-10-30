@@ -3,15 +3,15 @@ import type {
   TronTransactionArtifact,
   TxReceiptKind,
 } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { toRpcCode, type Resource } from "../../../domain/resources/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import {
+  MAX_UNFREEZING_ENTRIES,
+  toRpcCode,
+  type Resource,
+} from "../../../domain/resources/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type {
-  TronGateway,
-  TronResourceUsage,
-  TronStakeTotals,
-} from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronStakeTotals } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -21,6 +21,7 @@ import {
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
+import { readVotingPower, votingPowerView, type VotingPowerView } from "./voting-power.js";
 
 export interface StakeAmountInput extends TransactionModeInput {
   amountSun: string;
@@ -36,7 +37,7 @@ export interface StakeDelegateInput extends StakeAmountInput {
 export interface StakeInfoView {
   address: string;
   staked: TronStakeTotals;
-  votingPower: { total: number; used: number; available: number };
+  votingPower: VotingPowerView;
   resource: {
     energy: { used: number; limit: number };
     bandwidth: { used: number; limit: number };
@@ -65,12 +66,8 @@ export class TronStakeService {
     private readonly pipeline: TxPipeline,
   ) {}
 
-  // Voting power is in TP: 1 TP per staked TRX.
-  async votingPower(
-    network: NetworkDescriptor,
-    address: string,
-  ): Promise<{ total: number; used: number; available: number }> {
-    return votingPowerView(await this.gateways.get(network, "tron").getAccountResources(address));
+  async votingPower(network: NetworkDescriptor, address: string): Promise<VotingPowerView> {
+    return readVotingPower(this.gateways.get(network, "tron"), address);
   }
 
   async info(scope: AccountScope, network: NetworkDescriptor): Promise<StakeInfoView> {
@@ -89,7 +86,7 @@ export class TronStakeService {
       resource: { energy: resources.energy, bandwidth: resources.bandwidth },
       unfreezing: account.unfreezing,
       withdrawableSun,
-      unfreeze: { used: account.unfreezing.length, max: 32, remaining },
+      unfreeze: { used: account.unfreezing.length, max: MAX_UNFREEZING_ENTRIES, remaining },
     };
   }
 
@@ -238,13 +235,14 @@ export class TronStakeService {
     if (transactionRequiresSigner(input))
       this.pipeline.assertCanSign(scope.activeAccount, "tron", opts);
     const gateway = this.gateways.get(network, "tron");
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       signerOptions: opts,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => build(gateway, owner),
@@ -260,11 +258,10 @@ export class TronStakeService {
 
   private assertDifferentReceiver(owner: string, receiver: string): void {
     if (receiver === owner) {
-      throw new UsageError("invalid_value", "--receiver must differ from the owner address");
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`${inputRef("receiver")} must differ from the owner address`,
+      );
     }
   }
-}
-
-function votingPowerView({ votingPower }: TronResourceUsage) {
-  return { ...votingPower, available: votingPower.total - votingPower.used };
 }

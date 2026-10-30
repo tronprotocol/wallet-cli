@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronAssetService } from "../../../../application/use-cases/tron/asset-service.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import { TRC10_MAX_PRECISION } from "../../../../domain/asset/index.js";
@@ -33,6 +33,7 @@ export const assetIssueSpec: ChainSpec = {
     "an account that has never issued a TRC10, with balance >= the issuance fee",
     LEDGER_NOTE,
   ],
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     name: z.string().min(1).describe("token name, 1-32 visible ASCII chars"),
     supply: z.string().min(1).describe("total supply, in whole tokens"),
@@ -97,6 +98,7 @@ export const assetUpdateSpec: ChainSpec = {
     "Pass only the fields you want to change; the others are read from chain and\n" +
     "written back unchanged. At least one field is required.",
   requires: ["an account that has issued a TRC10", LEDGER_NOTE],
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     description: z.string().optional().describe("new description, up to 200 bytes"),
     url: z.string().optional().describe("new project page, must not be empty"),
@@ -137,6 +139,7 @@ export const assetParticipateSpec: ChainSpec = {
     "token automatically.",
   requires: ["an account with enough TRX, other than the token's issuer", LEDGER_NOTE],
   positionals: [{ field: "assetRef", placeholder: "asset" }],
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     assetRef: assetReference,
     pay: z.string().min(1).describe("TRX to spend (decimal, not the number of tokens)"),
@@ -162,6 +165,7 @@ export const assetUnfreezeSpec: ChainSpec = {
     "have not matured yet are untouched — run it again later for those.\n\n" +
     "This is unrelated to 'stake unfreeze', which releases staked TRX.",
   requires: ["an account that has issued a TRC10 and has matured frozen supply", LEDGER_NOTE],
+  exclusive: [txModeExclusive],
   baseFields: z.object({ ...txModeFields, ...tronTxModeFields }),
   examples: [{ cmd: "wallet-cli asset unfreeze --wait" }],
   formatText: TextFormatters.txReceipt,

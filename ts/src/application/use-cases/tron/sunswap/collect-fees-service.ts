@@ -23,7 +23,13 @@ import {
   transactionRequiresSigner,
 } from "../../../services/transaction-mode.js";
 import { warnOnPostCheck } from "../../../services/post-check.js";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import {
+  ChainError,
+  errorMessage,
+  followUp,
+  inputRef,
+  UsageError,
+} from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
 import { resolveDeadline } from "../../../../domain/sunswap/liquidity.js";
@@ -121,7 +127,7 @@ export class SunSwapCollectFeesService {
     if (nothingOwed(plan)) throw noFeesToCollect(plan.nftTokenId);
 
     const payload = this.#payload(network, plan);
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -132,7 +138,7 @@ export class SunSwapCollectFeesService {
       );
       return { kind: KIND, mode: "dry-run", ...plan, ...priced };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(scope, network, [], payload, mode, input.feeLimit);
       return { kind: KIND, ...plan, ...built };
     }
@@ -256,7 +262,7 @@ export class SunSwapCollectFeesService {
     }
 
     const payload = this.liquidity.v4CollectPayload(network, request);
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -267,7 +273,7 @@ export class SunSwapCollectFeesService {
       );
       return { kind: KIND, mode: "dry-run", ...plan, ...priced };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(scope, network, [], payload, mode, input.feeLimit);
       return { kind: KIND, ...plan, ...built };
     }
@@ -328,20 +334,20 @@ export class SunSwapCollectFeesService {
     if (input.recipient !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--recipient is not accepted on V4; the fees always go to the signing account",
+        errorMessage`${inputRef("recipient")} is not accepted on V4; the fees always go to the signing account`,
       );
     }
     const named = (input.token0 === undefined ? 0 : 1) + (input.token1 === undefined ? 0 : 1);
     if (named === 1) {
       throw new UsageError(
         "missing_option",
-        "--token0 and --token1 must be given together on V4, or both left out and read from the position",
+        errorMessage`${inputRef("token0")} and ${inputRef("token1")} must be given together on V4, or both left out and read from the position`,
       );
     }
     if (input.fee !== undefined && named === 0) {
       throw new UsageError(
         "missing_option",
-        "--fee is accepted on V4 only alongside --token0 and --token1; on its own it checks nothing",
+        errorMessage`${inputRef("fee")} is accepted on V4 only alongside ${inputRef("token0")} and ${inputRef("token1")}; on its own it checks nothing`,
       );
     }
 
@@ -352,7 +358,7 @@ export class SunSwapCollectFeesService {
       if (input.fee !== undefined && input.fee !== position.fee) {
         throw new UsageError(
           "invalid_value",
-          `--fee ${input.fee} does not match position ${position.tokenId}, which is in a ${position.fee} tier pool`,
+          errorMessage`${inputRef("fee")} ${input.fee} does not match position ${position.tokenId}, which is in a ${position.fee} tier pool`,
         );
       }
     }
@@ -423,7 +429,7 @@ export class SunSwapCollectFeesService {
     } catch (error) {
       scope.warn({
         code: "sunswap_v4_owed_fees_unavailable",
-        message: `the fees owed to position ${position.tokenId} could not be read, so this receipt reports no amount; 'sunswap position-list' reports the unclaimed value: ${redactErrorMessage(
+        message: errorMessage`the fees owed to position ${position.tokenId} could not be read, so this receipt reports no amount; '${followUp("sunswap-position-list")}' reports the unclaimed value: ${redactErrorMessage(
           error instanceof Error ? error.message : String(error),
         )}`,
       });
@@ -432,7 +438,7 @@ export class SunSwapCollectFeesService {
     if (owed === undefined) {
       scope.warn({
         code: "sunswap_v4_owed_fees_undecodable",
-        message: `the LP fee helper answered for position ${position.tokenId} in a shape this could not decode, so this receipt reports no amount rather than a zero; 'sunswap position-list' reports the unclaimed value`,
+        message: errorMessage`the LP fee helper answered for position ${position.tokenId} in a shape this could not decode, so this receipt reports no amount rather than a zero; '${followUp("sunswap-position-list")}' reports the unclaimed value`,
       });
     }
     return owed;
@@ -456,7 +462,7 @@ export class SunSwapCollectFeesService {
     if (!matches) {
       throw new UsageError(
         "invalid_value",
-        `--token0 ${given[0]} and --token1 ${given[1]} are not the pair position ${position.tokenId} holds, which is ${held[0]} and ${held[1]}`,
+        errorMessage`${inputRef("token0")} ${given[0]} and ${inputRef("token1")} ${given[1]} are not the pair position ${position.tokenId} holds, which is ${held[0]} and ${held[1]}`,
       );
     }
   }

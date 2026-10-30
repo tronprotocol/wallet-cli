@@ -13,10 +13,7 @@ const fields = z.object({
   symbol: z.string().describe("token symbol"),
   description: z.string().describe("token description"),
   image: z.string().optional().describe("path to a logo image file, sent as base64"),
-  imageBase64: z
-    .string()
-    .optional()
-    .describe("the logo as a base64 string; mutually exclusive with --image"),
+  imageBase64: z.string().optional().describe("the logo as a base64 string"),
   twitterUrl: z.string().optional().describe("Twitter URL"),
   telegramUrl: z.string().optional().describe("Telegram URL"),
   websiteUrl: z.string().optional().describe("website URL"),
@@ -26,14 +23,6 @@ const fields = z.object({
 const URL_FIELDS = ["twitterUrl", "telegramUrl", "websiteUrl"] as const;
 
 function refuseUnusableOptions(value: Record<string, unknown>, ctx: RefinementCtx): void {
-  if (value.image !== undefined && value.imageBase64 !== undefined) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["imageBase64"],
-      message: "cannot be given with --image; they are two ways of supplying one logo",
-      params: { errorCode: "invalid_option" },
-    });
-  }
   for (const field of URL_FIELDS) {
     const url = value[field];
     if (typeof url === "string" && !/^https?:\/\//.test(url)) {
@@ -67,6 +56,7 @@ export const sunpumpLaunchSpec: ChainSpec = {
     "that the service would accept.\n\n" +
     "--dry-run sends nothing to the create endpoint: it validates the options, reads the logo file,\n" +
     "and prints the request that would be made.",
+  exclusive: [{ label: "the logo", flags: ["image", "image-base64"], select: "at-most-one" }],
   baseFields: fields,
   baseRefine: refuseUnusableOptions,
   examples: [

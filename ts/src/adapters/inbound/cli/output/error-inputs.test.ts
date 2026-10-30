@@ -5,13 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContactService } from "../../../../application/use-cases/contact-service.js";
 import type { ContactRepository } from "../../../../application/ports/contact-repository.js";
-import {
-  CliError,
-  normalizeError,
-  UsageError,
-  ChainError,
-  errorMessage,
-} from "../../../../domain/errors/index.js";
+import { CliError, UsageError, ChainError, errorMessage } from "../../../../domain/errors/index.js";
 import { Keystore } from "../../../outbound/keystore/index.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { readBoundedTextFile } from "../commands/artifact.js";
@@ -24,6 +18,7 @@ import { registerWalletCommands } from "../commands/wallet.js";
 import { CommandRegistry } from "../registry/index.js";
 import { SignerResolver } from "../../../../application/services/signer/index.js";
 import { X402PaymentClient } from "../../../outbound/x402/payment-client.js";
+import { normalizeCliError } from "./errors.js";
 
 function thrown(action: () => unknown): CliError {
   try {
@@ -44,7 +39,7 @@ function render(error: CliError, mode: "text" | "json"): string {
     (s) => frames.push(s),
   );
   // Match the runner's normalize-then-format path.
-  createOutputFormatter(mode, streams, 0).error(normalizeError(error));
+  createOutputFormatter(mode, streams, 0).error(normalizeCliError(error));
   return frames.join("");
 }
 

@@ -8,6 +8,7 @@ import type {
   AgentRegistryValue,
 } from "../ports/agent-sdk.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
+import { tronAddressFromEvmHex } from "../../domain/family/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 
 const owner = "0x1111111111111111111111111111111111111111";
@@ -228,4 +229,70 @@ it("includes operator identity and re-reads approval only after confirmation", a
     { type: "address", value: owner },
     { type: "address", value: operator },
   ]);
+});
+
+describe("AgentService per-family behavior", () => {
+  const tronNet = {
+    id: "tron:3448148188",
+    family: "tron",
+    chainId: "3448148188",
+  } as NetworkDescriptor;
+
+  function familyFixture() {
+    const receipt = async () => ({ stage: "submitted", txId: "abc", kind: "contract-send" });
+    const contracts = {
+      evm: { call: vi.fn(), send: vi.fn(receipt) },
+      tron: { call: vi.fn(), send: vi.fn(receipt) },
+    };
+    const reader = {
+      registry: vi.fn(() => registryAddress),
+      read: vi.fn(async (): Promise<AgentRegistryValue> => owner),
+      registeredAgentId: vi.fn(async () => undefined),
+    } satisfies AgentRegistryReader;
+    const loader = { load: vi.fn(async () => ({})) } satisfies AgentRegistrationLoader;
+    const scope = { wait: false, warn: vi.fn() } as unknown as TransactionScope;
+    const service = new AgentService(contracts as unknown as AgentContractPorts, reader, loader);
+    return { service, contracts, scope };
+  }
+
+  it("writes TRON registry calls through the TRON port with a zero call value and the default fee limit", async () => {
+    const f = familyFixture();
+    await f.service.approve(f.scope, tronNet, { id: "7", operator: "TOperator" });
+    expect(f.contracts.evm.send).not.toHaveBeenCalled();
+    expect(f.contracts.tron.send).toHaveBeenCalledWith(f.scope, tronNet, {
+      id: "7",
+      operator: "TOperator",
+      approvalKind: "erc721",
+      contract: registryAddress,
+      method: "approve(address,uint256)",
+      parameters: [
+        { type: "address", value: "TOperator" },
+        { type: "uint256", value: "7" },
+      ],
+      callValueSun: "0",
+      feeLimit: "100000000",
+    });
+  });
+
+  it("writes EVM registry calls through the EVM port without TRON fields", async () => {
+    const f = familyFixture();
+    await f.service.operatorAdd(f.scope, evmNet, { operator });
+    expect(f.contracts.tron.send).not.toHaveBeenCalled();
+    expect(f.contracts.evm.send).toHaveBeenCalledWith(f.scope, evmNet, {
+      operator,
+      contract: registryAddress,
+      method: "setApprovalForAll(address,bool)",
+      params: [
+        { type: "address", value: operator },
+        { type: "bool", value: true },
+      ],
+    });
+  });
+
+  it("shows registry addresses in each family's canonical form", async () => {
+    const f = familyFixture();
+    expect((await f.service.show(evmNet, "1")).owner).toBe(owner);
+    expect((await f.service.show(tronNet, "1")).owner).toBe(tronAddressFromEvmHex(owner));
+    expect(tronAddressFromEvmHex(owner)).toMatch(/^T/);
+  });
 });

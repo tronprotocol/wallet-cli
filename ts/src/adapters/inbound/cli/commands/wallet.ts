@@ -5,7 +5,8 @@ import { Schemas } from "../schemas/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { accountRef, camelToKebab, ciEnum } from "../arity/index.js";
 import type { LedgerDevice } from "../../../../application/ports/ledger-device.js";
-import type { QrEncoder } from "../../../../application/ports/qr-encoder.js";
+import type { QrDisplay, QrEncoder } from "../../../../application/ports/qr-encoder.js";
+import type { BackupOperation } from "../../../../application/ports/backup-records.js";
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import {
   DEFAULT_SCAN_LIMIT,
@@ -39,18 +40,10 @@ export const walletImportLedgerFields = z.object({
     .optional()
     // A schema default would count as a second locator when --path or --address is supplied.
     .describe(
-      "Ledger Live account index (m/44'/<coin>'/<index>'/0/0); defaults to 0 when no locator is given; mutually exclusive with --path and --address",
+      "Ledger Live account index (m/44'/<coin>'/<index>'/0/0); defaults to 0 when no locator is given",
     ),
-  path: z
-    .string()
-    .optional()
-    .describe("explicit derivation path; mutually exclusive with --index and --address"),
-  address: z
-    .string()
-    .optional()
-    .describe(
-      "known address to locate by bounded scan; mutually exclusive with --index and --path",
-    ),
+  path: z.string().optional().describe("explicit derivation path"),
+  address: z.string().optional().describe("known address to locate by bounded scan"),
   scanLimit: z.coerce
     .number()
     .int()
@@ -106,6 +99,17 @@ function utcDateTime(describe: string) {
     .optional()
     .describe(`${describe}; format YYYY-MM-DD or 'YYYY-MM-DD HH:mm:ss', parsed as UTC`);
 }
+
+// A pipe or file has no columns.
+function stdoutDisplay(): QrDisplay {
+  return { isTTY: process.stdout.isTTY === true, columns: process.stdout.columns ?? 0 };
+}
+
+// Records name each export by the command that made it.
+const BACKUP_OPERATION_SPELLING: Record<BackupOperation, string> = {
+  "native-export": "backup",
+  "keystore-export": "backup --keystore",
+};
 
 export function registerWalletCommands(
   reg: CommandRegistry,
@@ -286,7 +290,12 @@ export function registerWalletCommands(
       const path =
         hasLocator || !ctx.prompt.isTTY()
           ? await resolveLedgerPath(services.ledger, family, input)
-          : await selectLedgerPath(services.ledger, family, ctx.prompt);
+          : await selectLedgerPath(
+              services.ledger,
+              family,
+              ctx.prompt,
+              `Select ${family} account (Ledger Live template; use --path for another scheme)`,
+            );
       ctx.emit({ type: "deriving-address" });
       return wallets.importLedger(family, path, input.label);
     },
@@ -426,7 +435,7 @@ export function registerWalletCommands(
       }
       // Validate the receive family for every output format before rendering.
       if (context.output !== "text") return { ...descriptor, receiveAddress: address };
-      const qr = services.qr?.encode(address) ?? null;
+      const qr = services.qr?.encode(address, stdoutDisplay()) ?? null;
       if (!qr) {
         context.warn(
           "terminal is non-interactive or too narrow for a complete QR code; showing the full address only",
@@ -644,13 +653,20 @@ export function registerWalletCommands(
     formatText: TextFormatters.walletBackup,
     run: async (ctx, network, input) => {
       if (input.records) {
-        return wallets.backupRecords({
+        const { records, pagination } = wallets.backupRecords({
           from: utcInstant(input.from),
           to: utcInstant(input.to),
           limit: input.limit,
           offset: input.offset,
           account: input.account,
         });
+        return {
+          records: records.map((r) => ({
+            ...r,
+            operation: BACKUP_OPERATION_SPELLING[r.operation],
+          })),
+          pagination,
+        };
       }
       const account = input.account!;
       wallets.assertExportable(account);

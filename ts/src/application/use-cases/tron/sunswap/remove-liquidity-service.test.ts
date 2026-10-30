@@ -131,7 +131,7 @@ function makeHarness(
   const assertCanSign = vi.fn();
   const pipeline = {
     assertCanSign,
-    run: vi.fn(async (p: PipelineParams) => {
+    runTron: vi.fn(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       const fee = await p.estimate(tx);
       if (p.mode === "dry-run") return { stage: "plan", tx, fee };
@@ -631,7 +631,7 @@ describe("remove-liquidity V4 — what reaches the payload", () => {
 
     await service.removeLiquidity(scope, NETWORK, V4);
 
-    expect(pipeline.run).toHaveBeenCalledTimes(1);
+    expect(pipeline.runTron).toHaveBeenCalledTimes(1);
     expect(port.v4CollectPayload).not.toHaveBeenCalled();
     expect(port.approvalPayload).not.toHaveBeenCalled();
   });
@@ -709,12 +709,12 @@ describe("remove-liquidity V4 — the cross-checks", () => {
       });
       await expect(result).rejects.toMatchObject({
         code: "invalid_value",
-        message: expect.stringContaining(`--token0 ${USDT} --token1 ${WTRX}`),
+        message: expect.stringContaining(`token0 ${USDT} token1 ${WTRX}`),
       });
-      await expect(result).rejects.toThrow("--min0 / --min1");
+      await expect(result).rejects.toThrow("min0 / min1");
       expect(port.v4AmountsForLiquidity).not.toHaveBeenCalled();
       expect(port.v4RemovePayload).not.toHaveBeenCalled();
-      expect(pipeline.run).not.toHaveBeenCalled();
+      expect(pipeline.runTron).not.toHaveBeenCalled();
     },
   );
 

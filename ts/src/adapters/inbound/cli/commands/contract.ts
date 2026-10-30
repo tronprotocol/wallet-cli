@@ -12,12 +12,14 @@ import { toBaseUnits, sunAmount, type Sun } from "../../../../domain/amounts/ind
 import { FAMILIES } from "../../../../domain/family/index.js";
 import {
   governanceTxModeFields,
-  governanceTxRefine,
+  tronExpirationRefine,
   tronTxModeFields,
+  txModeExclusive,
   txModeFields,
 } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import { MAX_PERCENT } from "../../../../domain/governance/limits.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
 
 function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
   if (!raw) return [];
@@ -137,9 +139,7 @@ const sendFields = z.object({
   buildOnly: z
     .boolean()
     .default(false)
-    .describe(
-      "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
-    ),
+    .describe("build an unsigned transaction without signing or broadcasting"),
 });
 
 const tronContractWriteFields = z.object({
@@ -147,7 +147,7 @@ const tronContractWriteFields = z.object({
     .optional()
     .describe("deprecated alias for --value, in SUN; removed next release"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe("maximum energy fee to burn, in SUN"),
   ...tronTxModeFields,
 });
@@ -195,8 +195,9 @@ export const contractSendSpec: ChainSpec = {
   description:
     "Call a contract method that changes state, signing and broadcasting the transaction.\n" +
     "Flags marked (TRON only) or (EVM only) are accepted only on networks of that family; using one on the other family is rejected.",
+  exclusive: [txModeExclusive],
   baseFields: sendFields,
-  baseRefine: governanceTxRefine,
+  baseRefine: tronExpirationRefine,
   examples: [
     {
       cmd: `wallet-cli contract send --contract TR7... --method "transfer(address,uint256)" --params '[...]' --network nile`,
@@ -311,21 +312,11 @@ function deployConstructorArgs(input: DeployArgInput, abi: unknown): DeployConst
   const values = constructorValues(input);
   if (abi !== undefined) return { source: "abi", abi, values };
   if (input.constructorSignature !== undefined) {
-    return {
-      source: "signature",
-      signature: input.constructorSignature,
-      values,
-      flag: "--constructor-signature",
-    };
+    return { source: "signature", signature: input.constructorSignature, values };
   }
   if (input.constructorParams === undefined) return { source: "none" };
   const types = typedConstructorParams(input.constructorParams).map((entry) => entry.type);
-  return {
-    source: "signature",
-    signature: `constructor(${types.join(",")})`,
-    values,
-    flag: "--constructor-params",
-  };
+  return { source: "typed-params", types, values };
 }
 
 export const contractDeployEvmBinding = (svc: EvmContractService): FamilyBinding => ({
@@ -374,13 +365,7 @@ const deployFields = z.object({
     .describe(
       "path to a compiler artifact (Foundry, Hardhat/sunhat, TronBox) holding both the bytecode and the ABI; the preferred source, because the constructor's types then come from the compiler",
     ),
-  code: z
-    .string()
-    .min(1)
-    .optional()
-    .describe(
-      "contract creation bytecode, hex-encoded; provide exactly one of --artifact, --code or --code-file",
-    ),
+  code: z.string().min(1).optional().describe("contract creation bytecode, hex-encoded"),
   codeFile: z
     .string()
     .min(1)
@@ -411,9 +396,7 @@ const deployFields = z.object({
   buildOnly: z
     .boolean()
     .default(false)
-    .describe(
-      "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
-    ),
+    .describe("build an unsigned transaction without signing or broadcasting"),
 });
 
 function deployRefine(
@@ -429,7 +412,7 @@ function deployRefine(
   },
   ctx: z.RefinementCtx,
 ): void {
-  governanceTxRefine(value as never, ctx);
+  tronExpirationRefine(value, ctx);
   constructorArgsRefine(value, ctx);
 }
 
@@ -475,37 +458,15 @@ function constructorArgsRefine(
 }
 
 const tronDeployFields = z.object({
-  abi: z
-    .string()
-    .min(1)
-    .optional()
-    .describe("contract ABI as a JSON array string; required unless --artifact supplies one"),
+  abi: z.string().min(1).optional().describe("contract ABI as a JSON array string"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe("maximum energy fee to burn, in SUN"),
   ...tronTxModeFields,
 });
 
 // TronWeb requires the full ABI; a constructor signature cannot replace it.
-function tronDeployRefine(
-  value: { abi?: string; artifact?: string; constructorSignature?: string },
-  ctx: z.RefinementCtx,
-): void {
-  if (value.abi === undefined && value.artifact === undefined) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["abi"],
-      message:
-        "TRON needs the contract's ABI to encode a deployment: pass --artifact, or --abi with the JSON",
-    });
-  }
-  if (value.abi !== undefined && value.artifact !== undefined) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["abi"],
-      message: "--abi and --artifact both supply the ABI; pass one",
-    });
-  }
+function tronDeployRefine(value: { constructorSignature?: string }, ctx: z.RefinementCtx): void {
   if (value.constructorSignature !== undefined) {
     ctx.addIssue({
       code: "custom",
@@ -535,6 +496,9 @@ export const contractDeploySpec: ChainSpec = {
       flags: ["constructor-args", "constructor-params"],
       select: "at-most-one",
     },
+    // --abi is a TRON field, so on EVM the group reduces to --artifact alone.
+    { label: "the contract ABI on TRON", flags: ["abi", "artifact"] },
+    txModeExclusive,
   ],
   baseRefine: deployRefine,
   examples: [
@@ -602,7 +566,8 @@ const contractGovernanceBase = {
   auth: "required" as const,
   broadcasts: true,
   capability: "contract.governance",
-  baseRefine: governanceTxRefine,
+  exclusive: [txModeExclusive],
+  baseRefine: tronExpirationRefine,
   formatText: TextFormatters.governanceReceipt,
 };
 

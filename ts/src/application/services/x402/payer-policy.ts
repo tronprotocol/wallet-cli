@@ -19,9 +19,10 @@ import {
 } from "../../../domain/family/index.js";
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
 import { toBaseUnits } from "../../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../domain/fees/tron.js";
 
-// Budget for one Permit2 approve: 100 TRX in SUN.
-export const X402_APPROVE_FEE_LIMIT_SUN = 100_000_000;
+// Budget for one Permit2 approve: the default TRON fee limit.
+export const X402_APPROVE_FEE_LIMIT_SUN = Number(DEFAULT_FEE_LIMIT_SUN);
 
 export interface PayerPolicy {
   readonly family: ChainFamily;

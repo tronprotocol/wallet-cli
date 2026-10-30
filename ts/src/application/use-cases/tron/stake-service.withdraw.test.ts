@@ -18,7 +18,7 @@ const scope = { activeAccount: {}, resolveAddress: () => OWNER } as never;
 function stubPipeline() {
   return {
     assertCanSign: () => {},
-    run: async (p: { build: (owner: string) => Promise<unknown> }) => {
+    runTron: async (p: { build: (owner: string) => Promise<unknown> }) => {
       await p.build(OWNER);
       return { stage: "submitted", txId: "0xdeadbeef" };
     },

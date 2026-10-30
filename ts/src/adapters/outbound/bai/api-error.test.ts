@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BaiClient } from "./client.js";
 import { BaiRechargeClient } from "./recharge-client.js";
 import { baiApiError } from "./api-error.js";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
 const codes = [
   "WalletInvalidSignature",
@@ -50,7 +51,7 @@ describe("B.AI failure diagnostics", () => {
       "usage.summary",
       status,
     );
-    expect(JSON.stringify(error?.toEnvelope())).not.toContain("secret");
+    expect(JSON.stringify(errorEnvelope(error!))).not.toContain("secret");
     expect(error?.code).toBe("provider_error");
   });
   it.each(["query", "recharge"])(

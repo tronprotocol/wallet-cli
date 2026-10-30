@@ -3,7 +3,7 @@ import { capabilitySupport, type CapabilityFacts } from "./predicates.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 const facts = (defaultToken: boolean): CapabilityFacts => ({
-  x402ServeDefaultToken: () => defaultToken,
+  x402TokenRegistered: () => defaultToken,
 });
 
 const tron = (extra: Partial<NetworkDescriptor> = {}): NetworkDescriptor =>

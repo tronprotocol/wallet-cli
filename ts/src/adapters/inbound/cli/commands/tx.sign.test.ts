@@ -50,7 +50,7 @@ describe("tx sign binding", () => {
         return { kind: "sign" };
       },
     };
-    await txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
+    await txSignTronBinding(svc as never, {} as never).run(ctx, net, {
       transaction: '{"txID":"abc"}',
     });
     expect(received).toEqual({ tx: { txID: "abc" }, options: { origin: "offline" } });
@@ -59,7 +59,7 @@ describe("tx sign binding", () => {
   it("rejects malformed JSON with invalid_value", async () => {
     const svc = { signJson: async () => ({}) };
     await expect(
-      txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
+      txSignTronBinding(svc as never, {} as never).run(ctx, net, {
         transaction: "not json",
       }),
     ).rejects.toMatchObject({ code: "invalid_value" });
@@ -98,59 +98,54 @@ describe("tx sign binding", () => {
 
   it("routes hex signing through the multisig authorization service by default", async () => {
     await expect(
-      txSignTronBinding(rejectOffline as never, checkedSigner() as never, {} as never).run(
-        ctx,
-        net,
-        { hex: "abcd", offline: false },
-      ),
+      txSignTronBinding(rejectOffline as never, checkedSigner() as never).run(ctx, net, {
+        hex: "abcd",
+        offline: false,
+      }),
     ).resolves.toMatchObject({ checked: true, signerWeight: 1 });
   });
 
   it("treats an absent --offline exactly like --offline false", async () => {
     await expect(
-      txSignTronBinding(rejectOffline as never, checkedSigner() as never, {} as never).run(
-        ctx,
-        net,
-        { hex: "abcd" },
-      ),
+      txSignTronBinding(rejectOffline as never, checkedSigner() as never).run(ctx, net, {
+        hex: "abcd",
+      }),
     ).resolves.toMatchObject({ checked: true });
   });
 
   it("routes --offline through the local signing service, never touching the node", async () => {
     await expect(
-      txSignTronBinding(offlineSigner() as never, rejectChecked as never, {} as never).run(
-        ctx,
-        net,
-        { hex: "abcd", offline: true },
-      ),
+      txSignTronBinding(offlineSigner() as never, rejectChecked as never).run(ctx, net, {
+        hex: "abcd",
+        offline: true,
+      }),
     ).resolves.toMatchObject({ checked: false });
   });
 
-  it("writes --out on both routes", async () => {
-    for (const input of [
-      { hex: "abcd", out: "signed.hex" },
-      { hex: "abcd", out: "signed.hex", offline: true },
-    ]) {
-      let written: unknown;
-      const writer = {
-        write: (path: string, hex: string) => {
-          written = { path, hex };
-        },
-      };
-      const result = await txSignTronBinding(
-        offlineSigner() as never,
-        checkedSigner() as never,
-        writer as never,
-      ).run(ctx, net, input);
-      expect(written).toEqual({ path: "signed.hex", hex: "beef" });
-      expect(result).toMatchObject({ out: "signed.hex", hex: "beef" });
-    }
+  it("passes --out to the signing use case on both routes", async () => {
+    const outs: unknown[] = [];
+    const offline = {
+      sign: async (_c: unknown, _n: unknown, _h: unknown, _o: unknown, out: unknown) => {
+        outs.push(out);
+        return {};
+      },
+    };
+    const checked = {
+      signChecked: async (_c: unknown, _n: unknown, _h: unknown, out: unknown) => {
+        outs.push(out);
+        return {};
+      },
+    };
+    const binding = txSignTronBinding(offline as never, checked as never);
+    await binding.run(ctx, net, { hex: "abcd", out: "signed.hex" });
+    await binding.run(ctx, net, { hex: "abcd", out: "offline.hex", offline: true });
+    expect(outs).toEqual(["signed.hex", "offline.hex"]);
   });
 
   it("rejects --offline with the JSON payload route, which has no online check to skip", async () => {
     const svc = { signJson: async () => ({ kind: "sign" }) };
     await expect(
-      txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
+      txSignTronBinding(svc as never, {} as never).run(ctx, net, {
         transaction: "{}",
         offline: true,
       }),
@@ -159,23 +154,18 @@ describe("tx sign binding", () => {
 });
 
 describe("EVM tx sign binding", () => {
-  it("writes the signed raw transaction when --out is provided", async () => {
-    const signed = { raw: "0x02signed", hash: "0xabc" };
-    const svc = { sign: async () => ({ kind: "sign", signed }) };
-    let written: unknown;
-    const writer = {
-      write: (path: string, hex: string) => {
-        written = { path, hex };
+  it("passes --out to the signing use case", async () => {
+    let received: unknown;
+    const svc = {
+      sign: async (_c: unknown, _n: unknown, hex: unknown, out: unknown) => {
+        received = { hex, out };
+        return { kind: "sign" };
       },
     };
 
-    const result = await txSignEvmBinding(svc as never, writer as never).run(ctx, net, {
-      hex: "0x02unsigned",
-      out: "signed.hex",
-    });
+    await txSignEvmBinding(svc as never).run(ctx, net, { hex: "0x02unsigned", out: "signed.hex" });
 
-    expect(written).toEqual({ path: "signed.hex", hex: signed.raw });
-    expect(result).toMatchObject({ out: "signed.hex", signed });
+    expect(received).toEqual({ hex: "0x02unsigned", out: "signed.hex" });
   });
 });
 
@@ -189,7 +179,7 @@ describe("tx sign legacy JSON compatibility", () => {
       txId: "abc",
     };
     const svc = { signJson: async () => legacy };
-    const result = await txSignTronBinding(svc as never, {} as never, {} as never).run(ctx, net, {
+    const result = await txSignTronBinding(svc as never, {} as never).run(ctx, net, {
       transaction: '{"txID":"abc"}',
     });
     expect(result).toEqual(legacy);

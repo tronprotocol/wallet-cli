@@ -353,7 +353,7 @@ function receiptRows(r: TxReceiptView): Pair[] {
       r.votes.map((vote) => `${vote.witness}=${formatInt(vote.count)}`).join(", "),
     ]);
   else if (r.kind === "reward-withdraw")
-    rows.push(["Amount", `${formatSun(r.rewardSun ?? r.withdrawnSun ?? 0)} TRX`]);
+    rows.push(["Amount", `${formatSun(r.rewardSun ?? 0)} TRX`]);
   else if (r.kind === "account-activate") {
     rows.push(["Address", String(r.address ?? "")]);
     rows.push(["Payer", String(r.payer ?? "")]);

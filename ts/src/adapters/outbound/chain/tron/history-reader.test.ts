@@ -51,7 +51,7 @@ describe("TronGridHistoryReader failures", () => {
     await expect(read()).rejects.toMatchObject({ code: "rpc_error" });
   });
 
-  it.each(["not json", "null", '{"data": {}}'])(
+  it.each(["not json", "null", '{"data": {}}', '{"success": true}', '{"data": null}'])(
     "reports a malformed body %j as invalid_node_response",
     async (body) => {
       nodeAnswers(200, body);

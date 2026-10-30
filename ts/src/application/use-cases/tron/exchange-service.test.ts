@@ -5,6 +5,8 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronAsset, TronExchange, TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
+import { isUserMessage } from "../../../domain/errors/index.js";
+import { cliMessage, errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -25,8 +27,8 @@ const scope: TransactionScope = {
   wait: false,
   waitTimeoutMs: 60_000,
   emit: () => {},
-  warn: (m: string) => {
-    warnings.push(m);
+  warn: (m) => {
+    warnings.push(typeof m === "string" ? m : isUserMessage(m) ? cliMessage(m).message : "");
   },
 };
 
@@ -62,7 +64,7 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
     } as unknown as ChainGatewayProvider,
     {
       assertCanSign: () => {},
-      run: async () => ({ stage: "submitted", txId: "txid" }),
+      runTron: async () => ({ stage: "submitted", txId: "txid" }),
       ...pipeline,
     } as unknown as TxPipeline,
   );
@@ -83,7 +85,7 @@ function capturing(gateway: Partial<TronGateway>) {
       ...gateway,
     } as Partial<TronGateway>,
     {
-      run: async (p: { build: (o: string) => Promise<unknown> }) => {
+      runTron: async (p: { build: (o: string) => Promise<unknown> }) => {
         await p.build(OWNER);
         return { stage: "submitted", txId: "txid" } as never;
       },
@@ -127,17 +129,18 @@ describe("exchange create", () => {
       service({}).create(scope, NET, { pair: "TRX:1000123", rawAmounts: "0:1" }),
     ).rejects.toMatchObject({
       code: "invalid_value",
-      message: "--raw-amounts sides must both be greater than zero",
+      message: "rawAmounts sides must both be greater than zero",
     });
   });
 
   it("requires exactly one of --amounts and --raw-amounts", async () => {
-    await expect(service({}).create(scope, NET, { pair: "TRX:1000123" })).rejects.toThrow(
-      /exactly one of --amounts/,
-    );
+    const error = await service({})
+      .create(scope, NET, { pair: "TRX:1000123" })
+      .catch((e) => e);
+    expect(errorEnvelope(error).message).toBe("provide exactly one of --amounts or --raw-amounts");
     await expect(
       service({}).create(scope, NET, { pair: "TRX:1000123", amounts: "1:1", rawAmounts: "1:1" }),
-    ).rejects.toThrow(/exactly one of --amounts/);
+    ).rejects.toThrow(/exactly one of amounts or rawAmounts/);
   });
 });
 
@@ -194,7 +197,7 @@ describe("exchange inject / withdraw", () => {
       svc.inject(scope, NET, { id: 12, token: "TRX", rawAmount: "0" }),
     ).rejects.toMatchObject({
       code: "invalid_value",
-      message: "--amount must be greater than zero",
+      message: "amount must be greater than zero",
     });
   });
 
@@ -238,7 +241,7 @@ describe("exchange trade", () => {
       svc.trade(scope, NET, { ...base, minReceived: "1.1234567" }),
     ).rejects.toMatchObject({
       code: "invalid_amount",
-      message: expect.stringContaining("--min-received has too many decimal places"),
+      message: expect.stringContaining("minReceived has too many decimal places"),
     });
   });
 
@@ -246,13 +249,18 @@ describe("exchange trade", () => {
     warnings.length = 0;
     const svc = service({ getExchangeById: async () => pool() });
     await expect(svc.trade(scope, NET, base)).resolves.toMatchObject({ minReceivedQuant: "1" });
-    expect(warnings.join(" ")).toMatch(/no slippage protection/);
+    expect(warnings).toEqual([
+      "no slippage protection: this trade accepts any non-zero return at any price. Pass --slippage or --min-received to set a floor.",
+    ]);
   });
 
   it("refuses two competing floors", async () => {
     const svc = service({ getExchangeById: async () => pool() });
-    await expect(svc.trade(scope, NET, { ...base, slippage: 1, minReceived: "1" })).rejects.toThrow(
-      /at most one of --min-received/,
+    const error = await svc
+      .trade(scope, NET, { ...base, slippage: 1, minReceived: "1" })
+      .catch((e) => e);
+    expect(errorEnvelope(error).message).toBe(
+      "choose at most one of --min-received, --raw-min-received, --slippage",
     );
   });
 
@@ -270,7 +278,7 @@ describe("exchange trade", () => {
     const svc = service(
       { getExchangeById: async () => pool() },
       {
-        run: async () =>
+        runTron: async () =>
           ({ stage: "confirmed", txId: "t", exchangeReceived: 4_949_000_000 }) as never,
       },
     );

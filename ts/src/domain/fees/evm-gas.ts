@@ -1,5 +1,5 @@
 // Prices are decimal wei strings; BigInt preserves precision beyond Number.MAX_SAFE_INTEGER.
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError, type UserMessage } from "../errors/index.js";
 import { weiAmount, type Wei } from "../amounts/index.js";
 
 export type EvmFeeMode = "eip1559" | "legacy";
@@ -30,7 +30,7 @@ export interface EvmFeePlan {
   priorityFeeWei?: string;
   gasPriceWei?: string;
   maxCostWei: string;
-  warnings?: string[];
+  warnings?: UserMessage[];
 }
 
 // Zero base fee still supports EIP-1559; an explicit legacy declaration overrides detection.
@@ -50,7 +50,7 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
     if (overrides.maxFeeWei !== undefined || overrides.priorityFeeWei !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--max-fee and --priority-fee need an EIP-1559 chain; this network prices in gasPrice",
+        errorMessage`${inputRef("maxFee")} and ${inputRef("priorityFee")} need an EIP-1559 chain; this network prices in gasPrice`,
       );
     }
     return {
@@ -74,15 +74,15 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
   const clamped = priorityGiven === undefined && suggested > maxFee;
   const priority = priorityGiven ?? (clamped ? maxFee : suggested);
 
-  const warnings: string[] = [];
+  const warnings: UserMessage[] = [];
   if (clamped) {
     warnings.push(
-      `--max-fee ${maxFee} wei is below the node's suggested tip of ${suggested} wei, so the tip was reduced to match it; a node rejects a tip above the fee cap`,
+      errorMessage`${inputRef("maxFee")} ${maxFee} wei is below the node's suggested tip of ${suggested} wei, so the tip was reduced to match it; a node rejects a tip above the fee cap`,
     );
   }
   if (maxFee < base) {
     warnings.push(
-      `--max-fee ${maxFee} wei is below the current base fee of ${base} wei; this transaction cannot be included until the base fee falls`,
+      errorMessage`${inputRef("maxFee")} ${maxFee} wei is below the current base fee of ${base} wei; this transaction cannot be included until the base fee falls`,
     );
   }
 

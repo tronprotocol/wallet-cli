@@ -1,11 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { EvmTransactionService } from "./transaction-service.js";
-import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  classifyError,
+  errorMessage,
+  type CliError,
+} from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, EvmTxPipelineParams } from "../../services/pipeline/index.js";
 import { decodeEvmRawTransaction } from "../../../adapters/outbound/chain/evm/evm.js";
+import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
 
 const OWNER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const RECEIVER = "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB";
@@ -52,7 +58,7 @@ function harness(over: Partial<Record<string, unknown>> = {}) {
   const built: Record<string, unknown>[] = [];
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (params: TxPipelineParams) => {
+    runEvm: vi.fn(async (params: EvmTxPipelineParams) => {
       const tx = (await params.build(OWNER)) as Record<string, unknown>;
       built.push(tx);
       return { stage: "plan" as const, tx, fee: await params.estimate(tx) };
@@ -65,6 +71,7 @@ function harness(over: Partial<Record<string, unknown>> = {}) {
     tokens as never,
     pipeline,
     recipients as never,
+    { write: vi.fn() },
   );
   return { service, gateway, built, pipeline, recipients };
 }
@@ -124,7 +131,7 @@ describe("EvmTransactionService.send — native transfer", () => {
     const built: Record<string, unknown>[] = [];
     const pipeline = {
       assertCanSign: vi.fn(),
-      run: vi.fn(async (params: TxPipelineParams) => {
+      runEvm: vi.fn(async (params: EvmTxPipelineParams) => {
         const tx = (await params.build(OWNER)) as Record<string, unknown>;
         built.push(tx);
         return { stage: "plan" as const, tx, fee: await params.estimate(tx) };
@@ -135,6 +142,7 @@ describe("EvmTransactionService.send — native transfer", () => {
       { effective: () => [] } as never,
       pipeline,
       { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+      { write: vi.fn() },
     );
     const transactionScope = scope();
 
@@ -318,7 +326,7 @@ describe("EvmTransactionService.send — --contract without a book entry", () =>
       .catch((e) => e);
 
     expect(error).toMatchObject({ code: "token_metadata_unavailable" });
-    expect(error.message).toMatch(/--raw-amount|token add/);
+    expect(error.message).toMatch(/rawAmount/);
   });
 
   it("does not need decimals at all for --raw-amount", async () => {
@@ -351,13 +359,14 @@ describe("EvmTransactionService.send — gas estimation", () => {
       { effective: () => [] } as never,
       {
         assertCanSign: vi.fn(),
-        run: vi.fn(async (params: TxPipelineParams) => ({
+        runEvm: vi.fn(async (params: EvmTxPipelineParams) => ({
           stage: "plan" as const,
           tx: await params.build(OWNER),
           fee: {},
         })),
       } as unknown as TxPipeline,
       { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+      { write: vi.fn() },
     );
 
     const error = await failing
@@ -365,9 +374,11 @@ describe("EvmTransactionService.send — gas estimation", () => {
       .catch((e) => e);
 
     expect(error).toMatchObject({ code: "rpc_error" });
-    expect(error.exitCode()).toBe(1);
+    expect(exitCodeOf(error)).toBe(1);
     expect(error.message).toMatch(/insufficient funds/);
-    expect(error.message).toMatch(/--gas-limit/);
+    expect(errorEnvelope(error).message).toMatch(
+      /; pass --gas-limit to proceed without an estimate\./,
+    );
   });
 
   it("takes --gas-limit as the way past a node that cannot estimate", async () => {
@@ -385,13 +396,14 @@ describe("EvmTransactionService.send — gas estimation", () => {
       { effective: () => [] } as never,
       {
         assertCanSign: vi.fn(),
-        run: vi.fn(async (params: TxPipelineParams) => {
+        runEvm: vi.fn(async (params: EvmTxPipelineParams) => {
           const tx = await params.build(OWNER);
           built.push(tx);
           return { stage: "plan" as const, tx, fee: {} };
         }),
       } as unknown as TxPipeline,
       { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+      { write: vi.fn() },
     );
 
     await service.send(scope(), SEPOLIA, {
@@ -409,6 +421,7 @@ describe("EvmTransactionService.send — gas estimation", () => {
 describe("EvmTransactionService.sign", () => {
   function signHarness(signed: unknown = { raw: "0x02signed", hash: `0x${"ab".repeat(32)}` }) {
     const seen: unknown[] = [];
+    const artifacts = { write: vi.fn() };
     const pipeline = {
       assertCanSign: vi.fn(),
       signOnly: vi.fn(async (p: { tx: unknown }) => {
@@ -423,8 +436,9 @@ describe("EvmTransactionService.sign", () => {
       { effective: () => [] } as never,
       pipeline,
       { resolve: vi.fn() } as never,
+      artifacts,
     );
-    return { service, seen, pipeline };
+    return { service, seen, pipeline, artifacts };
   }
 
   // ethers unsignedSerialized fixture.
@@ -443,6 +457,22 @@ describe("EvmTransactionService.sign", () => {
     const out = (await service.sign(scope(), SEPOLIA, UNSIGNED)) as { signed?: unknown };
 
     expect(out.signed).toMatchObject({ raw: "0x02signed" });
+  });
+
+  it("writes the signed serialisation to the chosen file and reports it", async () => {
+    const { service, artifacts } = signHarness();
+    const out = await service.sign(scope(), SEPOLIA, UNSIGNED, "signed.hex");
+
+    expect(artifacts.write).toHaveBeenCalledExactlyOnceWith("signed.hex", "0x02signed");
+    expect(out.out).toBe("signed.hex");
+  });
+
+  it("writes nothing when no file is chosen", async () => {
+    const { service, artifacts } = signHarness();
+    const out = await service.sign(scope(), SEPOLIA, UNSIGNED);
+
+    expect(artifacts.write).not.toHaveBeenCalled();
+    expect(out).not.toHaveProperty("out");
   });
 
   it("rejects input that is not a transaction rather than signing rubbish", async () => {
@@ -502,6 +532,7 @@ describe("EvmTransactionService.broadcast", () => {
       { effective: () => [] } as never,
       {} as never,
       { resolve: vi.fn() } as never,
+      { write: vi.fn() },
     );
     return { service, seen, gateway };
   }
@@ -520,7 +551,7 @@ describe("EvmTransactionService.broadcast", () => {
       const error = classifyError(
         await service.broadcast(scope(), SEPOLIA, SIGNED).catch((e) => e),
       );
-      expect(error.toEnvelope()).toEqual({
+      expect(errorEnvelope(error)).toEqual({
         code,
         message: original.message,
         details: {
@@ -530,7 +561,7 @@ describe("EvmTransactionService.broadcast", () => {
       });
       expect(error.textMessage).toBe(original.textMessage);
       expect(error.kind).toBe(original.kind);
-      expect(error.exitCode()).toBe(original.exitCode());
+      expect(exitCodeOf(error)).toBe(exitCodeOf(original));
       expect(gateway.sendRawTransaction).toHaveBeenCalledWith(SIGNED);
     },
   );
@@ -606,6 +637,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
       { effective: () => [] } as never,
       {} as never,
       { resolve: vi.fn() } as never,
+      { write: vi.fn() },
     );
     return { service, gateway, warn, scope: () => ({ ...scope(), warn }) as never };
   }
@@ -683,7 +715,9 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
     expect(out.checks).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: "nonce", status: "warning" })]),
     );
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("gap"));
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("dryRun: nonce") }),
+    );
   });
 
   it("degrades to the local checks when the node is unreachable", async () => {
@@ -704,7 +738,9 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
         expect.objectContaining({ name: "balance", status: "skipped" }),
       ]),
     );
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("not checked"));
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("not checked") }),
+    );
   });
 
   it("still refuses an unsigned transaction", async () => {
@@ -735,6 +771,7 @@ describe("EvmTransactionService.status", () => {
       { effective: () => [] } as never,
       {} as never,
       { resolve: vi.fn() } as never,
+      { write: vi.fn() },
     );
     return { service, scope: { ...scope(), warn } as TransactionScope, warn };
   }
@@ -829,6 +866,7 @@ describe("EvmTransactionService.status", () => {
       { effective: () => [] } as never,
       {} as never,
       { resolve: vi.fn() } as never,
+      { write: vi.fn() },
     );
 
     await expect(service.status(scope(), SEPOLIA, HASH)).rejects.toMatchObject({
@@ -849,6 +887,7 @@ describe("EvmTransactionService.status", () => {
       { effective: () => [] } as never,
       {} as never,
       { resolve: vi.fn() } as never,
+      { write: vi.fn() },
     );
 
     await expect(service.status(scope(), SEPOLIA, HASH)).rejects.toMatchObject({
@@ -900,6 +939,7 @@ describe("EvmTransactionService.info", () => {
       { effective: () => [] } as never,
       {} as never,
       { resolve: vi.fn() } as never,
+      { write: vi.fn() },
     );
   }
   const HASH = `0x${"cd".repeat(32)}`;
@@ -978,6 +1018,7 @@ describe("EvmTransactionService.info", () => {
       { effective: () => [] } as never,
       {} as never,
       { resolve: vi.fn() } as never,
+      { write: vi.fn() },
     );
 
     const out = await svc.info(scope(), SEPOLIA, HASH);
@@ -1031,7 +1072,7 @@ describe("EvmTransactionService.info", () => {
       await svc.info(scope(), SEPOLIA, HASH);
       expect.unreachable("expected info() to throw");
     } catch (e) {
-      expect((e as { exitCode(): number }).exitCode()).toBe(1);
+      expect(exitCodeOf(e as CliError)).toBe(1);
     }
   });
 });
@@ -1053,7 +1094,7 @@ describe("EvmTransactionService.send --dry-run — an explicit nonce the chain h
     };
     const pipeline = {
       assertCanSign: vi.fn(),
-      run: vi.fn(async (params: TxPipelineParams) => {
+      runEvm: vi.fn(async (params: EvmTxPipelineParams) => {
         const tx = (await params.build(OWNER)) as Record<string, unknown>;
         return { stage: "plan" as const, tx, fee: await params.estimate(tx) };
       }),
@@ -1063,6 +1104,7 @@ describe("EvmTransactionService.send --dry-run — an explicit nonce the chain h
       { effective: () => [] } as never,
       pipeline,
       { resolve: vi.fn(() => ({ address: RECEIVER })) } as never,
+      { write: vi.fn() },
     );
     return { service, gateway };
   }

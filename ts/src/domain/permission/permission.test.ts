@@ -5,6 +5,8 @@ import {
   buildLocalPermissionInventory,
   decodeOperations,
   encodeOperations,
+  isActivePermissionId,
+  isPermissionId,
   permissionSafetyWarnings,
   validatePermissionStructure,
 } from "./index.js";
@@ -38,6 +40,15 @@ function structure() {
     ],
   };
 }
+
+describe("permission ids", () => {
+  it("accepts 0 to 9, and 2 to 9 as active", () => {
+    expect([0, 1, 9].every(isPermissionId)).toBe(true);
+    expect([-1, 10, 1.5, "0"].some(isPermissionId)).toBe(false);
+    expect([2, 9].every(isActivePermissionId)).toBe(true);
+    expect([0, 1, 10].some(isActivePermissionId)).toBe(false);
+  });
+});
 
 describe("TRON permission operations", () => {
   it("uses contract ids as little-endian bits within a fixed 32-byte bitmap", () => {

@@ -3,8 +3,9 @@ import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapRemoveLiquidityService } from "../../../../../application/use-cases/tron/sunswap/remove-liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
-import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { sunAmount } from "../../../../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../../domain/fees/tron.js";
 
 const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
@@ -70,7 +71,7 @@ const fields = z.object({
     .optional()
     .describe("Unix seconds the transaction stops being valid; default 30 minutes from now"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe(
       "maximum energy fee to burn, in SUN; the dry run's estimate is a lower bound, so a limit set from it can fail",
     ),
@@ -210,6 +211,7 @@ export const sunswapRemoveLiquiditySpec: ChainSpec = {
     "add-liquidity receipt reports.\n\n" +
     "--dry-run validates everything — the position, the balance, the amounts — without a\n" +
     "password, and works for a watch-only account.",
+  exclusive: [unsignedTxModeExclusive],
   baseFields: fields,
   // Reject unsupported flags before validating recipient addresses.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),

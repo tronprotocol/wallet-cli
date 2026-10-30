@@ -7,7 +7,14 @@ import type {
 } from "../../domain/types/index.js";
 import type { AccountScope } from "../contracts/execution-scope.js";
 import type { TokenRepository } from "../ports/token-repository.js";
-import { UsageError, WalletError } from "../../domain/errors/index.js";
+import {
+  errorMessage,
+  followUp,
+  inputRef,
+  UsageError,
+  WalletError,
+  type UserMessage,
+} from "../../domain/errors/index.js";
 import { TronAddress } from "../../domain/address/index.js";
 import { builtinSunSwapToken } from "../../domain/sunswap/tokens.js";
 
@@ -27,12 +34,11 @@ export interface ResolvedToken {
   readonly fromTokenBook: boolean;
 }
 
-const NOT_FOUND_HINT: Readonly<Record<TokenResolutionCaller, string>> = {
-  swap: "pass its contract address in its place, or add it with 'wallet-cli token add'",
-  liquidity:
-    "pass its contract address with --token0/--token1, or add it with 'wallet-cli token add'",
-  "pool-list": "pass its contract address with --token",
-  price: "pass its contract address with --address",
+const NOT_FOUND_HINT: Readonly<Record<TokenResolutionCaller, UserMessage>> = {
+  swap: errorMessage`pass its contract address in its place, or add it with '${followUp("token-add")}'`,
+  liquidity: errorMessage`pass its contract address with ${inputRef("token0")}/${inputRef("token1")}, or add it with '${followUp("token-add")}'`,
+  "pool-list": errorMessage`pass its contract address with ${inputRef("token")}`,
+  price: errorMessage`pass its contract address with ${inputRef("address")}`,
 };
 
 const READS_USER_LAYER: ReadonlySet<TokenResolutionCaller> = new Set(["swap", "liquidity"]);
@@ -77,7 +83,7 @@ export class SunSwapTokenResolver {
     if (entry) return { address: entry.id, fromTokenBook: entry.source === "user" };
     throw new UsageError(
       "unsupported_token",
-      `unknown token symbol ${symbol} on ${this.label(network)}; ${NOT_FOUND_HINT[lookup.caller]}`,
+      errorMessage`unknown token symbol ${symbol} on ${this.label(network)}; ${NOT_FOUND_HINT[lookup.caller]}`,
     );
   }
 

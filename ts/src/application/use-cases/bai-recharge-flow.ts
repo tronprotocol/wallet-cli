@@ -5,7 +5,13 @@ import type {
   BaiRechargePayment,
   BaiReportTransactionInput,
 } from "../ports/bai-recharge.js";
-import { CliError, UsageError, TransportError } from "../../domain/errors/index.js";
+import {
+  CliError,
+  errorMessage,
+  followUp,
+  UsageError,
+  TransportError,
+} from "../../domain/errors/index.js";
 
 // No payment retries; retain the paid hash for report-only recovery.
 export class BaiRechargeFlow {
@@ -80,8 +86,7 @@ export class BaiRechargeFlow {
     return "code" in reported && reported.code === "TX_NOT_FOUND_OR_INVALID"
       ? {
           ...reported,
-          warning:
-            "B.AI has not indexed the transaction yet; report it again in a minute with `bai report-recharge`",
+          warning: errorMessage`B.AI has not indexed the transaction yet; report it again in a minute with \`${followUp("bai-report-recharge")}\``,
         }
       : reported;
   }
@@ -114,7 +119,16 @@ export async function reportBaiTransaction(
     return {
       ...base,
       creditStatus: "unconfirmed" as const,
-      ...(error instanceof CliError ? { code: error.code, error: error.toEnvelope() } : {}),
+      ...(error instanceof CliError
+        ? {
+            code: error.code,
+            error: {
+              code: error.code,
+              message: error.message,
+              ...(error.details === undefined ? {} : { details: error.details }),
+            },
+          }
+        : {}),
       warning:
         "Recharge reporting failed; retain the transaction hash and reconcile before retrying reporting. Do not pay again",
     };

@@ -15,7 +15,15 @@ import type {
   GasFreeTransferView,
   NetworkDescriptor,
 } from "../../../domain/types/index.js";
-import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  CliError,
+  errorMessage,
+  followUp,
+  inputRef,
+  TransportError,
+  UsageError,
+} from "../../../domain/errors/index.js";
 import {
   gasFreeDigest,
   gasFreeTypedData,
@@ -105,7 +113,10 @@ export class GasFreeService {
     input: GasFreeTransferInput,
   ): Promise<GasFreeTransferView> {
     if (input.dryRun && scope.wait) {
-      throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
+      throw new UsageError(
+        "invalid_option",
+        errorMessage`${inputRef("wait")} cannot be used with ${inputRef("dryRun")}`,
+      );
     }
     if (!input.dryRun) {
       this.signers.assertCanSign(scope.activeAccount, "tron");
@@ -138,7 +149,7 @@ export class GasFreeService {
     }
     const asset = selectAsset(addressInfo, token);
     const value = toBaseUnits(input.amount, token.decimals, token.symbol);
-    assertPositiveAmount(BigInt(value), "--amount");
+    assertPositiveAmount(BigInt(value), inputRef("amount"));
     const activateFee = addressInfo.active ? "0" : asset.activateFee;
     // Authorize activation plus transfer fees even when activation is already paid.
     const authorizedMaxFee = add(asset.activateFee, asset.transferFee);
@@ -339,24 +350,26 @@ export class GasFreeService {
     let previous = initial.state;
     if (previous === "SUCCEED" || previous === "FAILED") return initial;
     for (;;) {
+      const beforeSleep = deadline - this.clock();
+      if (beforeSleep > 0) await this.sleep(Math.min(POLL_MS, beforeSleep));
+      // No trace is sent once the wait budget is spent.
       const remaining = deadline - this.clock();
       if (remaining <= 0) {
         scope.warn(
-          `--wait: GasFree transfer ${initial.id} did not finish within ${scope.waitTimeoutMs}ms; returning submitted`,
+          errorMessage`${inputRef("wait")}: GasFree transfer ${initial.id} did not finish within ${scope.waitTimeoutMs}ms; returning submitted`,
         );
         return undefined;
       }
-      await this.sleep(Math.min(POLL_MS, remaining));
       let current: GasFreeTransferRecord;
       try {
-        current = await this.provider.trace(network, initial.id);
+        current = await this.provider.trace(network, initial.id, AbortSignal.timeout(remaining));
       } catch (error) {
         if (isRetryablePoll(error)) continue;
         if (error instanceof CliError && error.code === "gasfree_integrity") throw error;
         scope.warn(
-          `--wait: GasFree trace could not be polled (${
+          errorMessage`${inputRef("wait")}: GasFree trace could not be polled (${
             error instanceof CliError ? error.code : "provider_error"
-          }); returning submitted — reconcile with \`gasfree trace ${initial.id}\``,
+          }); returning submitted — reconcile with \`${followUp("gasfree-trace", initial.id)}\``,
         );
         return undefined;
       }

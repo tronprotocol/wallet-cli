@@ -7,7 +7,13 @@ import type {
   TxInfoView,
   TxStatusView,
 } from "../../../domain/types/index.js";
-import { ChainError, ExecutionError } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  errorMessage,
+  ExecutionError,
+  followUp,
+  inputRef,
+} from "../../../domain/errors/index.js";
 import { assertEvmTransactionChain } from "../../services/signing/chain-identity.js";
 import { authoritativeTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import { FAMILIES } from "../../../domain/family/index.js";
@@ -29,6 +35,7 @@ import type {
   EvmTxView,
 } from "../../ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
+import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 import {
@@ -36,6 +43,7 @@ import {
   transactionMode,
   transactionRequiresSigner,
   type TransactionModeInput,
+  type TxOutcomeView,
 } from "../../services/transaction-mode.js";
 
 type EvmTokenMetadata = Awaited<ReturnType<EvmGateway["getErc20Metadata"]>>;
@@ -54,12 +62,18 @@ export interface EvmSendInput extends TransactionModeInput {
   nonce?: number;
 }
 
+export type EvmSignResult = { kind: "sign" } & Extract<TxOutcomeView, { mode: "sign-only" }> & {
+    signed: EvmSignedTx;
+    out?: string;
+  };
+
 export class EvmTransactionService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly tokens: TokenRepository,
     private readonly pipeline: TxPipeline,
     private readonly recipients: RecipientResolver,
+    private readonly artifacts: TransactionArtifactWriter,
   ) {}
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: EvmSendInput) {
@@ -72,7 +86,7 @@ export class EvmTransactionService {
     // Keep fee metadata outside the transaction echoed by dry-run/build-only.
     let plan = {} as EvmFeeReport;
     let nonce: number | undefined;
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runEvm({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -155,7 +169,7 @@ export class EvmTransactionService {
     if (decimals === undefined) {
       throw new ExecutionError(
         "token_metadata_unavailable",
-        `could not establish decimals for ${contract}: it did not answer decimals() and is not in the address book. Add it with \`token add --contract ${contract}\`, or pass --raw-amount in base units.`,
+        errorMessage`could not establish decimals for ${contract}: it did not answer decimals() and is not in the address book. Add it with \`${followUp("token-add", contract)}\`, or pass ${inputRef("rawAmount")} in base units.`,
       );
     }
     return {
@@ -218,11 +232,13 @@ export class EvmTransactionService {
   }
 
   // Accept unsigned serialization only: an EVM transaction carries exactly one signature.
+  // `out` is the file the user chose for the signed raw transaction.
   async sign(
     scope: TransactionScope,
     network: NetworkDescriptor,
     hex: string,
-  ): Promise<{ kind: "sign"; signed: EvmSignedTx } & Record<string, unknown>> {
+    out?: string,
+  ): Promise<EvmSignResult> {
     const parsed = this.gateways.get(network, "evm").decodeRawTransaction(hex);
     // Check before the signed check: no node is consulted to catch a wrong-chain transaction.
     assertChainId(parsed, network);
@@ -239,10 +255,11 @@ export class EvmTransactionService {
       tx: parsed.transaction,
       origin: "imported",
     });
-    return { kind: "sign" as const, ...outcomeData(outcome) } as {
-      kind: "sign";
-      signed: EvmSignedTx;
-    } & Record<string, unknown>;
+    // An EVM signer returns the EVM signed form.
+    const result = { kind: "sign" as const, ...outcomeData(outcome) } as EvmSignResult;
+    if (out === undefined) return result;
+    this.artifacts.write(out, result.signed.raw);
+    return { ...result, out };
   }
 
   // Use the locally derived hash so the node cannot redirect confirmation polling.
@@ -273,7 +290,7 @@ export class EvmTransactionService {
     const confirmed = await evmConfirmation(gateway, scope)(txId).catch(() => undefined);
     if (!confirmed) {
       scope.warn(
-        `--wait: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted`,
+        errorMessage`${inputRef("wait")}: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted`,
       );
       return submitted;
     }
@@ -321,7 +338,7 @@ export class EvmTransactionService {
             gateway.getNativeBalance(from),
           ]).catch((e: unknown) => {
             scope.warn(
-              `--dry-run: the node could not be reached, so nonce and balance were not checked (${(e as Error).message})`,
+              errorMessage`${inputRef("dryRun")}: the node could not be reached, so nonce and balance were not checked (${(e as Error).message})`,
             );
             return undefined;
           });
@@ -344,7 +361,7 @@ export class EvmTransactionService {
           detail: `${parsed.nonce} is ahead of the account's next nonce ${pending}; it stays queued until the gap is filled`,
         });
         scope.warn(
-          `--dry-run: nonce ${parsed.nonce} leaves a gap after ${pending}; this transaction cannot be mined until the missing one is broadcast`,
+          errorMessage`${inputRef("dryRun")}: nonce ${parsed.nonce} leaves a gap after ${pending}; this transaction cannot be mined until the missing one is broadcast`,
         );
       } else {
         checks.push({

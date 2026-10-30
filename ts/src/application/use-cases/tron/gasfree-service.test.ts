@@ -7,6 +7,14 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor, SignedGasFreeAuthorization } from "../../../domain/types/index.js";
 import { GasFreeService } from "./gasfree-service.js";
 import { SigningService } from "../../services/signing/signing-service.js";
+import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
+
+const cliWarnings = (ctx: TransactionScope) =>
+  vi
+    .mocked(ctx.warn)
+    .mock.calls.map(([message]) =>
+      typeof message === "string" || "code" in message ? message : cliMessage(message).message,
+    );
 
 const OWNER = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 const TOKEN = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -30,7 +38,7 @@ const NETWORK = {
   },
 } satisfies NetworkDescriptor;
 
-function scope(wait = false, waitTimeoutMs = 1000): TransactionScope {
+function scope(wait = false, waitTimeoutMs = 5000): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
@@ -402,7 +410,9 @@ describe("GasFreeService", () => {
       const result = await send(fixtureValue, ctx);
 
       expect(result).toMatchObject({ stage: "submitted", state: "WAITING", traceId: "trace-1" });
-      expect(ctx.warn).toHaveBeenCalledWith(expect.stringContaining("did not finish within"));
+      expect(cliWarnings(ctx)).toEqual([
+        "--wait: GasFree transfer trace-1 did not finish within 3000ms; returning submitted",
+      ]);
     });
 
     it("gives up on a non-retryable provider error but keeps the trace id", async () => {
@@ -418,7 +428,27 @@ describe("GasFreeService", () => {
 
       expect(result).toMatchObject({ stage: "submitted", traceId: "trace-1" });
       expect(fixtureValue.provider.trace).toHaveBeenCalledTimes(1);
-      expect(ctx.warn).toHaveBeenCalledWith(expect.stringContaining("gasfree trace trace-1"));
+      expect(cliWarnings(ctx)).toEqual([
+        "--wait: GasFree trace could not be polled (gasfree_rejected); returning submitted — reconcile with `gasfree trace trace-1`",
+      ]);
+    });
+
+    it("bounds each trace by the remaining wait and sends none after the deadline", async () => {
+      const signals: Array<AbortSignal | undefined> = [];
+      const fixtureValue = fixture({ active: true });
+      vi.mocked(fixtureValue.provider.trace).mockImplementation(async (_network, _id, signal) => {
+        signals.push(signal);
+        throw new ChainError("timeout", "GasFree request exceeded the wait time");
+      });
+      const ctx = scope(true, 1500);
+
+      const result = await send(fixtureValue, ctx);
+
+      // One trace after the first 1000 ms poll interval; the next interval reaches the deadline.
+      expect(signals).toHaveLength(1);
+      expect(signals[0]).toBeInstanceOf(AbortSignal);
+      expect(result).toMatchObject({ stage: "submitted", traceId: "trace-1" });
+      expect(cliWarnings(ctx)[0]).toContain("did not finish within 1500ms");
     });
   });
 });

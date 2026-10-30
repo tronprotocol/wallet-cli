@@ -27,7 +27,7 @@ describe("parseMinTvl", () => {
     expect(() => parseMinTvl(value)).toThrow(
       expect.objectContaining({
         code: "invalid_value",
-        message: expect.stringContaining("--min-tvl"),
+        message: expect.stringMatching(/^minTvl must be/),
       }),
     );
   });

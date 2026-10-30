@@ -152,13 +152,10 @@ export function registerEvmChainCommands(
     deps.tokens,
     deps.transactions,
     deps.recipients,
+    new SecureTransactionArtifactWriter(),
   );
   reg.addChain(txSendSpec, "evm", txSendEvmBinding(transaction));
-  reg.addChain(
-    txSignSpec,
-    "evm",
-    txSignEvmBinding(transaction, new SecureTransactionArtifactWriter()),
-  );
+  reg.addChain(txSignSpec, "evm", txSignEvmBinding(transaction));
   reg.addChain(txBroadcastSpec, "evm", txBroadcastEvmBinding(transaction));
   reg.addChain(txStatusSpec, "evm", txStatusEvmBinding(transaction));
   reg.addChain(txInfoSpec, "evm", txInfoEvmBinding(transaction));

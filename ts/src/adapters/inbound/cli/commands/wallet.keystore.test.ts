@@ -31,7 +31,7 @@ const RAW_KEY = "4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1
 const KEYSTORE_PW = "keystore-file-pw";
 
 const record = (over: Partial<BackupRecord> = {}): BackupRecord => ({
-  operation: "backup",
+  operation: "native-export",
   accountId: "wlt_seeded.0",
   account: "TSeeded",
   label: "seeded",
@@ -91,7 +91,15 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
   const shellOpts: ShellOptions = {
     registry,
     globals: { output: "json", verbose: false },
-    deps: { config, networkRegistry, streams, secrets, keystore, prompter, formatter },
+    deps: {
+      config,
+      networkRegistry,
+      streams,
+      secrets,
+      accounts: new WalletService(keystore, {} as never, {} as never, {} as never),
+      prompter,
+      formatter,
+    },
     targetResolver: new TargetResolver({ networkRegistry, keystore }),
     caps: new CapabilityRegistry(),
     streams,

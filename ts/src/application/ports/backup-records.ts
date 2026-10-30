@@ -1,6 +1,9 @@
+// The native export covers the whole secret; the keystore export holds one family's key.
+export type BackupOperation = "native-export" | "keystore-export";
+
 // Append only after a successful secret export; fields are snapshots, never re-resolved.
 export interface BackupRecord {
-  operation: "backup" | "backup --keystore";
+  operation: BackupOperation;
   accountId: string;
   // On-chain address of the exported key in its own family.
   account: string;

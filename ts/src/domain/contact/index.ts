@@ -8,6 +8,8 @@ const ADDRESS_SHAPED: Array<[ChainFamily, { min: number; max: number }]> = [
   ["evm", { min: 38, max: 42 }],
 ];
 const UNSAFE_TEXT = /[\p{Cc}\p{Cf}]/u;
+// Entries per family; a stored book holding more is invalid.
+export const MAX_CONTACTS = 10_000;
 
 // Returns a case-insensitive NFKC lookup key.
 export function contactNameKey(input: string): string {
@@ -83,4 +85,26 @@ export function assertContactAddable(existing: readonly ContactEntry[], entry: C
 // Names are unique across families in a stored book.
 export function hasDuplicateContactName(entries: readonly ContactEntry[]): boolean {
   return new Set(entries.map((e) => e.nameKey)).size !== entries.length;
+}
+
+// The family's contacts with `entry` added, in name order. `all` holds every family's contacts.
+export function withContact(
+  all: readonly ContactEntry[],
+  family: readonly ContactEntry[],
+  entry: ContactEntry,
+): ContactEntry[] {
+  assertContactAddable(all, entry);
+  if (family.length >= MAX_CONTACTS) {
+    throw new UsageError("limit_exceeded", `contact book cannot exceed ${MAX_CONTACTS} entries`);
+  }
+  return [...family, entry].sort((a, b) => a.nameKey.localeCompare(b.nameKey));
+}
+
+export function withoutContact(
+  family: readonly ContactEntry[],
+  nameKey: string,
+): { entries: ContactEntry[]; removed: ContactEntry } {
+  const index = family.findIndex((entry) => entry.nameKey === nameKey);
+  if (index < 0) throw new UsageError("contact_not_found", `contact not found: ${nameKey}`);
+  return { entries: family.filter((_e, i) => i !== index), removed: family[index]! };
 }

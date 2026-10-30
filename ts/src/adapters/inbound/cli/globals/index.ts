@@ -6,6 +6,7 @@ import {
   WAIT_TIMEOUT_MS_RULE,
   type ValueRule,
 } from "../../../../domain/config/index.js";
+import { CONFIG_DEFAULTS } from "../../../../application/contracts/config-defaults.js";
 
 export type GlobalFlagKind = "value" | "boolean" | "secret-stdin";
 
@@ -39,7 +40,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     valueType: "string",
     choices: OUTPUT_MODES,
     description: "result format",
-    defaultValue: "config.defaultOutput (built-in: text)",
+    defaultValue: `config.defaultOutput (built-in: ${CONFIG_DEFAULTS.defaultOutput})`,
   },
   {
     name: "network",
@@ -62,7 +63,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     field: "timeoutMs",
     rule: TIMEOUT_MS_RULE,
     description: "per node, service, or device call timeout, in milliseconds",
-    defaultValue: "config.timeoutMs (built-in: 60000)",
+    defaultValue: `config.timeoutMs (built-in: ${CONFIG_DEFAULTS.timeoutMs})`,
   },
   {
     name: "verbose",
@@ -86,7 +87,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     field: "waitTimeoutMs",
     rule: WAIT_TIMEOUT_MS_RULE,
     description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt",
-    defaultValue: "config.waitTimeoutMs (built-in: 60000)",
+    defaultValue: `config.waitTimeoutMs (built-in: ${CONFIG_DEFAULTS.waitTimeoutMs})`,
   },
   {
     name: "password-stdin",

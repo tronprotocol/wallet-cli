@@ -2,7 +2,7 @@ import { hidHandle } from "./hid-handle.js";
 import { utils as tronUtils } from "tronweb";
 import { createHash } from "node:crypto";
 import { Transaction, TypedDataEncoder, type TransactionLike } from "ethers";
-import { assertTronTxIntegrity } from "../chain/tron/tx-integrity.js";
+import type { TronTransactionIntegrityCheck } from "../../../application/ports/chain/tron-transaction-integrity.js";
 import type {
   SignedTx,
   TronTransactionArtifact,
@@ -177,8 +177,55 @@ function classifyDeviceError(e: unknown): CliError {
   );
 }
 
+interface SignTransactionOptions {
+  onWarning?: (message: string) => void;
+}
+
+// Signing differs per device app; address and app-config reads are shared.
+interface FamilySigner {
+  transaction(
+    path: string,
+    tx: UnsignedTx,
+    signal?: AbortSignal,
+    options?: SignTransactionOptions,
+  ): Promise<SignedTx>;
+  message(path: string, messageHex: string, signal?: AbortSignal): Promise<string>;
+  typedData(
+    path: string,
+    payload: TypedDataPayload,
+    signal?: AbortSignal,
+  ): Promise<TypedDataSignature>;
+}
+
 export class Ledger {
-  constructor(private readonly timeoutMs = 60_000) {}
+  readonly #signers: Record<ChainFamily, FamilySigner> = {
+    tron: {
+      transaction: (path, tx, signal, options) =>
+        this.#signTronTransaction(path, tx, signal, options),
+      message: (path, messageHex, signal) =>
+        this.#bound<TrxApp, string>(
+          "tron",
+          async (trx) => `0x${await trx.signPersonalMessage(ledgerPath(path), messageHex)}`,
+          signal,
+        ),
+      typedData: (path, payload, signal) => this.#signTronTypedData(path, payload, signal),
+    },
+    evm: {
+      transaction: (path, tx, signal) => this.#signEvmTransaction(path, tx, signal),
+      message: (path, messageHex, signal) =>
+        this.#bound<EthApp, string>(
+          "evm",
+          async (eth) => joinVrs(await eth.signPersonalMessage(ledgerPath(path), messageHex)),
+          signal,
+        ),
+      typedData: (path, payload, signal) => this.#signEvmTypedData(path, payload, signal),
+    },
+  };
+
+  constructor(
+    private readonly verifyTronTransaction: TronTransactionIntegrityCheck,
+    private readonly timeoutMs = 60_000,
+  ) {}
 
   private assertWired(family: ChainFamily): void {
     if (!FAMILIES[family].ledger) {
@@ -265,12 +312,46 @@ export class Ledger {
     path: string,
     tx: UnsignedTx,
     signal?: AbortSignal,
-    options?: { onWarning?: (message: string) => void },
+    options?: SignTransactionOptions,
   ): Promise<SignedTx> {
     this.assertWired(family);
-    if (family === "evm") return this.#signEvmTransaction(path, tx, signal);
+    return this.#signers[family].transaction(path, tx, signal, options);
+  }
+
+  async signMessage(
+    family: ChainFamily,
+    path: string,
+    message: string,
+    signal?: AbortSignal,
+  ): Promise<string> {
+    this.assertWired(family);
+    const messageHex = Buffer.from(message, "utf8").toString("hex");
+    try {
+      return await this.#signers[family].message(path, messageHex, signal);
+    } catch (e) {
+      throw classifyDeviceError(e);
+    }
+  }
+
+  // Hashed signing shows only hashes on-device, not the structured message.
+  async signTypedData(
+    family: ChainFamily,
+    path: string,
+    payload: TypedDataPayload,
+    signal?: AbortSignal,
+  ): Promise<TypedDataSignature> {
+    this.assertWired(family);
+    return this.#signers[family].typedData(path, payload, signal);
+  }
+
+  async #signTronTransaction(
+    path: string,
+    tx: UnsignedTx,
+    signal?: AbortSignal,
+    options?: SignTransactionOptions,
+  ): Promise<SignedTx> {
     // Validate the bytes the device will sign against the displayed transaction.
-    assertTronTxIntegrity(tx);
+    this.verifyTronTransaction(tx as TronTransactionArtifact);
     const rawTxHex = (tx as { raw_data_hex?: string }).raw_data_hex;
     if (!rawTxHex)
       throw new ChainError(
@@ -282,7 +363,7 @@ export class Ledger {
     const prior = Array.isArray(existing) ? existing : [];
     try {
       return await this.#bound<TrxApp, SignedTx>(
-        family,
+        "tron",
         async (trx) => {
           let signature: string;
           try {
@@ -325,37 +406,11 @@ export class Ledger {
     }
   }
 
-  async signMessage(
-    family: ChainFamily,
-    path: string,
-    message: string,
-    signal?: AbortSignal,
-  ): Promise<string> {
-    this.assertWired(family);
-    const messageHex = Buffer.from(message, "utf8").toString("hex");
-    try {
-      return await this.#bound<TrxApp | EthApp, string>(
-        family,
-        async (app) => {
-          const signed = await app.signPersonalMessage(ledgerPath(path), messageHex);
-          return typeof signed === "string" ? `0x${signed}` : joinVrs(signed);
-        },
-        signal,
-      );
-    } catch (e) {
-      throw classifyDeviceError(e);
-    }
-  }
-
-  // Hashed signing shows only hashes on-device, not the structured message.
-  async signTypedData(
-    family: ChainFamily,
+  async #signTronTypedData(
     path: string,
     payload: TypedDataPayload,
     signal?: AbortSignal,
   ): Promise<TypedDataSignature> {
-    this.assertWired(family);
-    if (family === "evm") return this.#signEvmTypedData(path, payload, signal);
     const { domain, types, message } = payload;
     let digest: string;
     let primaryType: string;
@@ -375,7 +430,7 @@ export class Ledger {
     }
     try {
       return await this.#bound<TrxApp, TypedDataSignature>(
-        family,
+        "tron",
         async (trx) => {
           if (typeof trx.signTIP712HashedMessage !== "function") {
             throw new WalletError(

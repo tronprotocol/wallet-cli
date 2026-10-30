@@ -1,6 +1,7 @@
 // The only path to a signature: checks the payload's chain identity against the named network first.
 import type {
   NetworkDescriptor,
+  SignedTx,
   SignedTxOf,
   Signer,
   SignerSignOpts,
@@ -33,10 +34,16 @@ export type SignOrigin =
   // Supplied by the user and signed without contacting a node.
   | "offline";
 
-export type SignPayload =
-  | { readonly kind: "transaction"; readonly transaction: UnsignedTx }
-  | { readonly kind: "message"; readonly message: string }
-  | { readonly kind: "typed-data"; readonly typedData: TypedDataPayload };
+export type TransactionPayload<T extends UnsignedTx = UnsignedTx> = {
+  readonly kind: "transaction";
+  readonly transaction: T;
+};
+export type MessagePayload = { readonly kind: "message"; readonly message: string };
+export type TypedDataSignPayload = {
+  readonly kind: "typed-data";
+  readonly typedData: TypedDataPayload;
+};
+export type SignPayload = TransactionPayload | MessagePayload | TypedDataSignPayload;
 
 export interface SignRequest<P extends SignPayload = SignPayload> {
   readonly network: NetworkDescriptor;
@@ -45,27 +52,28 @@ export interface SignRequest<P extends SignPayload = SignPayload> {
   readonly payload: P;
 }
 
-export type SignResult<P extends SignPayload> = P extends {
-  kind: "transaction";
-  transaction: infer T extends UnsignedTx;
-}
-  ? SignedTxOf<T>
-  : P extends { kind: "message" }
-    ? string
-    : TypedDataSignature;
-
 export const NETWORK_NOT_VERIFIED_WARNING = "network_not_verified";
 
 export class SigningService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  async sign<P extends SignPayload>(
+  // Signer.sign returns the SignedTx union; the transaction overload trusts it to keep the family.
+  async sign<T extends UnsignedTx>(
     scope: SigningScope,
-    request: SignRequest<P>,
-  ): Promise<SignResult<P>> {
+    request: SignRequest<TransactionPayload<T>>,
+  ): Promise<SignedTxOf<T>>;
+  async sign(scope: SigningScope, request: SignRequest<MessagePayload>): Promise<string>;
+  async sign(
+    scope: SigningScope,
+    request: SignRequest<TypedDataSignPayload>,
+  ): Promise<TypedDataSignature>;
+  async sign(
+    scope: SigningScope,
+    request: SignRequest,
+  ): Promise<SignedTx | string | TypedDataSignature> {
     await this.#assertChainIdentity(scope, request);
     const { signer, payload } = request;
-    return (await deviceBounded<SignResult<SignPayload>>(signer, scope, (opts) => {
+    return deviceBounded<SignedTx | string | TypedDataSignature>(signer, scope, (opts) => {
       switch (payload.kind) {
         case "transaction":
           return signer.sign(payload.transaction, opts);
@@ -74,7 +82,7 @@ export class SigningService {
         case "typed-data":
           return signer.signTypedData(payload.typedData, opts);
       }
-    })) as SignResult<P>;
+    });
   }
 
   async #assertChainIdentity(scope: SigningScope, request: SignRequest): Promise<void> {

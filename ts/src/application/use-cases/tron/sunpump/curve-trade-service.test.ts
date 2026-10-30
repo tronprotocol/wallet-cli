@@ -75,7 +75,7 @@ function makeHarness(
   };
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (p: PipelineParams) => {
+    runTron: vi.fn(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       const fee = await p.estimate(tx);
       if (p.mode === "dry-run") return { stage: "plan", tx, fee };
@@ -138,7 +138,7 @@ describe("the curve state gate", () => {
       service.sell(scope, NETWORK, { token: TOKEN, amount: "1000", quote: true }),
     ).rejects.toMatchObject({
       code: "launchpad_trading_closed",
-      message: expect.stringContaining("sunswap swap"),
+      message: expect.stringContaining("sunswap-swap"),
     });
   });
 
@@ -327,7 +327,7 @@ describe("sell", () => {
       txId: "sale-tx",
       nodeCode: "fixture",
     });
-    vi.mocked(pipeline.run)
+    vi.mocked(pipeline.runTron)
       .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
       .mockRejectedValueOnce(original);
     const error = classifyError(
@@ -346,7 +346,7 @@ describe("sell", () => {
 
   it("never builds or broadcasts the sale when its approval fails on chain", async () => {
     const { service, scope, gateway, pipeline } = makeHarness();
-    vi.mocked(pipeline.run).mockResolvedValueOnce({
+    vi.mocked(pipeline.runTron).mockResolvedValueOnce({
       stage: "failed",
       txId: "approve-tx",
       result: "REVERT",
@@ -357,7 +357,7 @@ describe("sell", () => {
       code: "execution_reverted",
       details: { approvalTxIds: ["approve-tx"] },
     });
-    expect(vi.mocked(pipeline.run)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(pipeline.runTron)).toHaveBeenCalledTimes(1);
     expect(gateway.triggerSmartContract.mock.calls.map((call) => call[2])).not.toContain(SALE);
   });
 
@@ -501,7 +501,7 @@ describe("confirmed output and early account validation", () => {
       h.service.buy(h.scope, NETWORK, { token: TOKEN, amount: "1" }),
     ).rejects.toMatchObject({
       code: "family_mismatch",
-      message: expect.stringContaining("--account"),
+      message: expect.stringContaining("using account,"),
     });
     expect(h.port.tokenState).not.toHaveBeenCalled();
   });

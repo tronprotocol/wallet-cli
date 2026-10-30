@@ -5,7 +5,8 @@ import { TronWeb, providers } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { evmSignStrategy } from "../chain/evm/signing-strategy.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
-import type { X402PaidResult, X402PayInput } from "../../../application/ports/x402-payment.js";
+import type { X402PaidResult } from "../../../application/ports/x402-payment.js";
+import type { X402PayRequest } from "../../../application/use-cases/x402-service.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
@@ -64,7 +65,7 @@ function seller(requirement: Record<string, unknown>, out: Outcome): typeof fetc
   };
 }
 
-async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outcome> {
+async function payEvm(asset: string, input: Partial<X402PayRequest>): Promise<Outcome> {
   const wallet = Wallet.createRandom();
   // Sufficient Permit2 allowance avoids approval signing.
   vi.stubGlobal(
@@ -133,7 +134,7 @@ async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outc
   return out;
 }
 
-async function payTron(amount: string, input: Partial<X402PayInput>): Promise<Outcome> {
+async function payTron(amount: string, input: Partial<X402PayRequest>): Promise<Outcome> {
   const key = Wallet.createRandom().privateKey;
   const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
   // Sufficient Permit2 allowance avoids approval signing.

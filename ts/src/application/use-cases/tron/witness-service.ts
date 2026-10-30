@@ -5,7 +5,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { outcomeData } from "../../services/transaction-mode.js";
+import { outcomeData, type TxOutcomeView } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import {
@@ -57,7 +57,7 @@ export class TronWitnessService {
         `witness registration requires ${registrationFeeSun} SUN but the account balance is ${account.balance ?? "0"} SUN`,
       );
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -65,6 +65,7 @@ export class TronWitnessService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       build: async (address) =>
         gateway.buildWitnessCreate(address, url, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({
@@ -87,7 +88,7 @@ export class TronWitnessService {
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -95,6 +96,7 @@ export class TronWitnessService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       build: async (address) =>
         gateway.buildWitnessUpdate(address, url, { permissionId: input.permissionId }),
       estimate: bandwidthEstimate,
@@ -112,7 +114,7 @@ export class TronWitnessService {
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -120,6 +122,7 @@ export class TronWitnessService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       build: async (address) =>
         gateway.buildWitnessSetBrokerage(address, brokerage, {
           permissionId: input.permissionId,
@@ -138,15 +141,17 @@ async function requireWitness(gateway: TronGateway, address: string): Promise<vo
   }
 }
 
+type WitnessReceiptKind = "witness-create" | "witness-update" | "witness-set-brokerage";
+
 async function bandwidthEstimate(_tx: UnsignedTx) {
   return { feeModel: "tron-resource" as const, note: "witness governance uses bandwidth only" };
 }
 
-function witnessReceipt(
-  kind: "witness-create" | "witness-update" | "witness-set-brokerage",
-  data: Record<string, unknown>,
+function witnessReceipt<K extends WitnessReceiptKind, F extends object>(
+  kind: K,
+  data: TxOutcomeView,
   witnessAddress: string,
-  fields: Record<string, unknown>,
+  fields: F,
 ) {
   const resource = transactionResource(data);
   return {

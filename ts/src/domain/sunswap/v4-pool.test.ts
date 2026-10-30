@@ -53,7 +53,7 @@ describe("naming a pool by its parts", () => {
 
   it("requires --tick-spacing and says a fee tier does not fix it", () => {
     expect(() => resolveV4Pool({ ...existing, tickSpacing: undefined })).toThrow(
-      /--tick-spacing is required on V4 and has no default.*SAME fee tier.*different tick spacings/s,
+      /tickSpacing is required on V4 and has no default.*SAME fee tier.*different tick spacings/s,
     );
     expect(() => resolveV4Pool({ ...existing, tickSpacing: undefined })).toThrow(
       expect.objectContaining({ code: "missing_option" }),
@@ -61,9 +61,9 @@ describe("naming a pool by its parts", () => {
   });
 
   it.each([
-    ["--token0", { ...existing, token0: undefined }, /--token0 is required on V4/],
-    ["--token1", { ...existing, token1: undefined }, /--token1 is required on V4/],
-    ["--fee", { ...existing, fee: undefined }, /--fee is required on V4/],
+    ["--token0", { ...existing, token0: undefined }, /token0 is required on V4/],
+    ["--token1", { ...existing, token1: undefined }, /token1 is required on V4/],
+    ["--fee", { ...existing, fee: undefined }, /fee is required on V4/],
   ])("requires %s", (_name, input, message) => {
     expect(() => resolveV4Pool(input)).toThrow(message);
     expect(() => resolveV4Pool(input)).toThrow(expect.objectContaining({ code: "missing_option" }));
@@ -71,7 +71,7 @@ describe("naming a pool by its parts", () => {
 
   it("refuses --sqrt-price without --create-pool", () => {
     expect(() => resolveV4Pool({ ...existing, sqrtPrice: "1" })).toThrow(
-      /only accepted with --create-pool/,
+      /only accepted with createPool/,
     );
   });
 
@@ -118,11 +118,11 @@ describe("creating a pool", () => {
   });
 
   it.each([
-    ["--sqrt-price", { ...creation, sqrtPrice: undefined }, /--sqrt-price is required/],
-    ["--token0", { ...creation, token0: undefined }, /--token0 is required on V4/],
-    ["--token1", { ...creation, token1: undefined }, /--token1 is required on V4/],
-    ["--fee", { ...creation, fee: undefined }, /--fee is required on V4/],
-    ["--tick-spacing", { ...creation, tickSpacing: undefined }, /--tick-spacing is required on V4/],
+    ["--sqrt-price", { ...creation, sqrtPrice: undefined }, /sqrtPrice is required/],
+    ["--token0", { ...creation, token0: undefined }, /token0 is required on V4/],
+    ["--token1", { ...creation, token1: undefined }, /token1 is required on V4/],
+    ["--fee", { ...creation, fee: undefined }, /fee is required on V4/],
+    ["--tick-spacing", { ...creation, tickSpacing: undefined }, /tickSpacing is required on V4/],
   ])("refuses a creation missing %s", (_name, input, message) => {
     expect(() => resolveV4Pool(input)).toThrow(message);
   });
@@ -171,7 +171,7 @@ describe("the pair must be in the order V4 requires", () => {
 
   it("refuses the same pair reversed, and names the order to use", () => {
     expect(() => assertSortedPair(USDT, JST)).toThrow(
-      new RegExp(`pass --token0 ${JST} --token1 ${USDT}`),
+      new RegExp(`pass token0 ${JST} token1 ${USDT}`),
     );
   });
 
@@ -192,7 +192,7 @@ describe("the pair must be in the order V4 requires", () => {
 
   it("refuses native TRX as token1 with a message of its own", () => {
     expect(() => assertSortedPair(USDT, NATIVE_TRX_ADDRESS)).toThrow(
-      /--token1 cannot be native TRX.*always currency0/s,
+      /token1 cannot be native TRX.*always currency0/s,
     );
     expect(() => assertSortedPair(USDT, NATIVE_TRX_ADDRESS)).not.toThrow(/the wrong way round/);
   });

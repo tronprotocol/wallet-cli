@@ -4,10 +4,15 @@ import {
   type GasFreeAddressInfo,
   type GasFreeProvider,
 } from "@bankofai/x402-tron/gasfree";
-import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
+import type {
+  Config,
+  NetworkDescriptor,
+  TronNetworkDescriptor,
+} from "../../../domain/types/index.js";
 import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
 import { safeRetryAfter } from "./payment-error.js";
+import { X402_FAMILIES } from "../../../domain/x402/families.js";
 
 // Reads authorization data; the endpoint's facilitator submits payment.
 export function gasfreeRelayClient(
@@ -18,8 +23,9 @@ export function gasfreeRelayClient(
   fetcher: typeof fetch,
 ): GasFreeAPIClient | undefined {
   if (selection === undefined || selection === "official") return undefined;
-  if (network.family !== "tron")
+  if (!X402_FAMILIES[network.family].gasfree)
     throw new UsageError("invalid_option", "GasFree relay selection requires TRON");
+  const gasfree = (network as Partial<TronNetworkDescriptor>).gasfree;
   let base: string;
   let credentials: { key: string; secret: string } | undefined;
   if (selection === "gasfree") {
@@ -28,12 +34,12 @@ export function gasfreeRelayClient(
         "gasfree_credentials_missing",
         "Configure gasfreeApiKey and gasfreeApiSecret before selecting the GasFree Open API",
       );
-    if (!network.gasfree)
+    if (!gasfree)
       throw new UsageError(
         "unsupported_network",
         "GasFree Open API is not configured for this network",
       );
-    base = network.gasfree.baseUrl + network.gasfree.apiPrefix;
+    base = gasfree.baseUrl + gasfree.apiPrefix;
     credentials = { key: config.gasfreeApiKey, secret: config.gasfreeApiSecret };
   } else {
     let url: URL;

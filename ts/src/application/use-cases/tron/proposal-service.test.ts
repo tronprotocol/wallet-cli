@@ -3,8 +3,10 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway, TronProposal } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronProposalService } from "./proposal-service.js";
+import { isUserMessage } from "../../../domain/errors/index.js";
+import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -27,16 +29,16 @@ const scope: TransactionScope = {
 
 function createService(
   gateway: Partial<TronGateway>,
-  run?: (params: TxPipelineParams) => Promise<never>,
+  run?: (params: TronTxPipelineParams) => Promise<never>,
 ) {
   const concrete = gateway as TronGateway;
   const gateways = { get: () => concrete } as unknown as ChainGatewayProvider;
-  const captured: TxPipelineParams[] = [];
+  const captured: TronTxPipelineParams[] = [];
   const pipeline = {
     assertCanSign: vi.fn(),
-    run:
+    runTron:
       run ??
-      (async (params: TxPipelineParams) => {
+      (async (params: TronTxPipelineParams) => {
         captured.push(params);
         await params.build(OWNER);
         return { stage: "submitted", txId: "tx-proposal" } as never;
@@ -184,7 +186,7 @@ describe("proposal create --wait identifies the proposal it created, or admits i
     const waiting = {
       ...scope,
       wait: true,
-      warn: (m: string) => warnings.push(String(m)),
+      warn: (m) => warnings.push(isUserMessage(m) ? cliMessage(m).message : String(m)),
     } as typeof scope;
     const { service } = createService(
       {
@@ -212,7 +214,9 @@ describe("proposal create --wait identifies the proposal it created, or admits i
     } as never)) as { proposalId?: number };
 
     expect(out.proposalId).toBeUndefined();
-    expect(h.warnings.join(" ")).toMatch(/could not|unable|not identify/i);
+    expect(h.warnings).toEqual([
+      "could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. Find it with `proposal list` — the transaction itself succeeded",
+    ]);
   });
 
   it("admits it cannot tell when two identical proposals appeared at once", async () => {
@@ -222,7 +226,9 @@ describe("proposal create --wait identifies the proposal it created, or admits i
     } as never)) as { proposalId?: number };
 
     expect(out.proposalId).toBeUndefined();
-    expect(h.warnings.join(" ")).toBeTruthy();
+    expect(h.warnings).toEqual([
+      "could not identify the created proposal: 2 new proposals match these parameters. Find it with `proposal list` before approving or deleting anything",
+    ]);
   });
 
   it("does not pay for a snapshot when no confirmation was asked for", async () => {

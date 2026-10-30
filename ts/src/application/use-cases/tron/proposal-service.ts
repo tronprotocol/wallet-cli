@@ -1,10 +1,11 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, followUp } from "../../../domain/errors/index.js";
 import {
   parseChainParameterAssignments,
   proposalParameters,
   type ChainParameterChange,
 } from "../../../domain/governance/chain-parameters.js";
+import { proposalApprovalThreshold } from "../../../domain/governance/voting.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway, TronProposal } from "../../ports/chain/tron-gateway.js";
@@ -49,7 +50,7 @@ export class TronProposalService {
       gateway.getProposals(),
       gateway.getWitnesses(27),
     ]);
-    const approvalThreshold = threshold(witnesses.length);
+    const approvalThreshold = proposalApprovalThreshold(witnesses.length);
     const views = proposals
       .filter((proposal) => input.state === "all" || isActive(proposal))
       .sort((left, right) => right.id - left.id)
@@ -73,7 +74,7 @@ export class TronProposalService {
       gateway.getWitnesses(27),
     ]);
     if (!proposal) throw new ChainError("proposal_not_found", `proposal #${id} was not found`);
-    const approvalThreshold = threshold(witnesses.length);
+    const approvalThreshold = proposalApprovalThreshold(witnesses.length);
     return {
       ...listView(proposal),
       createTime: proposal.createTime,
@@ -95,7 +96,7 @@ export class TronProposalService {
       wantsId ? proposalIdSnapshot(gateway).catch(() => undefined) : Promise.resolve(undefined),
     ]);
     const changes = parseChainParameterAssignments(input.set, parameters);
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -103,6 +104,7 @@ export class TronProposalService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       build: async (address) =>
         gateway.buildProposalCreate(
           address,
@@ -147,7 +149,7 @@ export class TronProposalService {
       throw new ChainError("not_approved", `account has not approved proposal #${input.id}`);
     }
     const addApproval = !input.cancel;
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -155,6 +157,7 @@ export class TronProposalService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       build: async (address) =>
         gateway.buildProposalApprove(address, input.id, addApproval, {
           permissionId: input.permissionId,
@@ -172,7 +175,7 @@ export class TronProposalService {
       voterAddress: owner,
       addApproval,
       approvals: proposal.approvals.length + (addApproval ? 1 : -1),
-      approvalThreshold: threshold(witnesses.length),
+      approvalThreshold: proposalApprovalThreshold(witnesses.length),
       ...(transactionResource(data) ? { resource: transactionResource(data) } : {}),
     };
   }
@@ -195,7 +198,7 @@ export class TronProposalService {
         `only ${proposal.proposerAddress} can delete proposal #${input.id}`,
       );
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -203,6 +206,7 @@ export class TronProposalService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       build: async (address) =>
         gateway.buildProposalDelete(address, input.id, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({
@@ -244,10 +248,6 @@ function assertProposalOpen(proposal: TronProposal): void {
 
 function isActive(proposal: TronProposal): boolean {
   return proposal.state === "PENDING" && proposal.expirationTime > Date.now();
-}
-
-function threshold(activeWitnessCount: number): number {
-  return activeWitnessCount > 0 ? Math.max(1, Math.floor(activeWitnessCount * 0.7)) : 18;
 }
 
 function stateName(
@@ -299,10 +299,8 @@ async function findCreatedProposal(
   if (matches.length === 1) return matches[0]!.id;
   scope.warn(
     matches.length === 0
-      ? "could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. " +
-          "Find it with `proposal list` — the transaction itself succeeded"
-      : `could not identify the created proposal: ${matches.length} new proposals match these parameters. ` +
-          "Find it with `proposal list` before approving or deleting anything",
+      ? errorMessage`could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. Find it with \`${followUp("proposal-list")}\` — the transaction itself succeeded`
+      : errorMessage`could not identify the created proposal: ${matches.length} new proposals match these parameters. Find it with \`${followUp("proposal-list")}\` before approving or deleting anything`,
   );
   return undefined;
 }

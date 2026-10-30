@@ -8,6 +8,7 @@ import { EvmRpcClient } from "./evm.js";
 import { HttpTransportError, type HttpTransport } from "../../http/index.js";
 import { UsageError, type CliError } from "../../../../domain/errors/index.js";
 import { baseUnitAmount } from "../../../../domain/amounts/index.js";
+import { cliMessage, exitCodeOf } from "../../../inbound/cli/output/errors.js";
 
 const ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -975,6 +976,28 @@ describe("EvmRpcClient.sendRawTransaction", () => {
 });
 
 describe("EvmRpcClient.getTransactionReceipt", () => {
+  it("does not send the request once the caller's signal has aborted", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        init.signal?.throwIfAborted();
+        sent.push(init.body);
+        return { ok: true, text: async () => "{}" };
+      }),
+    );
+
+    await expect(
+      new EvmRpcClient(
+        "https://node.example",
+        5_000,
+        undefined,
+        processBroadcastGuard,
+      ).getTransactionReceipt("0xabc", AbortSignal.abort()),
+    ).rejects.toMatchObject({ code: "timeout" });
+    expect(sent).toEqual([]);
+  });
+
   it("returns null while the transaction is still pending", async () => {
     stubRpc(null);
     expect(
@@ -1099,7 +1122,7 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
     } catch (e) {
       expect(e).toBeInstanceOf(UsageError);
       expect((e as CliError).code).toBe("invalid_value");
-      expect((e as CliError).exitCode()).toBe(2);
+      expect(exitCodeOf(e as CliError)).toBe(2);
     }
   });
 });
@@ -1214,7 +1237,7 @@ describe("EvmRpcClient contract-write encoding", () => {
     } catch (e) {
       expect(e).toBeInstanceOf(UsageError);
       expect((e as CliError).code).toBe("invalid_value");
-      expect((e as CliError).exitCode()).toBe(2);
+      expect(exitCodeOf(e as CliError)).toBe(2);
     }
   });
 
@@ -1232,7 +1255,6 @@ describe("EvmRpcClient contract-write encoding", () => {
       source: "signature",
       signature: "constructor(uint256)",
       values: [7],
-      flag: "--constructor-signature",
     });
 
     expect(data).toBe(`0x6080${WORD(7n)}`);
@@ -1245,7 +1267,6 @@ describe("EvmRpcClient contract-write encoding", () => {
         source: "signature",
         signature,
         values: [7],
-        flag: "--x",
       });
 
       expect(data).toBe(`0x6080${WORD(7n)}`);
@@ -1275,19 +1296,39 @@ describe("EvmRpcClient contract-write encoding", () => {
     } catch (e) {
       expect(e).toBeInstanceOf(UsageError);
       expect((e as CliError).code).toBe("invalid_value");
-      expect((e as CliError).exitCode()).toBe(2);
+      expect(exitCodeOf(e as CliError)).toBe(2);
     }
   });
 
-  it("names the flag a bad signature came from", () => {
-    expect(() =>
-      client().encodeDeploy("0x6080", {
-        source: "signature",
-        signature: "constructor(uint256)",
-        values: [1, 2],
-        flag: "--constructor-args",
-      }),
-    ).toThrow(/--constructor-args/);
+  it("encodes from the types given with each value", () => {
+    const data = client().encodeDeploy("0x6080", {
+      source: "typed-params",
+      types: ["uint256"],
+      values: [7],
+    });
+
+    expect(data).toBe(`0x6080${WORD(7n)}`);
+  });
+
+  it.each([
+    [
+      { source: "signature" as const, signature: "constructor(uint256)", values: [1, 2] },
+      "--constructor-signature",
+    ],
+    [
+      { source: "typed-params" as const, types: ["uint256"], values: [1, 2] },
+      "--constructor-params",
+    ],
+  ])("names the input the constructor types came from", (args, flag) => {
+    expect.assertions(2);
+    try {
+      client().encodeDeploy("0x6080", args);
+    } catch (e) {
+      expect((e as CliError).message).toMatch(
+        /^could not encode the constructor arguments against /,
+      );
+      expect(cliMessage((e as CliError).userMessage).message).toContain(`against ${flag}:`);
+    }
   });
 
   it("derives the CREATE address from sender and nonce", () => {

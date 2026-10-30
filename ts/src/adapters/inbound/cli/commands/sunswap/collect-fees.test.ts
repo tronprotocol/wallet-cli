@@ -4,6 +4,7 @@ import type { ZodObject, ZodRawShape } from "zod";
 import { CliError } from "../../../../../domain/errors/index.js";
 import { composeRefines, parseInputSchema } from "../../shell/index.js";
 import { sunswapCollectFeesSpec } from "./collect-fees.js";
+import { exitCodeOf } from "../../output/errors.js";
 
 const schema = (
   sunswapCollectFeesSpec.baseFields as unknown as {
@@ -104,7 +105,7 @@ describe("sunswap collect-fees — a malformed --recipient", () => {
     (recipient) => {
       const error = recipientRefusal({ protocol: "V3", positionId: "686", recipient });
       expect(error).toMatchObject({ code: "invalid_address" });
-      expect(error.exitCode()).toBe(2);
+      expect(exitCodeOf(error)).toBe(2);
       expect(error.message).toMatch(/^invalid --recipient: /);
     },
   );

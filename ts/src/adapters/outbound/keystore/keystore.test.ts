@@ -29,6 +29,7 @@ import { AtomicFileStore } from "../persistence/fs/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
 import type { WalletsFile } from "../../../domain/types/index.js";
+import { exitCodeOf } from "../../inbound/cli/output/errors.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
 const TRON0 = new TronAddress().fromPublicKey(
@@ -573,7 +574,7 @@ describe("lookup and secret-shape failures carry their own codes", () => {
         ks.resolveAccount(ref);
         expect.unreachable(ref);
       } catch (e) {
-        expect((e as CliError).exitCode(), ref).toBe(2);
+        expect(exitCodeOf(e as CliError), ref).toBe(2);
       }
     }
   });
@@ -611,7 +612,7 @@ describe("lookup and secret-shape failures carry their own codes", () => {
       }
       expect(error, bad).toBeInstanceOf(Error);
       expect((error as CliError).code, bad).toBe("invalid_private_key");
-      expect((error as CliError).exitCode(), bad).toBe(1);
+      expect(exitCodeOf(error as CliError), bad).toBe(1);
     }
   });
 

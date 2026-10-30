@@ -26,7 +26,7 @@ import {
   withTokenBook,
   type SunSwapTokenResolver,
 } from "../../../services/sunswap-token-resolver.js";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
 import {
   toBaseUnits,
@@ -37,6 +37,8 @@ import {
 import {
   applyMinimumShare,
   DEFAULT_V2_MIN_BASIS_POINTS,
+  lowerBySlippage,
+  lpRedemption,
   resolveDeadline,
 } from "../../../../domain/sunswap/liquidity.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
@@ -158,7 +160,7 @@ export class SunSwapRemoveLiquidityService {
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
     const payload = this.#v2Payload(network, plan);
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -169,7 +171,7 @@ export class SunSwapRemoveLiquidityService {
       );
       return { kind: KIND, mode: "dry-run", ...plan, ...priced };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(
         scope,
         network,
@@ -222,15 +224,24 @@ export class SunSwapRemoveLiquidityService {
   ): Promise<{ plan: RemovalPlanView; pair: V2PairState }> {
     const router = this.liquidity.contracts(network).v2Router;
     if (input.positionId !== undefined) {
-      throw new UsageError("invalid_option", "--position-id is not accepted on V2");
+      throw new UsageError(
+        "invalid_option",
+        errorMessage`${inputRef("positionId")} is not accepted on V2`,
+      );
     }
     if (input.token0 === undefined || input.token1 === undefined) {
-      throw new UsageError("missing_option", "V2 requires --token0 and --token1");
+      throw new UsageError(
+        "missing_option",
+        errorMessage`V2 requires ${inputRef("token0")} and ${inputRef("token1")}`,
+      );
     }
     const address0 = this.tokens.resolve(network, input.token0, RESOLVED);
     const address1 = this.tokens.resolve(network, input.token1, RESOLVED);
     if (address0 === address1) {
-      throw new ChainError("same_token", "--token0 and --token1 are the same token");
+      throw new ChainError(
+        "same_token",
+        errorMessage`${inputRef("token0")} and ${inputRef("token1")} are the same token`,
+      );
     }
     const [token0, token1] = await Promise.all([
       this.#facts(network, address0),
@@ -245,7 +256,7 @@ export class SunSwapRemoveLiquidityService {
       throw new ChainError("pool_not_found", "no V2 pool exists for that pair");
     }
 
-    const lpAmount = toBaseUnits(input.liquidity, pair.lpDecimals, "LP", "--liquidity");
+    const lpAmount = toBaseUnits(input.liquidity, pair.lpDecimals, "LP", inputRef("liquidity"));
     const held = await this.liquidity.balanceOf(network, pair.pairAddress, owner);
     if (BigInt(held) < BigInt(lpAmount)) {
       throw new ChainError(
@@ -254,8 +265,8 @@ export class SunSwapRemoveLiquidityService {
       );
     }
 
-    const amount0 = share(lpAmount, pair.reserve0, pair.totalSupply);
-    const amount1 = share(lpAmount, pair.reserve1, pair.totalSupply);
+    const amount0 = lpRedemption(lpAmount, pair.reserve0, pair.totalSupply);
+    const amount1 = lpRedemption(lpAmount, pair.reserve1, pair.totalSupply);
 
     // The router burns LP tokens; approving the underlying pair tokens would not authorize it.
     const approvals = await this.tx.planApprovals(network, owner, router, [
@@ -284,7 +295,7 @@ export class SunSwapRemoveLiquidityService {
 
   #v2Minimum(explicit: string | undefined, amount: string, facts: TokenFacts): string {
     if (explicit === undefined) return applyMinimumShare(amount, DEFAULT_V2_MIN_BASIS_POINTS);
-    return toBaseUnits(explicit, facts.decimals, facts.symbol, "--min");
+    return toBaseUnits(explicit, facts.decimals, facts.symbol, inputRef("min"));
   }
 
   #v2Payload(network: NetworkDescriptor, plan: RemovalPlanView): ContractCallPayload {
@@ -363,7 +374,7 @@ export class SunSwapRemoveLiquidityService {
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
     const payload = this.#v3Payload(network, plan);
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -374,7 +385,7 @@ export class SunSwapRemoveLiquidityService {
       );
       return { kind: KIND, mode: "dry-run", ...withPositionManager(plan), ...priced };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(scope, network, [], payload, mode, input.feeLimit);
       return { kind: KIND, ...withPositionManager(plan), ...built };
     }
@@ -417,15 +428,15 @@ export class SunSwapRemoveLiquidityService {
     if (input.token0 !== undefined || input.token1 !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--token0 and --token1 are not accepted on V3; the position already names the pair",
+        errorMessage`${inputRef("token0")} and ${inputRef("token1")} are not accepted on V3; the position already names the pair`,
       );
     }
     if (input.positionId === undefined) {
-      throw new UsageError("missing_option", "V3 requires --position-id");
+      throw new UsageError("missing_option", errorMessage`V3 requires ${inputRef("positionId")}`);
     }
     const position = await this.#assertPositionOwned(network, input.positionId, owner);
 
-    const burn = wholeNumber(input.liquidity, "--liquidity");
+    const burn = wholeNumber(input.liquidity, "liquidity");
     if (BigInt(burn) > BigInt(position.liquidity)) {
       throw new UsageError(
         "invalid_amount",
@@ -470,7 +481,7 @@ export class SunSwapRemoveLiquidityService {
   #v3Minimum(explicit: string | undefined, facts: TokenFacts): string {
     return explicit === undefined
       ? "0"
-      : toBaseUnits(explicit, facts.decimals, facts.symbol, "--min");
+      : toBaseUnits(explicit, facts.decimals, facts.symbol, inputRef("min"));
   }
 
   // V3 decreaseLiquidity only credits the position; the payload must also collect.
@@ -561,7 +572,7 @@ export class SunSwapRemoveLiquidityService {
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
     const payload = this.liquidity.v4RemovePayload(network, request);
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -572,7 +583,7 @@ export class SunSwapRemoveLiquidityService {
       );
       return { kind: KIND, mode: "dry-run", ...withPositionManager(plan), ...priced };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(scope, network, [], payload, mode, input.feeLimit);
       return { kind: KIND, ...withPositionManager(plan), ...built };
     }
@@ -608,16 +619,16 @@ export class SunSwapRemoveLiquidityService {
     if (input.recipient !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--recipient is not accepted on V4; the tokens always go to the signing account",
+        errorMessage`${inputRef("recipient")} is not accepted on V4; the tokens always go to the signing account`,
       );
     }
     if (input.positionId === undefined) {
-      throw new UsageError("missing_option", "V4 requires --position-id");
+      throw new UsageError("missing_option", errorMessage`V4 requires ${inputRef("positionId")}`);
     }
     if (input.token0 === undefined || input.token1 === undefined) {
       throw new UsageError(
         "missing_option",
-        "V4 requires --token0 and --token1 as well as --position-id; the pair is checked against the position",
+        errorMessage`V4 requires ${inputRef("token0")} and ${inputRef("token1")} as well as ${inputRef("positionId")}; the pair is checked against the position`,
       );
     }
 
@@ -626,11 +637,11 @@ export class SunSwapRemoveLiquidityService {
     if (input.fee !== undefined && input.fee !== position.fee) {
       throw new UsageError(
         "invalid_value",
-        `--fee ${input.fee} does not match position ${position.tokenId}, which is in a ${position.fee} tier pool`,
+        errorMessage`${inputRef("fee")} ${input.fee} does not match position ${position.tokenId}, which is in a ${position.fee} tier pool`,
       );
     }
 
-    const burn = wholeNumber(input.liquidity, "--liquidity");
+    const burn = wholeNumber(input.liquidity, "liquidity");
     if (BigInt(burn) > BigInt(position.liquidity)) {
       throw new UsageError(
         "invalid_amount",
@@ -709,9 +720,9 @@ export class SunSwapRemoveLiquidityService {
     const base =
       explicit === undefined
         ? expected
-        : toBaseUnits(explicit, facts.decimals, facts.symbol, "--min");
+        : toBaseUnits(explicit, facts.decimals, facts.symbol, inputRef("min"));
     if (slippage === undefined) return explicit === undefined ? "0" : base;
-    return applyMinimumShare(base, BigInt(10_000 - slippageToBips(slippage)));
+    return lowerBySlippage(base, slippageToBips(slippage));
   }
 
   // Require currency order so min0/min1 protect the intended assets.
@@ -730,7 +741,7 @@ export class SunSwapRemoveLiquidityService {
     if (!matches) {
       throw new UsageError(
         "invalid_value",
-        `--token0 ${given[0]} and --token1 ${given[1]} do not match position ${position.tokenId}'s currency order; use --token0 ${held[0]} --token1 ${held[1]} and set --min0 / --min1 for the corresponding assets`,
+        errorMessage`${inputRef("token0")} ${given[0]} and ${inputRef("token1")} ${given[1]} do not match position ${position.tokenId}'s currency order; use ${inputRef("token0")} ${held[0]} ${inputRef("token1")} ${held[1]} and set ${inputRef("min0")} / ${inputRef("min1")} for the corresponding assets`,
       );
     }
   }
@@ -874,15 +885,11 @@ function splitSide(
   return publishedSide(entry, (BigInt(collected) - fees).toString(), fees.toString());
 }
 
-function share(amount: string, reserve: string, totalSupply: string): string {
-  return ((BigInt(amount) * BigInt(reserve)) / BigInt(totalSupply)).toString();
-}
-
-function wholeNumber(value: string, flag: string): string {
+function wholeNumber(value: string, field: string): string {
   if (!/^\d+$/.test(value.trim()) || BigInt(value.trim()) === 0n) {
     throw new UsageError(
       "invalid_amount",
-      `${flag} must be a whole number of liquidity units greater than zero`,
+      errorMessage`${inputRef(field)} must be a whole number of liquidity units greater than zero`,
     );
   }
   return value.trim();

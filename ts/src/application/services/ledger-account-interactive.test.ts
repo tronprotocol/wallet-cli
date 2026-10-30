@@ -25,13 +25,13 @@ class KeyBackend implements PromptBackend {
 
 describe("selectLedgerPath", () => {
   it("derives a page, paginates, and returns the chosen path", async () => {
-    const ledger = new Ledger();
+    const ledger = new Ledger(() => {});
     vi.spyOn(ledger, "getAddress").mockImplementation(async (_f, path) => `addr-for-${path}`);
     // Two downward keys load the next page before selection.
     const prompter = new Prompter(
       new KeyBackend([{ name: "down" }, { name: "down" }, { name: "return" }]),
     );
-    const path = await selectLedgerPath(ledger, "tron", prompter, 2);
+    const path = await selectLedgerPath(ledger, "tron", prompter, "Select tron account", 2);
     expect(path).toContain("m/44'");
   });
 });

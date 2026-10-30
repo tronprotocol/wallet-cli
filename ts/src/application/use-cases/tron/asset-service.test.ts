@@ -51,7 +51,7 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
     { get: () => gateway as TronGateway } as unknown as ChainGatewayProvider,
     {
       assertCanSign: () => {},
-      run: async () => ({ stage: "submitted", txId: "txid" }),
+      runTron: async () => ({ stage: "submitted", txId: "txid" }),
       ...pipeline,
     } as unknown as TxPipeline,
     () => NOW,
@@ -95,9 +95,9 @@ describe("asset issue", () => {
   });
 
   it.each([
-    [{ supply: "0" }, "--supply must be greater than zero"],
-    [{ freeze: ["0:30"] }, "--freeze amount must be greater than zero"],
-    [{ freeze: ["100:0"] }, "--freeze days must be greater than zero"],
+    [{ supply: "0" }, "supply must be greater than zero"],
+    [{ freeze: ["0:30"] }, "freeze amount must be greater than zero"],
+    [{ freeze: ["100:0"] }, "freeze days must be greater than zero"],
   ])("refuses a zero count %j with invalid_value", async (override, message) => {
     const svc = service({ getAssetByIssuer: async () => undefined });
     await expect(svc.issue(scope, NET, { ...ISSUE, ...override })).rejects.toMatchObject({
@@ -117,7 +117,7 @@ describe("asset issue", () => {
         }) as never,
       },
       {
-        run: async (p: { build: (o: string) => Promise<unknown> }) => {
+        runTron: async (p: { build: (o: string) => Promise<unknown> }) => {
           await p.build(OWNER);
           return { stage: "submitted", txId: "txid" } as never;
         },
@@ -136,14 +136,14 @@ describe("asset issue", () => {
     });
   });
 
-  it("reads --start/--end as UTC and requires a future, ordered window", async () => {
+  it("reads start/end as UTC and requires a future, ordered window", async () => {
     const svc = service({ getAssetByIssuer: async () => undefined });
     await expect(svc.issue(scope, NET, { ...ISSUE, start: "2020-01-01" })).rejects.toThrow(
-      /--start must be in the future/,
+      /^start must be in the future/,
     );
     await expect(
       svc.issue(scope, NET, { ...ISSUE, start: "2028-02-01", end: "2028-01-01" }),
-    ).rejects.toThrow(/--end must be later/);
+    ).rejects.toThrow(/^end must be later/);
     await expect(svc.issue(scope, NET, { ...ISSUE, start: "2028-13-01" })).rejects.toThrow(
       /not a real date/,
     );
@@ -161,10 +161,10 @@ describe("asset issue", () => {
   it("requires a non-empty url and bounds the text fields", async () => {
     const svc = service({ getAssetByIssuer: async () => undefined });
     await expect(svc.issue(scope, NET, { ...ISSUE, url: "" })).rejects.toThrow(
-      /--url must not be empty/,
+      /^url must not be empty/,
     );
     await expect(svc.issue(scope, NET, { ...ISSUE, description: "d".repeat(201) })).rejects.toThrow(
-      /--description must be at most 200 bytes/,
+      /^description must be at most 200 bytes/,
     );
   });
 });
@@ -182,7 +182,7 @@ describe("asset update", () => {
         }) as never,
       },
       {
-        run: async (p: { build: (o: string) => Promise<unknown> }) => {
+        runTron: async (p: { build: (o: string) => Promise<unknown> }) => {
           await p.build(OWNER);
           return { stage: "submitted", txId: "txid" } as never;
         },
@@ -250,7 +250,7 @@ describe("asset participate", () => {
     const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX }) });
     await expect(
       svc.participate(scope, NET, { assetRef: "1000123", pay: "0" }),
-    ).rejects.toMatchObject({ code: "invalid_value", message: "--pay must be greater than zero" });
+    ).rejects.toMatchObject({ code: "invalid_value", message: "pay must be greater than zero" });
   });
 
   it("refuses a payment too small to buy one unit", async () => {
@@ -353,7 +353,7 @@ describe("asset unfreeze", () => {
     const start = NOW - 60 * 86_400_000;
     const svc = service(
       { getAssetByIssuer: async () => asset({ start_time: start, frozen_supply: tranches }) },
-      { run: async () => ({ stage: "confirmed", txId: "t", unfreezeAmount: 99 }) as never },
+      { runTron: async () => ({ stage: "confirmed", txId: "t", unfreezeAmount: 99 }) as never },
     );
     await expect(svc.unfreeze(scope, NET, {})).resolves.toMatchObject({ releasedAmount: "99" });
   });
@@ -374,7 +374,7 @@ describe("asset info / list", () => {
     });
   });
 
-  it("requires exactly one of <asset> and --issuer", async () => {
+  it("requires exactly one of <asset> and issuer", async () => {
     const svc = service({});
     await expect(svc.info(NET, {})).rejects.toThrow(/exactly one/);
     await expect(svc.info(NET, { assetRef: "1", issuer: OWNER })).rejects.toThrow(/exactly one/);

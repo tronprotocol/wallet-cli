@@ -3,6 +3,7 @@ import { expect, it, vi } from "vitest";
 import { BaiRechargeFlow } from "./bai-recharge-flow.js";
 import type { BaiRawOrder } from "../ports/bai-recharge.js";
 import { baiRechargeAmount } from "../../domain/bai/recharge-policy.js";
+import { errorEnvelope } from "../../adapters/inbound/cli/output/errors.js";
 
 const rawOrder = (value: object) => value as unknown as BaiRawOrder;
 const input = {
@@ -72,7 +73,7 @@ it("preserves safe text and raw JSON when attaching recharge context", async () 
   const error = await flow.execute(input).catch((error: unknown) => error);
   expect(error).toBeInstanceOf(UsageError);
   expect((error as UsageError).textMessage).toBe("unknown account missing\\nFAKE_LOG");
-  expect((error as UsageError).toEnvelope().message).toBe("unknown account missing\nFAKE_LOG");
+  expect(errorEnvelope(error as UsageError).message).toBe("unknown account missing\nFAKE_LOG");
   expect(api.reportTxHash).not.toHaveBeenCalled();
 });
 

@@ -21,12 +21,16 @@ import {
   withTokenBook,
   type SunSwapTokenResolver,
 } from "../../../services/sunswap-token-resolver.js";
+import { LiquidityTransactions, type ApprovalPlan } from "./liquidity-transactions.js";
+import { UNLIMITED_ALLOWANCE } from "../../../../domain/token/allowance.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
 import {
-  LiquidityTransactions,
-  UNLIMITED_ALLOWANCE,
-  type ApprovalPlan,
-} from "./liquidity-transactions.js";
-import { ChainError, UsageError, WalletError } from "../../../../domain/errors/index.js";
+  ChainError,
+  errorMessage,
+  inputRef,
+  UsageError,
+  WalletError,
+} from "../../../../domain/errors/index.js";
 import {
   toBaseUnits,
   type Sun,
@@ -34,6 +38,7 @@ import {
   baseUnitAmount,
 } from "../../../../domain/amounts/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
+import { lowerBySlippage } from "../../../../domain/sunswap/liquidity.js";
 import type { RouterExecutionPort } from "../../../ports/sunswap/router-execution.js";
 import type { Permit2Port } from "../../../ports/sunswap/permit2.js";
 import type { SignerResolver } from "../../../services/signer/index.js";
@@ -42,6 +47,7 @@ import type { TypedDataPayload } from "../../../../domain/types/index.js";
 import {
   assertPermitAuthorizes,
   assertSignedBy,
+  PERMIT2_GRANT_TTL_SECONDS,
   type PermitFacts,
 } from "../../../../domain/sunswap/permit2-guard.js";
 import { recoverTronSigner } from "../../../../domain/sunswap/permit2-recover.js";
@@ -56,12 +62,7 @@ import { FAMILIES } from "../../../../domain/family/index.js";
 
 const KIND = "sunswap-swap" as const;
 
-// Keep grants short-lived while allowing approval confirmation and signing time.
-const PERMIT_TTL_SECONDS = 3600;
 const SWAP_VALID_SECONDS = 1800;
-
-// Set an explicit fee limit instead of inheriting the encoder's default.
-const DEFAULT_SWAP_FEE_LIMIT_SUN = sunAmount("100000000");
 
 interface SwapSide {
   readonly address: string;
@@ -191,19 +192,19 @@ export class SunSwapSwapService {
     spending: { amountIn: string; nativeIn: boolean; tokenAddress: string },
   ): Promise<Record<string, unknown>> {
     const mode = transactionMode(input);
-    if (mode.buildOnly && !spending.nativeIn) {
+    if (mode.mode === "build-only" && !spending.nativeIn) {
       // This refusal is account-independent and must precede account resolution.
       throw new UsageError(
         "invalid_option",
-        "--build-only is not available for a router swap that spends a token: the transaction embeds a Permit2 signature, so it cannot be built before that signature exists. --dry-run validates it, and a swap that spends TRX has no permit and does build",
+        errorMessage`${inputRef("buildOnly")} is not available for a router swap that spends a token: the transaction embeds a Permit2 signature, so it cannot be built before that signature exists. ${inputRef("dryRun")} validates it, and a swap that spends TRX has no permit and does build`,
       );
     }
     if (transactionRequiresSigner(input)) this.routerTx.assertCanSign(scope);
     const owner = resolveTronAccount(scope);
     await this.#assertCovers(network, owner, tokenIn, spending);
     const bips = slippageToBips(input.slippage ?? DEFAULT_SWAP_SLIPPAGE);
-    const minimumOut = floorOf(chosen.amountOutRaw, bips);
-    const feeLimit = input.feeLimit ?? DEFAULT_SWAP_FEE_LIMIT_SUN;
+    const minimumOut = lowerBySlippage(chosen.amountOutRaw, bips);
+    const feeLimit = input.feeLimit ?? DEFAULT_FEE_LIMIT_SUN;
 
     const view: Record<string, unknown> = {
       kind: KIND,
@@ -240,7 +241,7 @@ export class SunSwapSwapService {
       token: spending.tokenAddress,
       spender: this.routerExec.routerAddress(network),
       amount: baseUnitAmount(spending.amountIn),
-      ttlSeconds: PERMIT_TTL_SECONDS,
+      ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
     });
     if (permit === undefined) {
       // A standing Permit2 grant suffices, but the token's allowance to Permit2 still needs checking.
@@ -255,7 +256,7 @@ export class SunSwapSwapService {
           amountIn: spending.amountIn,
           nativeIn: false,
         });
-      if (mode.dryRun) {
+      if (mode.mode === "dry-run") {
         return {
           ...view,
           mode: "dry-run",
@@ -292,10 +293,10 @@ export class SunSwapSwapService {
       spender: permit.spender,
       amount: permit.amount,
       expiration: permit.expiration,
-      ttlSeconds: PERMIT_TTL_SECONDS,
+      ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
     };
 
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       // An unsigned permit prevents encoding and estimating the swap; price approvals only.
       const priced = await this.routerTx.priceApprovals(scope, network, approvals, mode, feeLimit);
       return {
@@ -374,7 +375,7 @@ export class SunSwapSwapService {
       permit2: permit.permit2,
       chainId: chainIdOf(network),
       amount: spending.amountIn,
-      notAfter: now + PERMIT_TTL_SECONDS,
+      notAfter: now + PERMIT2_GRANT_TTL_SECONDS,
       now,
     });
 
@@ -455,21 +456,22 @@ export class SunSwapSwapService {
     approvalTxIds: readonly string[],
     view: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    const feeLimit = input.feeLimit ?? DEFAULT_SWAP_FEE_LIMIT_SUN;
-    if (mode.dryRun || mode.buildOnly) {
-      const built = mode.dryRun
-        ? {
-            mode: "dry-run",
-            ...(await this.routerTx.priceWithoutSending(
-              scope,
-              network,
-              [],
-              payload,
-              mode,
-              feeLimit,
-            )),
-          }
-        : await this.routerTx.buildOnly(scope, network, [], payload, mode, feeLimit);
+    const feeLimit = input.feeLimit ?? DEFAULT_FEE_LIMIT_SUN;
+    if (mode.mode === "dry-run" || mode.mode === "build-only") {
+      const built =
+        mode.mode === "dry-run"
+          ? {
+              mode: "dry-run",
+              ...(await this.routerTx.priceWithoutSending(
+                scope,
+                network,
+                [],
+                payload,
+                mode,
+                feeLimit,
+              )),
+            }
+          : await this.routerTx.buildOnly(scope, network, [], payload, mode, feeLimit);
       return { ...view, ...built };
     }
     const main = await this.routerTx.run(scope, network, payload, {
@@ -728,7 +730,7 @@ export class SunSwapSwapService {
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -744,7 +746,7 @@ export class SunSwapSwapService {
         ...priced,
       };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(
         scope,
         network,
@@ -787,11 +789,6 @@ export class SunSwapSwapService {
       },
     );
   }
-}
-
-// Use integer base units to avoid precision loss in the enforced floor.
-function floorOf(expected: string, bips: number): string {
-  return ((BigInt(expected) * BigInt(10_000 - bips)) / 10_000n).toString();
 }
 
 // Check the SDK's permit domain against the independent network descriptor.

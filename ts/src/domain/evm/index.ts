@@ -20,3 +20,11 @@ export function decodeErc20Transfer(input: string): Erc20Transfer | undefined {
     rawAmount: BigInt(`0x${words.slice(64)}`).toString(10),
   };
 }
+
+// Gas of a native-coin transfer to an address without code.
+export const NATIVE_TRANSFER_GAS = 21_000;
+
+// Decimal wei in and out.
+export function nativeTransferCostWei(gasPriceWei: string): string {
+  return (BigInt(gasPriceWei) * BigInt(NATIVE_TRANSFER_GAS)).toString(10);
+}

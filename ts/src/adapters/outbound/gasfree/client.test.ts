@@ -174,3 +174,24 @@ describe("GasFreeClient.submitTransfer dry-run guard", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 });
+
+describe("GasFreeClient trace", () => {
+  it("does not send a trace once the caller's signal has aborted", async () => {
+    const sent: string[] = [];
+    const client = new GasFreeClient(
+      CONFIG,
+      1000,
+      processBroadcastGuard,
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        init?.signal?.throwIfAborted();
+        sent.push(String(url));
+        return response({});
+      }) as typeof fetch,
+    );
+
+    await expect(client.trace(NETWORK, "trace-1", AbortSignal.abort())).rejects.toMatchObject({
+      code: "timeout",
+    });
+    expect(sent).toEqual([]);
+  });
+});

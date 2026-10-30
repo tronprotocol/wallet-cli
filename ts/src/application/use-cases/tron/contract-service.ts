@@ -78,13 +78,14 @@ export class TronContractService {
       displayAddress: tronHexToBase58,
       fromBaseUnits,
     });
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: async (from) =>
         gateway.triggerSmartContract(from, input.contract, input.method, input.parameters, {
@@ -130,13 +131,14 @@ export class TronContractService {
     const gateway = this.gateways.get(network, "tron");
     const hooks = tronTransactionHooks(gateway);
     let contractAddress: string | undefined;
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...hooks,
+      preflight: null,
       // Preparation changes txID and therefore the deployed address.
       prepare: (transaction, options) => {
         const prepared = hooks.prepare(transaction, options);
@@ -253,7 +255,7 @@ export class TronContractService {
         `only contract deployer ${metadata.originAddress ?? "(unknown)"} may govern ${input.address}`,
       );
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -261,6 +263,7 @@ export class TronContractService {
       ...mode,
       confirm: tronConfirmation(gateway, scope),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       build: async (address) => await build(gateway, address),
       estimate: async (_tx: UnsignedTx) => ({
         feeModel: "tron-resource",

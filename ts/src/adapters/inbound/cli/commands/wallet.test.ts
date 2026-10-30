@@ -76,7 +76,7 @@ function buildTestDeps(opts: FakePromptOpts & { root?: string } = {}): {
     networkRegistry,
     streams,
     secrets,
-    keystore: ks,
+    accounts: new WalletService(ks, {} as never, {} as never, {} as never),
     prompter,
     formatter,
   };
@@ -355,7 +355,7 @@ describe("wallet delete", () => {
       networkRegistry,
       streams: streamsNT,
       secrets: secretsNT,
-      keystore: ksNT,
+      accounts: new WalletService(ksNT, {} as never, {} as never, {} as never),
       prompter: prompterNT,
       formatter,
     };

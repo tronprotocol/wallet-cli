@@ -19,6 +19,7 @@ import type { ContractParameter } from "../../../application/contracts/tron-cont
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import { readOnlySdkRuntime, sdkNetworkName } from "./sdk-runtime.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 
@@ -95,11 +96,20 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
       );
     }
     const grant = plan.permitSingle as { details?: { amount?: unknown; expiration?: unknown } };
+    let typedData: TypedDataPayload;
+    try {
+      typedData = normalizeTypedData((signature as { typedData?: unknown }).typedData);
+    } catch (error) {
+      throw new ChainError(
+        "provider_error",
+        `the Permit2 planner returned malformed typed data: ${message(error)}`,
+      );
+    }
     return {
       permit2: this.#permit2(network),
       spender: input.spender,
       // The domain Permit2 guard validates this payload before signing.
-      typedData: (signature as { typedData?: unknown }).typedData as TypedDataPayload,
+      typedData,
       grant: plan.permitSingle as unknown as Permit2Grant,
       amount: String(grant.details?.amount ?? ""),
       expiration: String(grant.details?.expiration ?? ""),

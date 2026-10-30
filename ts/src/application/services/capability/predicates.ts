@@ -4,14 +4,15 @@ import {
   type NetworkDescriptor,
   type TronNetworkDescriptor,
 } from "../../../domain/types/network.js";
+import { defaultToken } from "../default-token.js";
 
 // "needs-inputs": supported, but only when the caller supplies inputs that other networks default.
 export type CapabilitySupport = "supported" | "needs-inputs" | "unsupported";
 
 // Facts a predicate reads that the network descriptor does not carry.
 export interface CapabilityFacts {
-  // Whether x402 serve has a registered default payment token on the network.
-  x402ServeDefaultToken(network: NetworkDescriptor): boolean;
+  // Whether the x402 integration registers the token symbol on the network.
+  x402TokenRegistered(network: NetworkDescriptor, symbol: string): boolean;
 }
 
 type Predicate = (network: NetworkDescriptor, facts: CapabilityFacts) => CapabilitySupport;
@@ -73,7 +74,9 @@ const PREDICATES: Readonly<Record<string, Predicate>> = {
   "bai.recharge": (network) => when(baiChain(network) !== undefined),
   // Without a default token the server needs an explicit token, or an asset with its decimals.
   "x402.serve": (network, facts) =>
-    facts.x402ServeDefaultToken(network) ? "supported" : "needs-inputs",
+    facts.x402TokenRegistered(network, defaultToken("x402.serve", network.id))
+      ? "supported"
+      : "needs-inputs",
 };
 
 export function capabilitySupport(

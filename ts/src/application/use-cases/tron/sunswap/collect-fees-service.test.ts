@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
-import type { TransactionScope } from "../../../contracts/execution-scope.js";
+import type { CodedWarning, TransactionScope } from "../../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../../ports/chain/gateway-provider.js";
 import type { LiquidityPort } from "../../../ports/sunswap/liquidity.js";
 import type { TxPipeline } from "../../../services/pipeline/index.js";
 import type { SunSwapTokenResolver } from "../../../services/sunswap-token-resolver.js";
 import { SunSwapCollectFeesService } from "./collect-fees-service.js";
 import { ChainError } from "../../../../domain/errors/index.js";
+import { cliMessage, errorEnvelope } from "../../../../adapters/inbound/cli/output/errors.js";
 
 const SYMBOLS: Record<string, string> = {
   USDT: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
@@ -74,7 +75,7 @@ function makeHarness(port: LiquidityPort = makePort(), confirmed = true) {
   const assertCanSign = vi.fn();
   const pipeline = {
     assertCanSign,
-    run: vi.fn(async (p: PipelineParams) => {
+    runTron: vi.fn(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       const fee = await p.estimate(tx);
       if (p.mode === "dry-run") return { stage: "plan", tx, fee };
@@ -586,6 +587,37 @@ describe("collect-fees — V4", () => {
     expect(scope.warn).toHaveBeenCalledWith(
       expect.objectContaining({ code: "sunswap_v4_owed_fees_unavailable" }),
     );
+    const warning = vi
+      .mocked(scope.warn)
+      .mock.calls.map(([w]) => w)
+      .find((w) => typeof w === "object" && "code" in w) as CodedWarning;
+    expect(cliMessage(warning.message).message).toMatch(
+      /; 'sunswap position-list' reports the unclaimed value: node unreachable$/,
+    );
+  });
+
+  it.each([
+    [
+      { recipient: "T1" },
+      "--recipient is not accepted on V4; the fees always go to the signing account",
+    ],
+    [
+      { token0: "TRX" },
+      "--token0 and --token1 must be given together on V4, or both left out and read from the position",
+    ],
+    [
+      { fee: 3000 },
+      "--fee is accepted on V4 only alongside --token0 and --token1; on its own it checks nothing",
+    ],
+  ])("keeps the CLI wording of the V4 input check for %o", async (extra, text) => {
+    const { port } = makeV4Port();
+    const { service, scope } = makeHarness(port);
+
+    const error = await service
+      .collectFees(scope, NETWORK, { ...V4, ...extra, dryRun: true })
+      .catch((e) => e);
+
+    expect(errorEnvelope(error).message).toBe(text);
   });
 
   it("publishes no amount when the fee read cannot be decoded, and says so", async () => {

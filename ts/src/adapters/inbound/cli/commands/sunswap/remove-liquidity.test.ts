@@ -4,6 +4,7 @@ import type { ZodObject, ZodRawShape } from "zod";
 import { CliError } from "../../../../../domain/errors/index.js";
 import { composeRefines, parseInputSchema } from "../../shell/index.js";
 import { sunswapRemoveLiquiditySpec } from "./remove-liquidity.js";
+import { exitCodeOf } from "../../output/errors.js";
 
 const schema = (
   sunswapRemoveLiquiditySpec.baseFields as unknown as {
@@ -97,7 +98,7 @@ describe("sunswap remove-liquidity — a malformed --recipient", () => {
         recipient,
       });
       expect(error).toMatchObject({ code: "invalid_address" });
-      expect(error.exitCode()).toBe(2);
+      expect(exitCodeOf(error)).toBe(2);
       expect(error.message).toMatch(/^invalid --recipient: /);
     },
   );

@@ -12,30 +12,28 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import type { SigningService } from "../../services/signing/signing-service.js";
+import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import { localTxId } from "../../services/broadcast-identity.js";
 import { assertNotExpired, expirationOf, transactionContract } from "./transaction-artifact.js";
-
-export interface TronSignOptions {
-  // "imported" checks the transaction's reference block on the network's node before signing.
-  origin: "imported" | "offline";
-  // Require the signer that passed authorization, before any signing interaction.
-  expectedSigner?: string;
-}
+import type { TronHexSigner, TronSignOptions } from "./tron-signing.js";
 
 // Signs artifacts without querying permission or approval endpoints.
-export class TronSigService {
+export class TronSigService implements TronHexSigner {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly signers: SignerResolver,
     private readonly signing: SigningService,
+    private readonly artifacts: TransactionArtifactWriter,
     private readonly now: () => number = () => Date.now(),
   ) {}
 
+  // `out` is the file the user chose for the signed hex.
   async sign(
     scope: TransactionScope,
     network: NetworkDescriptor,
     hex: string,
     options: TronSignOptions,
+    out?: string,
   ): Promise<OfflineTxSignView> {
     const gateway = this.gateways.get(network, "tron");
     const transaction = gateway.decodeTransactionHex(hex);
@@ -47,13 +45,16 @@ export class TronSigService {
       transaction,
       options,
     );
-    return {
+    const view: OfflineTxSignView = {
       kind: "tx-sign",
       signer: signer.address,
       hex: signedHex,
       checked: false,
       transaction: this.#transactionView(gateway, decoded),
     };
+    if (out === undefined) return view;
+    this.artifacts.write(out, signedHex);
+    return { ...view, out };
   }
 
   // The JSON form of an artifact; the signer receives the caller's object, checked like the hex form.

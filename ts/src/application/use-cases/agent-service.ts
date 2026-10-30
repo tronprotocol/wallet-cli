@@ -1,5 +1,5 @@
 import { UsageError } from "../../domain/errors/index.js";
-import type { NetworkDescriptor } from "../../domain/types/index.js";
+import type { NetworkDescriptor, TxReceiptView } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
 import type {
@@ -8,8 +8,14 @@ import type {
   AgentRegistryValue,
 } from "../ports/agent-sdk.js";
 import { resolveAgentId } from "../../domain/erc8004/index.js";
-import { FAMILIES, sameAddress, tronAddressFromEvmHex } from "../../domain/family/index.js";
+import {
+  FAMILIES,
+  sameAddress,
+  tronAddressFromEvmHex,
+  type ChainFamily,
+} from "../../domain/family/index.js";
 import { type Sun, sunAmount } from "../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../domain/fees/tron.js";
 
 interface TransactionOptions {
   dryRun?: boolean;
@@ -20,7 +26,31 @@ interface TransactionOptions {
   feeLimit?: Sun;
 }
 
+interface AgentCall {
+  contract: string;
+  method: string;
+  params: Array<{ type: string; value: unknown }>;
+  approvalKind?: "erc721";
+}
+
+interface AgentFamily {
+  send(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: TransactionOptions,
+    call: AgentCall,
+  ): Promise<TxReceiptView>;
+  // Registry address reads in the family's canonical form.
+  address(value: string): string;
+}
+
 export class AgentService {
+  // ERC-8004 behavior that differs per chain family.
+  private readonly families: Record<ChainFamily, AgentFamily> = {
+    evm: { send: (...args) => this.sendEvm(...args), address: (value) => value },
+    tron: { send: (...args) => this.sendTron(...args), address: tronAddressFromEvmHex },
+  };
+
   constructor(
     private readonly contracts: AgentContractPorts,
     private readonly registry: AgentRegistryReader,
@@ -226,28 +256,47 @@ export class AgentService {
     method: string,
     params: Array<{ type: string; value: unknown }>,
   ) {
-    const contract = this.registry.registry(network);
-    if (network.family === "evm") {
-      return this.contracts.evm.send(scope, network, {
-        ...input,
-        ...(method === "approve(address,uint256)" ? { approvalKind: "erc721" as const } : {}),
-        contract,
-        method,
-        params,
-      });
-    }
+    return this.families[network.family].send(scope, network, input, {
+      contract: this.registry.registry(network),
+      method,
+      params,
+      ...(method === "approve(address,uint256)" ? { approvalKind: "erc721" as const } : {}),
+    });
+  }
+
+  private sendEvm(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: TransactionOptions,
+    { contract, method, params, approvalKind }: AgentCall,
+  ) {
+    return this.contracts.evm.send(scope, network, {
+      ...input,
+      ...(approvalKind ? { approvalKind } : {}),
+      contract,
+      method,
+      params,
+    });
+  }
+
+  private sendTron(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    input: TransactionOptions,
+    { contract, method, params, approvalKind }: AgentCall,
+  ) {
     return this.contracts.tron.send(scope, network, {
       ...input,
-      ...(method === "approve(address,uint256)" ? { approvalKind: "erc721" as const } : {}),
+      ...(approvalKind ? { approvalKind } : {}),
       contract,
       method,
       parameters: params,
       callValueSun: sunAmount("0"),
-      feeLimit: input.feeLimit ?? sunAmount("100000000"),
+      feeLimit: input.feeLimit ?? DEFAULT_FEE_LIMIT_SUN,
     });
   }
 
   private address(network: NetworkDescriptor, value: string): string {
-    return network.family === "tron" ? tronAddressFromEvmHex(value) : value;
+    return this.families[network.family].address(value);
   }
 }

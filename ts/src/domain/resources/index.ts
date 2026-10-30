@@ -1,6 +1,9 @@
 export const RESOURCES = ["energy", "bandwidth"] as const;
 export type Resource = (typeof RESOURCES)[number];
 
+// Unstaking (UnfreezeV2) entries an account may have pending at once.
+export const MAX_UNFREEZING_ENTRIES = 32;
+
 export type RpcResourceCode = "ENERGY" | "BANDWIDTH";
 
 export interface ResourceMeta {

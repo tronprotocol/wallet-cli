@@ -1,4 +1,4 @@
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 import { FAMILIES } from "../family/index.js";
 
 export interface ChainParameterDefinition {
@@ -190,7 +190,7 @@ export function parseChainParameterAssignments(
     if (separator <= 0 || separator === assignment.length - 1) {
       throw new UsageError(
         "invalid_value",
-        `invalid --set '${assignment}'; expected <name|id>=<value>`,
+        errorMessage`invalid ${inputRef("set")} '${assignment}'; expected <name|id>=<value>`,
       );
     }
     const key = assignment.slice(0, separator).trim();

@@ -8,7 +8,10 @@ import { z } from "zod";
 import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { BaiService } from "../../../../application/use-cases/bai-service.js";
-import { isTxHash } from "../../../../domain/family/index.js";
+import { isBaiTxHash } from "../../../../domain/bai/chains.js";
+import { isUserMessage, type UserMessage } from "../../../../domain/errors/index.js";
+import { cliMessage } from "../output/errors.js";
+import { defaultToken } from "../../../../application/services/default-token.js";
 
 const requires = ["config baiApiKey"];
 
@@ -90,11 +93,20 @@ export const baiRechargeSpec: ChainSpec = {
   ],
 };
 
+// The result's warning field is a string; follow-up commands are spelled for the CLI.
+function spelledWarning<T extends { warning?: string | UserMessage }>(result: T) {
+  return isUserMessage(result.warning)
+    ? { ...result, warning: cliMessage(result.warning).message }
+    : result;
+}
+
 export function baiRechargeBinding(service: BaiService): FamilyBinding {
   return {
     refine: (input, ctx) => {
+      // Without a token the network decides the default, so the recharge itself checks the minimum.
+      if (input.token === undefined) return;
       try {
-        assertBaiRechargeMinimum(input.token ?? "USDT", baiRechargeAmount(input.amount));
+        assertBaiRechargeMinimum(input.token, baiRechargeAmount(input.amount));
       } catch (error) {
         ctx.addIssue({
           code: "custom",
@@ -106,9 +118,9 @@ export function baiRechargeBinding(service: BaiService): FamilyBinding {
     },
     run: async (ctx, network, input) => {
       if (!network) throw new Error("B.AI recharge requires a resolved network");
-      return service.recharge(ctx, network, {
+      const result = await service.recharge(ctx, network, {
         amount: input.amount,
-        token: input.token ?? (network.id === "eip155:8453" ? "USDC" : "USDT"),
+        token: input.token ?? defaultToken("bai.recharge", network.id),
         to: input.to,
         apiKey: ctx.config.baiApiKey,
         dryRun: input.dryRun,
@@ -117,6 +129,7 @@ export function baiRechargeBinding(service: BaiService): FamilyBinding {
         maxGasfreeFee: input.maxGasfreeFee,
         maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,
       });
+      return spelledWarning(result);
     },
   };
 }
@@ -158,7 +171,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
       "Recover a failed B.AI report using the original API key, chain, hash, amount and recipient. For recipient recharge, supply both original --to and --target-id; omit both only for self recharge. Reconcile any unconfirmed candidate hash before reporting. This command does not create an order, sign, pay, or resolve a new recipient. B.AI verifies whether the reported transaction can be credited.",
     fields: reportFields,
     input: reportFields.superRefine((value, ctx) => {
-      if (!isTxHash(value.chain === "tron" ? "tron" : "evm", value.txHash))
+      if (!isBaiTxHash(value.chain, value.txHash))
         ctx.addIssue({
           code: "custom",
           path: ["txHash"],

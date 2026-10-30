@@ -1,10 +1,10 @@
 import { main } from "./bootstrap/runner.js";
+import { reportFatal } from "./adapters/inbound/cli/output/fatal.js";
 
 main(process.argv)
   .then((code) => {
     process.exitCode = code;
   })
   .catch((e) => {
-    process.stderr.write(`fatal: ${e?.message ?? String(e)}\n`);
-    process.exitCode = 1;
+    process.exitCode = reportFatal(e);
   });

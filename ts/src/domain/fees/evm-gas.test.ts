@@ -164,13 +164,15 @@ describe("planEvmFee — warnings", () => {
     const plan = planEvmFee({ ...chain, overrides: { maxFeeWei: "500000" } });
 
     expect(plan.priorityFeeWei).toBe("500000");
-    expect(plan.warnings?.join(" ")).toMatch(/tip was reduced/);
+    expect(plan.warnings?.map((w) => w.message).join(" ")).toMatch(/tip was reduced/);
   });
 
   it("says so when the fee cap is below the base fee, so it cannot be included", () => {
     const plan = planEvmFee({ ...chain, overrides: { maxFeeWei: "500000" } });
 
-    expect(plan.warnings?.join(" ")).toMatch(/cannot be included until the base fee falls/);
+    expect(plan.warnings?.map((w) => w.message).join(" ")).toMatch(
+      /cannot be included until the base fee falls/,
+    );
   });
 
   it("does not warn about a tip the caller chose", () => {

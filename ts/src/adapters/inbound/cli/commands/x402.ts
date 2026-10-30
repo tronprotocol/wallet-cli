@@ -13,6 +13,13 @@ import { SECRET_KINDS, type CommandDefinition, type ExclusiveGroup } from "../co
 import { sanitizeText } from "../render/scalars.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
+import type { HttpHeader } from "../../../../application/ports/x402-payment.js";
+import { DEFAULT_X402_FACILITATOR_URL } from "../../../../application/services/x402/facilitator.js";
+import { defaultToken } from "../../../../application/services/default-token.js";
+import {
+  X402_DEFAULT_VALIDITY_SECONDS,
+  X402_MAX_VALIDITY_SECONDS,
+} from "../../../../domain/x402/payment-terms.js";
 import { readFile } from "node:fs/promises";
 import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 
@@ -134,15 +141,18 @@ const listFields = z.object({
 const serveFields = z.object({
   payTo: z.string().trim().min(1).describe("recipient address on the selected network"),
   amount: paymentAmount.optional().describe("human-readable token amount"),
-  token: z.string().trim().min(1).optional().describe("payment token symbol (default USDT)"),
-  rawAmount: rawPaymentAmount
+  token: z
+    .string()
+    .trim()
+    .min(1)
     .optional()
-    .describe("payment in smallest units; mutually exclusive with amount"),
+    .describe(`payment token symbol (default ${defaultToken("x402.serve")})`),
+  rawAmount: rawPaymentAmount.optional().describe("payment in smallest units"),
   asset: z.string().trim().min(1).optional().describe("explicit payment asset address"),
   decimals: integerLiteral(0, 18).optional().describe("precision for an explicit asset"),
   resourceUrl: url.optional().describe("advertised resource URL"),
-  validForSeconds: integerLiteral(1, 86400)
-    .default(300)
+  validForSeconds: integerLiteral(1, X402_MAX_VALIDITY_SECONDS)
+    .default(X402_DEFAULT_VALIDITY_SECONDS)
     .describe("payment authorization validity in seconds"),
   daemon: z
     .boolean()
@@ -155,7 +165,7 @@ const serveFields = z.object({
     .string()
     .url()
     .refine((value) => value.startsWith("https://"), "must use HTTPS")
-    .default("https://facilitator.bankofai.io"),
+    .default(DEFAULT_X402_FACILITATOR_URL),
 });
 
 function serveRefinement(value: { asset?: string; decimals?: number }, ctx: z.RefinementCtx) {
@@ -189,7 +199,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       return service.pay(ctx, network, {
         url: input.url,
         method: input.method,
-        headers: input.header,
+        headers: headerFields(input.header),
         ...(body === undefined ? {} : { body }),
         ...(input.token === undefined ? {} : { token: input.token }),
         ...(input.asset === undefined ? {} : { asset: input.asset }),
@@ -248,7 +258,11 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     examples: [{ cmd: "wallet-cli x402 roundtrip --pay-to T... --network tron --password-stdin" }],
     run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 roundtrip requires a resolved network");
-      return service.roundtrip(ctx, network, { ...input, host: "127.0.0.1" });
+      const { serve, pay } = await service.roundtrip(ctx, network, {
+        ...input,
+        host: "127.0.0.1",
+      });
+      return { serve, pay };
     },
   } satisfies CommandDefinition);
 
@@ -305,6 +319,15 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     examples: [{ cmd: "wallet-cli x402 update-catalog" }],
     run: async (ctx) => providerResult(ctx, service.providerUpdate()),
   } satisfies CommandDefinition);
+}
+
+// Splits each "Name: value" argument at its first colon.
+function headerFields(lines: readonly string[]): HttpHeader[] {
+  return lines.map((line) => {
+    const colon = line.indexOf(":");
+    if (colon <= 0) throw new UsageError("invalid_value", '--header must use "Name: value"');
+    return { name: line.slice(0, colon).trim(), value: line.slice(colon + 1).trim() };
+  });
 }
 
 async function requestBody(

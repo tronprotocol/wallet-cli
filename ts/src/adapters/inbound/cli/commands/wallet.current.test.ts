@@ -62,11 +62,27 @@ describe("current --qr", () => {
     });
 
     expect(fixture.walletService.current).toHaveBeenCalledWith("wlt_selected");
-    expect(fixture.qr.encode).toHaveBeenCalledWith(ADDRESS);
+    expect(fixture.qr.encode).toHaveBeenCalledWith(ADDRESS, expect.anything());
     expect(result).toMatchObject({
       receiveQr: "QR",
       receiveAddress: ADDRESS,
     });
+  });
+
+  it("draws for the terminal stdout writes to", async () => {
+    const fixture = command();
+    const stdout = process.stdout as { isTTY?: boolean; columns?: number };
+    const saved = { isTTY: stdout.isTTY, columns: stdout.columns };
+    stdout.isTTY = true;
+    stdout.columns = 97;
+    try {
+      await fixture.current.run(fixture.context as never, fixture.tronNet as never, { qr: true });
+    } finally {
+      stdout.isTTY = saved.isTTY;
+      stdout.columns = saved.columns;
+    }
+
+    expect(fixture.qr.encode).toHaveBeenCalledWith(ADDRESS, { isTTY: true, columns: 97 });
   });
 
   it("gives JSON the receive address and never builds terminal art", async () => {
@@ -131,7 +147,7 @@ describe("current --qr picks the address by network family", () => {
     };
 
     expect(result.receiveAddress).toBe(EVM_ADDRESS);
-    expect(f.qr.encode).toHaveBeenCalledWith(EVM_ADDRESS);
+    expect(f.qr.encode).toHaveBeenCalledWith(EVM_ADDRESS, expect.anything());
   });
 
   it("encodes the TRON address when a TRON network is selected", async () => {

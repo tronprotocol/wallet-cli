@@ -78,6 +78,9 @@ describe("the startup migration gate is wired into main()", () => {
     const { code, stdout, walletsPath } = await runIn(v1SeedDoc, ["-o", "json", "list"]);
 
     expect(JSON.parse(stdout).error.code).toBe("migration_required");
+    expect(JSON.parse(stdout).error.message).toBe(
+      "this wallet file was created by an older version and must be updated before any command can run; run wallet-cli in a terminal, or pipe the master password with --password-stdin",
+    );
     expect(code).toBe(2);
     expect(JSON.parse(readFileSync(walletsPath, "utf8")).version).toBe(1);
   });

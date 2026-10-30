@@ -1,9 +1,11 @@
 import { z } from "zod";
-import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
+import type { ChainSpec, ExclusiveGroup, FamilyBinding } from "../contracts/index.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
 import { isZeroAmount } from "../../../../domain/amounts/index.js";
+import { MAX_PERMISSION_ID, OWNER_PERMISSION_ID } from "../../../../domain/permission/index.js";
+import { MAX_TRON_EXPIRATION_MS } from "../../../../domain/transaction/index.js";
 
 export const LEDGER_TRON_SETTINGS_NOTE =
   'Ledger: enable "Custom contracts" and "Sign by Hash" in the TRON app settings.\n';
@@ -12,18 +14,18 @@ export const tronTxModeFields = {
   permissionId: z.coerce
     .number()
     .int()
-    .min(0)
-    .max(9)
-    .default(0)
+    .min(OWNER_PERMISSION_ID)
+    .max(MAX_PERMISSION_ID)
+    .default(OWNER_PERMISSION_ID)
     .describe("TRON permission group to sign with (0=owner, 1=witness, 2-9=active)"),
   expiration: z.coerce
     .number()
     .int()
     .min(1)
-    .max(86_400_000)
+    .max(MAX_TRON_EXPIRATION_MS)
     .optional()
     .describe(
-      "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+      `transaction expiration in ms, up to ${MAX_TRON_EXPIRATION_MS} (24h); only with --sign-only or --build-only; omitted = node default (~60s)`,
     ),
 };
 
@@ -44,27 +46,31 @@ export const txModeFields = {
     ),
 };
 
+export const txModeExclusive: ExclusiveGroup = {
+  label: "the transaction mode; omit all for sign and broadcast",
+  flags: ["dry-run", "sign-only", "build-only"],
+  select: "at-most-one",
+};
+
+// For commands without --sign-only.
+export const unsignedTxModeExclusive: ExclusiveGroup = {
+  ...txModeExclusive,
+  flags: ["dry-run", "build-only"],
+};
+
 export const governanceTxModeFields = {
   ...txModeFields,
   ...tronTxModeFields,
   buildOnly: z
     .boolean()
     .default(false)
-    .describe(
-      "build an unsigned transaction without signing or broadcasting; mutually exclusive with --dry-run/--sign-only",
-    ),
+    .describe("build an unsigned transaction without signing or broadcasting"),
 };
 
-export function governanceTxRefine(
-  value: { dryRun?: boolean; signOnly?: boolean; buildOnly?: boolean; expiration?: number },
+export function tronExpirationRefine(
+  value: { signOnly?: boolean; buildOnly?: boolean; expiration?: number },
   ctx: z.RefinementCtx,
 ): void {
-  if ([value.dryRun, value.signOnly, value.buildOnly].filter(Boolean).length > 1) {
-    ctx.addIssue({
-      code: "custom",
-      message: "choose at most one of --dry-run, --sign-only, --build-only",
-    });
-  }
   if (value.expiration !== undefined && !value.signOnly && !value.buildOnly) {
     ctx.addIssue({
       code: "custom",

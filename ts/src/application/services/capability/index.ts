@@ -5,7 +5,7 @@ import { capabilitySupport, type CapabilityFacts, type CapabilitySupport } from 
 
 export type { CapabilityFacts, CapabilitySupport } from "./predicates.js";
 
-const NO_DEFAULT_TOKENS: CapabilityFacts = { x402ServeDefaultToken: () => false };
+const NO_DEFAULT_TOKENS: CapabilityFacts = { x402TokenRegistered: () => false };
 
 // Discovery and the execution gate both read the predicate results recorded here.
 export class CapabilityRegistry {

@@ -3,9 +3,10 @@ import { createOutputFormatter } from "./index.js";
 import { maskCredentials } from "./mask.js";
 import { EvmRpcClient } from "../../../outbound/chain/evm/evm.js";
 import { FetchHttpTransport, networkHttpConfig } from "../../../outbound/http/index.js";
-import { ExecutionError, normalizeError, type CliError } from "../../../../domain/errors/index.js";
+import { ExecutionError, type CliError } from "../../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { StreamManager } from "../contracts/index.js";
+import { normalizeCliError } from "./errors.js";
 
 const API_KEY = "fictional-api-key-0001";
 const network = {
@@ -33,7 +34,7 @@ async function echoedKeyError(): Promise<CliError> {
   try {
     await new EvmRpcClient(network, 1000, transport).getBlockNumber();
   } catch (error) {
-    return normalizeError(error);
+    return normalizeCliError(error);
   }
   throw new Error("expected the RPC call to fail");
 }

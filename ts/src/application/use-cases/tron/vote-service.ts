@@ -1,5 +1,12 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { decimalToBigInt } from "../../../domain/numbers/index.js";
+import {
+  ELECTED_SR_COUNT,
+  MAINTENANCE_INTERVAL_MS,
+  MAX_REWARDED_RANK,
+  MAX_VOTE_ITEMS,
+} from "../../../domain/governance/voting.js";
 import { addressCodec } from "../../../domain/family/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -12,15 +19,10 @@ import {
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron-confirmation.js";
-import { TronStakeService } from "./stake-service.js";
+import { readVotingPower } from "./voting-power.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
-const MAX_VOTE_ITEMS = 30;
-const MAX_REWARDED_RANK = 127;
-const ELECTED_SR_COUNT = 27;
 const BROKERAGE_CONCURRENCY = 8;
-// The chain parameter getMaintenanceTimeInterval on mainnet; votes are tallied when it ends.
-const MAINTENANCE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 export interface VoteCastInput extends TransactionModeInput {
   for: string[];
@@ -63,8 +65,6 @@ export class TronVoteService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
-    // Read voting power from node resources, not raw account balances.
-    private readonly stake: TronStakeService,
   ) {}
 
   async cast(scope: TransactionScope, network: NetworkDescriptor, input: VoteCastInput) {
@@ -79,20 +79,21 @@ export class TronVoteService {
       );
     }
     const owner = scope.resolveAddress("tron");
-    const votingPower = await this.stake.votingPower(network, owner);
+    const votingPower = await readVotingPower(gateway, owner);
     if (totalVotes > BigInt(votingPower.total)) {
       throw new UsageError(
         "insufficient_voting_power",
         `total votes ${totalVotes.toString()} exceed voting power ${votingPower.total} TP`,
       );
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (ownerAddress) => gateway.buildVoteWitness(ownerAddress, votes),
       estimate: async (_tx: UnsignedTx) => ({
@@ -112,9 +113,7 @@ export class TronVoteService {
   async list(network: NetworkDescriptor, input: VoteListInput) {
     const gateway = this.gateways.get(network, "tron");
     const limit = Math.min(input.limit, input.candidates ? MAX_REWARDED_RANK : ELECTED_SR_COUNT);
-    const witnesses = (await gateway.getWitnesses(limit))
-      .sort((a, b) => compareUnsigned(b.voteCount, a.voteCount))
-      .slice(0, limit);
+    const witnesses = byVotesDescending(await gateway.getWitnesses(limit)).slice(0, limit);
     const cache: BrokerageCache = new Map();
     return {
       witnesses: await mapWithLimit(witnesses, BROKERAGE_CONCURRENCY, (witness, index) =>
@@ -130,7 +129,7 @@ export class TronVoteService {
       gateway.getAccountState(address),
       gateway.getReward(address),
       gateway.getWitnesses(MAX_REWARDED_RANK).catch((): TronWitness[] => []),
-      this.stake.votingPower(network, address),
+      readVotingPower(gateway, address),
     ]);
     const witnessMap = new Map(
       witnesses.map((witness, index) => [witness.address, { witness, rank: index + 1 }]),
@@ -184,15 +183,24 @@ export class TronVoteService {
 
 function parseVoteInputs(values: string[]): TronVote[] {
   if (values.length === 0)
-    throw new UsageError("invalid_value", "--for must include at least one SR=votes entry");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("for")} must include at least one SR=votes entry`,
+    );
   if (values.length > MAX_VOTE_ITEMS)
-    throw new UsageError("invalid_value", "--for accepts at most 30 entries");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("for")} accepts at most ${MAX_VOTE_ITEMS} entries`,
+    );
   const codec = addressCodec("tron");
   const seen = new Set<string>();
   return values.map((entry) => {
     const separator = entry.lastIndexOf("=");
     if (separator <= 0 || separator === entry.length - 1) {
-      throw new UsageError("invalid_value", `invalid --for entry '${entry}'; expected SR=votes`);
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`invalid ${inputRef("for")} entry '${entry}'; expected SR=votes`,
+      );
     }
     const witness = entry.slice(0, separator).trim();
     const count = entry.slice(separator + 1).trim();
@@ -265,17 +273,18 @@ function witnessName(witness: TronWitness): string {
   }
 }
 
-function compareUnsigned(a: unknown, b: unknown): number {
-  const left = quantity(a);
-  const right = quantity(b);
-  if (left === right) return 0;
-  return left > right ? 1 : -1;
-}
-
-function quantity(value: unknown): bigint {
-  if (typeof value === "bigint") return value >= 0n ? value : 0n;
-  if (typeof value === "number")
-    return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : 0n;
-  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
-  return 0n;
+// A malformed vote count fails rather than ranking the witness last.
+function byVotesDescending(witnesses: TronWitness[]): TronWitness[] {
+  const invalid = (message: string) => new ChainError("invalid_node_response", message);
+  return witnesses
+    .map((witness) => ({
+      witness,
+      votes: decimalToBigInt(
+        witness.voteCount,
+        `vote count of witness ${witness.address}`,
+        invalid,
+      ),
+    }))
+    .sort((a, b) => (a.votes === b.votes ? 0 : a.votes < b.votes ? 1 : -1))
+    .map(({ witness }) => witness);
 }

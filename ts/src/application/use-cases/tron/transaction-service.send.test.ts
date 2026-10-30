@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NetworkDescriptor, TronTransactionArtifact } from "../../../domain/types/index.js";
+import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronTransactionService } from "./transaction-service.js";
 import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
@@ -39,7 +39,7 @@ describe("TronTransactionService recipient resolution", () => {
     } as unknown as TronGateway;
     const pipeline = {
       assertCanSign: vi.fn(),
-      run: vi.fn(async (params: TxPipelineParams) => {
+      runTron: vi.fn(async (params: TronTxPipelineParams) => {
         const transaction = await params.build(OWNER);
         return {
           stage: "plan" as const,
@@ -82,7 +82,7 @@ describe("TronTransactionService recipient resolution", () => {
 
 describe("TronTransactionService amount rule", () => {
   it.each(["0", "-1", "1e6"])("refuses rawAmount %s before building", async (rawAmount) => {
-    const pipeline = { assertCanSign: vi.fn(), run: vi.fn() } as unknown as TxPipeline;
+    const pipeline = { assertCanSign: vi.fn(), runTron: vi.fn() } as unknown as TxPipeline;
     const service = new TronTransactionService(
       { get: () => ({}) } as unknown as ChainGatewayProvider,
       {} as never,
@@ -97,7 +97,7 @@ describe("TronTransactionService amount rule", () => {
         dryRun: true,
       }),
     ).rejects.toMatchObject({ code: "invalid_amount" });
-    expect(pipeline.run).not.toHaveBeenCalled();
+    expect(pipeline.runTron).not.toHaveBeenCalled();
   });
 });
 
@@ -115,7 +115,7 @@ describe("TronTransactionService TRC20 --wait", () => {
     let confirmed: unknown = "not called";
     const pipeline = {
       assertCanSign: vi.fn(),
-      run: vi.fn(async (params: TxPipelineParams<TronTransactionArtifact>) => {
+      runTron: vi.fn(async (params: TronTxPipelineParams) => {
         const transaction = await params.build(OWNER);
         confirmed = await params.confirm!("tx", transaction);
         return { stage: "submitted" as const, txId: "tx" };

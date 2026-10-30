@@ -3,8 +3,9 @@ import { allRefines, Schemas, slippageField } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapSwapService } from "../../../../../application/use-cases/tron/sunswap/swap-service.js";
 import { TextFormatters } from "../../render/index.js";
-import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { sunAmount } from "../../../../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../../domain/fees/tron.js";
 
 const fields = z.object({
   tokenIn: z.string().describe("token to spend, symbol or contract address"),
@@ -31,7 +32,7 @@ const fields = z.object({
     .optional()
     .describe("tolerance as a decimal, e.g. 0.005 for 0.5% [default 0.005]"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe(
       "maximum energy fee to burn, in SUN; the dry run's estimate is a lower bound, so a limit set from it can fail",
     ),
@@ -104,6 +105,7 @@ export const sunswapSwapSpec: ChainSpec = {
     "Default slippage is 0.5% — note that `sunpump buy` and `sell` reach the same curve with a 5%\n" +
     "default, because a command named after a meme-token market budgets for its volatility.\n\n" +
     "An account is needed for every mode except --quote, which reads only.",
+  exclusive: [unsignedTxModeExclusive],
   baseFields: fields,
   baseRefine: allRefines(refuseFlagsOutsideMode, slippageField()),
   positionals: [{ field: "tokenIn" }, { field: "tokenOut" }, { field: "amountIn" }],

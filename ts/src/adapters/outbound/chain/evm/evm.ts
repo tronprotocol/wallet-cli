@@ -6,7 +6,7 @@ import {
   toUtf8String,
   type TransactionLike,
 } from "ethers";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import { ChainError, UsageError, errorMessage, inputRef } from "../../../../domain/errors/index.js";
 import { decimalToSafeNumber, quantityToSafeNumber } from "../../../../domain/numbers/index.js";
 import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
 import { evmChecksumAddress, isEvmAddress } from "../../../../domain/address/index.js";
@@ -201,8 +201,8 @@ export class EvmRpcClient implements EvmGateway {
 
   // Null means pending; a missing result is invalid.
   // A mined receipt can still indicate failure; feeWei is the actual gasUsed × effectiveGasPrice.
-  async getTransactionReceipt(hash: string): Promise<EvmReceipt | null> {
-    const raw = await this.#call("eth_getTransactionReceipt", [hash]);
+  async getTransactionReceipt(hash: string, signal?: AbortSignal): Promise<EvmReceipt | null> {
+    const raw = await this.#call("eth_getTransactionReceipt", [hash], signal);
     if (raw === null) return null;
     if (raw === undefined || typeof raw !== "object") {
       throw new ChainError(
@@ -237,7 +237,11 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   // Return RPC errors in the envelope for method-specific classification.
-  async #request(method: string, params: unknown[]): Promise<JsonRpcResponse> {
+  async #request(
+    method: string,
+    params: unknown[],
+    signal?: AbortSignal,
+  ): Promise<JsonRpcResponse> {
     this.#id += 1;
     let text: string;
     try {
@@ -245,6 +249,7 @@ export class EvmRpcClient implements EvmGateway {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: this.#id, method, params }),
+        ...(signal ? { signal } : {}),
       });
     } catch (e) {
       if (e instanceof HttpTransportError && e.kind === "timeout") {
@@ -339,13 +344,19 @@ export class EvmRpcClient implements EvmGateway {
       const iface =
         args.source === "abi"
           ? new Interface(args.abi as InterfaceAbi)
-          : new Interface([normalizeConstructorSignature(args.signature)]);
+          : args.source === "signature"
+            ? new Interface([normalizeConstructorSignature(args.signature)])
+            : new Interface([`constructor(${args.types.join(",")})`]);
       return `0x${body}${iface.encodeDeploy(args.values).replace(/^0x/, "")}`;
     } catch (e) {
-      const from = args.source === "abi" ? "the ABI" : `${args.flag}`;
+      const reason = (e as Error).message;
       throw new UsageError(
         "invalid_value",
-        `could not encode the constructor arguments against ${from}: ${(e as Error).message}`,
+        args.source === "abi"
+          ? errorMessage`could not encode the constructor arguments against the ABI: ${reason}`
+          : errorMessage`could not encode the constructor arguments against ${inputRef(
+              args.source === "signature" ? "constructorSignature" : "constructorParams",
+            )}: ${reason}`,
       );
     }
   }
@@ -462,8 +473,8 @@ export class EvmRpcClient implements EvmGateway {
     }
   }
 
-  async #call(method: string, params: unknown[]): Promise<unknown> {
-    const body = await this.#request(method, params);
+  async #call(method: string, params: unknown[], signal?: AbortSignal): Promise<unknown> {
+    const body = await this.#request(method, params, signal);
     if (body.error) {
       const message = body.error.message ?? "";
       const known = classifyEvmRejection(method, message);

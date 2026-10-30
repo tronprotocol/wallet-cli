@@ -52,7 +52,7 @@ export const MiscFormatters = {
 
 function renderContractInfo(d: Obj): string {
   const names = Array.isArray(d.methods) ? d.methods.map(String) : [];
-  const count = num(d.functionCount, names.length);
+  const count = num(d.functionCount, 0);
   const name = String(d.name ?? "");
   const preview = names.slice(0, 3).join(" / ");
   return query([

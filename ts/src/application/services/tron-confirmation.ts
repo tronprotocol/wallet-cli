@@ -6,10 +6,9 @@ import type {
 } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { TronGateway, TronTxInfo } from "../ports/chain/tron-gateway.js";
+import { errorMessage, inputRef } from "../../domain/errors/index.js";
 import { authoritativeTxId, localTxId } from "./broadcast-identity.js";
-
-const sleep = (milliseconds: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+import { pollWithinWaitBudget } from "./wait-budget.js";
 
 function normalize(info: TronTxInfo): TxConfirmation {
   const result: Omit<TxConfirmation, "failed"> = {
@@ -51,16 +50,12 @@ export function tronConfirmation(
 ): (txId: string, transaction: TronTransactionArtifact) => Promise<TxConfirmation | undefined> {
   return async (txId, transaction) => {
     const needsResult = requiresExecutionResult(transaction);
-    const deadline = Date.now() + Math.max(0, scope.waitTimeoutMs);
-    for (;;) {
-      const info = await gateway.getTransactionInfoById(txId).catch(() => undefined);
-      if (info?.blockNumber !== undefined && (!needsResult || info.execution !== "unknown")) {
-        return normalize(info);
-      }
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) return undefined;
-      await sleep(Math.min(1500, remaining));
-    }
+    return pollWithinWaitBudget(scope.waitTimeoutMs, async (signal) => {
+      const info = await gateway.getTransactionInfoById(txId, signal).catch(() => undefined);
+      return info?.blockNumber !== undefined && (!needsResult || info.execution !== "unknown")
+        ? normalize(info)
+        : undefined;
+    });
   };
 }
 
@@ -77,7 +72,7 @@ export async function stageTronBroadcast(
   if (!scope.wait || !txId) {
     if (scope.wait && !txId) {
       scope.warn(
-        "--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)",
+        errorMessage`${inputRef("wait")} requested but the broadcast returned no txid; returning submitted (unconfirmed)`,
       );
     }
     return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
@@ -87,7 +82,7 @@ export async function stageTronBroadcast(
   );
   if (!confirmed) {
     scope.warn(
-      `--wait: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`,
+      errorMessage`${inputRef("wait")}: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`,
     );
     return { stage: "submitted", ...result, txId };
   }

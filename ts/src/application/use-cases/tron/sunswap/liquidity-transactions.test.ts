@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { LiquidityTransactions } from "./liquidity-transactions.js";
-import { ChainError, normalizeError, errorMessage } from "../../../../domain/errors/index.js";
+import { ChainError, errorMessage } from "../../../../domain/errors/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { AccountRef, NetworkDescriptor, TxOutcome } from "../../../../domain/types/index.js";
-import type { TxPipelineParams } from "../../../services/pipeline/index.js";
+import type { TronTxPipelineParams } from "../../../services/pipeline/index.js";
 import { baseUnitAmount } from "../../../../domain/amounts/index.js";
+import {
+  errorEnvelope,
+  normalizeCliError,
+} from "../../../../adapters/inbound/cli/output/errors.js";
 
 const approval = {
   token: "token",
@@ -40,16 +44,10 @@ class TestScope implements TransactionScope {
 }
 const scope = new TestScope();
 const network = {} as NetworkDescriptor;
-const mode = {
-  dryRun: false,
-  buildOnly: false,
-  permissionId: 0,
-  broadcast: true,
-  mode: "broadcast" as const,
-};
+const mode = { permissionId: 0, mode: "broadcast" as const };
 
 function harness() {
-  const run = vi.fn<(p: TxPipelineParams) => Promise<TxOutcome>>().mockResolvedValue({
+  const run = vi.fn<(p: TronTxPipelineParams) => Promise<TxOutcome>>().mockResolvedValue({
     stage: "confirmed",
     txId: "approval-1",
   });
@@ -61,7 +59,7 @@ function harness() {
   const tx = new LiquidityTransactions(
     port as never,
     { get: () => ({}) } as never,
-    { run } as never,
+    { runTron: run } as never,
   );
   return { tx, run, port };
 }
@@ -181,13 +179,7 @@ describe("approval confirmation before the main transaction", () => {
         network,
         [approval],
         "owner",
-        {
-          ...mode,
-          mode: executionMode,
-          dryRun: executionMode === "dry-run",
-          buildOnly: executionMode === "build-only",
-          broadcast: false,
-        },
+        { ...mode, mode: executionMode },
         undefined,
       );
       expect(h.run.mock.calls[0]![0].ctx).toBe(scope);
@@ -226,7 +218,7 @@ describe("approval failure progress", () => {
         .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
         .mockRejectedValueOnce(original);
       const main = vi.fn();
-      const error = normalizeError(
+      const error = normalizeCliError(
         await h.tx
           .withApprovals(scope, network, [approval, approval], "owner", mode, undefined, main)
           .catch((e) => e),
@@ -252,7 +244,7 @@ describe("approval failure progress", () => {
       });
       expect.fail("must reject");
     } catch (error) {
-      const envelope = normalizeError(error).toEnvelope();
+      const envelope = errorEnvelope(normalizeCliError(error));
       expect(envelope).toMatchObject({
         code: "internal_error",
         details: { approvalTxIds: ["approval-1"] },

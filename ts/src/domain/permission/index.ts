@@ -10,6 +10,10 @@ import { UsageError } from "../errors/index.js";
 import { TronAddress } from "../address/index.js";
 
 const OPERATIONS_BYTES = 32;
+// Permission ids: 0 owner, 1 witness, 2 through MAX_PERMISSION_ID active.
+export const OWNER_PERMISSION_ID = 0;
+export const FIRST_ACTIVE_PERMISSION_ID = 2;
+export const MAX_PERMISSION_ID = 9;
 const MAX_KEYS = 5;
 const MAX_ACTIVES = 8;
 const MAX_PERMISSION_NAME_BYTES = 32;
@@ -115,6 +119,19 @@ const operationByType = new Map(
 const operationById = new Map(
   TRON_OPERATIONS.map((operation) => [operation.contractTypeId, operation]),
 );
+
+export function isPermissionId(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= OWNER_PERMISSION_ID &&
+    value <= MAX_PERMISSION_ID
+  );
+}
+
+export function isActivePermissionId(value: unknown): value is number {
+  return isPermissionId(value) && value >= FIRST_ACTIVE_PERMISSION_ID;
+}
 
 function invalidPermission(message: string, details?: object): never {
   throw new UsageError("invalid_permission", message, details);
@@ -306,13 +323,10 @@ function assertDeclaredUnknownOperations(
 
 function activeGroup(value: unknown, index: number): ActivePermissionView {
   const input = ownRecord(value, `actives[${index}]`);
-  if (
-    typeof input.id !== "number" ||
-    !Number.isSafeInteger(input.id) ||
-    input.id < 2 ||
-    input.id > 9
-  ) {
-    return invalidPermission(`actives[${index}].id must be an integer from 2 to 9`);
+  if (!isActivePermissionId(input.id)) {
+    return invalidPermission(
+      `actives[${index}].id must be an integer from ${FIRST_ACTIVE_PERMISSION_ID} to ${MAX_PERMISSION_ID}`,
+    );
   }
   if (!Array.isArray(input.operations)) {
     return invalidPermission(`actives[${index}].operations must be an array`);

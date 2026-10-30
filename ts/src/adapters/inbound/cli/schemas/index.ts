@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ChainFamily } from "../../../../domain/types/index.js";
 import { addressCodec } from "../../../../domain/family/index.js";
 import { slippageToBips } from "../../../../domain/sunpump/curve.js";
+import { inputRef } from "../../../../domain/errors/index.js";
 import { isZeroAmount } from "../../../../domain/amounts/index.js";
 import { MAX_LABEL_LENGTH } from "../../../../domain/wallet/label.js";
 
@@ -63,18 +64,17 @@ function validateAddressFields(
 // Reject invalid slippage before network I/O can mask the input error.
 export function slippageField(
   field = "slippage",
-  flag = "--slippage",
 ): (value: Record<string, unknown>, ctx: z.RefinementCtx) => void {
   return (value, ctx) => {
     const given = value[field];
     if (typeof given !== "string") return;
     try {
-      slippageToBips(given, flag);
+      slippageToBips(given, inputRef(field));
     } catch (error) {
       ctx.addIssue({
         code: "custom",
         path: [field],
-        message: error instanceof Error ? error.message.replace(`${flag} `, "") : "is not usable",
+        message: error instanceof Error ? error.message.replace(`${field} `, "") : "is not usable",
         params: { errorCode: "invalid_value" },
       });
     }

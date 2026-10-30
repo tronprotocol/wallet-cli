@@ -18,6 +18,7 @@ import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { tronHexAddress } from "../../domain/address/index.js";
 import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import { WalletService } from "./wallet-service.js";
+import { cliMessage } from "../../adapters/inbound/cli/output/errors.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
 const PW = "masterpw123A!";
@@ -210,7 +211,7 @@ describe("WalletService derive selection", () => {
     });
 
     expect(() => h.service.derive({ account: accountId })).toThrowError(
-      /account is not HD; select an account belonging to an HD wallet or pass --seed-id/,
+      /account is not HD; select an account belonging to an HD wallet or pass seedId/,
     );
   });
 
@@ -219,7 +220,7 @@ describe("WalletService derive selection", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
 
     expect(() => h.service.derive({ seedId: accountId })).toThrowError(
-      /wallet is not HD; --seed-id must name an HD seed wallet/,
+      /wallet is not HD; seedId must name an HD seed wallet/,
     );
   });
 
@@ -303,13 +304,13 @@ describe("WalletService export audit log", () => {
     h = harness();
   });
 
-  it("records a native backup under its command form, with the file it went to", () => {
+  it("records a native backup as a native export, with the file it went to", () => {
     const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
     const result = h.service.backup(accountId, "./main-backup.json");
 
     expect(h.store.list()).toEqual([
       {
-        operation: "backup",
+        operation: "native-export",
         accountId,
         account: result.addresses.tron,
         label: "main",
@@ -323,7 +324,7 @@ describe("WalletService export audit log", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey", label: "hot" });
     h.service.backupKeystore(accountId, "./hot.keystore.json", PW, "tron");
     expect(h.store.list()[0]).toMatchObject({
-      operation: "backup --keystore",
+      operation: "keystore-export",
       out: "./hot.keystore.json",
     });
   });
@@ -354,7 +355,7 @@ describe("WalletService export audit log", () => {
 
 describe("WalletService.backupRecords", () => {
   const record = (over: Partial<BackupRecord>): BackupRecord => ({
-    operation: "backup",
+    operation: "native-export",
     accountId: "wlt_a.0",
     account: "TAAA",
     label: "main",
@@ -707,11 +708,14 @@ describe("native backup warns about accounts the default recovery flow will not 
 
   it("names the account and path without claiming the phrase cannot derive its key", () => {
     const h = legacyHarness();
-    const warnings: string[] = [];
+    const warnings: unknown[] = [];
 
-    h.service.backup(`${h.seedId}.0`, undefined, (m) => warnings.push(m));
+    h.service.backup(`${h.seedId}.0`, undefined, (m) => warnings.push(cliMessage(m).message));
 
     expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain(
+      `  wallet-cli backup ${h.seedId}.1 --keystore --network tron:728126428 --password-stdin\n`,
+    );
     expect(warnings[0]).toContain(`${h.seedId}.1`);
     expect(warnings[0]).toContain("m/44'/195'/1'/0/0");
     expect(warnings[0]).toContain("default mnemonic recovery will NOT recreate");
@@ -722,7 +726,7 @@ describe("native backup warns about accounts the default recovery flow will not 
 
   it("warns no matter which account of the wallet was named", () => {
     const h = legacyHarness();
-    const warnings: string[] = [];
+    const warnings: unknown[] = [];
 
     h.service.backup(`${h.seedId}.1`, undefined, (m) => warnings.push(m));
 
@@ -733,7 +737,7 @@ describe("native backup warns about accounts the default recovery flow will not 
     const h = harness();
     const { accountId } = h.keystore.import({ secret: MNEMONIC, type: "seed", label: "main" });
     h.keystore.addAccount(accountId.split(".")[0]!, 1);
-    const warnings: string[] = [];
+    const warnings: unknown[] = [];
 
     h.service.backup(accountId, undefined, (m) => warnings.push(m));
 
@@ -743,7 +747,7 @@ describe("native backup warns about accounts the default recovery flow will not 
   it("stays quiet for a private-key account, which has no derivation at all", () => {
     const h = harness();
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
-    const warnings: string[] = [];
+    const warnings: unknown[] = [];
 
     h.service.backup(accountId, undefined, (m) => warnings.push(m));
 

@@ -1,9 +1,19 @@
 import { existsSync, renameSync } from "node:fs";
 import { join } from "node:path";
-import type { BackupRecord, BackupRecordStore } from "../../../application/ports/backup-records.js";
+import type {
+  BackupOperation,
+  BackupRecord,
+  BackupRecordStore,
+} from "../../../application/ports/backup-records.js";
 import { AtomicFileStore } from "./fs/index.js";
 
 export const BACKUP_RECORD_LIMIT = 1000;
+
+// Records written before the semantic values name the operation by its command spelling.
+const LEGACY_OPERATIONS: Record<string, BackupOperation> = {
+  backup: "native-export",
+  "backup --keystore": "keystore-export",
+};
 
 interface BackupRecordsFile {
   version: 1;
@@ -36,7 +46,7 @@ export class FileBackupRecordStore implements BackupRecordStore {
   #read(): BackupRecord[] {
     const file = this.store.readJson<BackupRecordsFile>(this.path);
     if (file === null) return [];
-    if (file.version === 1 && Array.isArray(file.records)) return file.records;
+    if (file.version === 1 && Array.isArray(file.records)) return file.records.map(withOperation);
     this.#setAside();
     return [];
   }
@@ -49,4 +59,9 @@ export class FileBackupRecordStore implements BackupRecordStore {
       return;
     }
   }
+}
+
+function withOperation(record: BackupRecord): BackupRecord {
+  const operation = LEGACY_OPERATIONS[record.operation];
+  return operation === undefined ? record : { ...record, operation };
 }

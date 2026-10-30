@@ -13,6 +13,7 @@ import { createOutputFormatter } from "../output/index.js";
 import { ConfigLoader, NetworkRegistry } from "../../../outbound/config/index.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { Keystore } from "../../../outbound/keystore/index.js";
+import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import { SecretResolver } from "../input/secret/index.js";
 import { Prompter } from "../input/prompt/index.js";
 import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
@@ -38,6 +39,7 @@ describe("ChainCommandDefinition dispatch", () => {
     const streams = new StreamManager("json", false, (s) => out.push(s));
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
     const formatter = createOutputFormatter("json", streams, Date.now());
@@ -55,7 +57,7 @@ describe("ChainCommandDefinition dispatch", () => {
     registry.addChain(spec, "tron", { run });
 
     const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
-    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
     const shellOpts: ShellOptions = {
       registry,
       globals,
@@ -94,6 +96,7 @@ describe("ChainCommandDefinition dispatch", () => {
     const streams = new StreamManager("json", false, (value) => out.push(value));
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
     const formatter = createOutputFormatter("json", streams, Date.now());
@@ -114,7 +117,7 @@ describe("ChainCommandDefinition dispatch", () => {
     );
 
     const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
-    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
     await buildCli({
       registry,
       globals,
@@ -151,6 +154,7 @@ describe("grouped chain leaf positionals", () => {
     const streams = new StreamManager("json", false, (s) => out.push(s));
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, new AtomicFileStore(), () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
     const formatter = createOutputFormatter("json", streams, Date.now());
@@ -185,7 +189,7 @@ describe("grouped chain leaf positionals", () => {
       shellOpts: {
         registry,
         globals: { output: "json" as const, verbose: false, network: "tron:728126428" },
-        deps: { config, networkRegistry, streams, secrets, keystore, prompter, formatter },
+        deps: { config, networkRegistry, streams, secrets, accounts, prompter, formatter },
         targetResolver: new TargetResolver({ networkRegistry, keystore }),
         caps: new CapabilityRegistry(),
         streams,
@@ -245,6 +249,7 @@ describe("--dry-run bars broadcasting", () => {
     const streams = new StreamManager("json", false, (s) => out.push(s));
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, new AtomicFileStore(), () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
     const formatter = createOutputFormatter("json", streams, Date.now());
@@ -277,7 +282,7 @@ describe("--dry-run bars broadcasting", () => {
       );
     }
     const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
-    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
     return {
       out,
       shellOpts: {

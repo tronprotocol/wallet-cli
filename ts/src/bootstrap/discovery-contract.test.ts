@@ -104,6 +104,32 @@ describe("every registered exclusive group", () => {
     expect(declarations().length).toBeGreaterThanOrEqual(20);
   });
 
+  it("declares the transaction-mode group over exactly the mode flags a command accepts", () => {
+    const registry = composeCliRuntime({
+      globals: { output: "json", verbose: false },
+      secretPaths: {},
+      startedAt: Date.now(),
+    }).registry;
+    const modeFields = ["dryRun", "signOnly", "buildOnly"];
+    let checked = 0;
+    for (const cmd of registry.all()) {
+      const fieldSets = isChainCommand(cmd)
+        ? Object.values(cmd.families).map((b) => chainInputSchema(cmd.spec, b!).fields)
+        : [cmd.fields];
+      const accepted = modeFields.filter((m) => fieldSets.some((f) => m in f.shape));
+      if (accepted.length < 2) continue;
+      checked++;
+      const groups = (isChainCommand(cmd) ? cmd.spec.exclusive : cmd.exclusive) ?? [];
+      const name = (isChainCommand(cmd) ? cmd.spec.path : cmd.path).join(" ");
+      const expected = accepted.map((m) => m.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`));
+      expect(
+        groups.some((g) => g.flags.join() === expected.join()),
+        name,
+      ).toBe(true);
+    }
+    expect(checked).toBeGreaterThanOrEqual(40);
+  });
+
   it("names only flags that some family accepts", () => {
     for (const { name, groups, fields } of declarations()) {
       for (const flag of groups.flatMap((g) => g.flags)) {

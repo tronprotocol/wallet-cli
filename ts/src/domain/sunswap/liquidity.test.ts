@@ -4,7 +4,10 @@ import {
   DEFAULT_DEADLINE_MINUTES,
   DEFAULT_V2_MIN_BASIS_POINTS,
   expectedLpAmount,
+  lowerBySlippage,
+  lpRedemption,
   pairAmount,
+  raiseBySlippage,
   resolveDeadline,
   selectAmounts,
 } from "./liquidity.js";
@@ -38,7 +41,7 @@ describe("resolveDeadline", () => {
 
   it("refuses a deadline already past", () => {
     expect(() => resolveDeadline(Math.floor(now / 1000) - 1, now)).toThrow(
-      /--deadline is already in the past/,
+      /^deadline is already in the past/,
     );
   });
 
@@ -59,7 +62,7 @@ describe("selectAmounts", () => {
   });
 
   it("refuses when neither side was given", () => {
-    expect(() => selectAmounts(undefined, undefined)).toThrow(/requires --amount0 or --amount1/);
+    expect(() => selectAmounts(undefined, undefined)).toThrow(/requires amount0 or amount1/);
   });
 });
 
@@ -114,5 +117,30 @@ describe("expectedLpAmount", () => {
         "500000000000000000000",
       ),
     ).toBe("196328588395185930794");
+  });
+});
+
+describe("slippage bounds", () => {
+  it("lowers an expected output by the tolerance, rounding down", () => {
+    expect(lowerBySlippage("1000", 50)).toBe("995");
+    expect(lowerBySlippage("999", 50)).toBe("994");
+    expect(lowerBySlippage("1000", 0)).toBe("1000");
+  });
+
+  it("raises a deposit ceiling by the tolerance, rounding down", () => {
+    expect(raiseBySlippage("1000", 50)).toBe("1005");
+    expect(raiseBySlippage("999", 50)).toBe("1003");
+    expect(raiseBySlippage("1000", 0)).toBe("1000");
+  });
+});
+
+describe("lpRedemption", () => {
+  it("pays the burned share of the reserve, rounding down", () => {
+    expect(lpRedemption("1", "10", "3")).toBe("3");
+    expect(lpRedemption("50", "1000", "100")).toBe("500");
+  });
+
+  it("refuses non-integer input", () => {
+    expect(() => lpRedemption("1.5", "10", "3")).toThrow(/whole number of base units/);
   });
 });

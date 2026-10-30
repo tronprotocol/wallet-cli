@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
 import type { BaiRawOrder } from "../ports/bai-recharge.js";
+import type { CliError } from "../../domain/errors/index.js";
+import { errorEnvelope } from "../../adapters/inbound/cli/output/errors.js";
 
 function api(): BaiApi {
   return {
@@ -89,5 +91,69 @@ it.each(["0", "0.000", "-1", "1e3", "9007199254740992", "0.5"])(
       ),
     ).rejects.toMatchObject({ code: "invalid_amount" });
     expect(resolveAddress).not.toHaveBeenCalled();
+  },
+);
+
+it("names the offset and limit inputs when the page offset is unaligned", async () => {
+  const error = await new BaiService(api())
+    .usageList({ limit: 20, offset: 5, sort: "desc" })
+    .catch((e: unknown) => e);
+  expect(error).toMatchObject({
+    code: "invalid_value",
+    message: "offset must be a multiple of limit for the B.AI page API",
+  });
+  expect(errorEnvelope(error as CliError).message).toBe(
+    "--offset must be a multiple of --limit for the B.AI page API",
+  );
+});
+
+it.each([
+  ["evm", "eip155:56", "56", "getErc20Balance"],
+  ["tron", "tron:728126428", "728126428", "getTrc20Balance"],
+] as const)(
+  "previews the %s payer's token balance through that family's reader",
+  async (family, id, chainId, method) => {
+    const readers = {
+      evm: { getErc20Balance: vi.fn(async () => "11") },
+      tron: { getTrc20Balance: vi.fn(async () => "22") },
+    };
+    const gateways = {
+      get: vi.fn((_network: unknown, f: "evm" | "tron") => readers[f]),
+      client: () => ({ getNativeBalance: async () => "5" }),
+    };
+    const payments = {
+      validate: vi.fn(),
+      prepare: vi.fn(),
+      roundtrip: vi.fn(async () => ({
+        serve: { asset: "token-contract", rawAmount: "1000000" },
+        pay: { dryRun: true },
+      })),
+    };
+    const rechargeApi = { isBound: vi.fn(async () => true) };
+    const service = new BaiService(
+      api(),
+      undefined,
+      payments as never,
+      undefined,
+      rechargeApi as never,
+      {
+        facilitatorUrl: "https://example.com",
+        payTo: { bnb: "payee", base: "payee", tron: "payee" },
+      },
+      undefined,
+      gateways as never,
+    );
+    const scope = { resolveAddress: () => "payer", emit: vi.fn(), warn: vi.fn() } as never;
+    const result = await service.recharge(scope, { id, family, chainId } as never, {
+      amount: "1",
+      token: "USDT",
+      apiKey: "key",
+      dryRun: true,
+    });
+    const tokenRaw = family === "evm" ? "11" : "22";
+    expect(result).toMatchObject({ balance: { tokenRaw, nativeRaw: "5" } });
+    const reader = readers[family] as Record<string, ReturnType<typeof vi.fn>>;
+    expect(reader[method]).toHaveBeenCalledWith("token-contract", "payer");
+    expect(gateways.get).toHaveBeenCalledWith(expect.anything(), family);
   },
 );

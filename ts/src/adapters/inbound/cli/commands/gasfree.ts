@@ -3,6 +3,7 @@ import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { GasFreeService } from "../../../../application/use-cases/tron/gasfree-service.js";
 import { TextFormatters } from "../render/index.js";
 import { isZeroAmount } from "../../../../domain/amounts/index.js";
+import { defaultToken } from "../../../../application/services/default-token.js";
 
 export const gasFreeInfoSpec: ChainSpec = {
   path: ["gasfree", "info"],
@@ -35,7 +36,7 @@ const transferFields = z.object({
     .trim()
     .min(1)
     .max(32)
-    .default("USDT")
+    .default(defaultToken("gasfree.transfer"))
     .describe("token symbol supported by the GasFree provider"),
   dryRun: z
     .boolean()

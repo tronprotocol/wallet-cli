@@ -25,21 +25,31 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function isTypedDataValue(v: unknown): v is TypedDataValue {
+const INVALID = Symbol("invalid");
+
+function typedDataValue(v: unknown): TypedDataValue | typeof INVALID {
   if (v === null || typeof v === "string" || typeof v === "boolean" || typeof v === "bigint")
-    return true;
-  if (typeof v === "number") return Number.isFinite(v);
-  if (Array.isArray(v)) return v.every(isTypedDataValue);
-  return isTypedDataObject(v);
+    return v;
+  if (typeof v === "number") return Number.isFinite(v) ? v : INVALID;
+  if (Array.isArray(v)) {
+    const items = v.map(typedDataValue);
+    return items.includes(INVALID) ? INVALID : (items as TypedDataValue[]);
+  }
+  return typedDataObject(v) ?? INVALID;
 }
 
-// An undefined member reads as an absent field, so it is accepted.
-function isTypedDataObject(v: unknown): v is TypedDataObject {
-  return (
-    isObject(v) &&
-    [Object.prototype, null].includes(Object.getPrototypeOf(v)) &&
-    Object.values(v).every((member) => member === undefined || isTypedDataValue(member))
-  );
+// An undefined member reads as an absent field, so it is dropped from the copy.
+function typedDataObject(v: unknown): TypedDataObject | undefined {
+  if (!isObject(v) || ![Object.prototype, null].includes(Object.getPrototypeOf(v)))
+    return undefined;
+  const members: [string, TypedDataValue][] = [];
+  for (const [field, member] of Object.entries(v)) {
+    if (member === undefined) continue;
+    const value = typedDataValue(member);
+    if (value === INVALID) return undefined;
+    members.push([field, value]);
+  }
+  return Object.fromEntries(members);
 }
 
 function elementType(type: string): string {
@@ -87,14 +97,15 @@ export function resolvePrimaryType(
 // Drops EIP712Domain for encoder compatibility; accepts value as an alias for message.
 export function normalizeTypedData(raw: unknown): TypedDataPayload {
   if (!isObject(raw)) throw new UsageError("invalid_payload", "typed data must be a JSON object");
-  const { domain, types, primaryType } = raw;
-  if (!isTypedDataObject(domain))
+  const { types, primaryType } = raw;
+  const domain = typedDataObject(raw.domain);
+  if (domain === undefined)
     throw new UsageError("invalid_payload", "typed data `domain` must be an object of JSON values");
   if (!isObject(types))
     throw new UsageError("invalid_payload", "typed data `types` must be an object");
 
-  const message = raw.message ?? raw.value;
-  if (!isTypedDataObject(message))
+  const message = typedDataObject(raw.message ?? raw.value);
+  if (message === undefined)
     throw new UsageError(
       "invalid_payload",
       "typed data `message` must be an object of JSON values",

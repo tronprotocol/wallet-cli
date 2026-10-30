@@ -7,6 +7,7 @@ import type {
   AccountDescriptor,
   AccountRef,
   Bytes,
+  ChainAddresses,
   ChainFamily,
   KeystoreBlob,
   MutationResult,
@@ -28,7 +29,14 @@ import {
   CHAIN_FAMILIES,
 } from "../../../domain/family/index.js";
 import { SOURCE_KINDS, sourceFamily } from "../../../domain/sources/index.js";
-import { derivedAccountLabel, labelKey, walletLabel } from "../../../domain/wallet/label.js";
+import {
+  assignLabel,
+  isHdWallet,
+  nextAccountIndex,
+  registerWallet,
+  removeAccount,
+  selectDerivedAccount,
+} from "../../../domain/wallet/transitions.js";
 import { parseWalletsFile } from "../../../domain/wallet/wallets-file.js";
 import { assertPasswordPolicy } from "../../../domain/wallet/password-policy.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
@@ -46,9 +54,6 @@ import {
   deriveSeedAddresses,
   encodeVault,
   enumerateAddresses,
-  findByAddress,
-  findBySource,
-  firstIndex,
   secretId,
   viewAddresses,
 } from "../../../domain/wallet/index.js";
@@ -122,16 +127,9 @@ export class Keystore {
         const entropy = Derivation.mnemonicToEntropy(mnemonic);
         const seed = Derivation.mnemonicToSeed(mnemonic, p.passphrase);
         const addr0 = deriveSeedAddresses(seed, 0);
-        const dup = findByAddress(file, addr0, "seed");
-        if (dup) {
-          file.activeAccount = dup;
-          this.#write(file);
-          return { accountId: dup, created: false };
-        }
-        const vaultId = this.#freshId("vlt", file);
         // Store the passphrase so decryption reproduces the same seed.
         plaintext = encodeVault(entropy, p.passphrase);
-        source = { type: "seed", vaultId, addresses: { "0": addr0 } };
+        source = { type: "seed", vaultId: this.#freshId("vlt", file), addresses: { "0": addr0 } };
       } else {
         // Map decoder failures to invalid_private_key.
         let pk: Uint8Array;
@@ -148,23 +146,19 @@ export class Keystore {
         // A 32-byte value can still be outside the secp256k1 scalar range.
         if (!Derivation.isValidPrivateKey(pk))
           throw new WalletError("invalid_private_key", "private key is out of range for secp256k1");
-        const addr = derivePrivAddresses(pk);
-        const dup = findByAddress(file, addr, "privateKey");
-        if (dup) {
-          file.activeAccount = dup;
-          this.#write(file);
-          return { accountId: dup, created: false };
-        }
-        const keyId = this.#freshId("key", file);
         plaintext = pk;
-        source = { type: "privateKey", keyId, addresses: addr };
+        source = {
+          type: "privateKey",
+          keyId: this.#freshId("key", file),
+          addresses: derivePrivAddresses(pk),
+        };
       }
 
-      const wallet: Wallet = { id: walletId, source };
-      const ref = accountRefOf(wallet, source.type === "seed" ? 0 : null);
-      file.wallets.push(wallet);
-      this.#assignLabel(file, ref, p.label);
-      file.activeAccount = ref;
+      const result = registerWallet(file, { id: walletId, source }, p.label);
+      if (!result.created) {
+        this.#write(file);
+        return { accountId: result.accountId, created: false };
+      }
       // Validate labels before writes; keep sentinel and blob writes under the wallets.json lock.
       this.#assertPassword({ createIfAbsent: true });
       this.#writeBlob(
@@ -177,7 +171,7 @@ export class Keystore {
         ),
       );
       this.#write(file);
-      return { accountId: ref, created: true };
+      return { accountId: result.accountId, created: true };
     });
   }
 
@@ -188,53 +182,27 @@ export class Keystore {
     label?: string;
   }): MutationResult {
     assertAddress(p.family, p.address);
-    return this.#locked(() => {
-      const file = this.#read();
-      // Keep hardware and software accounts distinct even when they share an address.
-      const dup = findBySource(
-        file,
-        (s) => s.type === "ledger" && s.family === p.family && s.path === p.path,
-      );
-      if (dup) {
-        file.activeAccount = dup;
-        this.#write(file);
-        return { accountId: dup, created: false };
-      }
-      const walletId = this.#freshId("wlt", file);
-      const wallet: Wallet = {
-        id: walletId,
-        source: { type: "ledger", family: p.family, path: p.path, address: p.address },
-      };
-      const ref = accountRefOf(wallet, null);
-      file.wallets.push(wallet);
-      this.#assignLabel(file, ref, p.label);
-      file.activeAccount = ref;
-      this.#write(file);
-      return { accountId: ref, created: true };
-    });
+    return this.#register(
+      { type: "ledger", family: p.family, path: p.path, address: p.address },
+      p.label,
+    );
   }
 
   registerWatch(p: { family: ChainFamily; address: string; label?: string }): MutationResult {
     assertAddress(p.family, p.address);
+    return this.#register({ type: "watch", family: p.family, address: p.address }, p.label);
+  }
+
+  #register(source: Source, label?: string): MutationResult {
     return this.#locked(() => {
       const file = this.#read();
-      // Deduplicate only against watch accounts.
-      const dup = findBySource(
+      const { changed, ...result } = registerWallet(
         file,
-        (s) => s.type === "watch" && s.family === p.family && s.address === p.address,
+        { id: this.#freshId("wlt", file), source },
+        label,
       );
-      // Do not activate a watch account implicitly: it cannot sign.
-      if (dup) return { accountId: dup, created: false };
-      const walletId = this.#freshId("wlt", file);
-      const wallet: Wallet = {
-        id: walletId,
-        source: { type: "watch", family: p.family, address: p.address },
-      };
-      const ref = accountRefOf(wallet, null);
-      file.wallets.push(wallet);
-      this.#assignLabel(file, ref, p.label);
-      this.#write(file);
-      return { accountId: ref, created: true };
+      if (changed) this.#write(file);
+      return result;
     });
   }
 
@@ -245,7 +213,7 @@ export class Keystore {
       const wallet = file.wallets.find((w) => w.id === walletId);
       if (!wallet)
         throw new UsageError("account_not_found", errorMessage`unknown wallet ${walletId}`);
-      if (wallet.source.type !== "seed") {
+      if (!isHdWallet(wallet)) {
         const hint =
           wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
         throw new UsageError(
@@ -253,29 +221,20 @@ export class Keystore {
           `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`,
         );
       }
-      const next = index ?? (Math.max(-1, ...accountIndices(wallet.source)) + 1) | 0;
-      const key = String(next);
-      let created = false;
-      if (!wallet.source.addresses[key]) {
+      const next = index ?? nextAccountIndex(wallet.source);
+      const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
+      let derived: ChainAddresses | undefined;
+      if (!wallet.source.addresses[String(next)]) {
         // Check for mixed templates only when deriving a new key.
-        const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
         this.#assertDerivable(file, wallet, seed);
-        wallet.source.addresses[key] = deriveSeedAddresses(seed, next);
-        created = true;
+        derived = deriveSeedAddresses(seed, next);
       } else {
         // Verify cached addresses before persisting the selection change.
-        const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
         this.#assertAccountMatches(wallet, next, seed);
       }
-      const ref = accountRefOf(wallet, next);
-      if (label !== undefined) this.#assignLabel(file, ref, label);
-      else if (created) {
-        const base = file.labels[accountRefOf(wallet, 0)];
-        this.#assignLabel(file, ref, derivedAccountLabel(base, next));
-      }
-      file.activeAccount = ref;
+      const result = selectDerivedAccount(file, wallet, next, derived, label);
       this.#write(file);
-      return { accountId: ref, created };
+      return result;
     });
   }
 
@@ -367,7 +326,7 @@ export class Keystore {
       const file = this.#read();
       const ref = this.#toRef(file, refOrLabel);
       const previousLabel = file.labels[ref];
-      this.#assignLabel(file, ref, label);
+      assignLabel(file, ref, label);
       this.#write(file);
       return { accountId: ref, previousLabel, label: file.labels[ref]! };
     });
@@ -443,61 +402,16 @@ export class Keystore {
     return this.#locked(() => {
       const file = this.#read();
       const ref = this.#toRef(file, refOrWallet);
-      const [walletId, idxStr] = ref.split(".");
-      const wallet = file.wallets.find((w) => w.id === walletId);
-      if (!wallet)
-        throw new WalletError("invalid_value", errorMessage`unknown wallet ${refOrWallet}`);
-      this.#assertReadable(wallet, refOrWallet);
-
-      // Deleting seed index 0 removes the whole wallet, including its vault.
-      if (wallet.source.type === "seed" && idxStr !== undefined && idxStr !== "0") {
-        if (!(idxStr in wallet.source.addresses)) {
-          throw new WalletError("invalid_value", errorMessage`unknown account ${refOrWallet}`);
-        }
-        delete wallet.source.addresses[idxStr];
-        delete file.labels[ref];
-        const remaining = accountIndices(wallet.source);
-        if (remaining.length === 0) {
-          file.wallets = file.wallets.filter((w) => w.id !== walletId);
-          delete file.labels[walletId!];
-        }
-        if (
-          file.activeAccount === ref ||
-          (remaining.length === 0 && file.activeAccount?.split(".")[0] === walletId)
-        ) {
-          file.activeAccount = file.wallets.length
-            ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!))
-            : null;
-        }
-        // Publish the index without the reference before deleting the secret it names.
-        this.#write(file);
-        return {
-          accountId: ref,
-          scope: remaining.length === 0 ? "wallet" : "account",
-          ...(remaining.length === 0
-            ? this.#removeBlobFiles(wallet.source)
-            : { secretRemoved: false }),
-          newActive: file.activeAccount,
-        };
-      }
-
-      file.wallets = file.wallets.filter((w) => w.id !== walletId);
-      for (const k of Object.keys(file.labels)) {
-        if (k === walletId || k.startsWith(`${walletId}.`)) delete file.labels[k];
-      }
-      if (file.activeAccount && file.activeAccount.split(".")[0] === walletId) {
-        file.activeAccount = file.wallets.length
-          ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!))
-          : null;
-      }
+      const wallet = file.wallets.find((w) => w.id === ref.split(".")[0]);
+      if (wallet) this.#assertReadable(wallet, refOrWallet);
+      const { accountId, scope, removedWallet, newActive } = removeAccount(file, ref, refOrWallet);
+      // Publish the index without the reference before deleting the secret it names.
       this.#write(file);
       return {
-        accountId: walletId!,
-        scope: "wallet",
-        ...(SOURCE_KINDS[wallet.source.type].hasSecret
-          ? this.#removeBlobFiles(wallet.source)
-          : { secretRemoved: false }),
-        newActive: file.activeAccount,
+        accountId,
+        scope,
+        ...(removedWallet ? this.#removeBlobFiles(removedWallet.source) : { secretRemoved: false }),
+        newActive,
       };
     });
   }
@@ -740,27 +654,6 @@ export class Keystore {
       );
     }
     return matches[0]![0];
-  }
-
-  #assignLabel(file: WalletsFile, ref: AccountRef, label?: string): void {
-    const value = walletLabel(label ?? this.#defaultLabel(file));
-    for (const [k, existing] of Object.entries(file.labels)) {
-      if (labelKey(existing) === labelKey(value) && k !== ref) {
-        throw new UsageError(
-          "invalid_value",
-          errorMessage`label '${value}' already in use by ${k}`,
-        );
-      }
-    }
-    file.labels[ref] = value;
-  }
-
-  #defaultLabel(file: WalletsFile): string {
-    // The wallet count already includes the new wallet.
-    let n = file.wallets.length;
-    const used = new Set(Object.values(file.labels).map((l) => l.toLowerCase()));
-    while (used.has(`wallet-${n}`)) n++;
-    return `wallet-${n}`;
   }
 }
 

@@ -3,7 +3,8 @@ import { X402Service } from "../../../application/use-cases/x402-service.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { ProviderCatalogPort } from "../../../application/ports/provider-catalog.js";
 import { X402PaymentClient } from "./payment-client.js";
-import { X402HttpServer } from "./server.js";
+import { X402FacilitatorClient } from "./facilitator-client.js";
+import { X402PaywallHttpServer } from "../../inbound/http/x402/paywall-server.js";
 import { baiPaymentResult } from "../../../application/services/bai-payment-result.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
@@ -60,7 +61,13 @@ it.each([
       resolver,
       {} as ProviderCatalogPort,
       {} as never,
-      new X402HttpServer(facilitator as typeof fetch),
+      {
+        facilitator: new X402FacilitatorClient(facilitator as typeof fetch),
+        host: new X402PaywallHttpServer(
+          () => {},
+          () => {},
+        ),
+      },
       undefined,
       signing,
     );
@@ -78,7 +85,12 @@ it.each([
       },
     );
     expect(new URL(String(result.serve.payUrl)).port).not.toBe("0");
-    expect(baiPaymentResult(result.pay, id)).toEqual({ txHash: transaction, payer });
+    expect(result.settlement).toEqual({ success: true, transaction, network: id, payer });
+    expect(baiPaymentResult({ ...result.pay, settlement: result.settlement }, id)).toEqual({
+      txHash: transaction,
+      payer,
+    });
+    expect(result.pay).not.toHaveProperty("settlement");
     expect(signTypedData).toHaveBeenCalledOnce();
     expect(facilitator).toHaveBeenCalledTimes(2);
     await expect(fetch(String(result.serve.payUrl))).rejects.toThrow();
@@ -119,7 +131,13 @@ it.each([
     resolver,
     {} as ProviderCatalogPort,
     {} as never,
-    new X402HttpServer(facilitator),
+    {
+      facilitator: new X402FacilitatorClient(facilitator),
+      host: new X402PaywallHttpServer(
+        () => {},
+        () => {},
+      ),
+    },
     undefined,
     signing,
   );
@@ -168,7 +186,13 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
     resolver,
     {} as ProviderCatalogPort,
     {} as never,
-    new X402HttpServer(facilitator),
+    {
+      facilitator: new X402FacilitatorClient(facilitator),
+      host: new X402PaywallHttpServer(
+        () => {},
+        () => {},
+      ),
+    },
     undefined,
     signing,
   );

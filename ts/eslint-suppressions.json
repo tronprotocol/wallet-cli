@@ -34,11 +34,6 @@
       "count": 1
     }
   },
-  "src/adapters/outbound/x402/server.ts": {
-    "no-restricted-imports": {
-      "count": 1
-    }
-  },
   "test/bai-nile-compatibility.test.ts": {
     "wallet-cli/environment-reads": {
       "count": 3

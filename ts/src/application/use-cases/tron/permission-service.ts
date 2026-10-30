@@ -65,7 +65,7 @@ export class TronPermissionService {
       );
     }
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,

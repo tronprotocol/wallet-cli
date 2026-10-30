@@ -9,13 +9,14 @@ import type {
 import { BaiRechargeFlow, reportBaiTransaction } from "./bai-recharge-flow.js";
 import { requireBaiChain, type BaiWalletBinding } from "./bai-wallet-binding.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
-import { UsageError } from "../../domain/errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../../domain/errors/index.js";
 import { assertBaiRechargeMinimum, baiRechargeAmount } from "../../domain/bai/recharge-policy.js";
 import type { X402RoundtripPort, X402ServeInput } from "../ports/x402-server.js";
 import { baiPaymentResult } from "../services/bai-payment-result.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
-import { isTxHash, sameAddress } from "../../domain/family/index.js";
+import { sameAddress, type ChainFamily } from "../../domain/family/index.js";
+import { isBaiTxHash } from "../../domain/bai/chains.js";
 
 export interface BaiListCommandInput {
   cursor?: string;
@@ -23,6 +24,22 @@ export interface BaiListCommandInput {
   offset: number;
   sort: "asc" | "desc";
 }
+
+// The payer's token balance reader of each family, for the dry-run preview.
+const TOKEN_BALANCE: Record<
+  ChainFamily,
+  (
+    gateways: ChainGatewayProvider,
+    network: NetworkDescriptor,
+    asset: string,
+    owner: string,
+  ) => Promise<string>
+> = {
+  evm: (gateways, network, asset, owner) =>
+    gateways.get(network, "evm").getErc20Balance(asset, owner),
+  tron: (gateways, network, asset, owner) =>
+    gateways.get(network, "tron").getTrc20Balance(asset, owner),
+};
 
 export class BaiService {
   constructor(
@@ -119,10 +136,12 @@ export class BaiService {
       const asset = inspection.serve.asset;
       if (this.gateways && typeof asset === "string") {
         try {
-          const tokenRaw =
-            network.family === "evm"
-              ? await this.gateways.get(network, "evm").getErc20Balance(asset, payer)
-              : await this.gateways.get(network, "tron").getTrc20Balance(asset, payer);
+          const tokenRaw = await TOKEN_BALANCE[network.family](
+            this.gateways,
+            network,
+            asset,
+            payer,
+          );
           balance = {
             tokenRaw,
             nativeRaw: await this.gateways.client(network).getNativeBalance(payer),
@@ -155,7 +174,10 @@ export class BaiService {
       {
         pay: async () => {
           const result = await this.payments!.roundtrip(scope, network, paymentInput);
-          return { ...baiPaymentResult(result.pay, network.id), chain };
+          return {
+            ...baiPaymentResult({ ...result.pay, settlement: result.settlement }, network.id),
+            chain,
+          };
         },
       },
       this.reportDelay,
@@ -187,7 +209,7 @@ export class BaiService {
         "invalid_value",
         "Recharge report requires the original tron, bnb or base chain",
       );
-    if (!isTxHash(input.chain === "tron" ? "tron" : "evm", input.txHash))
+    if (!isBaiTxHash(input.chain, input.txHash))
       throw new UsageError("invalid_value", "Invalid transaction hash for the recharge chain");
     const to = input.to?.trim();
     const targetId = input.targetId?.trim();
@@ -197,7 +219,7 @@ export class BaiService {
     ) {
       throw new UsageError(
         "invalid_value",
-        "Recipient recovery requires both the original --to and --target-id",
+        errorMessage`Recipient recovery requires both the original ${inputRef("to")} and ${inputRef("targetId")}`,
       );
     }
     const amount = input.amount === undefined ? undefined : baiRechargeAmount(input.amount);
@@ -278,7 +300,7 @@ function pageInput(input: BaiListCommandInput): BaiPageInput {
   if (input.offset % input.limit !== 0) {
     throw new UsageError(
       "invalid_value",
-      `--offset must be a multiple of --limit for the B.AI page API`,
+      errorMessage`${inputRef("offset")} must be a multiple of ${inputRef("limit")} for the B.AI page API`,
     );
   }
   return {

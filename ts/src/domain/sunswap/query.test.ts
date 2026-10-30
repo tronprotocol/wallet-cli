@@ -18,12 +18,12 @@ describe("normaliseProtocol", () => {
 
   it("refuses anything outside the enum, naming the choices", () => {
     expect(() => normaliseProtocol("v9")).toThrow(/ALL, V1, V1_5, V2, V3, V4, CURVE/);
-    expect(() => normaliseProtocol("")).toThrow(/--protocol must be one of/);
+    expect(() => normaliseProtocol("")).toThrow(/^protocol must be one of/);
   });
 
   it("checks against the set the caller permits, not the whole enum", () => {
     expect(() => normaliseProtocol("ALL", SUNSWAP_PROTOCOL_FILTERS)).toThrow(
-      /--protocol must be one of V1, V1_5, V2, V3, V4, CURVE/,
+      /^protocol must be one of V1, V1_5, V2, V3, V4, CURVE/,
     );
     expect(normaliseProtocol("v3", SUNSWAP_PROTOCOL_FILTERS)).toBe("V3");
     expect(normaliseProtocol("all", SUNSWAP_SCOPES)).toBe("ALL");
@@ -57,15 +57,15 @@ describe("offsetWindowToPage", () => {
 
   it("refuses a window no page boundary contains", () => {
     expect(() => offsetWindowToPage({ offset: 5, limit: 4 })).toThrow(
-      /--offset must be a multiple of --limit \(4\)/,
+      /^offset must be a multiple of limit \(4\)/,
     );
   });
 
   it("refuses a limit or offset that is not a usable integer", () => {
-    expect(() => offsetWindowToPage({ offset: 0, limit: 0 })).toThrow(/--limit/);
-    expect(() => offsetWindowToPage({ offset: 0, limit: 1.5 })).toThrow(/--limit/);
-    expect(() => offsetWindowToPage({ offset: -1, limit: 20 })).toThrow(/--offset/);
-    expect(() => offsetWindowToPage({ offset: 1.5, limit: 20 })).toThrow(/--offset/);
+    expect(() => offsetWindowToPage({ offset: 0, limit: 0 })).toThrow(/^limit must be/);
+    expect(() => offsetWindowToPage({ offset: 0, limit: 1.5 })).toThrow(/^limit must be/);
+    expect(() => offsetWindowToPage({ offset: -1, limit: 20 })).toThrow(/^offset must be/);
+    expect(() => offsetWindowToPage({ offset: 1.5, limit: 20 })).toThrow(/^offset must be/);
   });
 });
 
@@ -76,6 +76,6 @@ describe("tokenSortField", () => {
   });
 
   it("refuses a field it cannot translate, naming the choices", () => {
-    expect(() => tokenSortField("apr")).toThrow(/--order-by must be one of tvl, volume-24h/);
+    expect(() => tokenSortField("apr")).toThrow(/^orderBy must be one of tvl, volume-24h/);
   });
 });

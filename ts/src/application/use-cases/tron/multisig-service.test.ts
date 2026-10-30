@@ -5,6 +5,7 @@ import { encodeOperations } from "../../../domain/permission/index.js";
 import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { SignerResolver } from "../../services/signer/index.js";
+import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import {
   decodeTransactionHex,
@@ -13,6 +14,7 @@ import {
 import { TronMultisigService } from "./multisig-service.js";
 import { TronSigService } from "./sig-service.js";
 import { SigningService } from "../../services/signing/signing-service.js";
+import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -90,7 +92,11 @@ function scope(): TransactionScope {
   };
 }
 
-function service(gateway: TronGateway, signer?: Signer) {
+function service(
+  gateway: TronGateway,
+  signer?: Signer,
+  artifacts: TransactionArtifactWriter = { write: vi.fn() },
+) {
   const actualSigner: Signer = signer ?? {
     kind: "software",
     address: A,
@@ -107,8 +113,14 @@ function service(gateway: TronGateway, signer?: Signer) {
     resolve: vi.fn(() => actualSigner),
   } as unknown as SignerResolver;
   const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
-  const signing = new TronSigService(provider, signers, new SigningService(provider), () => NOW);
-  return new TronMultisigService(provider, signing, () => NOW);
+  const signing = new TronSigService(
+    provider,
+    signers,
+    new SigningService(provider),
+    { write: vi.fn() },
+    () => NOW,
+  );
+  return new TronMultisigService(provider, signing, artifacts, () => NOW);
 }
 
 const NETWORK = { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as never;
@@ -140,6 +152,29 @@ describe("local TRON multi-signature workflow", () => {
       checked: true,
       approval: { currentWeight: 1, missingWeight: 1 },
     });
+  });
+
+  it("writes the checked signed hex to the chosen file and reports it", async () => {
+    const artifacts = { write: vi.fn() };
+    const signed = await service(fakeGateway(), undefined, artifacts).signChecked(
+      scope(),
+      NETWORK,
+      unsignedHex(),
+      "signed.hex",
+    );
+    expect(artifacts.write).toHaveBeenCalledExactlyOnceWith("signed.hex", signed.hex);
+    expect(signed.out).toBe("signed.hex");
+  });
+
+  it("writes nothing when no file is chosen", async () => {
+    const artifacts = { write: vi.fn() };
+    const signed = await service(fakeGateway(), undefined, artifacts).signChecked(
+      scope(),
+      NETWORK,
+      unsignedHex(),
+    );
+    expect(artifacts.write).not.toHaveBeenCalled();
+    expect(signed).not.toHaveProperty("out");
   });
 
   it("rejects expiration before calling a signer", async () => {
@@ -252,14 +287,14 @@ describe("TRON multisig submission outcome", () => {
           .broadcastHex(scope(), NETWORK, hex, false)
           .catch((e) => e),
       );
-      expect(error.toEnvelope()).toEqual({
+      expect(errorEnvelope(error)).toEqual({
         code,
         message: original.message,
         details: { nodeCode: "fixture", txId: decodeTransactionHex(hex).txID },
       });
       expect(error.textMessage).toBe(original.textMessage);
       expect(error.kind).toBe(original.kind);
-      expect(error.exitCode()).toBe(original.exitCode());
+      expect(exitCodeOf(error)).toBe(exitCodeOf(original));
       expect(broadcastHex).toHaveBeenCalledWith(hex);
     },
   );

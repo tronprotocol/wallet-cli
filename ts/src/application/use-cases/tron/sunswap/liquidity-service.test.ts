@@ -15,6 +15,8 @@ import {
 } from "../../../../domain/errors/index.js";
 import { SigningService } from "../../../services/signing/signing-service.js";
 import { baseUnitAmount, sunAmount } from "../../../../domain/amounts/index.js";
+import type { CliError } from "../../../../domain/errors/index.js";
+import { errorEnvelope } from "../../../../adapters/inbound/cli/output/errors.js";
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -152,7 +154,7 @@ function makeHarness(
   const assertCanSign = vi.fn();
   const pipeline = {
     assertCanSign,
-    run: vi.fn(async (p: PipelineParams) => {
+    runTron: vi.fn(async (p: PipelineParams) => {
       const tx = await p.build(OWNER);
       const fee = await p.estimate(tx);
       if (p.mode === "dry-run") return { stage: "plan", tx, fee };
@@ -442,7 +444,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — broadcasting", () => {
       txId: "deposit-tx",
       nodeCode: "fixture",
     });
-    vi.mocked(pipeline.run)
+    vi.mocked(pipeline.runTron)
       .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
       .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-2" })
       .mockRejectedValueOnce(original);
@@ -473,14 +475,14 @@ describe("SunSwapLiquidityService.addLiquidityV2 — broadcasting", () => {
       allowance: vi.fn(async () => allowance) as never,
     });
     const { service, scope, gateway, pipeline } = makeHarness(port);
-    (pipeline.run as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation(
-      async (p: PipelineParams) => {
-        const tx = (await p.build(OWNER)) as { txID: string };
-        const fee = await p.estimate(tx);
-        allowance = "999999999999";
-        return { stage: "confirmed", txId: `tx:${tx.txID}`, fee };
-      },
-    );
+    (
+      pipeline.runTron as unknown as { mockImplementation: (fn: unknown) => void }
+    ).mockImplementation(async (p: PipelineParams) => {
+      const tx = (await p.build(OWNER)) as { txID: string };
+      const fee = await p.estimate(tx);
+      allowance = "999999999999";
+      return { stage: "confirmed", txId: `tx:${tx.txID}`, fee };
+    });
 
     const result = (await service.addLiquidityV2(scope, NETWORK, BASE)) as {
       approvalTxIds: string[];
@@ -606,7 +608,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
   function confirming(port: LiquidityPort) {
     const harness = makeHarness(port);
     (
-      harness.pipeline.run as unknown as { mockImplementation: (fn: unknown) => void }
+      harness.pipeline.runTron as unknown as { mockImplementation: (fn: unknown) => void }
     ).mockImplementation(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       const fee = await p.estimate(tx);
@@ -662,12 +664,12 @@ describe("SunSwapLiquidityService.addLiquidityV2 — the confirmed receipt", () 
       allowance: vi.fn(async () => baseUnitAmount("999999999999")) as never,
     });
     const { service, scope, pipeline } = makeHarness(port);
-    (pipeline.run as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation(
-      async (p: PipelineParams) => {
-        const tx = (await p.build(OWNER)) as { txID: string };
-        return { stage: "submitted", txId: `tx:${tx.txID}`, fee: await p.estimate(tx) };
-      },
-    );
+    (
+      pipeline.runTron as unknown as { mockImplementation: (fn: unknown) => void }
+    ).mockImplementation(async (p: PipelineParams) => {
+      const tx = (await p.build(OWNER)) as { txID: string };
+      return { stage: "submitted", txId: `tx:${tx.txID}`, fee: await p.estimate(tx) };
+    });
 
     const result = (await service.addLiquidityV2(scope, NETWORK, BASE)) as Record<string, unknown>;
 
@@ -946,7 +948,7 @@ describe("SunSwapLiquidityService — the minted position's id", () => {
   function confirmingHarness(port = makePort()) {
     const harness = makeHarness(port);
     (
-      harness.pipeline.run as unknown as { mockImplementation: (fn: unknown) => void }
+      harness.pipeline.runTron as unknown as { mockImplementation: (fn: unknown) => void }
     ).mockImplementation(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       return { stage: "confirmed", txId: `tx:${tx.txID}`, fee: await p.estimate(tx) };
@@ -1013,7 +1015,7 @@ describe("SunSwapLiquidityService — the liquidity a V3 deposit actually gained
   function confirmingHarness(port: LiquidityPort) {
     const harness = makeHarness(port);
     (
-      harness.pipeline.run as unknown as { mockImplementation: (fn: unknown) => void }
+      harness.pipeline.runTron as unknown as { mockImplementation: (fn: unknown) => void }
     ).mockImplementation(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       return { stage: "confirmed", txId: `tx:${tx.txID}`, fee: await p.estimate(tx) };
@@ -1191,7 +1193,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
     expect(port.allowance).toHaveBeenCalledTimes(2);
     expect(estimated.map((entry) => entry.method)).toEqual([APPROVE, APPROVE]);
     expect(
-      vi.mocked(pipeline.run).mock.calls.every(([options]) => options.mode === "build-only"),
+      vi.mocked(pipeline.runTron).mock.calls.every(([options]) => options.mode === "build-only"),
     ).toBe(true);
   });
 
@@ -1248,12 +1250,12 @@ describe("SunSwapLiquidityService.addLiquidity — V4 increase", () => {
       );
       await expect(result).rejects.toMatchObject({
         code: "invalid_value",
-        message: expect.stringContaining(`--token0 ${USDT} --token1 ${WTRX}`),
+        message: expect.stringContaining(`token0 ${USDT} token1 ${WTRX}`),
       });
-      await expect(result).rejects.toThrow("--amount0 / --amount1");
+      await expect(result).rejects.toThrow("amount0 / amount1");
       expect(port.v4Amounts).not.toHaveBeenCalled();
       expect(port.v4IncreasePayload).not.toHaveBeenCalled();
-      expect(pipeline.run).not.toHaveBeenCalled();
+      expect(pipeline.runTron).not.toHaveBeenCalled();
     },
   );
 
@@ -1575,7 +1577,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     await expect(h.service.addLiquidity(h.scope, NETWORK, BASE_V4)).rejects.toMatchObject({
       code: "insufficient_token_balance",
     });
-    expect(h.pipeline.run).not.toHaveBeenCalled();
+    expect(h.pipeline.runTron).not.toHaveBeenCalled();
     expect(permits.planPermit).not.toHaveBeenCalled();
     expect(resolve).not.toHaveBeenCalled();
   });
@@ -1663,7 +1665,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     );
     await expect(h.result).rejects.toMatchObject({ code: "pool_already_exists" });
     expect(port.v4DepositPayload).not.toHaveBeenCalled();
-    expect(h.pipeline.run).not.toHaveBeenCalled();
+    expect(h.pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("preserves an explicit creation range and publishes its initial price in dry-run", async () => {
@@ -1691,7 +1693,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
       NETWORK,
       expect.objectContaining({ initialSqrtPriceX96: "263961795081773446554", permits: [] }),
     );
-    expect(h.pipeline.run).toHaveBeenCalledWith(expect.objectContaining({ mode: "dry-run" }));
+    expect(h.pipeline.runTron).toHaveBeenCalledWith(expect.objectContaining({ mode: "dry-run" }));
     expect(port.v4Amounts).toHaveBeenCalledWith(
       expect.anything(),
       { tickLower: -396000, tickUpper: -384000 },
@@ -1708,7 +1710,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     const h = run({ ...BASE_V4, createPool: true, sqrtPrice: "1" }, port);
     await expect(h.result).rejects.toThrow("--sqrt-price");
     expect(port.allowance).not.toHaveBeenCalled();
-    expect(h.pipeline.run).not.toHaveBeenCalled();
+    expect(h.pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("does not initialize an existing pool", async () => {
@@ -1814,7 +1816,7 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     });
     await expect(result).rejects.toMatchObject({ code: "pool_already_exists" });
     await expect(result).rejects.toThrow(POOL_ID);
-    await expect(result).rejects.toThrow(/without --create-pool/);
+    await expect(result).rejects.toThrow(/without createPool/);
   });
 
   it("says a pool does not exist, and names the flag most likely to be wrong", async () => {
@@ -1823,19 +1825,23 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     } as Partial<LiquidityPort>);
     const { result } = run({ ...BASE_V4, dryRun: true }, port);
     await expect(result).rejects.toMatchObject({ code: "pool_not_found" });
-    await expect(result).rejects.toThrow(/--tick-spacing/);
+    await expect(result).rejects.toThrow(/Check tickSpacing first/);
     await expect(result).rejects.toThrow(/tick spacing 12/);
     await expect(result).rejects.toThrow(/hooks none/);
     await expect(result).rejects.toThrow(POOL_ID);
+    const error = (await result.catch((e: unknown) => e)) as CliError;
+    expect(errorEnvelope(error).message).toMatch(
+      /Check --tick-spacing first: .* implied by --fee, .* 'sunswap pool-list --protocol V4' publishes .*; --create-pool with --sqrt-price makes this one$/,
+    );
   });
 
   it.each([
-    ["--tick-spacing", { tickSpacing: undefined }],
-    ["--fee", { fee: undefined }],
-  ])("requires %s", async (flag, missing) => {
+    ["tickSpacing", { tickSpacing: undefined }],
+    ["fee", { fee: undefined }],
+  ])("requires %s", async (field, missing) => {
     const { result } = run({ ...BASE_V4, ...missing, dryRun: true });
     await expect(result).rejects.toMatchObject({ code: "missing_option" });
-    await expect(result).rejects.toThrow(flag);
+    await expect(result).rejects.toThrow(field);
   });
 });
 
@@ -1928,7 +1934,7 @@ describe("Ledger report regressions — V3 ordering and approval progress", () =
         buildOnly: true,
         ...(expiration === undefined ? {} : { expiration }),
       });
-      for (const [p] of vi.mocked(h.pipeline.run).mock.calls)
+      for (const [p] of vi.mocked(h.pipeline.runTron).mock.calls)
         expect(p.expiration).toBe(expiration ?? 3_600_000);
     },
   );
@@ -1965,9 +1971,7 @@ describe("add-liquidity — symbols from the account's token book", () => {
       service.addLiquidity(scope, NETWORK, { ...BASE, token0: "MYUSD", dryRun: true }),
     ).rejects.toMatchObject({
       code: "unsupported_token",
-      message: expect.stringContaining(
-        "with --token0/--token1, or add it with 'wallet-cli token add'",
-      ),
+      message: expect.stringContaining("with token0/token1, or add it with 'token-add'"),
     });
   });
 });

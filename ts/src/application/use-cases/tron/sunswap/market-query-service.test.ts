@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SunSwapMarketQueryService } from "./market-query-service.js";
+import type { CodedWarning } from "../../../contracts/execution-scope.js";
+import { cliMessage, errorEnvelope } from "../../../../adapters/inbound/cli/output/errors.js";
 import type { MarketDataPort, PriceRecord } from "../../../ports/sunswap/market-data.js";
 import type { TokenRepository } from "../../../ports/token-repository.js";
 import type { NetworkDescriptor, TokenEntry } from "../../../../domain/types/index.js";
@@ -107,10 +109,10 @@ describe("symbol resolution", () => {
     const { service: s } = service();
     const error = await s.prices(MAINNET, { token: "WIN" }).catch((e) => e);
     expect(error.code).toBe("unsupported_token");
-    expect(error.message).toBe(
+    expect(errorEnvelope(error).message).toBe(
       "unknown token symbol WIN on tron; pass its contract address with --address",
     );
-    expect(error.message).not.toContain("token add");
+    expect(errorEnvelope(error).message).not.toContain("token add");
   });
 
   it("tells pool-list --token to pass the address with --token", async () => {
@@ -123,7 +125,7 @@ describe("symbol resolution", () => {
         offset: 0,
         token: "WIN",
       }),
-    ).rejects.toThrow("unknown token symbol WIN on tron; pass its contract address with --token");
+    ).rejects.toThrow("unknown token symbol WIN on tron; pass its contract address with token");
   });
 
   it("names the network the way a person types it", async () => {
@@ -650,11 +652,11 @@ describe("pool-list --min-tvl", () => {
     expect(addresses(view)).toEqual(["TPool08000", "TPool08001"]);
     expect(view.pagination).toEqual({ offset: 0, limit: 3, total: null, hasMore: true });
     expect(warnings).toEqual([
-      {
-        code: "sunswap_scan_truncated",
-        message: expect.stringContaining("only the first 1000 pools of this ordering"),
-      },
+      { code: "sunswap_scan_truncated", message: expect.objectContaining({}) },
     ]);
+    expect(cliMessage((warnings[0] as CodedWarning).message).message).toBe(
+      "only the first 1000 pools of this ordering could be scanned, and more than 1000 pools meet --min-tvl, so this list may be incomplete",
+    );
     expect(queries).toHaveLength(20);
   });
 
@@ -675,7 +677,7 @@ describe("pool-list --min-tvl", () => {
       const { list, queries } = scanService(ladder);
       await expect(list({ minTvl })).rejects.toMatchObject({
         code: "invalid_value",
-        message: expect.stringContaining("--min-tvl"),
+        message: expect.stringMatching(/^minTvl must be/),
       });
       expect(queries).toHaveLength(0);
     },

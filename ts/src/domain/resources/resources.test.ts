@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { RESOURCES, RESOURCE_META, toRpcCode, resourceOfRpcCode } from "./index.js";
+import {
+  MAX_UNFREEZING_ENTRIES,
+  RESOURCES,
+  RESOURCE_META,
+  toRpcCode,
+  resourceOfRpcCode,
+} from "./index.js";
 
 describe("resource registry", () => {
   it("round-trips every resource through its RPC code", () => {
@@ -20,5 +26,11 @@ describe("resource registry", () => {
 
   it("keeps RESOURCE_META keyed by the canonical list", () => {
     expect(Object.keys(RESOURCE_META).sort()).toEqual([...RESOURCES].sort());
+  });
+});
+
+describe("unstaking limit", () => {
+  it("allows 32 pending unstaking entries per account", () => {
+    expect(MAX_UNFREEZING_ENTRIES).toBe(32);
   });
 });

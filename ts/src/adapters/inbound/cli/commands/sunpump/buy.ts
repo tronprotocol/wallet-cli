@@ -3,7 +3,7 @@ import { addressFieldsFor, allRefines, Schemas, slippageField } from "../../sche
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunPumpCurveTradeService } from "../../../../../application/use-cases/tron/sunpump/curve-trade-service.js";
 import { TextFormatters } from "../../render/index.js";
-import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { CURVE_TRADE_NOTES, curveTradeFields, refuseQuoteWithSendingFlags } from "./shared.js";
 import { sunAmount } from "../../../../../domain/amounts/index.js";
 
@@ -30,6 +30,7 @@ export const sunpumpBuySpec: ChainSpec = {
     "--trx is the total: the platform fee is taken out of it, not added to it.\n\n" +
     CURVE_TRADE_NOTES +
     "\n\nAn account is needed for every mode except --quote, which reads only.",
+  exclusive: [unsignedTxModeExclusive],
   baseFields: fields,
   baseRefine: allRefines(
     addressFieldsFor("tron", "token"),

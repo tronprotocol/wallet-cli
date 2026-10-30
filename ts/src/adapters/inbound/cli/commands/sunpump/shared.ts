@@ -1,5 +1,6 @@
 import { z, type RefinementCtx } from "zod";
 import { Schemas } from "../../schemas/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../../domain/fees/tron.js";
 
 export const curveTradeFields = {
   quote: z
@@ -23,7 +24,7 @@ export const curveTradeFields = {
     .optional()
     .describe("least to accept, in the smallest unit; excludes --slippage"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe(
       "maximum energy fee to burn, in SUN; the dry run's estimate is a lower bound, so a limit set from it can fail",
     ),

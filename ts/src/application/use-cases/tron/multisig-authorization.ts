@@ -1,6 +1,7 @@
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { decodeOperations } from "../../../domain/permission/index.js";
+import { MAX_TRON_EXPIRATION_MS } from "../../../domain/transaction/index.js";
 import { addressCodec } from "../../../domain/family/index.js";
 import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
 import type { SignerAuthorization } from "../../services/pipeline/index.js";
@@ -164,7 +165,7 @@ export function tronTransactionHooks(gateway: TronGateway) {
         transaction.raw_data.expiration ?? 0,
         Date.now() + Math.max(600_000, timeoutMs + 60_000),
       );
-      if (expiration - timestamp! > 86_400_000) {
+      if (expiration - timestamp! > MAX_TRON_EXPIRATION_MS) {
         throw new ChainError(
           "tx_expired",
           "the required signing window exceeds the TRON transaction lifetime; rebuild the transaction with a shorter device timeout",

@@ -1,4 +1,4 @@
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 import { compareDecimal, isSignedDecimal, isUnsignedDecimal } from "./decimal.js";
 
 export function parseMinTvl(value: string): string {
@@ -6,7 +6,7 @@ export function parseMinTvl(value: string): string {
   if (!isUnsignedDecimal(trimmed)) {
     throw new UsageError(
       "invalid_value",
-      `--min-tvl must be a non-negative decimal amount in USD, such as 100000 (got: ${JSON.stringify(value)})`,
+      errorMessage`${inputRef("minTvl")} must be a non-negative decimal amount in USD, such as 100000 (got: ${JSON.stringify(value)})`,
     );
   }
   return trimmed;

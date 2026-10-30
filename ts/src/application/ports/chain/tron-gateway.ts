@@ -356,7 +356,7 @@ export interface TronGateway extends Broadcaster {
   // TAPOS: whether this node holds the block the transaction references; reads the head block.
   referenceBlockStatus(transaction: UnsignedTx): Promise<TronReferenceBlockStatus>;
   getTransactionById(txid: string): Promise<TronTx>;
-  getTransactionInfoById(txid: string): Promise<TronTxInfo>;
+  getTransactionInfoById(txid: string, signal?: AbortSignal): Promise<TronTxInfo>;
   // Net base units received, verified from transaction logs or internal native transfers.
   receivedAmount(txid: string, token: string, recipient: string): Promise<string | undefined>;
   // Values are proven safe integers.

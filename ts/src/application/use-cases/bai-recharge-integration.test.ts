@@ -1,4 +1,6 @@
-import { X402HttpServer } from "../../adapters/outbound/x402/server.js";
+import { X402FacilitatorClient } from "../../adapters/outbound/x402/facilitator-client.js";
+import { X402PaywallHttpServer } from "../../adapters/inbound/http/x402/paywall-server.js";
+import { paywallTerms } from "./x402-paywall.js";
 import { expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
@@ -42,6 +44,7 @@ function fixture(
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
         } as unknown as X402PaymentResult,
+        settlement: { success: true, transaction: txHash, network: "eip155:56" },
       };
     }),
   };
@@ -169,10 +172,9 @@ it.each([
   "validates BSC token and precision before target resolution and preorder: %s %s",
   async (token, amount) => {
     const { payments, api, run } = fixture();
-    const server = new X402HttpServer();
-    payments.validate.mockImplementation((...args: unknown[]) =>
-      server.validate(args[0] as never, args[1] as never),
-    );
+    payments.validate.mockImplementation((...args: unknown[]) => {
+      paywallTerms(args[0] as never, args[1] as never, new X402FacilitatorClient());
+    });
     await expect(run("recipient", amount, token)).rejects.toMatchObject({
       code: token === "USDT" ? "invalid_amount" : "invalid_value",
     });
@@ -196,7 +198,13 @@ it("previews a recipient recharge without creating an order or obtaining any sig
     signing as never,
     {} as never,
     {} as never,
-    new X402HttpServer(undefined, 1000, () => {}),
+    {
+      facilitator: new X402FacilitatorClient(undefined, 1000),
+      host: new X402PaywallHttpServer(
+        () => {},
+        () => {},
+      ),
+    },
   );
   const api = {
     isBound: vi.fn(async () => true),
@@ -273,15 +281,14 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
 it("checks relay configuration before creating any preorder", async () => {
   const { X402Service } = await import("./x402-service.js");
   const { X402PaymentClient } = await import("../../adapters/outbound/x402/payment-client.js");
-  const { X402HttpServer } = await import("../../adapters/outbound/x402/server.js");
   const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
-  const payments = new X402Service(
-    new X402PaymentClient(),
-    {} as never,
-    {} as never,
-    {} as never,
-    new X402HttpServer(),
-  );
+  const payments = new X402Service(new X402PaymentClient(), {} as never, {} as never, {} as never, {
+    facilitator: new X402FacilitatorClient(),
+    host: new X402PaywallHttpServer(
+      () => {},
+      () => {},
+    ),
+  });
   const service = new BaiService({} as never, undefined, payments, undefined, api as never, {
     facilitatorUrl: "https://fake.invalid",
     payTo: { tron: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" },
@@ -308,11 +315,16 @@ it("rejects token precision before account and binding checks", async () => {
   const resolveAccount = vi.fn();
   const createOrder = vi.fn();
   const roundtrip = vi.fn();
-  const server = new X402HttpServer();
   const service = new BaiService(
     {} as never,
     undefined,
-    { prepare: vi.fn(), validate: (net, input) => server.validate(net, input), roundtrip },
+    {
+      prepare: vi.fn(),
+      validate: (net, input) => {
+        paywallTerms(net, input, new X402FacilitatorClient());
+      },
+      roundtrip,
+    },
     undefined,
     { isBound, createOrder } as never,
     { facilitatorUrl: "https://facilitator.example", payTo: { bnb: payer } },
@@ -373,6 +385,7 @@ function liveBindingFixture() {
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
         } as unknown as X402PaymentResult,
+        settlement: { success: true, transaction: txHash, network: "eip155:56" },
       };
     }),
   };
@@ -454,16 +467,29 @@ it.each([false, true])(
           settled: true,
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: network.id },
+          settlement: { success: true, transaction: txHash, network: network.id },
         } as unknown as X402ResponseResult,
       };
     });
-    const payments = new X402Service({ request }, { prepare } as never, {} as never, {} as never, {
-      validate: vi.fn(),
-      start: async () => ({
-        details: { payUrl: "https://example.test" } as X402ServeDetails,
-        close,
-      }),
-    });
+    const payments = new X402Service(
+      { request, facts: () => ({ tokenDecimals: () => 18 }) },
+      { prepare } as never,
+      {} as never,
+      {} as never,
+      {
+        facilitator: new X402FacilitatorClient(),
+        host: {
+          start: async () => ({
+            details: {
+              payUrl: "https://example.test",
+              asset: "0x55d398326f99059fF775485246999027B3197955",
+              rawAmount: "1000000000000000000",
+            } as X402ServeDetails,
+            close,
+          }),
+        },
+      },
+    );
     const service = new BaiService({} as never, undefined, payments, f.binding, f.api as never, {
       facilitatorUrl: "https://example.test",
       payTo: { bnb: payer },

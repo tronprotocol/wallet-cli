@@ -119,7 +119,7 @@ export class EvmContractService {
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "evm");
     let plan = {} as EvmFeeReport;
-    return this.pipeline.run({
+    return this.pipeline.runEvm({
       ctx: scope,
       net: network,
       account: scope.activeAccount,

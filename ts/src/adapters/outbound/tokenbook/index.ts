@@ -7,14 +7,12 @@ import type {
   TokensFile,
 } from "../../../domain/types/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
-import { UsageError } from "../../../domain/errors/index.js";
-import { canonicalTokenId, parseTokensFile, tokenEntry } from "../../../domain/token/index.js";
+import { parseTokensFile } from "../../../domain/token/index.js";
+import { effectiveTokens, withoutUserToken, withUserToken } from "../../../domain/token/book.js";
 import { OFFICIAL_TOKENS } from "./builtins.js";
 import type { TokenRepository } from "../../../application/ports/token-repository.js";
 
 const scopeKey = (networkId: string, ref: AccountRef): string => `${networkId}|${ref}`;
-const sameToken = (a: { kind: string; id: string }, b: { kind: string; id: string }): boolean =>
-  a.kind === b.kind && a.id === b.id;
 
 export class TokenBook implements TokenRepository {
   readonly tokensPath: string;
@@ -35,53 +33,37 @@ export class TokenBook implements TokenRepository {
   }
 
   effective(networkId: string, ref: AccountRef): EffectiveTokenEntry[] {
-    const official = this.official(networkId).map((t) => ({ ...t, source: "official" as const }));
-    const userOnly = this.user(networkId, ref)
-      .filter((u) => !official.some((o) => sameToken(o, u)))
-      .map((t) => ({ ...t, source: "user" as const }));
-    return [...official, ...userOnly];
+    return effectiveTokens(this.official(networkId), this.user(networkId, ref));
   }
 
   add(networkId: string, ref: AccountRef, input: TokenEntry): "added" | "refreshed" {
-    const entry = tokenEntry(input);
-    if (this.official(networkId).some((o) => sameToken(o, entry))) {
-      throw new UsageError(
-        "token_already_listed",
-        `${entry.id} is already an official token on ${networkId}`,
-      );
-    }
-    return this.store.withLock(this.tokensPath, () => {
-      const file = this.#read();
-      const key = scopeKey(networkId, ref);
-      const list = file.entries[key] ?? [];
-      const at = list.findIndex((t) => sameToken(t, entry));
-      const action = at >= 0 ? "refreshed" : "added";
-      if (at >= 0) list[at] = entry;
-      else list.push(entry);
-      file.entries[key] = list;
-      this.#write(file);
-      return action;
+    return this.#update(networkId, ref, (user) => {
+      const { tokens, action } = withUserToken(this.official(networkId), user, input, networkId);
+      return { tokens, result: action };
     });
   }
 
   remove(networkId: string, ref: AccountRef, kind: TokenEntry["kind"], input: string): TokenEntry {
-    const id = canonicalTokenId(kind, input);
-    if (this.official(networkId).some((o) => sameToken(o, { kind, id }))) {
-      throw new UsageError("token_is_official", `cannot remove an official token: ${id}`);
-    }
+    return this.#update(networkId, ref, (user) => {
+      const { tokens, removed } = withoutUserToken(this.official(networkId), user, kind, input);
+      return { tokens, result: removed };
+    });
+  }
+
+  // Applies one change to the account's book under the tokens.json lock; an empty book is removed.
+  #update<T>(
+    networkId: string,
+    ref: AccountRef,
+    change: (user: TokenEntry[]) => { tokens: TokenEntry[]; result: T },
+  ): T {
     return this.store.withLock(this.tokensPath, () => {
       const file = this.#read();
       const key = scopeKey(networkId, ref);
-      const list = file.entries[key] ?? [];
-      const at = list.findIndex((t) => sameToken(t, { kind, id }));
-      if (at < 0) {
-        throw new UsageError("token_not_in_book", `token not in this account's book: ${id}`);
-      }
-      const [removed] = list.splice(at, 1);
-      if (list.length === 0) delete file.entries[key];
-      else file.entries[key] = list;
+      const { tokens, result } = change(file.entries[key] ?? []);
+      if (tokens.length === 0) delete file.entries[key];
+      else file.entries[key] = tokens;
       this.#write(file);
-      return removed!;
+      return result;
     });
   }
 

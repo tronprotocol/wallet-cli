@@ -3,8 +3,10 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { AgentService } from "../../../../application/use-cases/agent-service.js";
 import { Schemas, addressFamilyFieldsFor } from "../schemas/index.js";
-import { governanceTxRefine, tronTxModeFields, txModeFields } from "./shared.js";
+import { tronExpirationRefine, tronTxModeFields, txModeExclusive, txModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
+import type { ChainFamily } from "../../../../domain/family/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
 
 const agentId = z
   .string()
@@ -36,10 +38,16 @@ const address = Schemas.address();
 
 const tronWriteFields = z.object({
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe("maximum energy fee to burn, in SUN"),
   ...tronTxModeFields,
 });
+
+// Fields each family adds to an ERC-8004 write.
+const WRITE_FIELDS: Record<ChainFamily, typeof tronWriteFields | undefined> = {
+  evm: undefined,
+  tron: tronWriteFields,
+};
 
 function writeSpec(
   verb: string,
@@ -57,7 +65,8 @@ function writeSpec(
     positionals,
     summary,
     baseFields: fields.extend(txModeFields),
-    baseRefine: governanceTxRefine,
+    exclusive: [txModeExclusive],
+    baseRefine: tronExpirationRefine,
     examples: [],
     formatText: TextFormatters.txReceipt,
   };
@@ -115,7 +124,7 @@ export const approveSpec = writeSpec(
   "Approve or revoke an operator for one Agent",
 );
 approveSpec.baseRefine = (value, context) => {
-  governanceTxRefine(value, context);
+  tronExpirationRefine(value, context);
   if (!value.revoke && !value.operator) {
     context.addIssue({
       code: "custom",
@@ -166,14 +175,15 @@ export const operatorCheckSpec: ChainSpec = {
 };
 
 function binding(
-  family: "evm" | "tron",
+  family: ChainFamily,
   run: FamilyBinding["run"],
   addressFields: string[] = [],
   write = false,
 ): FamilyBinding {
+  const writeFields = write ? WRITE_FIELDS[family] : undefined;
   return {
     run,
-    ...(write && family === "tron" ? { fields: tronWriteFields } : {}),
+    ...(writeFields ? { fields: writeFields } : {}),
     ...(addressFields.length ? { refine: addressFamilyFieldsFor(family, ...addressFields) } : {}),
   };
 }

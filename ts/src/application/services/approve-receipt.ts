@@ -1,7 +1,6 @@
 import type { ApprovalKind } from "../contracts/transaction-input.js";
 export type { ApprovalKind } from "../contracts/transaction-input.js";
-
-const MAX_UINT256 = (1n << 256n) - 1n;
+import { isUnlimitedAllowance } from "../../domain/token/allowance.js";
 
 function normalizeSignature(signature?: string): string {
   return (signature ?? "").replace(/\s+/g, "");
@@ -35,7 +34,7 @@ export async function approveRows(ctx: ApproveContext): Promise<Record<string, u
   if (ctx.approvalKind === "erc721") {
     return { identity: { operator: spender, agentId: amount.toString(10) } };
   }
-  if (amount === MAX_UINT256) return { spender, allowance: "unlimited" };
+  if (isUnlimitedAllowance(amount)) return { spender, allowance: "unlimited" };
 
   const meta = await ctx.metadata().catch(() => ({}) as { decimals?: number; symbol?: string });
   return {

@@ -1,5 +1,5 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { assertPositive, isPositive, toBaseUnits } from "../../../domain/amounts/index.js";
 import {
   TRX_TOKEN_ID,
@@ -16,6 +16,7 @@ import type { TronExchange, TronGateway } from "../../ports/chain/tron-gateway.j
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
+  receiptOf,
   transactionMode,
   transactionRequiresSigner,
   type TransactionModeInput,
@@ -116,7 +117,7 @@ export class TronExchangeService {
     const gateway = this.gateways.get(network, "tron");
     const owner = scope.resolveAddress("tron");
 
-    const [rawFirst, rawSecond] = splitPair(input.pair, "--pair");
+    const [rawFirst, rawSecond] = splitPair(input.pair, inputRef("pair"));
     const firstTokenId = normalizeTokenId(rawFirst);
     const secondTokenId = normalizeTokenId(rawSecond);
     if (firstTokenId === secondTokenId) {
@@ -128,13 +129,14 @@ export class TronExchangeService {
     ]);
     const [firstAmount, secondAmount] = await this.#pairAmounts(input, first, second);
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>
         gateway.buildExchangeCreate(
@@ -154,7 +156,9 @@ export class TronExchangeService {
       kind: "exchange-create" as const,
       ...data,
       // The chain assigns the exchange ID on confirmation.
-      ...(data.exchangeId === undefined ? {} : { exchangeId: Number(data.exchangeId) }),
+      ...(receiptOf(data).exchangeId === undefined
+        ? {}
+        : { exchangeId: Number(receiptOf(data).exchangeId) }),
       pair: `${tokenIdLabel(firstTokenId)}:${tokenIdLabel(secondTokenId)}`,
       creatorAddress: owner,
       firstTokenId,
@@ -191,19 +195,20 @@ export class TronExchangeService {
       this.#tokenMeta(gateway, sides.tokenId),
       this.#tokenMeta(gateway, sides.otherTokenId),
     ]);
-    const sellQuant = this.#amount(input, sellMeta, "--amount");
+    const sellQuant = this.#amount(input, sellMeta);
 
     // Approximate output drives the preview and slippage-floor validation.
     const predicted = bancorOutput(sides.reserve, sides.otherReserve, sellQuant);
     const floor = this.#tradeFloor(scope, input, predicted, buyMeta);
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>
         gateway.buildExchangeTrade(
@@ -233,9 +238,9 @@ export class TronExchangeService {
       receivedLabel: buyMeta.label,
       receivedDecimals: buyMeta.decimals,
       // Report actual received quantities only from the receipt.
-      ...(data.exchangeReceived === undefined
+      ...(receiptOf(data).exchangeReceived === undefined
         ? {}
-        : { receivedQuant: String(data.exchangeReceived) }),
+        : { receivedQuant: String(receiptOf(data).exchangeReceived) }),
       estimatedReceivedQuant: String(predicted),
       minReceivedQuant: String(floor),
     };
@@ -263,14 +268,14 @@ export class TronExchangeService {
       this.#tokenMeta(gateway, sides.tokenId),
       this.#tokenMeta(gateway, sides.otherTokenId),
     ]);
-    const quant = this.#amount(input, meta, "--amount");
+    const quant = this.#amount(input, meta);
 
     // This integer calculation matches the actuator, so it can reject invalid amounts locally.
     const otherQuant = proportionalOther(sides.reserve, sides.otherReserve, quant);
     if (otherQuant <= 0n) {
       throw new UsageError(
         "invalid_value",
-        `--amount is too small for this pair's current ratio: the other side works out to 0 ${otherMeta.label}`,
+        errorMessage`${inputRef("amount")} is too small for this pair's current ratio: the other side works out to 0 ${otherMeta.label}`,
       );
     }
     if (action === "withdraw") {
@@ -279,13 +284,14 @@ export class TronExchangeService {
       }
     }
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
       ...tronTransactionHooks(gateway),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>
         action === "inject"
@@ -296,7 +302,9 @@ export class TronExchangeService {
     const data = outcomeData(outcome);
     // Prefer the receipt amount; project reserves from the pre-transaction snapshot.
     const realisedOther =
-      action === "inject" ? data.exchangeInjectedOther : data.exchangeWithdrawnOther;
+      action === "inject"
+        ? receiptOf(data).exchangeInjectedOther
+        : receiptOf(data).exchangeWithdrawnOther;
     const otherFinal = realisedOther === undefined ? otherQuant : BigInt(String(realisedOther));
     const sign = action === "inject" ? 1n : -1n;
     return {
@@ -353,21 +361,21 @@ export class TronExchangeService {
     return { tokenId, decimals: asset.precision ?? 0, label: asset.name };
   }
 
-  #amount(input: AmountInput, meta: TokenMeta, flag: string): bigint {
+  #amount(input: AmountInput, meta: TokenMeta): bigint {
     const given = [input.amount !== undefined, input.rawAmount !== undefined].filter(
       Boolean,
     ).length;
     if (given !== 1) {
       throw new UsageError(
         "invalid_option",
-        `provide exactly one of ${flag} or ${flag.replace("--", "--raw-")}`,
+        errorMessage`provide exactly one of ${inputRef("amount")} or ${inputRef("rawAmount")}`,
       );
     }
     const raw =
       input.amount !== undefined
         ? toBaseUnits(input.amount, meta.decimals, meta.label)
         : input.rawAmount!;
-    return assertPositive(BigInt(raw), flag);
+    return assertPositive(BigInt(raw), inputRef("amount"));
   }
 
   async #pairAmounts(
@@ -379,20 +387,26 @@ export class TronExchangeService {
       Boolean,
     ).length;
     if (given !== 1) {
-      throw new UsageError("invalid_option", "provide exactly one of --amounts or --raw-amounts");
+      throw new UsageError(
+        "invalid_option",
+        errorMessage`provide exactly one of ${inputRef("amounts")} or ${inputRef("rawAmounts")}`,
+      );
     }
-    const flag = input.amounts !== undefined ? "--amounts" : "--raw-amounts";
-    const [a, b] = splitPair((input.amounts ?? input.rawAmounts)!, flag);
+    const pair = inputRef(input.amounts !== undefined ? "amounts" : "rawAmounts");
+    const [a, b] = splitPair((input.amounts ?? input.rawAmounts)!, pair);
     const convert = (value: string, meta: TokenMeta): bigint => {
       const raw =
         input.amounts !== undefined
           ? toBaseUnits(value.trim(), meta.decimals, meta.label)
           : value.trim();
       if (!/^\d+$/.test(raw))
-        throw new UsageError("invalid_value", `${flag} must hold two whole numbers`);
+        throw new UsageError("invalid_value", errorMessage`${pair} must hold two whole numbers`);
       const parsed = BigInt(raw);
       if (!isPositive(parsed))
-        throw new UsageError("invalid_value", `${flag} sides must both be greater than zero`);
+        throw new UsageError(
+          "invalid_value",
+          errorMessage`${pair} sides must both be greater than zero`,
+        );
       return parsed;
     };
     return [convert(a, first), convert(b, second)];
@@ -412,19 +426,18 @@ export class TronExchangeService {
     if (given > 1) {
       throw new UsageError(
         "invalid_option",
-        "choose at most one of --min-received, --raw-min-received, --slippage",
+        errorMessage`choose at most one of ${inputRef("minReceived")}, ${inputRef("rawMinReceived")}, ${inputRef("slippage")}`,
       );
     }
     if (input.minReceived !== undefined) {
       return BigInt(
-        toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label, "--min-received"),
+        toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label, inputRef("minReceived")),
       );
     }
     if (input.rawMinReceived !== undefined) return BigInt(input.rawMinReceived);
     if (input.slippage !== undefined) return slippageFloor(predicted, input.slippage);
     scope.warn(
-      "no slippage protection: this trade accepts any non-zero return at any price. " +
-        "Pass --slippage or --min-received to set a floor.",
+      errorMessage`no slippage protection: this trade accepts any non-zero return at any price. Pass ${inputRef("slippage")} or ${inputRef("minReceived")} to set a floor.`,
     );
     return UNPROTECTED_FLOOR;
   }

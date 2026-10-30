@@ -46,7 +46,8 @@ vi.mock("@ledgerhq/hw-app-eth", () => ({
 }));
 
 const PATH = "m/44'/60'/0'/0/0";
-const ledger = () => new Ledger(5_000);
+const tronIntegrityCheck = vi.fn();
+const ledger = () => new Ledger(tronIntegrityCheck, 5_000);
 
 describe("Ledger reaches the ethereum app for the evm family", () => {
   it("derives an address through hw-app-eth, not hw-app-trx", async () => {
@@ -100,6 +101,15 @@ describe("Ledger signs EVM transactions", () => {
 
     expect(raw).toMatch(/^0x02/); // EIP-1559 envelope.
     expect(raw.toLowerCase()).toContain("cc".repeat(32));
+  });
+
+  it("signs through hw-app-eth without the TRON integrity check", async () => {
+    calls.length = 0;
+    tronIntegrityCheck.mockClear();
+    await ledger().signTransaction("evm", PATH, TX);
+
+    expect(calls.map((c) => `${c.app}.${c.method}`)).toEqual(["eth.signTransaction"]);
+    expect(tronIntegrityCheck).not.toHaveBeenCalled();
   });
 
   it("hands the device the UNSIGNED serialisation, without its 0x prefix", async () => {

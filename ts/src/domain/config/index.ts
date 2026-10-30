@@ -68,3 +68,23 @@ export const HTTP_URL_RULE: ValueRule<string> = {
   },
   description: "an absolute http(s) URL",
 };
+
+/**
+ * Sets one field of a network's configuration, keyed by its canonical id. Entries that name the
+ * same network by an alias are folded into it first: two keys for one network are invalid.
+ */
+export function withNetworkField<V>(
+  entries: Readonly<Record<string, Readonly<Record<string, V>>>>,
+  id: string,
+  sameNetwork: (key: string) => boolean,
+  field: string,
+  value: V,
+): Record<string, Record<string, V>> {
+  const kept: Record<string, Record<string, V>> = {};
+  let folded: Record<string, V> = {};
+  for (const [key, fields] of Object.entries(entries)) {
+    if (sameNetwork(key)) folded = { ...folded, ...fields };
+    else kept[key] = { ...fields };
+  }
+  return { ...kept, [id]: { ...folded, [field]: value } };
+}

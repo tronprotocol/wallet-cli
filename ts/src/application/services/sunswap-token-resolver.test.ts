@@ -2,9 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { NetworkDescriptor, TokenEntry } from "../../domain/types/index.js";
 import type { TokenRepository } from "../ports/token-repository.js";
 import type { AccountScope } from "../contracts/execution-scope.js";
-import { WalletError } from "../../domain/errors/index.js";
+import { CliError, WalletError } from "../../domain/errors/index.js";
+import { errorEnvelope } from "../../adapters/inbound/cli/output/errors.js";
 import { NATIVE_TRX_ADDRESS } from "../../domain/sunswap/tokens.js";
-import { SunSwapTokenResolver, tokenBookAccount, withTokenBook } from "./sunswap-token-resolver.js";
+import {
+  SunSwapTokenResolver,
+  tokenBookAccount,
+  withTokenBook,
+  type TokenLookup,
+} from "./sunswap-token-resolver.js";
 
 const NETWORK = { id: "tron:728126428", family: "tron" } as unknown as NetworkDescriptor;
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -122,6 +128,15 @@ describe("builtins and addresses", () => {
 });
 
 describe("the not-found hint", () => {
+  function cliText(caller: TokenLookup["caller"]): string {
+    try {
+      resolver().resolve(NETWORK, "UNKNOWN", { caller });
+    } catch (error) {
+      return errorEnvelope(error as CliError).message;
+    }
+    throw new Error("expected the symbol to be refused");
+  }
+
   it.each([
     ["swap", "pass its contract address in its place, or add it with 'wallet-cli token add'"],
     [
@@ -131,13 +146,17 @@ describe("the not-found hint", () => {
     ["pool-list", "pass its contract address with --token"],
     ["price", "pass its contract address with --address"],
   ] as const)("%s says how to name the token", (caller, hint) => {
-    expect(() => resolver().resolve(NETWORK, "UNKNOWN", { caller })).toThrow(
-      `unknown token symbol UNKNOWN on tron; ${hint}`,
-    );
+    expect(cliText(caller)).toBe(`unknown token symbol UNKNOWN on tron; ${hint}`);
   });
 
   it.each(["price", "pool-list"] as const)("%s does not suggest token add", (caller) => {
-    expect(() => resolver().resolve(NETWORK, "UNKNOWN", { caller })).not.toThrow("token add");
+    expect(cliText(caller)).not.toContain("token add");
+  });
+
+  it("names the inputs by field outside the CLI", () => {
+    expect(() => resolver().resolve(NETWORK, "UNKNOWN", { caller: "liquidity" })).toThrow(
+      "unknown token symbol UNKNOWN on tron; pass its contract address with token0/token1, or add it with 'token-add'",
+    );
   });
 });
 

@@ -330,8 +330,9 @@ export function registerTronChainCommands(
     deps.transactions,
     deps.recipients,
   );
-  const signing = new TronSigService(deps.gateways, deps.signers, deps.signing);
-  const multisig = new TronMultisigService(deps.gateways, signing);
+  const artifacts = new SecureTransactionArtifactWriter();
+  const signing = new TronSigService(deps.gateways, deps.signers, deps.signing, artifacts);
+  const multisig = new TronMultisigService(deps.gateways, signing, artifacts);
   const multisigCollaboration = new TronMultisigCollaborationService(
     deps.tronlink,
     deps.gateways,
@@ -399,7 +400,7 @@ export function registerTronChainCommands(
   const stake = new TronStakeService(deps.gateways, deps.transactions);
   const asset = new TronAssetService(deps.gateways, deps.transactions);
   const exchange = new TronExchangeService(deps.gateways, deps.transactions);
-  const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
+  const vote = new TronVoteService(deps.gateways, deps.transactions);
   const reward = new TronRewardService(deps.gateways, deps.transactions);
   const chain = new TronChainService(deps.gateways);
   const contract = new TronContractService(deps.gateways, deps.transactions);
@@ -422,11 +423,7 @@ export function registerTronChainCommands(
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
   reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
   reg.addChain(txSendSpec, "tron", txSendTronBinding(transaction));
-  reg.addChain(
-    txSignSpec,
-    "tron",
-    txSignTronBinding(signing, multisig, new SecureTransactionArtifactWriter()),
-  );
+  reg.addChain(txSignSpec, "tron", txSignTronBinding(signing, multisig));
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));

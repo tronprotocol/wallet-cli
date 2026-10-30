@@ -1,12 +1,33 @@
 // Amounts are base-unit integers; bigint avoids rounding money through floats.
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 
 export const DEFAULT_V2_MIN_BASIS_POINTS = 9500n;
 
 export const DEFAULT_DEADLINE_MINUTES = 30;
 
+const BASIS_POINTS = 10_000n;
+
 export function applyMinimumShare(amount: string, basisPoints: bigint): string {
-  return ((toBigInt(amount, "amount") * basisPoints) / 10000n).toString();
+  return ((toBigInt(amount, "amount") * basisPoints) / BASIS_POINTS).toString();
+}
+
+// Lowers an expected amount by a slippage tolerance; rounds down.
+export function lowerBySlippage(amount: string, slippageBips: number): string {
+  return applyMinimumShare(amount, BASIS_POINTS - BigInt(slippageBips));
+}
+
+// Raises a deposit ceiling by a slippage tolerance; rounds down.
+export function raiseBySlippage(amount: string, slippageBips: number): string {
+  if (slippageBips === 0) return amount;
+  return applyMinimumShare(amount, BASIS_POINTS + BigInt(slippageBips));
+}
+
+// A V2 pool's reserve paid out for burning lpAmount of totalSupply; rounds down.
+export function lpRedemption(lpAmount: string, reserve: string, totalSupply: string): string {
+  return (
+    (toBigInt(lpAmount, "amount") * toBigInt(reserve, "reserve")) /
+    toBigInt(totalSupply, "total supply")
+  ).toString();
 }
 
 // Returns epoch seconds; now is in milliseconds.
@@ -15,10 +36,16 @@ export function resolveDeadline(explicitEpochSeconds: number | undefined, now: n
     return Math.floor(now / 1000) + DEFAULT_DEADLINE_MINUTES * 60;
   }
   if (!Number.isInteger(explicitEpochSeconds)) {
-    throw new UsageError("invalid_value", "--deadline must be a whole number of seconds");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("deadline")} must be a whole number of seconds`,
+    );
   }
   if (explicitEpochSeconds * 1000 <= now) {
-    throw new UsageError("invalid_value", "--deadline is already in the past");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("deadline")} is already in the past`,
+    );
   }
   return explicitEpochSeconds;
 }
@@ -39,7 +66,7 @@ export function selectAmounts(
   if (amount1 !== undefined) return { kind: "amount1", amount1 };
   throw new UsageError(
     "missing_option",
-    "this command requires --amount0 or --amount1; give one and the other is derived from the pool, or give both for exact amounts",
+    errorMessage`this command requires ${inputRef("amount0")} or ${inputRef("amount1")}; give one and the other is derived from the pool, or give both for exact amounts`,
   );
 }
 

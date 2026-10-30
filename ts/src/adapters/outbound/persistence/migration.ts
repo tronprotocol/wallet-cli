@@ -2,6 +2,11 @@
 import { planMigrations, storedVersionOf } from "../../../domain/migration/index.js";
 import { ExecutionError } from "../../../domain/errors/index.js";
 import type { AtomicFileStore } from "./fs/index.js";
+import type {
+  DataMigrationPlan,
+  DataMigrations,
+  PendingUpgrade,
+} from "../../../application/ports/data-migration.js";
 
 export interface MigrationStep {
   // Absolute path.
@@ -88,4 +93,38 @@ export class MigrationRunner {
     if (writes.length === 0) return [];
     return this.store.writeJsonAll(writes);
   }
+}
+
+// Pending upgrades map back to their steps by path.
+export class FileDataMigrations implements DataMigrations {
+  readonly #runner: MigrationRunner;
+
+  constructor(
+    store: AtomicFileStore,
+    private readonly steps: MigrationStep[],
+  ) {
+    this.#runner = new MigrationRunner(store);
+  }
+
+  plan(): DataMigrationPlan {
+    const plan = this.#runner.plan(this.steps);
+    return { pending: plan.stale.map(pendingUpgrade), needsPassword: plan.needsPassword };
+  }
+
+  apply(pending: PendingUpgrade[], password?: string): string[] {
+    const byPath = new Map(this.steps.map((step) => [step.path, step]));
+    return this.#runner.apply(
+      pending.map((file) => ({ step: byPath.get(file.path)!, storedVersion: file.from })),
+      password,
+    );
+  }
+}
+
+function pendingUpgrade(file: StaleFile): PendingUpgrade {
+  return {
+    path: file.step.path,
+    from: file.storedVersion,
+    to: file.step.currentVersion,
+    backup: backupPathFor(file.step.path, file.storedVersion),
+  };
 }

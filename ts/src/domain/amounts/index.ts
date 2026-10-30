@@ -1,5 +1,12 @@
 // Use string arithmetic to preserve amount precision.
-import { ChainError, UsageError } from "../errors/index.js";
+import {
+  ChainError,
+  errorMessage,
+  inputRef,
+  UsageError,
+  type InputRef,
+  type UserMessage,
+} from "../errors/index.js";
 
 // Bounds remote precision before allocating scaled amounts.
 export function checkedTokenDecimals(decimals: number): number {
@@ -18,8 +25,10 @@ export function isZeroAmount(text: string): boolean {
 }
 
 // Amounts that move value must be greater than zero.
-export function assertPositiveAmount(value: bigint, label: string): bigint {
-  if (value <= 0n) throw new UsageError("invalid_amount", `${label} must be greater than zero`);
+export function assertPositiveAmount(value: bigint, label: string | InputRef): bigint {
+  if (value <= 0n) {
+    throw new UsageError("invalid_amount", errorMessage`${label} must be greater than zero`);
+  }
   return value;
 }
 
@@ -28,9 +37,12 @@ export function isPositive(value: bigint | number): boolean {
 }
 
 // Counts and protocol parameters; money uses assertPositiveAmount and its invalid_amount code.
-export function assertPositive<T extends bigint | number>(value: T, label: string): T {
+export function assertPositive<T extends bigint | number>(
+  value: T,
+  label: string | InputRef | UserMessage,
+): T {
   if (!isPositive(value)) {
-    throw new UsageError("invalid_value", `${label} must be greater than zero`);
+    throw new UsageError("invalid_value", errorMessage`${label} must be greater than zero`);
   }
   return value;
 }
@@ -58,26 +70,26 @@ export function fromBaseUnits(value: string | number | bigint, decimals: number)
   return neg ? `-${out}` : out;
 }
 
-// Converts non-negative decimals to base units; flag names the input option in errors.
+// Converts non-negative decimals to base units; input names the offending input in errors.
 export function toBaseUnits(
   value: string,
   decimals: number,
   unitLabel: string,
-  flag = "--amount",
+  input: string | InputRef = inputRef("amount"),
 ): string {
   checkedTokenDecimals(decimals);
   const v = value.trim();
   if (!/^\d+(\.\d+)?$/.test(v)) {
     throw new UsageError(
       "invalid_amount",
-      `${flag} must be a non-negative decimal ${unitLabel} amount`,
+      errorMessage`${input} must be a non-negative decimal ${unitLabel} amount`,
     );
   }
   const [whole, frac = ""] = v.split(".");
   if (frac.length > decimals) {
     throw new UsageError(
       "invalid_amount",
-      `${flag} has too many decimal places for ${unitLabel} (max ${decimals})`,
+      errorMessage`${input} has too many decimal places for ${unitLabel} (max ${decimals})`,
     );
   }
   const digits = `${whole}${frac.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "");

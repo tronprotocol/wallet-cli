@@ -48,7 +48,7 @@ function service(opts: {
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   const pipeline = {
     assertCanSign() {},
-    async run(p: {
+    async runTron(p: {
       build: (from: string) => Promise<unknown>;
       prepare: (tx: unknown, o: { permissionId: number }) => unknown;
     }) {

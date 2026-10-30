@@ -65,10 +65,10 @@ it.each([
       };
       const pay = async () => {
         log({method:'pay'});
-        return {settled:true, payer:{address:${JSON.stringify(payer)}}, paymentResponse:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}};
+        return {settled:true, payer:{address:${JSON.stringify(payer)}}, paymentResponse:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}, settlement:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}};
       };
       X402PaymentClient.prototype.request = async () => ({kind: "response", result: await pay()});
-      if (${JSON.stringify(chain)} === "tron") X402Service.prototype.roundtrip = async () => ({serve:{},pay:await pay()});`,
+      if (${JSON.stringify(chain)} === "tron") X402Service.prototype.roundtrip = async () => { const p = await pay(); return {serve:{},pay:p,settlement:p.settlement}; };`,
       );
       for (const [to, withPassword] of [
         [undefined, false],

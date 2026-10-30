@@ -3,6 +3,7 @@ import type { ZodObject, ZodRawShape } from "zod";
 import { CliError } from "../../../../../domain/errors/index.js";
 import { composeRefines, parseInputSchema } from "../../shell/index.js";
 import { sunswapAddLiquiditySpec } from "./add-liquidity.js";
+import { exitCodeOf } from "../../output/errors.js";
 
 const schema = composeRefines(
   sunswapAddLiquiditySpec.baseFields as ZodObject<ZodRawShape>,
@@ -32,7 +33,7 @@ describe("sunswap add-liquidity — V4 pool refusals", () => {
       sqrtPrice: "79228162514264337593543950336",
     });
     expect(error).toMatchObject({ code: "invalid_option" });
-    expect(error.exitCode()).toBe(2);
+    expect(exitCodeOf(error)).toBe(2);
     expect(error.message).toMatch(/^invalid --sqrt-price: /);
   });
 
@@ -59,7 +60,7 @@ describe("sunswap add-liquidity — V4 pool refusals", () => {
       tickSpacing: 10,
     });
     expect(error).toMatchObject({ code: "same_token" });
-    expect(error.exitCode()).toBe(1);
+    expect(exitCodeOf(error)).toBe(1);
   });
 
   it("reports an earlier flag refusal before same_token", () => {
@@ -89,7 +90,7 @@ describe("sunswap add-liquidity — a malformed --recipient", () => {
         recipient,
       });
       expect(error).toMatchObject({ code: "invalid_address" });
-      expect(error.exitCode()).toBe(2);
+      expect(exitCodeOf(error)).toBe(2);
       expect(error.message).toMatch(/^invalid --recipient: /);
     },
   );

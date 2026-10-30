@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { TxPipeline, type TxPipelineParams } from "./index.js";
+import { TxPipeline, type TronTxPipelineParams } from "./index.js";
 import type { SignerResolver } from "../signer/index.js";
 import type {
   FeeReport,
@@ -24,10 +24,7 @@ function scope(over: Partial<TransactionScope> = {}): TransactionScope {
   } as TransactionScope;
 }
 
-function params<T extends UnsignedTx = UnsignedTx>(
-  signer: Signer,
-  over: Partial<TxPipelineParams<T>> = {},
-): TxPipelineParams<T> {
+function params(signer: Signer, over: Partial<TronTxPipelineParams> = {}): TronTxPipelineParams {
   return {
     ctx: scope(),
     net: { family: "tron", nativeSymbol: "TRX" } as never,
@@ -35,8 +32,14 @@ function params<T extends UnsignedTx = UnsignedTx>(
     broadcaster: { broadcast: async () => ({ txId: "tx" }) } as never,
     build: async () => ({}) as never,
     estimate: async () => ({}) as never,
-    dryRun: false,
-    broadcast: false,
+    mode: "sign-only",
+    permissionId: 0,
+    prepare: (tx) => tx,
+    prepareForSigning: (tx) => tx,
+    assertNotExpired: () => {},
+    artifact: () => "hex",
+    preflight: null,
+    confirm: async () => undefined,
     ...over,
   };
 }
@@ -58,7 +61,7 @@ describe("TxPipeline device-sign timeout", () => {
     const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
 
     await expect(
-      new TxPipeline(signers, new SigningService({} as never)).run(params(signer)),
+      new TxPipeline(signers, new SigningService({} as never)).runTron(params(signer)),
     ).rejects.toMatchObject({
       code: "timeout",
     });
@@ -77,11 +80,9 @@ describe("TxPipeline device-sign timeout", () => {
       assertCanSign: vi.fn(),
       resolve: vi.fn(() => signer),
     } as unknown as SignerResolver;
-    const result = await new TxPipeline(signers, new SigningService({} as never)).run(
+    const result = await new TxPipeline(signers, new SigningService({} as never)).runTron(
       params(signer, {
         mode: "build-only",
-        buildOnly: true,
-        prepare: (tx) => tx,
         artifact: () => "abcd",
       }),
     );
@@ -105,10 +106,11 @@ describe("TxPipeline device-sign timeout", () => {
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
-    await new TxPipeline(signers, new SigningService({} as never)).run(
+    await new TxPipeline(signers, new SigningService({} as never)).runTron(
       params(signer, {
         preflight: async () => {
           order.push("preflight");
+          return { assertBroadcastable: () => {} };
         },
       }),
     );
@@ -126,10 +128,9 @@ describe("TxPipeline device-sign timeout", () => {
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
     const broadcast = vi.fn(async () => ({ txId: "tx" }));
     await expect(
-      new TxPipeline(signers, new SigningService({} as never)).run(
+      new TxPipeline(signers, new SigningService({} as never)).runTron(
         params(signer, {
           mode: "broadcast",
-          broadcast: true,
           broadcaster: { broadcast } as never,
           preflight: async () => ({
             assertBroadcastable: () => {
@@ -157,7 +158,7 @@ describe("TxPipeline device-sign timeout", () => {
     const assertBroadcastable = vi.fn(() => {
       throw new ChainError("not_authorized", "unmet");
     });
-    const outcome = await new TxPipeline(signers, new SigningService({} as never)).run(
+    const outcome = await new TxPipeline(signers, new SigningService({} as never)).runTron(
       params(signer, {
         mode: "sign-only",
         preflight: async () => ({ assertBroadcastable }),
@@ -185,16 +186,16 @@ describe("TxPipeline build-only", () => {
     const artifact = vi.fn(() => "0a02010202");
 
     await expect(
-      new TxPipeline(signers, new SigningService({} as never)).run(
+      new TxPipeline(signers, new SigningService({} as never)).runTron(
         params(
           {} as Signer,
           {
             ctx: scope({ resolveAddress: () => "TWatchOnly" }),
-            buildOnly: true,
+            mode: "build-only",
             build,
             estimate,
             artifact,
-          } as Partial<TxPipelineParams>,
+          } as Partial<TronTxPipelineParams>,
         ),
       ),
     ).resolves.toEqual({
@@ -206,39 +207,23 @@ describe("TxPipeline build-only", () => {
     expect(resolve).not.toHaveBeenCalled();
     expect(assertCanSign).not.toHaveBeenCalled();
   });
-
-  it("refuses when the adapter cannot produce transaction hex", async () => {
-    const signers = { resolve: vi.fn(), assertCanSign: vi.fn() } as unknown as SignerResolver;
-    await expect(
-      new TxPipeline(signers, new SigningService({} as never)).run(
-        params({} as Signer, {
-          ctx: scope({ resolveAddress: () => "TWatchOnly" }),
-          buildOnly: true,
-          build: async (address: string) =>
-            ({ raw_data_hex: "0102", owner: address }) as unknown as UnsignedTx,
-        }),
-      ),
-    ).rejects.toMatchObject({ code: "invalid_option" });
-  });
 });
 
-describe("TxPipeline permission/expiration binding guard", () => {
-  const buildOnly = {
-    buildOnly: true,
-    mode: "build-only" as const,
-    build: async () => ({ raw_data_hex: "0102" }) as never,
-    artifact: () => "0a02010202",
-  };
+describe("TxPipeline EVM entry", () => {
   const signers = () => ({ resolve: vi.fn(), assertCanSign: vi.fn() }) as unknown as SignerResolver;
 
   it.each([
-    ["--permission-id", { permissionId: 2 }],
-    ["--expiration", { expiration: 60_000 }],
-  ])("refuses %s when the adapter has no prepare hook", async (_label, opts) => {
+    ["permissionId", { permissionId: 2 }],
+    ["expiration", { expiration: 60_000 }],
+  ])("refuses a non-default %s", async (_label, opts) => {
     await expect(
-      new TxPipeline(signers(), new SigningService({} as never)).run(
-        params({} as Signer, { ...buildOnly, ...opts }),
-      ),
+      new TxPipeline(signers(), new SigningService({} as never)).runEvm({
+        ...params({} as Signer),
+        net: { family: "evm" } as never,
+        mode: "build-only",
+        build: async () => ({}) as never,
+        ...opts,
+      } as never),
     ).rejects.toMatchObject({ code: "invalid_option" });
   });
 });
@@ -257,10 +242,9 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
       signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
     };
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
-    const outcome = await new TxPipeline(signers, new SigningService({} as never)).run(
+    const outcome = await new TxPipeline(signers, new SigningService({} as never)).runTron(
       params(signer, {
         ctx: scope({ warn: (m: string) => warnings.push(String(m)) }),
-        broadcast: true,
         mode: "broadcast",
         broadcaster: { broadcast: async () => ({ txId: nodeTxId }) } as never,
       }),
@@ -283,6 +267,7 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
 
 import { tronTransactionHooks } from "../../use-cases/tron/multisig-authorization.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
 
 describe("TRON signing lifetime", () => {
   it.each([false, true])(
@@ -317,7 +302,7 @@ describe("TRON signing lifetime", () => {
         resolve: () => signer,
       } as unknown as SignerResolver;
       try {
-        await new TxPipeline(signers, new SigningService({} as never)).run(
+        await new TxPipeline(signers, new SigningService({} as never)).runTron(
           params(signer, {
             ...tronTransactionHooks(gateway),
             build: async () => tx,
@@ -360,11 +345,11 @@ describe("TRON signing lifetime", () => {
             resolve: () => signer,
           } as unknown as SignerResolver,
           new SigningService({} as never),
-        ).run(
+        ).runTron(
           params(signer, {
             ...tronTransactionHooks(gateway),
             build: async () => tx,
-            broadcast: true,
+            mode: "broadcast",
             broadcaster: { broadcast },
           }),
         ),
@@ -393,7 +378,7 @@ describe("TxPipeline submission outcome", () => {
       new SigningService({} as never),
     );
     const broadcast = vi.fn(async (_signed: unknown) => ({ txId }));
-    const input = params(signer, { broadcast: true, broadcaster: { broadcast } });
+    const input = params(signer, { mode: "broadcast", broadcaster: { broadcast } });
     return { pipeline, broadcast, input, signer };
   }
 
@@ -405,15 +390,15 @@ describe("TxPipeline submission outcome", () => {
         nodeCode: "fixture",
       });
       h.broadcast.mockRejectedValueOnce(original);
-      const error = classifyError(await h.pipeline.run(h.input).catch((e) => e));
-      expect(error.toEnvelope()).toEqual({
+      const error = classifyError(await h.pipeline.runTron(h.input).catch((e) => e));
+      expect(errorEnvelope(error)).toEqual({
         code,
         message: original.message,
         details: { nodeCode: "fixture", txId },
       });
       expect(error.textMessage).toBe(original.textMessage);
       expect(error.kind).toBe(original.kind);
-      expect(error.exitCode()).toBe(original.exitCode());
+      expect(exitCodeOf(error)).toBe(exitCodeOf(original));
       expect(h.broadcast).toHaveBeenCalledWith({ txID: txId });
     },
   );
@@ -424,7 +409,7 @@ describe("TxPipeline submission outcome", () => {
       const h = harness();
       const original = new ChainError(code, "refused");
       h.broadcast.mockRejectedValueOnce(original);
-      await expect(h.pipeline.run(h.input)).rejects.toBe(original);
+      await expect(h.pipeline.runTron(h.input)).rejects.toBe(original);
       expect(original.details).toBeUndefined();
     },
   );
@@ -433,7 +418,7 @@ describe("TxPipeline submission outcome", () => {
     const h = harness({});
     const original = new ChainError("timeout", "lost response", { nodeCode: "fixture" });
     h.broadcast.mockRejectedValueOnce(original);
-    await expect(h.pipeline.run(h.input)).rejects.toBe(original);
+    await expect(h.pipeline.runTron(h.input)).rejects.toBe(original);
     expect(original.details).toEqual({ nodeCode: "fixture" });
   });
 
@@ -455,7 +440,7 @@ describe("TxPipeline submission outcome", () => {
           .mockImplementationOnce(() => {})
           .mockImplementationOnce(fail);
       if (step === "authorization") h.input.preflight = async () => ({ assertBroadcastable: fail });
-      await expect(h.pipeline.run(h.input)).rejects.toBe(original);
+      await expect(h.pipeline.runTron(h.input)).rejects.toBe(original);
       expect(original.details).toBeUndefined();
       expect(h.broadcast).not.toHaveBeenCalled();
     },
@@ -463,10 +448,112 @@ describe("TxPipeline submission outcome", () => {
 
   it("does not submit during dry-run", async () => {
     const h = harness();
-    await expect(h.pipeline.run({ ...h.input, dryRun: true })).resolves.toMatchObject({
+    await expect(h.pipeline.runTron({ ...h.input, mode: "dry-run" })).resolves.toMatchObject({
       stage: "plan",
     });
     expect(h.broadcast).not.toHaveBeenCalled();
     expect(h.signer.sign).not.toHaveBeenCalled();
+  });
+});
+
+describe("TxPipeline TRON entry runs every lifecycle step for its mode", () => {
+  function tracked(mode: TronTxPipelineParams["mode"]) {
+    const calls: string[] = [];
+    const signer = {
+      kind: "device",
+      address: "TSender",
+      sign: vi.fn(async (tx: unknown) => {
+        calls.push("sign");
+        return tx;
+      }),
+    } as unknown as Signer;
+    const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
+    const input = params(signer, {
+      mode,
+      ctx: scope({ wait: mode === "broadcast" }),
+      build: async () => {
+        calls.push("build");
+        return { txID: "aa" } as never;
+      },
+      prepare: (tx, options) => {
+        calls.push(`prepare:${options.permissionId}`);
+        return tx;
+      },
+      estimate: async () => {
+        calls.push("estimate");
+        return {} as FeeReport;
+      },
+      prepareForSigning: (tx) => {
+        calls.push("prepareForSigning");
+        return tx;
+      },
+      assertNotExpired: () => {
+        calls.push("assertNotExpired");
+      },
+      preflight: async () => {
+        calls.push("preflight");
+        return { assertBroadcastable: () => calls.push("assertBroadcastable") };
+      },
+      artifact: () => {
+        calls.push("artifact");
+        return "hex";
+      },
+      broadcaster: {
+        broadcast: async () => {
+          calls.push("broadcast");
+          return { txId: "aa" };
+        },
+      } as never,
+      confirm: async () => {
+        calls.push("confirm");
+        return { confirmed: true, failed: false };
+      },
+    });
+    return { pipeline: new TxPipeline(signers, new SigningService({} as never)), input, calls };
+  }
+
+  it.each([
+    ["dry-run", ["build", "prepare:0", "estimate"]],
+    ["build-only", ["build", "prepare:0", "estimate", "artifact"]],
+    [
+      "sign-only",
+      [
+        "build",
+        "prepare:0",
+        "estimate",
+        "prepareForSigning",
+        "assertNotExpired",
+        "preflight",
+        "sign",
+        "assertNotExpired",
+        "artifact",
+      ],
+    ],
+    [
+      "broadcast",
+      [
+        "build",
+        "prepare:0",
+        "estimate",
+        "prepareForSigning",
+        "assertNotExpired",
+        "preflight",
+        "sign",
+        "assertNotExpired",
+        "assertBroadcastable",
+        "broadcast",
+        "confirm",
+      ],
+    ],
+  ] as const)("%s", async (mode, expected) => {
+    const h = tracked(mode);
+    await h.pipeline.runTron(h.input);
+    expect(h.calls).toEqual(expected);
+  });
+
+  it("keeps a caller-set expiration instead of extending it for a device", async () => {
+    const h = tracked("sign-only");
+    await h.pipeline.runTron({ ...h.input, expiration: 90_000 });
+    expect(h.calls).not.toContain("prepareForSigning");
   });
 });

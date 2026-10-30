@@ -277,6 +277,7 @@ import { createOutputFormatter } from "../output/index.js";
 import { ConfigLoader, NetworkRegistry } from "../../../outbound/config/index.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { Keystore } from "../../../outbound/keystore/index.js";
+import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import { SecretResolver } from "../input/secret/index.js";
 import { Prompter } from "../input/prompt/index.js";
 
@@ -299,6 +300,7 @@ describe("grouped positional parsing through yargs", () => {
     const streams = new StreamManager("text", false);
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
 
@@ -377,7 +379,7 @@ describe("grouped positional parsing through yargs", () => {
       shellOpts: {
         registry,
         globals: { output: "text" as const, verbose: false },
-        deps: { config, networkRegistry, streams, secrets, keystore, prompter, formatter },
+        deps: { config, networkRegistry, streams, secrets, accounts, prompter, formatter },
         targetResolver: new TargetResolver({ networkRegistry, keystore }),
         caps: new CapabilityRegistry(),
         streams,
@@ -486,6 +488,7 @@ describe("dispatch password-prime wiring", () => {
     const streams = new StreamManager("text", false);
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
 
     const spyPrime = vi.spyOn(secrets, "primePassword");
 
@@ -518,7 +521,7 @@ describe("dispatch password-prime wiring", () => {
       output: "text" as const,
       verbose: false,
     };
-    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
     const capabilityRegistry = new CapabilityRegistry();
 
     const shellOpts: ShellOptions = {
@@ -558,6 +561,7 @@ describe("dispatch password-prime wiring", () => {
     const streams = new StreamManager("text", false);
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const spyPrime = vi.spyOn(secrets, "primePassword");
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
@@ -579,7 +583,7 @@ describe("dispatch password-prime wiring", () => {
     const formatter = createOutputFormatter("text", streams, startedAt);
     const session: SessionRef = {};
     const globals = { output: "text" as const, verbose: false };
-    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
     const shellOpts: ShellOptions = {
       registry,
       globals,

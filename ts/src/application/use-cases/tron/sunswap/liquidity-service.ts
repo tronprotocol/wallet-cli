@@ -27,6 +27,7 @@ import {
 import {
   assertPermitAuthorizes,
   assertSignedBy,
+  PERMIT2_GRANT_TTL_SECONDS,
 } from "../../../../domain/sunswap/permit2-guard.js";
 import { recoverTronSigner } from "../../../../domain/sunswap/permit2-recover.js";
 import { slippageToBips } from "../../../../domain/sunpump/curve.js";
@@ -40,18 +41,24 @@ import {
 import {
   LiquidityTransactions,
   outcomeTxId,
-  UNLIMITED_ALLOWANCE,
   withPositionManager,
   withZeroMinimumFlag,
   type ApprovalPlan,
 } from "./liquidity-transactions.js";
+import { UNLIMITED_ALLOWANCE } from "../../../../domain/token/allowance.js";
 import { warnOnPostCheck } from "../../../services/post-check.js";
 import {
   tokenBookAccount,
   withTokenBook,
   type SunSwapTokenResolver,
 } from "../../../services/sunswap-token-resolver.js";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import {
+  ChainError,
+  errorMessage,
+  followUp,
+  inputRef,
+  UsageError,
+} from "../../../../domain/errors/index.js";
 import { readPosition } from "./position-read.js";
 import {
   toBaseUnits,
@@ -66,6 +73,7 @@ import {
   DEFAULT_V2_MIN_BASIS_POINTS,
   expectedLpAmount,
   pairAmount,
+  raiseBySlippage,
   resolveDeadline,
   selectAmounts,
 } from "../../../../domain/sunswap/liquidity.js";
@@ -86,8 +94,6 @@ const KIND = "sunswap-add-liquidity" as const;
 
 // V4 deposits grant unlimited TRC20 allowance; Permit2 grants remain amount-limited.
 const V4_TRC20_ALLOWANCE = UNLIMITED_ALLOWANCE;
-
-const V4_PERMIT_TTL_SECONDS = 3600;
 
 export interface AddLiquidityInput extends TransactionModeInput {
   readonly protocol: LiquidityProtocol;
@@ -261,7 +267,7 @@ export class SunSwapLiquidityService {
     const planned = await this.#planV4(network, owner, input);
     const { plan: internal, pool, call } = planned;
     let permitsNeeded = planned.permitsNeeded;
-    if (mode.dryRun || mode.buildOnly) {
+    if (mode.mode === "dry-run" || mode.mode === "build-only") {
       const needed = [];
       for (const side of permitsNeeded) {
         const permit = await this.permits.planPermit(network, {
@@ -269,7 +275,7 @@ export class SunSwapLiquidityService {
           token: side.token,
           spender: this.#v4Manager(network),
           amount: baseUnitAmount(side.amount),
-          ttlSeconds: V4_PERMIT_TTL_SECONDS,
+          ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
         });
         if (permit !== undefined) needed.push(side);
       }
@@ -278,7 +284,7 @@ export class SunSwapLiquidityService {
     const plan = withoutV4Minimum(internal);
     const view = {
       ...plan,
-      ...((mode.dryRun || mode.buildOnly) && plan.permits
+      ...((mode.mode === "dry-run" || mode.mode === "build-only") && plan.permits
         ? {
             permits: plan.permits.filter((row) =>
               permitsNeeded.some((side) => side.token === row.token),
@@ -309,15 +315,15 @@ export class SunSwapLiquidityService {
           }),
     };
 
-    if (mode.buildOnly && permitsNeeded.length > 0) {
+    if (mode.mode === "build-only" && permitsNeeded.length > 0) {
       // Building requires embedded permit signatures unless standing grants already suffice.
       throw new UsageError(
         "invalid_option",
-        "--build-only is not available for this V4 deposit: it carries Permit2 grants inside the call, so it cannot be built before they are signed. --dry-run validates it, and a deposit whose Permit2 grants already cover the amounts has nothing to sign and does build",
+        errorMessage`${inputRef("buildOnly")} is not available for this V4 deposit: it carries Permit2 grants inside the call, so it cannot be built before they are signed. ${inputRef("dryRun")} validates it, and a deposit whose Permit2 grants already cover the amounts has nothing to sign and does build`,
       );
     }
 
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       // An unsigned grant prevents estimating the main call; approvals can still be priced.
       const priced =
         permitsNeeded.length === 0
@@ -339,7 +345,7 @@ export class SunSwapLiquidityService {
       return { kind: KIND, mode: "dry-run", ...asPositionPreview(view), ...priced };
     }
 
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(
         scope,
         network,
@@ -371,7 +377,7 @@ export class SunSwapLiquidityService {
           // initializePool tolerates an existing pool; recheck to avoid using a stale creation price.
           throw new ChainError(
             "pool_already_exists",
-            `V4 pool ${pool.poolId} was initialized while preparing this deposit; run again without --create-pool and --sqrt-price to size it at its current price`,
+            errorMessage`V4 pool ${pool.poolId} was initialized while preparing this deposit; run again without ${inputRef("createPool")} and ${inputRef("sqrtPrice")} to size it at its current price`,
           );
         }
 
@@ -440,7 +446,7 @@ export class SunSwapLiquidityService {
       this.tx.assertCanSign(scope);
     }
 
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -451,7 +457,7 @@ export class SunSwapLiquidityService {
       );
       return { kind: KIND, mode: "dry-run", ...plan, ...priced };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(
         scope,
         network,
@@ -537,13 +543,13 @@ export class SunSwapLiquidityService {
     if (target.kind === "create" && (await this.liquidity.v4PoolState(network, poolId)).exists) {
       throw new ChainError(
         "pool_already_exists",
-        `a V4 pool already exists with currency0 ${target.token0}, currency1 ${target.token1}, fee ${target.fee}, tick spacing ${target.tickSpacing} and hooks ${describeHooks(target.hooks)} (pool id ${poolId}). Deposit into it without --create-pool and --sqrt-price`,
+        errorMessage`a V4 pool already exists with currency0 ${target.token0}, currency1 ${target.token1}, fee ${target.fee}, tick spacing ${target.tickSpacing} and hooks ${describeHooks(target.hooks)} (pool id ${poolId}). Deposit into it without ${inputRef("createPool")} and ${inputRef("sqrtPrice")}`,
       );
     }
     if (target.kind === "existing" && !pool.exists) {
       throw new ChainError(
         "pool_not_found",
-        `no V4 pool exists with currency0 ${target.token0}, currency1 ${target.token1}, fee ${target.fee}, tick spacing ${target.tickSpacing} and hooks ${describeHooks(target.hooks)} — that key hashes to pool id ${poolId}, which nothing has initialised. Check --tick-spacing first: it is part of the pool's identity and is not implied by --fee, so a pool at this fee tier may well exist at a different spacing. 'sunswap pool-list --protocol V4' publishes each pool's tickSpacing and hooks; --create-pool with --sqrt-price makes this one`,
+        errorMessage`no V4 pool exists with currency0 ${target.token0}, currency1 ${target.token1}, fee ${target.fee}, tick spacing ${target.tickSpacing} and hooks ${describeHooks(target.hooks)} — that key hashes to pool id ${poolId}, which nothing has initialised. Check ${inputRef("tickSpacing")} first: it is part of the pool's identity and is not implied by ${inputRef("fee")}, so a pool at this fee tier may well exist at a different spacing. '${followUp("sunswap-pool-list-v4")}' publishes each pool's tickSpacing and hooks; ${inputRef("createPool")} with ${inputRef("sqrtPrice")} makes this one`,
       );
     }
 
@@ -600,25 +606,25 @@ export class SunSwapLiquidityService {
     if (input.recipient !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--recipient is not accepted with --position-id on V4; the position already has a holder",
+        errorMessage`${inputRef("recipient")} is not accepted with ${inputRef("positionId")} on V4; the position already has a holder`,
       );
     }
     if (input.tickLower !== undefined || input.tickUpper !== undefined) {
       throw new UsageError(
         "invalid_option",
-        "--tick-lower and --tick-upper are not accepted with --position-id; a position's range is fixed at birth",
+        errorMessage`${inputRef("tickLower")} and ${inputRef("tickUpper")} are not accepted with ${inputRef("positionId")}; a position's range is fixed at birth`,
       );
     }
     if (input.createPool === true) {
       throw new UsageError(
         "invalid_option",
-        "--create-pool is not accepted with --position-id; the position names its own pool",
+        errorMessage`${inputRef("createPool")} is not accepted with ${inputRef("positionId")}; the position names its own pool`,
       );
     }
     if (input.token0 === undefined || input.token1 === undefined) {
       throw new UsageError(
         "missing_option",
-        "V4 requires --token0 and --token1 as well as --position-id; the pair is checked against the pair the position holds",
+        errorMessage`V4 requires ${inputRef("token0")} and ${inputRef("token1")} as well as ${inputRef("positionId")}; the pair is checked against the pair the position holds`,
       );
     }
 
@@ -627,7 +633,7 @@ export class SunSwapLiquidityService {
     if (input.fee !== undefined && input.fee !== position.fee) {
       throw new UsageError(
         "invalid_value",
-        `--fee ${input.fee} does not match position ${position.tokenId}, which is in a ${position.fee} tier pool`,
+        errorMessage`${inputRef("fee")} ${input.fee} does not match position ${position.tokenId}, which is in a ${position.fee} tier pool`,
       );
     }
 
@@ -691,8 +697,8 @@ export class SunSwapLiquidityService {
 
     // Slippage widens the ceiling upward; narrowing it could reject the deposit.
     const bips = input.slippage === undefined ? 0 : slippageToBips(input.slippage);
-    const amount0Max = raiseBy(plan.amount0, bips);
-    const amount1Max = raiseBy(plan.amount1, bips);
+    const amount0Max = baseUnitAmount(raiseBySlippage(plan.amount0, bips));
+    const amount1Max = baseUnitAmount(raiseBySlippage(plan.amount1, bips));
 
     const permitsNeeded = [
       { token: pool.currency0, amount: amount0Max, facts: facts0 },
@@ -768,7 +774,7 @@ export class SunSwapLiquidityService {
   // Preview grant expiry is independent of the transaction deadline.
   #v4PermitRows(sized: V4Sizing): Partial<LiquidityPlanView> {
     if (sized.permitsNeeded.length === 0) return {};
-    const expiration = String(Math.floor(Date.now() / 1000) + V4_PERMIT_TTL_SECONDS);
+    const expiration = String(Math.floor(Date.now() / 1000) + PERMIT2_GRANT_TTL_SECONDS);
     return {
       permits: sized.permitsNeeded.map((side) => ({
         token: side.token,
@@ -804,7 +810,7 @@ export class SunSwapLiquidityService {
     if (!matches) {
       throw new UsageError(
         "invalid_value",
-        `--token0 ${given[0]} and --token1 ${given[1]} do not match position ${position.tokenId}'s currency order; use --token0 ${held[0]} --token1 ${held[1]} and set --amount0 / --amount1 for the corresponding assets`,
+        errorMessage`${inputRef("token0")} ${given[0]} and ${inputRef("token1")} ${given[1]} do not match position ${position.tokenId}'s currency order; use ${inputRef("token0")} ${held[0]} ${inputRef("token1")} ${held[1]} and set ${inputRef("amount0")} / ${inputRef("amount1")} for the corresponding assets`,
       );
     }
   }
@@ -846,17 +852,17 @@ export class SunSwapLiquidityService {
   }
 
   #v4Range(input: AddLiquidityInput, spacing: number): { tickLower: number; tickUpper: number } {
-    for (const [flag, tick] of [
-      ["--tick-lower", input.tickLower],
-      ["--tick-upper", input.tickUpper],
+    for (const [field, tick] of [
+      ["tickLower", input.tickLower],
+      ["tickUpper", input.tickUpper],
     ] as const) {
       if (tick === undefined) {
         throw new UsageError(
           "missing_option",
-          `${flag} is required when the other is given: half a range is not a range`,
+          errorMessage`${inputRef(field)} is required when the other is given: half a range is not a range`,
         );
       }
-      assertAligned(tick, spacing, flag);
+      assertAligned(tick, spacing, field);
     }
     assertRange(input.tickLower!, input.tickUpper!);
     return { tickLower: input.tickLower!, tickUpper: input.tickUpper! };
@@ -886,7 +892,7 @@ export class SunSwapLiquidityService {
         token: side.token,
         spender,
         amount: baseUnitAmount(side.amount),
-        ttlSeconds: V4_PERMIT_TTL_SECONDS,
+        ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
       });
       if (permit === undefined) continue;
       const now = Math.floor(Date.now() / 1000);
@@ -896,7 +902,7 @@ export class SunSwapLiquidityService {
         permit2: permit.permit2,
         chainId: v4ChainId(network),
         amount: side.amount,
-        notAfter: now + V4_PERMIT_TTL_SECONDS,
+        notAfter: now + PERMIT2_GRANT_TTL_SECONDS,
         now,
       });
       const result = await this.signing.sign(scope, {
@@ -1012,7 +1018,7 @@ export class SunSwapLiquidityService {
     if (transactionRequiresSigner(input)) {
       this.tx.assertCanSign(scope);
     }
-    if (mode.dryRun) {
+    if (mode.mode === "dry-run") {
       const priced = await this.tx.priceWithoutSending(
         scope,
         network,
@@ -1023,7 +1029,7 @@ export class SunSwapLiquidityService {
       );
       return { kind: KIND, mode: "dry-run", ...asPositionPreview(view), ...priced };
     }
-    if (mode.buildOnly) {
+    if (mode.mode === "build-only") {
       const built = await this.tx.buildOnly(
         scope,
         network,
@@ -1325,7 +1331,7 @@ export class SunSwapLiquidityService {
     if (input.token0 === undefined || input.token1 === undefined) {
       throw new UsageError(
         "missing_option",
-        "a new V3 position requires --token0 and --token1; use --position-id to add to an existing one",
+        errorMessage`a new V3 position requires ${inputRef("token0")} and ${inputRef("token1")}; use ${inputRef("positionId")} to add to an existing one`,
       );
     }
     // V3 resolves TRX to WTRX and spends the wrapped token.
@@ -1338,7 +1344,10 @@ export class SunSwapLiquidityService {
       this.tokens.resolve(network, input.token1, RESOLVED),
     );
     if (address0 === address1) {
-      throw new ChainError("same_token", "--token0 and --token1 are the same token");
+      throw new ChainError(
+        "same_token",
+        errorMessage`${inputRef("token0")} and ${inputRef("token1")} are the same token`,
+      );
     }
     const [token0, token1] = await Promise.all([
       this.#facts(network, address0),
@@ -1370,11 +1379,11 @@ export class SunSwapLiquidityService {
       if (input.tickLower === undefined || input.tickUpper === undefined) {
         throw new UsageError(
           "missing_option",
-          "--tick-lower and --tick-upper must be given together",
+          errorMessage`${inputRef("tickLower")} and ${inputRef("tickUpper")} must be given together`,
         );
       }
-      assertAligned(input.tickLower, spacing, "--tick-lower");
-      assertAligned(input.tickUpper, spacing, "--tick-upper");
+      assertAligned(input.tickLower, spacing, "tickLower");
+      assertAligned(input.tickUpper, spacing, "tickUpper");
       assertRange(input.tickLower, input.tickUpper);
       return { tickLower: input.tickLower, tickUpper: input.tickUpper };
     }
@@ -1391,17 +1400,17 @@ export class SunSwapLiquidityService {
     if (input.amount0 === undefined && input.amount1 === undefined) {
       throw new UsageError(
         "missing_option",
-        "this command requires --amount0 or --amount1; give one and the other is derived from the range, or give both",
+        errorMessage`this command requires ${inputRef("amount0")} or ${inputRef("amount1")}; give one and the other is derived from the range, or give both`,
       );
     }
     return {
-      ...(input.amount0 === undefined ? {} : { amount0: base(input.amount0, token0, "--amount0") }),
-      ...(input.amount1 === undefined ? {} : { amount1: base(input.amount1, token1, "--amount1") }),
+      ...(input.amount0 === undefined ? {} : { amount0: base(input.amount0, token0, "amount0") }),
+      ...(input.amount1 === undefined ? {} : { amount1: base(input.amount1, token1, "amount1") }),
     };
   }
 
   #v3Minimum(explicit: string | undefined, facts: TokenFacts): BaseUnits {
-    return explicit === undefined ? baseUnitAmount("0") : base(explicit, facts, "--min");
+    return explicit === undefined ? baseUnitAmount("0") : base(explicit, facts, "min");
   }
 
   // V3 permits funding another owner's position; reject mistyped ids locally.
@@ -1489,7 +1498,10 @@ export class SunSwapLiquidityService {
     const address0 = this.tokens.resolve(network, input.token0, RESOLVED);
     const address1 = this.tokens.resolve(network, input.token1, RESOLVED);
     if (address0 === address1) {
-      throw new ChainError("same_token", "--token0 and --token1 are the same token");
+      throw new ChainError(
+        "same_token",
+        errorMessage`${inputRef("token0")} and ${inputRef("token1")} are the same token`,
+      );
     }
     const [token0, token1] = await Promise.all([
       this.#facts(network, address0),
@@ -1559,8 +1571,8 @@ export class SunSwapLiquidityService {
     pair: V2PairState,
   ): { amount0: BaseUnits; amount1: BaseUnits } {
     const selection = selectAmounts(
-      input.amount0 === undefined ? undefined : base(input.amount0, token0, "--amount0"),
-      input.amount1 === undefined ? undefined : base(input.amount1, token1, "--amount1"),
+      input.amount0 === undefined ? undefined : base(input.amount0, token0, "amount0"),
+      input.amount1 === undefined ? undefined : base(input.amount1, token1, "amount1"),
     );
     if (selection.kind === "both") {
       return {
@@ -1572,7 +1584,7 @@ export class SunSwapLiquidityService {
     if (!pair.exists || pair.totalSupply === "0") {
       throw new ChainError(
         "pool_not_found",
-        "this pool does not exist yet, so there is no ratio to derive the other side from; give both --amount0 and --amount1",
+        errorMessage`this pool does not exist yet, so there is no ratio to derive the other side from; give both ${inputRef("amount0")} and ${inputRef("amount1")}`,
       );
     }
     if (selection.kind === "amount0") {
@@ -1591,7 +1603,7 @@ export class SunSwapLiquidityService {
     if (explicit === undefined) {
       return baseUnitAmount(applyMinimumShare(amount, DEFAULT_V2_MIN_BASIS_POINTS));
     }
-    return base(explicit, facts, "--min");
+    return base(explicit, facts, "min");
   }
 
   async #facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
@@ -1639,8 +1651,8 @@ function keyOf(pool: V4PoolState): V4DepositRequest["pool"] {
   };
 }
 
-function base(human: string, facts: TokenFacts, flag: string): BaseUnits {
-  return baseUnitAmount(toBaseUnits(human, facts.decimals, facts.symbol, flag));
+function base(human: string, facts: TokenFacts, field: string): BaseUnits {
+  return baseUnitAmount(toBaseUnits(human, facts.decimals, facts.symbol, inputRef(field)));
 }
 
 function sideFacts(side: PlannedSide): TokenFacts {
@@ -1684,12 +1696,6 @@ function isNative(address: string): boolean {
 // V2 pools hold WTRX; the router wraps native TRX.
 function poolSideOf(contracts: LiquidityContractAddresses, address: string): string {
   return isNative(address) ? contracts.wtrx : address;
-}
-
-// Slippage widens deposit ceilings upward.
-function raiseBy(amount: BaseUnits, bips: number): BaseUnits {
-  if (bips === 0) return amount;
-  return baseUnitAmount((BigInt(amount) * BigInt(10_000 + bips)) / 10_000n);
 }
 
 // Validate the SDK permit domain against the independent network descriptor.

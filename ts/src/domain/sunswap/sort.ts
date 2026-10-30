@@ -1,5 +1,5 @@
 // Reject unknown sort names: the market API otherwise returns an unsorted list.
-import { UsageError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 
 export const TOKEN_ORDER_BY = { tvl: "reserveUsd", "volume-24h": "volumeUsd1d" } as const;
 
@@ -19,7 +19,7 @@ export function poolSortField(value: string): string {
   if (field === undefined) {
     throw new UsageError(
       "invalid_value",
-      `--order-by must be one of ${Object.keys(POOL_ORDER_BY).join(", ")}`,
+      errorMessage`${inputRef("orderBy")} must be one of ${Object.keys(POOL_ORDER_BY).join(", ")}`,
     );
   }
   return field;
@@ -30,7 +30,7 @@ export function tokenSortField(value: string): string {
   if (field === undefined) {
     throw new UsageError(
       "invalid_value",
-      `--order-by must be one of ${Object.keys(TOKEN_ORDER_BY).join(", ")}`,
+      errorMessage`${inputRef("orderBy")} must be one of ${Object.keys(TOKEN_ORDER_BY).join(", ")}`,
     );
   }
   return field;

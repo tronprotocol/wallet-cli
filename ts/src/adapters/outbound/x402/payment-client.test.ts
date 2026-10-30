@@ -7,6 +7,7 @@ import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
 import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
 const signer = {
   kind: "software",
@@ -128,7 +129,7 @@ describe("X402PaymentClient", () => {
       client.pay(scope, net, {
         url: "https://api.example/paid",
         method: "POST",
-        headers: ["X-Test: yes"],
+        headers: [{ name: "X-Test", value: "yes" }],
         body: "{}",
       }),
     ).resolves.toMatchObject({
@@ -170,7 +171,7 @@ describe("X402PaymentClient", () => {
     expect(paidFetch).not.toHaveBeenCalled();
   });
 
-  it("rejects malformed headers before making a request", async () => {
+  it("rejects a header the x402 client manages before making a request", async () => {
     const factory = vi.fn();
     const client = new X402Service(
       new X402PaymentClient(challengeFetch, factory),
@@ -182,9 +183,9 @@ describe("X402PaymentClient", () => {
       client.pay(scope, net, {
         url: "https://api.example/paid",
         method: "GET",
-        headers: ["not-a-header"],
+        headers: [{ name: "Payment-Signature", value: "forged" }],
       }),
-    ).rejects.toMatchObject({ code: "invalid_value" });
+    ).rejects.toMatchObject({ code: "invalid_option" });
     expect(factory).not.toHaveBeenCalled();
   });
 
@@ -521,7 +522,7 @@ it.each([
     .pay(scope, net, { url: "https://api.example/paid", method: "GET", headers: [] })
     .catch((error) => error);
   expect(error).toMatchObject({ code, details: { paymentStatus, retryPayment: false } });
-  expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  expect(JSON.stringify(errorEnvelope(error))).not.toContain("SECRET");
   expect(paidFetch).toHaveBeenCalledOnce();
 });
 
@@ -572,7 +573,7 @@ it.each(["verify", "settle"])(
       code: "permit2_allowance_required",
       details: { phase, paymentStatus: "unknown", retryPayment: false },
     });
-    expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+    expect(JSON.stringify(errorEnvelope(error))).not.toContain("SECRET");
   },
 );
 
@@ -611,7 +612,7 @@ it("retains safe failed-settlement evidence from the local paywall without marki
       retryPayment: false,
     },
   });
-  expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  expect(JSON.stringify(errorEnvelope(error))).not.toContain("SECRET");
 });
 
 it.each(["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "SECRET"])(
@@ -644,7 +645,7 @@ it.each(["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "SECRET"])(
     });
     if (transportCode === "SECRET") expect(error.details).not.toHaveProperty("transportCode");
     else expect(error.details.transportCode).toBe(transportCode);
-    expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+    expect(JSON.stringify(errorEnvelope(error))).not.toContain("SECRET");
   },
 );
 
@@ -883,3 +884,39 @@ it.each(["preview", "payer-failure", "payment-failure"])(
     }
   },
 );
+
+describe("settlement receipt normalization", () => {
+  const receiptResponse = (receipt: unknown) => async () =>
+    new Response("{}", {
+      status: 200,
+      headers: {
+        "content-type": "application/json",
+        "payment-response": Buffer.from(JSON.stringify(receipt)).toString("base64"),
+      },
+    });
+
+  const ok = { success: true, network: "eip155:56", transaction: "0x" + "a".repeat(64) };
+  it.each([
+    [
+      { ...ok, payer: signer.address, extra: 1 },
+      { ...ok, payer: signer.address },
+    ],
+    [ok, ok],
+    [
+      { ...ok, payer: 123 },
+      { ...ok, payer: "123" },
+    ],
+    [
+      { ...ok, payer: null },
+      { ...ok, payer: "null" },
+    ],
+  ])("reads %j as %j and keeps the raw receipt for display", async (receipt, settlement) => {
+    const resource = await new X402PaymentClient(receiptResponse(receipt) as never).request(
+      scope,
+      net,
+      { url: "https://api.example/free", method: "GET", headers: [] },
+    );
+    expect(resource).toMatchObject({ kind: "response", result: { paymentResponse: receipt } });
+    expect(resource.kind === "response" && resource.result.settlement).toEqual(settlement);
+  });
+});

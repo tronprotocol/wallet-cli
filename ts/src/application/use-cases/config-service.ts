@@ -4,6 +4,7 @@ import { UsageError } from "../../domain/errors/index.js";
 import type {
   ConfigDocument,
   ConfigDocumentRepository,
+  ConfigDocumentValue,
 } from "../ports/config-document-repository.js";
 import {
   CREDENTIAL_VALUE_RULE,
@@ -16,6 +17,7 @@ import {
   OUTPUT_MODES,
   TIMEOUT_MS_RULE,
   WAIT_TIMEOUT_MS_RULE,
+  withNetworkField,
 } from "../../domain/config/index.js";
 
 export const TRONLINK_CONFIG_KEYS = [
@@ -90,15 +92,42 @@ function parseNetworkKey(key: string): NetworkKey | null {
   return key.startsWith("networks.") ? { networkRef: key.slice("networks.".length) } : null;
 }
 
+// Credentials are masked in every view.
+export interface NetworkConfigView {
+  httpEndpoint?: string;
+  apiKeyHeader?: string;
+  apiKey?: string;
+}
+
+export interface ConfigView {
+  defaultNetwork: Config["defaultNetwork"];
+  defaultOutput: Config["defaultOutput"];
+  timeoutMs: Config["timeoutMs"];
+  waitTimeoutMs: Config["waitTimeoutMs"];
+  networks: Record<string, NetworkConfigView>;
+  aliases: Config["aliases"];
+  tronlinkSecretId: string | undefined;
+  tronlinkSecretKey: string | undefined;
+  tronlinkChannel: Config["tronlinkChannel"];
+  gasfreeApiKey: string | undefined;
+  gasfreeApiSecret: string | undefined;
+  baiApiKey: string | undefined;
+}
+
+export type ConfigReadResult = {
+  key: string;
+  value: ConfigView[keyof ConfigView] | NetworkConfigView;
+};
+
+export type ConfigWriteResult = { key: string; value: string | number | undefined; input: string };
+
+export type ConfigResult = ConfigView | ConfigReadResult | ConfigWriteResult;
+
 export class ConfigService {
   constructor(private readonly documents: ConfigDocumentRepository) {}
 
-  execute(
-    input: ConfigCommandInput,
-    effective: Config,
-    networks: NetworkRegistry,
-  ): Record<string, unknown> {
-    const view: Record<ConfigKey, unknown> = {
+  execute(input: ConfigCommandInput, effective: Config, networks: NetworkRegistry): ConfigResult {
+    const view: ConfigView = {
       defaultNetwork: effective.defaultNetwork,
       defaultOutput: effective.defaultOutput,
       timeoutMs: effective.timeoutMs,
@@ -150,7 +179,7 @@ export class ConfigService {
     { networkRef, field }: NetworkKey,
     value: string,
     networks: NetworkRegistry,
-  ): Record<string, unknown> {
+  ): ConfigWriteResult {
     const configurable = assertConfigurableNetworkField(field);
     const id = networks.resolve(networkRef).id;
     const key = `networks.${id}.${configurable}`;
@@ -159,7 +188,6 @@ export class ConfigService {
     const secret = configurable === NETWORK_CREDENTIAL_FIELD;
     return this.documents.update((current) => {
       const existing = (current as { networks?: Record<string, ConfigDocument> }).networks ?? {};
-      // Fold alias entries into the canonical ID; duplicate network keys are invalid.
       const sameNetwork = (candidate: string): boolean => {
         try {
           return networks.resolve(candidate).id === id;
@@ -167,16 +195,16 @@ export class ConfigService {
           return false;
         }
       };
-      const kept: Record<string, ConfigDocument> = {};
-      let folded: ConfigDocument = {};
-      for (const [existingKey, fields] of Object.entries(existing)) {
-        if (sameNetwork(existingKey)) folded = { ...folded, ...fields };
-        else kept[existingKey] = fields;
-      }
       return {
         document: {
           ...current,
-          networks: { ...kept, [id]: { ...folded, [configurable]: normalized } },
+          networks: withNetworkField<ConfigDocumentValue>(
+            existing,
+            id,
+            sameNetwork,
+            configurable,
+            normalized,
+          ),
         },
         result: {
           key,
@@ -222,7 +250,7 @@ function readNetworkField(
   { networkRef, field }: NetworkKey,
   effective: Config,
   networks: NetworkRegistry,
-): Record<string, unknown> {
+): ConfigReadResult {
   const id = networks.resolve(networkRef).id;
   const network = effective.networks[id];
   if (field === undefined) {
@@ -249,7 +277,7 @@ function assertConfigurableNetworkField(field: string | undefined): NetworkConfi
 function networkView(
   network: { httpEndpoint?: string; apiKeyHeader?: string; apiKey?: string },
   full: boolean,
-): Record<string, unknown> {
+): NetworkConfigView {
   const endpoint = network.httpEndpoint;
   return omitUndefined({
     httpEndpoint: endpoint ? (full ? endpoint : endpointHost(endpoint)) : undefined,
@@ -258,8 +286,8 @@ function networkView(
   });
 }
 
-function omitUndefined(value: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined));
+function omitUndefined<T extends object>(value: T): T {
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
 }
 
 function normalizeNetworkValue(field: NetworkConfigField, value: string, key: string): string {

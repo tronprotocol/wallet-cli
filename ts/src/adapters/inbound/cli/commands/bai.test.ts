@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CommandRegistry } from "../registry/index.js";
 import { baiRechargeSpec, registerBaiCommands } from "./bai.js";
 import type { BaiService } from "../../../../application/use-cases/bai-service.js";
+import { errorMessage, followUp } from "../../../../domain/errors/index.js";
 
 function service(): BaiService {
   return {
@@ -126,3 +127,37 @@ it.each(["0", "0.000", "-1", "1e3", "9007199254740992", "1." + "0".repeat(100)])
       });
   },
 );
+
+it("spells the follow-up command in the recharge result's warning and keeps it a string", async () => {
+  const registry = new CommandRegistry();
+  const recharge = vi.fn(async () => ({
+    creditStatus: "unconfirmed",
+    warning: errorMessage`report it again with \`${followUp("bai-report-recharge")}\``,
+    payer: "payer",
+  }));
+  registerBaiCommands(registry, { ...service(), recharge } as unknown as BaiService);
+  const command = registry.resolveChain(["bai", "recharge"])!;
+  const result = await command.families.tron!.run(
+    { config: { baiApiKey: "test-key" } } as never,
+    { id: "tron:728126428", family: "tron" } as never,
+    command.spec.baseFields.parse({ amount: "1" }),
+  );
+  expect(result).toEqual({
+    creditStatus: "unconfirmed",
+    warning: "report it again with `bai report-recharge`",
+    payer: "payer",
+  });
+  expect(Object.keys(result as object)).toEqual(["creditStatus", "warning", "payer"]);
+});
+
+it.each([
+  ["tron", "a".repeat(64), true],
+  ["tron", `0x${"a".repeat(64)}`, false],
+  ["base", `0x${"a".repeat(64)}`, true],
+  ["bnb", "a".repeat(64), false],
+])("checks a %s report hash in that chain's format", (chain, txHash, valid) => {
+  const registry = new CommandRegistry();
+  registerBaiCommands(registry, service());
+  const command = registry.resolveNeutral(["bai", "report-recharge"])!;
+  expect(command.input.safeParse({ chain, txHash }).success).toBe(valid);
+});

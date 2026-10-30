@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { resolveGasLimit } from "./evm-gas-estimate.js";
 import { ChainError } from "../../domain/errors/index.js";
+import { errorEnvelope, exitCodeOf } from "../../adapters/inbound/cli/output/errors.js";
 
 describe("resolveGasLimit", () => {
   it("returns the node's estimate", async () => {
@@ -38,8 +39,10 @@ describe("resolveGasLimit", () => {
     const error = await resolveGasLimit(gateway, { from: "0xabc" }).catch((e) => e);
 
     expect(error.code).toBe("timeout");
-    expect(error.exitCode()).toBe(1);
-    expect(error.message).toMatch(/--gas-limit/);
+    expect(exitCodeOf(error)).toBe(1);
+    expect(errorEnvelope(error).message).toBe(
+      "eth_estimateGas failed: The operation was aborted; pass --gas-limit to proceed without an estimate",
+    );
   });
 
   it("reports an untyped failure as rpc_error rather than letting it be redacted", async () => {
@@ -52,7 +55,7 @@ describe("resolveGasLimit", () => {
     const error = await resolveGasLimit(gateway, { from: "0xabc" }).catch((e) => e);
 
     expect(error.code).toBe("rpc_error");
-    expect(error.exitCode()).toBe(1);
+    expect(exitCodeOf(error)).toBe(1);
     expect(error.message).toContain("insufficient funds");
   });
 
@@ -75,6 +78,11 @@ describe("resolveGasLimit", () => {
       }),
     };
 
-    await expect(resolveGasLimit(gateway, {})).rejects.toThrowError(/--gas-limit/);
+    const error = await resolveGasLimit(gateway, {}).catch((e) => e);
+
+    expect(error.message).toMatch(/pass gasLimit to proceed/);
+    expect(errorEnvelope(error).message).toBe(
+      "the node could not estimate gas for this transaction; pass --gas-limit to proceed without an estimate. The node said: nope",
+    );
   });
 });

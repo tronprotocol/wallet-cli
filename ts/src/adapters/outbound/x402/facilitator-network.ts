@@ -1,11 +1,12 @@
 import { facilitatorUrl } from "./facilitator-url.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { sameX402Network } from "../../../domain/x402/network-id.js";
+import { X402_FAMILIES } from "../../../domain/x402/families.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
 import { sdkPaymentError } from "./payment-error.js";
 
-// Use a TRON network ID advertised by the facilitator.
+// Use the facilitator's own spelling of a network id where peers spell it differently.
 export async function facilitatorNetwork(
   network: NetworkDescriptor,
   scheme: string,
@@ -13,7 +14,7 @@ export async function facilitatorNetwork(
   fetcher: typeof fetch,
   timeoutMs: number,
 ): Promise<string> {
-  if (network.family !== "tron") return network.id;
+  if (!X402_FAMILIES[network.family].peerSpellingVaries) return network.id;
   let response: Response;
   try {
     response = await fetchBounded(

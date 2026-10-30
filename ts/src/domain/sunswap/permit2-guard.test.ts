@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assertPermitAuthorizes, assertSignedBy, type PermitExpectation } from "./permit2-guard.js";
+import {
+  assertPermitAuthorizes,
+  assertSignedBy,
+  PERMIT2_GRANT_TTL_SECONDS,
+  type PermitExpectation,
+} from "./permit2-guard.js";
 
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const UNIVERSAL_ROUTER = "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4";
@@ -221,5 +226,11 @@ describe("the signer", () => {
     expect(() => assertSignedBy(OWNER, OWNER, "PermitBatch")).toThrow(
       /hashed a PermitBatch rather than a PermitSingle/,
     );
+  });
+});
+
+describe("grant lifetime", () => {
+  it("lasts one hour", () => {
+    expect(PERMIT2_GRANT_TTL_SECONDS).toBe(3600);
   });
 });

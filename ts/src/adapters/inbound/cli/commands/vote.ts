@@ -1,15 +1,20 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronVoteService } from "../../../../application/use-cases/tron/vote-service.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
+import {
+  ELECTED_SR_COUNT,
+  MAX_REWARDED_RANK,
+  MAX_VOTE_ITEMS,
+} from "../../../../domain/governance/voting.js";
 
 const voteForField = z
   .array(z.string().min(1))
   .min(1)
-  .max(30)
+  .max(MAX_VOTE_ITEMS)
   .describe(
-    "witness address = vote count (positive integer); repeatable; the set replaces all prior votes (at least 1, at most 30 entries)",
+    `witness address = vote count (positive integer); repeatable; the set replaces all prior votes (at least 1, at most ${MAX_VOTE_ITEMS} entries)`,
   );
 
 export const voteCastSpec: ChainSpec = {
@@ -24,6 +29,7 @@ export const voteCastSpec: ChainSpec = {
     "Cast or replace your FULL vote allocation. The set you pass becomes\n" +
     "your complete voting distribution; any previous SR not listed is set to zero.\n" +
     "Total votes must be at least 1. 1 vote = 1 Tron Power (TP) = 1 staked TRX.",
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     for: voteForField,
     ...txModeFields,
@@ -50,9 +56,9 @@ export const voteListSpec: ChainSpec = {
       .number()
       .int()
       .positive()
-      .max(127)
-      .default(27)
-      .describe("number of ranks to return; max 127"),
+      .max(MAX_REWARDED_RANK)
+      .default(ELECTED_SR_COUNT)
+      .describe(`number of ranks to return; max ${MAX_REWARDED_RANK}`),
     candidates: z.boolean().default(false).describe("include non-elected candidates"),
   }),
   examples: [

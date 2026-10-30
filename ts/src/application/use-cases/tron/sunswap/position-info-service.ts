@@ -2,7 +2,7 @@ import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { TransactionScope } from "../../../contracts/execution-scope.js";
 import type { LiquidityPort, TokenFacts } from "../../../ports/sunswap/liquidity.js";
 import type { MarketDataPort } from "../../../ports/sunswap/market-data.js";
-import { ChainError, UsageError } from "../../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
 import { hasSunSwapMarket } from "../../../services/capability/predicates.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
@@ -79,13 +79,13 @@ export class SunSwapPositionInfoService {
     if (protocol !== "V3" && protocol !== "V4") {
       throw new UsageError(
         "invalid_value",
-        "--protocol must be V3 or V4; a V2, V1, V1_5 or CURVE position is not an NFT and has no id to look up",
+        errorMessage`${inputRef("protocol")} must be V3 or V4; a V2, V1, V1_5 or CURVE position is not an NFT and has no id to look up`,
       );
     }
     if (!/^\d+$/.test(query.positionId.trim())) {
       throw new UsageError(
         "invalid_value",
-        "--position-id must be a non-negative whole number: it is an NFT id, not an address",
+        errorMessage`${inputRef("positionId")} must be a non-negative whole number: it is an NFT id, not an address`,
       );
     }
     const tokenId = query.positionId.trim();

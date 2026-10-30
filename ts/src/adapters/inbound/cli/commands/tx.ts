@@ -8,13 +8,13 @@ import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
 import type { TronSigService } from "../../../../application/use-cases/tron/sig-service.js";
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
-import type { TransactionArtifactWriter } from "../../../../application/ports/transaction-artifact-writer.js";
 import { Schemas, addressFieldsFor } from "../schemas/index.js";
-import { tronTxModeFields, txModeFields, unifiedAmountFields } from "./shared.js";
+import { tronTxModeFields, txModeFields, unifiedAmountFields, txModeExclusive } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 import { exactlyOne, readBoundedTextFile } from "./artifact.js";
 import { txHashInputPattern } from "../../../../domain/family/index.js";
 import { sunAmount } from "../../../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
 
 const sendFields = z.object({
   to: z
@@ -53,6 +53,7 @@ export const txSendSpec: ChainSpec = {
       flags: ["token", "contract", "asset-id"],
       select: "at-most-one",
     },
+    txModeExclusive,
   ],
   examples: [
     { cmd: "wallet-cli tx send --to T... --amount 1 --network nile" },
@@ -71,7 +72,7 @@ const tronSendFields = z.object({
     .optional()
     .describe("TRC10 numeric asset id; omit with --contract for native TRX"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe("maximum TRX energy fee to burn for TRC20 transfers, in SUN"),
   ...tronTxModeFields,
 });
@@ -110,16 +111,8 @@ function evmHexOnly(
   return hexInput(input);
 }
 
-export const txSignEvmBinding = (
-  svc: EvmTransactionService,
-  writer: TransactionArtifactWriter,
-): FamilyBinding => ({
-  run: async (ctx, net, input) => {
-    const result = await svc.sign(ctx, net, evmHexOnly(input));
-    if (!input.out) return result;
-    writer.write(input.out, result.signed.raw);
-    return { ...result, out: input.out };
-  },
+export const txSignEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
+  run: async (ctx, net, input) => svc.sign(ctx, net, evmHexOnly(input), input.out),
 });
 
 export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
@@ -309,7 +302,6 @@ export const txSignSpec: ChainSpec = {
 export const txSignTronBinding = (
   signingService: TronSigService,
   multisigService: TronMultisigService,
-  writer: TransactionArtifactWriter,
 ): FamilyBinding => ({
   fields: tronSignFields,
   refine: (input, context) => {
@@ -331,12 +323,9 @@ export const txSignTronBinding = (
   run: async (ctx, net, input) => {
     if (!input.transaction) {
       const hex = hexInput(input);
-      const result = input.offline
-        ? await signingService.sign(ctx, net, hex, { origin: "offline" })
-        : await multisigService.signChecked(ctx, net, hex);
-      if (!input.out) return result;
-      writer.write(input.out, result.hex);
-      return { ...result, out: input.out };
+      return input.offline
+        ? signingService.sign(ctx, net, hex, { origin: "offline" }, input.out)
+        : multisigService.signChecked(ctx, net, hex, input.out);
     }
     if (input.out)
       throw new UsageError("invalid_option", "--out is only valid with --hex or --file");

@@ -3,7 +3,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
 
 const NET: NetworkDescriptor = {
@@ -29,7 +29,7 @@ function createService(gateway: Partial<TronGateway>) {
   const assertCanSign = vi.fn();
   const pipeline = {
     assertCanSign,
-    run: async (params: TxPipelineParams) => {
+    runTron: async (params: TronTxPipelineParams) => {
       await params.build(OWNER);
       return { stage: "submitted", txId: "tx-witness", feeSun: 0 } as never;
     },

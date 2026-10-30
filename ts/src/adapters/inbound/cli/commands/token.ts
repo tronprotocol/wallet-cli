@@ -24,11 +24,7 @@ const evmSelector = {
 
 const tronSelector = {
   fields: z.object({
-    assetId: z
-      .string()
-      .regex(/^\d+$/)
-      .optional()
-      .describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
+    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 numeric asset id"),
   }),
   refine: addressFieldsFor("tron", "contract"),
 };

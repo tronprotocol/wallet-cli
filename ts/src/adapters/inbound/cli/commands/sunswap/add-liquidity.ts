@@ -1,6 +1,7 @@
 import { z, type RefinementCtx } from "zod";
 import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import { CliError } from "../../../../../domain/errors/index.js";
+import { cliMessage, exitCodeOf } from "../../output/errors.js";
 import { resolveV4Pool } from "../../../../../domain/sunswap/v4-pool.js";
 import {
   liquidityProtocolOf,
@@ -9,8 +10,9 @@ import {
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
 import type { SunSwapLiquidityService } from "../../../../../application/use-cases/tron/sunswap/liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
-import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { sunAmount } from "../../../../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../../domain/fees/tron.js";
 
 const fields = z.object({
   // Do not use txModeFields: this command does not support sign-only.
@@ -110,7 +112,7 @@ const fields = z.object({
       "tolerance on the deposit CEILING, e.g. 0.005; default none, so the ceiling is exactly the computed amounts (V4 only)",
     ),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe(
       "maximum energy fee to burn, in SUN; the dry run's estimate is a lower bound, so a limit set from it can fail",
     ),
@@ -172,7 +174,7 @@ function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void
   } catch (error) {
     // Rethrow exit-1 domain errors: schema issues preserve only usage codes.
     // Keep any earlier validation refusal first.
-    if (error instanceof CliError && error.exitCode() === 1) {
+    if (error instanceof CliError && exitCodeOf(error) === 1) {
       if (ctx.issues.length === 0) throw error;
       return;
     }
@@ -214,12 +216,15 @@ function refuseV4IncreaseFlags(value: Record<string, unknown>, ctx: RefinementCt
 }
 
 function flagFrom(error: unknown): string | undefined {
-  const named = /--([a-z0-9-]+)/.exec(messageOf(error))?.[1];
-  if (named === undefined) return undefined;
-  return named.replace(/-([a-z])/g, (_all, letter: string) => letter.toUpperCase());
+  if (!(error instanceof CliError)) return undefined;
+  for (const part of error.parts) {
+    if (typeof part === "object" && "input" in part) return part.input;
+  }
+  return undefined;
 }
 
 function messageOf(error: unknown): string {
+  if (error instanceof CliError) return cliMessage(error.userMessage).message;
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -329,6 +334,7 @@ export const sunswapAddLiquiditySpec: ChainSpec = {
     "'sunswap position-list' is mainnet-only and cannot tell you afterwards on Nile.\n\n" +
     "--dry-run validates everything — balances, the pool, the amounts, the allowances — without a\n" +
     "password, and works for a watch-only account.",
+  exclusive: [unsignedTxModeExclusive],
   baseFields: fields,
   // Reject unsupported flags before validating recipient addresses.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),

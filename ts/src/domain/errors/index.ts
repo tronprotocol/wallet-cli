@@ -1,10 +1,68 @@
-import type { ExitCode } from "../types/primitives.js";
-import { ERROR_CODES, type ErrorCodeEntry } from "./codes.js";
+// An input named by its field; the inbound adapter spells it for its own interface.
+export interface InputRef {
+  readonly input: string;
+}
 
-// Separates trusted layout from escaped external values.
-interface ErrorMessage {
+// A next step the user can take; the inbound adapter names the command that performs it.
+export type FollowUp =
+  | "account-list"
+  | "asset-info"
+  | "bai-report-recharge"
+  | "gasfree-trace"
+  | "keystore-backup"
+  | "proposal-list"
+  | "sunswap-pool-list-v4"
+  | "sunswap-position-list"
+  | "sunswap-swap"
+  | "token-add";
+
+export interface FollowUpRef {
+  readonly followUp: FollowUp;
+  readonly subject?: string;
+}
+
+// Authored layout, an external value (with its text rendering when already composed), or a
+// reference the inbound adapter spells.
+export type MessagePart =
+  string | { readonly value: string; readonly text?: string } | InputRef | FollowUpRef;
+
+// Separates trusted layout from escaped external values. `message` names inputs by field;
+// `parts`, when present, lets the inbound adapter spell the references for its interface.
+export interface UserMessage {
   readonly message: string;
   readonly textMessage: string;
+  readonly parts?: readonly MessagePart[];
+}
+
+export function inputRef(field: string): InputRef {
+  return { input: field };
+}
+
+export function followUp(step: FollowUp, subject?: string): FollowUpRef {
+  return subject === undefined ? { followUp: step } : { followUp: step, subject };
+}
+
+function isInputRef(value: unknown): value is InputRef {
+  return (
+    typeof value === "object" && value !== null && typeof (value as InputRef).input === "string"
+  );
+}
+
+function isFollowUpRef(value: unknown): value is FollowUpRef {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as FollowUpRef).followUp === "string"
+  );
+}
+
+export function isUserMessage(value: unknown): value is UserMessage {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as UserMessage).message === "string" &&
+    typeof (value as UserMessage).textMessage === "string"
+  );
 }
 
 // Escapes line separators before composing text output.
@@ -16,42 +74,72 @@ export function singleLineErrorValue(value: string): string {
   });
 }
 
-// Escapes interpolated line separators for text output; preserves raw values for JSON.
-export function errorMessage(strings: TemplateStringsArray, ...values: unknown[]): ErrorMessage {
-  let message = strings[0]!;
-  let textMessage = message;
-  for (const [index, value] of values.entries()) {
-    const raw = String(value);
-    const literal = strings[index + 1]!;
-    message += raw + literal;
-    textMessage += singleLineErrorValue(raw) + literal;
+// External values are escaped only when `escape` is set.
+export function renderMessageParts(
+  parts: readonly MessagePart[],
+  spell: (ref: InputRef | FollowUpRef) => string,
+  escape: boolean,
+): string {
+  let out = "";
+  for (const part of parts) {
+    if (typeof part === "string") out += part;
+    else if ("value" in part)
+      out += escape ? (part.text ?? singleLineErrorValue(part.value)) : part.value;
+    else out += spell(part);
   }
-  return { message, textMessage };
+  return out;
+}
+
+function neutralSpelling(ref: InputRef | FollowUpRef): string {
+  if ("input" in ref) return ref.input;
+  return ref.subject === undefined ? ref.followUp : `${ref.followUp} ${ref.subject}`;
+}
+
+function userMessage(parts: readonly MessagePart[]): UserMessage {
+  return {
+    message: renderMessageParts(parts, neutralSpelling, false),
+    textMessage: renderMessageParts(parts, neutralSpelling, true),
+    parts,
+  };
+}
+
+function partsOf(message: UserMessage): readonly MessagePart[] {
+  return message.parts ?? [{ value: message.message, text: message.textMessage }];
+}
+
+// Escapes interpolated line separators for text output; preserves raw values for JSON.
+// Input and follow-up references and nested messages stay structured.
+export function errorMessage(strings: TemplateStringsArray, ...values: unknown[]): UserMessage {
+  const parts: MessagePart[] = [strings[0]!];
+  for (const [index, value] of values.entries()) {
+    if (isInputRef(value) || isFollowUpRef(value)) parts.push(value);
+    else if (isUserMessage(value)) parts.push(...partsOf(value));
+    else parts.push({ value: String(value) });
+    parts.push(strings[index + 1]!);
+  }
+  return userMessage(parts.filter((part) => part !== ""));
 }
 
 export abstract class CliError extends Error {
   abstract readonly kind: "usage" | "execution";
   readonly textMessage: string;
+  // Empty when the message has no references to spell.
+  readonly parts: readonly MessagePart[];
   constructor(
     public readonly code: string,
-    message: string | ErrorMessage,
+    message: string | UserMessage,
     public readonly details?: object,
   ) {
     super(typeof message === "string" ? message : message.message);
     this.textMessage = typeof message === "string" ? message : message.textMessage;
+    this.parts = typeof message === "string" ? [] : (message.parts ?? []);
     this.name = new.target.name;
   }
-  // The registry sets the exit code; unknown or "either" entries fall back to the class.
-  exitCode(): ExitCode {
-    const table = ERROR_CODES as Record<string, ErrorCodeEntry | undefined>;
-    const declared = table[this.code]?.exit;
-    if (declared === 1 || declared === 2) return declared;
-    return this.kind === "usage" ? 2 : 1;
-  }
-  toEnvelope(): { code: string; message: string; details?: object } {
-    return this.details === undefined
-      ? { code: this.code, message: this.message }
-      : { code: this.code, message: this.message, details: this.details };
+  // The message with its references kept structured, for composing another error.
+  get userMessage(): UserMessage {
+    return this.parts.length === 0
+      ? { message: this.message, textMessage: this.textMessage }
+      : { message: this.message, textMessage: this.textMessage, parts: this.parts };
   }
 }
 
@@ -66,9 +154,6 @@ export class TransportError extends ExecutionError {}
 export class ChainError extends ExecutionError {}
 export class WalletError extends ExecutionError {}
 
-const YARGS_USAGE =
-  /Not enough non-option arguments|Missing required argument|Unknown argument|Invalid values|Did you mean|Not enough arguments|Too many non-option/i;
-
 // Redact unrecognized errors so library messages cannot expose secrets.
 export function classifyError(e: unknown): CliError {
   if (e instanceof CliError) return e;
@@ -78,12 +163,5 @@ export function classifyError(e: unknown): CliError {
       "operation aborted (timed out waiting for the device or network)",
     );
   }
-  if (e instanceof Error && YARGS_USAGE.test(e.message)) {
-    return new UsageError("usage_error", e.message);
-  }
   return new ExecutionError("internal_error", "an unexpected internal error occurred");
-}
-
-export function normalizeError(e: unknown): CliError {
-  return classifyError(e);
 }

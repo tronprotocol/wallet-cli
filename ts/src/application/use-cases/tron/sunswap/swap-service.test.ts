@@ -191,7 +191,7 @@ function makeHarness(
   };
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (p: PipelineParams) => {
+    runTron: vi.fn(async (p: PipelineParams) => {
       const tx = (await p.build(OWNER)) as { txID: string };
       const fee = await p.estimate(tx);
       if (p.mode === "dry-run") return { stage: "plan", tx, fee };
@@ -795,7 +795,7 @@ describe("sending a router swap", () => {
 
   it("says the Permit2 allowance outlives a swap that failed on chain", async () => {
     const harness = sending();
-    const run = vi.mocked(harness.pipeline.run);
+    const run = vi.mocked(harness.pipeline.runTron);
     const confirm = run.getMockImplementation()!;
     run.mockImplementation(async (params) => {
       const outcome = (await confirm(params)) as unknown as Record<string, unknown>;
@@ -1075,7 +1075,7 @@ describe("balances on a router swap", () => {
       expect(h.permits.planPermit).not.toHaveBeenCalled();
       expect(h.liquidity.allowance).not.toHaveBeenCalled();
       expect(withApprovals).not.toHaveBeenCalled();
-      expect(h.pipeline.run).not.toHaveBeenCalled();
+      expect(h.pipeline.runTron).not.toHaveBeenCalled();
     } finally {
       withApprovals.mockRestore();
     }
@@ -1098,7 +1098,7 @@ describe("balances on a router swap", () => {
         message: "this swap spends 1000000 SUN and the account holds 5",
       });
       expect(h.routerExec.buildSwapCall).not.toHaveBeenCalled();
-      expect(h.pipeline.run).not.toHaveBeenCalled();
+      expect(h.pipeline.runTron).not.toHaveBeenCalled();
     },
   );
 
@@ -1112,7 +1112,7 @@ describe("balances on a router swap", () => {
       h.service.swap(h.scope, NETWORK, { tokenIn, tokenOut, amountIn: "1", dryRun: true }),
     ).rejects.toMatchObject({ code: "account_not_active" });
     expect(h.permits.planPermit).not.toHaveBeenCalled();
-    expect(h.pipeline.run).not.toHaveBeenCalled();
+    expect(h.pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("goes ahead when the balance covers the trade exactly", async () => {
