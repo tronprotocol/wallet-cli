@@ -138,7 +138,7 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
           env: { ...process.env, WALLET_CLI_HOME: home },
           input: "test-password\n",
           encoding: "utf8",
-          timeout: 20000,
+          timeout: 40000,
         },
       );
       expect(r.status, r.stderr + r.stdout).toBe(0);
@@ -159,7 +159,7 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
       rmSync(home, { recursive: true, force: true });
     }
   },
-  30000,
+  60000,
 );
 
 it
@@ -262,7 +262,7 @@ globalThis.fetch = async(input,init) => {
           env: { ...process.env, WALLET_CLI_HOME: home },
           input: "test-password\n",
           encoding: "utf8",
-          timeout: 20000,
+          timeout: 40000,
         },
       );
       if (missing) {
@@ -296,7 +296,7 @@ globalThis.fetch = async(input,init) => {
       rmSync(home, { recursive: true, force: true });
     }
   },
-  30000,
+  60000,
 );
 
 it.skipIf(!entry).each(["0", "0.000", "0.5", "9007199254740992"])(

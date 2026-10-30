@@ -9,3 +9,5 @@ docs/qa
 docs/adr
 CONTEXT.md
 .boundary
+audit-claude/
+.codegraph/

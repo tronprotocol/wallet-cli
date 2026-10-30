@@ -22,3 +22,9 @@ graphify-out/
 # Scoped registry credentials for the private @sun-sdk packages; local-only until the SDK
 # is published to public npm (see ts/docs/superpowers/specs, D6).
 ts/.npmrc
+
+# Codex
+.codex/
+
+# MCP
+.mcp.json
