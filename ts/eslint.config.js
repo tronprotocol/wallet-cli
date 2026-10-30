@@ -1,6 +1,7 @@
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
+import closedPortTypes from "./eslint-rules/closed-port-types.mjs";
 import environmentReads from "./eslint-rules/environment-reads.mjs";
 
 export default tseslint.config(
@@ -41,8 +42,24 @@ export default tseslint.config(
     },
   },
   {
-    plugins: { "wallet-cli": { rules: { "environment-reads": environmentReads } } },
+    plugins: {
+      "wallet-cli": {
+        rules: { "closed-port-types": closedPortTypes, "environment-reads": environmentReads },
+      },
+    },
     rules: { "wallet-cli/environment-reads": "error" },
+  },
+  {
+    files: [
+      "src/application/ports/**/*.ts",
+      "src/application/contracts/**/*.ts",
+      "src/domain/types/**/*.ts",
+    ],
+    ignores: ["**/*.test.ts"],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: { "wallet-cli/closed-port-types": "error" },
   },
   {
     files: [

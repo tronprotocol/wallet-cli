@@ -112,12 +112,14 @@ second definition of a command's arguments exists. **test**: every registered co
 
 ## 3. Ports
 
-3.1 Port types are closed: no index signatures, no `unknown`, no `Record<string, unknown>`, and no alias that
-resolves to one of them (such as `UnsignedTx = unknown`), crossing a port toward the inside. A map keyed by an
-identifier (`Record<Id, T>`, `Map<Id, T>`) is closed when `T` is. This covers `application/ports`,
-`application/contracts`, and `domain/types`. Data passed through for display uses the named raw type of 3.2.
-Values that inner layers send outward, such as contract call arguments or a document to write, are outside
-3.1; a payload sent to be signed is closed by the sign request of 6.4. **lint**.
+3.1 Port types are closed: no `unknown`, no `any`, and no alias that resolves to one of them (such as
+`UnsignedTx = unknown` or `Record<string, unknown>`), crossing a port toward the inside. This covers
+`application/ports`, `application/contracts`, and `domain/types`. A JSON-shaped type whose values are concrete
+(strings, numbers, booleans, null, and arrays or objects of them) may carry data passed through for display;
+inner layers do not read its fields to derive a fact (3.2). Values that inner layers send outward, such as
+contract call arguments or a document to write, are outside 3.1; a payload sent to be signed is closed by the
+sign request of 6.4. **lint** for `unknown`, `any`, and aliases to them; **review** for reads of pass-through
+data.
 
 3.2 Outbound adapters normalize external facts into port types once. Inner layers do not read raw node, SDK, or
 wire fields to derive a fact. This covers at least: transaction execution result, decoded token and account
@@ -249,4 +251,4 @@ the registry against the contract.
 ## Review-only rules
 
 Check these in every review until they are automated: 2.1, 2.2, 3.4, 4.2, 5.2, and the review parts of 1.9,
-3.2, 3.5, 3.6, 5.1, 6.3, 6.4, and 7.1.
+3.1, 3.2, 3.5, 3.6, 5.1, 6.3, 6.4, and 7.1.

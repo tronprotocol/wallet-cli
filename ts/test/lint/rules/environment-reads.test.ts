@@ -26,6 +26,7 @@ beforeAll(() => {
     "eslint.config.js",
     "package.json",
     "scripts/lint.mjs",
+    "eslint-rules/closed-port-types.mjs",
     "eslint-rules/environment-reads.mjs",
   ]) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
