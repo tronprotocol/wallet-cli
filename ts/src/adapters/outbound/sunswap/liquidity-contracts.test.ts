@@ -3,7 +3,7 @@ import { AbiCoder, Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
 import { parseTronTxInfo } from "../chain/tron/tron-responses.js";
-import { readPosition } from "../../../application/use-cases/tron/sunswap/position-read.js";
+import { readPosition } from "../../../application/use-cases/sunswap/position-read.js";
 
 const sqrtAt = (tick: number): string => TickMath.getSqrtRatioAtTick(tick).toString();
 const TICK_SQRT = sqrtAt(-85);

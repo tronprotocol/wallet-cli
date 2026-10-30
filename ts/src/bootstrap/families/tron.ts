@@ -180,16 +180,16 @@ import type { RouterPort } from "../../application/ports/sunswap/router.js";
 import type { RouterExecutionPort } from "../../application/ports/sunswap/router-execution.js";
 import type { Permit2Port } from "../../application/ports/sunswap/permit2.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
-import { GasFreeService } from "../../application/use-cases/tron/gasfree-service.js";
-import { SunSwapMarketQueryService } from "../../application/use-cases/tron/sunswap/market-query-service.js";
-import { SunSwapLiquidityService } from "../../application/use-cases/tron/sunswap/liquidity-service.js";
-import { SunSwapRemoveLiquidityService } from "../../application/use-cases/tron/sunswap/remove-liquidity-service.js";
-import { SunSwapCollectFeesService } from "../../application/use-cases/tron/sunswap/collect-fees-service.js";
-import { SunSwapPositionInfoService } from "../../application/use-cases/tron/sunswap/position-info-service.js";
-import { SunPumpCurveTradeService } from "../../application/use-cases/tron/sunpump/curve-trade-service.js";
-import { SunPumpMarketQueryService } from "../../application/use-cases/tron/sunpump/market-query-service.js";
-import { SunPumpTokenLaunchService } from "../../application/use-cases/tron/sunpump/token-launch-service.js";
-import { SunSwapSwapService } from "../../application/use-cases/tron/sunswap/swap-service.js";
+import { GasFreeService } from "../../application/use-cases/gasfree/gasfree-service.js";
+import { SunSwapMarketQueryService } from "../../application/use-cases/sunswap/market-query-service.js";
+import { SunSwapLiquidityService } from "../../application/use-cases/sunswap/liquidity-service.js";
+import { SunSwapRemoveLiquidityService } from "../../application/use-cases/sunswap/remove-liquidity-service.js";
+import { SunSwapCollectFeesService } from "../../application/use-cases/sunswap/collect-fees-service.js";
+import { SunSwapPositionInfoService } from "../../application/use-cases/sunswap/position-info-service.js";
+import { SunPumpCurveTradeService } from "../../application/use-cases/sunpump/curve-trade-service.js";
+import { SunPumpMarketQueryService } from "../../application/use-cases/sunpump/market-query-service.js";
+import { SunPumpTokenLaunchService } from "../../application/use-cases/sunpump/token-launch-service.js";
+import { SunSwapSwapService } from "../../application/use-cases/sunswap/swap-service.js";
 import {
   sunswapSwapSpec,
   sunswapSwapTronBinding,
@@ -218,7 +218,7 @@ import {
   sunpumpLaunchSpec,
   sunpumpLaunchTronBinding,
 } from "../../adapters/inbound/cli/commands/sunpump/launch.js";
-import { SunSwapTokenResolver } from "../../application/services/sunswap-token-resolver.js";
+import { SunSwapTokenResolver } from "../../application/services/sunswap/sunswap-token-resolver.js";
 import {
   sunswapPriceSpec,
   sunswapPriceTronBinding,

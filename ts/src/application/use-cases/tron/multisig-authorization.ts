@@ -1,9 +1,9 @@
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { decodeOperations } from "../../../domain/permission/index.js";
+import { decodeOperations } from "../../../domain/tron/permission/index.js";
 import { MAX_TRON_EXPIRATION_MS } from "../../../domain/transaction/index.js";
 import { addressCodec } from "../../../domain/family/index.js";
-import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronSignWeight } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerAuthorization } from "../../services/pipeline/index.js";
 import { assertNotExpired, transactionContract } from "./transaction-artifact.js";
 

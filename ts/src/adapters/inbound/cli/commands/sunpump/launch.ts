@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { RefinementCtx } from "zod";
 import { readFile } from "node:fs/promises";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
-import type { SunPumpLaunchImage } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
+import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/sunpump/token-launch-service.js";
+import type { SunPumpLaunchImage } from "../../../../../application/use-cases/sunpump/token-launch-service.js";
 import { errorMessage, UsageError } from "../../../../../domain/errors/index.js";
 import { TextFormatters } from "../../render/index.js";
 

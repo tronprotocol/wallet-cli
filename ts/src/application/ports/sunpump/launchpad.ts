@@ -3,7 +3,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type {
   ApprovalCapablePort,
   ContractCallPayload,
-} from "../../contracts/tron-contract-call.js";
+} from "../../contracts/tron/tron-contract-call.js";
 import type { LaunchpadState } from "../../../domain/sunpump/curve.js";
 import type { BaseUnits, Sun } from "../../../domain/amounts/index.js";
 

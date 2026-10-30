@@ -1,8 +1,8 @@
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
-import { chainParameterByName } from "../../../domain/governance/chain-parameters.js";
+import { chainParameterByName } from "../../../domain/tron/governance/chain-parameters.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronPricePoint } from "../../ports/chain/tron-gateway.js";
+import type { TronPricePoint } from "../../ports/chain/tron/tron-gateway.js";
 
 // Nine seconds is about three TRON block intervals.
 const IN_SYNC_WINDOW_MS = 9_000;

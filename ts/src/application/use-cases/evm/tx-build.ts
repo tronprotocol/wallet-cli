@@ -3,11 +3,11 @@ import type {
   EvmUnsignedTx,
   NetworkDescriptor,
 } from "../../../domain/types/index.js";
-import { planEvmFee } from "../../../domain/fees/evm-gas.js";
+import { planEvmFee } from "../../../domain/evm/evm-gas.js";
 import { ChainError, UsageError, type UserMessage } from "../../../domain/errors/index.js";
 import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
-import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
-import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
+import { resolveGasLimit } from "../../services/evm/evm-gas-estimate.js";
+import type { EvmGateway } from "../../ports/chain/evm/evm-gateway.js";
 import type { Wei } from "../../../domain/amounts/index.js";
 
 export interface EvmGasInput {

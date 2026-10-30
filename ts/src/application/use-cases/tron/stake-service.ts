@@ -8,10 +8,10 @@ import {
   MAX_UNFREEZING_ENTRIES,
   toRpcCode,
   type Resource,
-} from "../../../domain/resources/index.js";
+} from "../../../domain/tron/resources/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway, TronStakeTotals } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronStakeTotals } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -19,7 +19,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import { readVotingPower, votingPowerView, type VotingPowerView } from "./voting-power.js";
 

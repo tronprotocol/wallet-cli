@@ -4,14 +4,14 @@ import {
   parseChainParameterAssignments,
   proposalParameters,
   type ChainParameterChange,
-} from "../../../domain/governance/chain-parameters.js";
-import { proposalApprovalThreshold } from "../../../domain/governance/voting.js";
+} from "../../../domain/tron/governance/chain-parameters.js";
+import { proposalApprovalThreshold } from "../../../domain/tron/governance/voting.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway, TronProposal } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronProposal } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import {
   governanceTransactionMode,

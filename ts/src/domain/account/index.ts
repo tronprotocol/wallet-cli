@@ -1,5 +1,5 @@
 import { errorMessage, inputRef, UsageError } from "../errors/index.js";
-import { utf8ByteLength } from "../governance/limits.js";
+import { utf8ByteLength } from "../tron/governance/limits.js";
 
 export type AccountTextKind = "name" | "id";
 

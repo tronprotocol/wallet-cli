@@ -1,12 +1,12 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
-import { percent, witnessUrl } from "../../../domain/governance/limits.js";
+import { percent, witnessUrl } from "../../../domain/tron/governance/limits.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { outcomeData, type TxOutcomeView } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import {
   governanceTransactionMode,

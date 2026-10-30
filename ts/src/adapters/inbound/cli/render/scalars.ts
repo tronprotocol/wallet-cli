@@ -1,6 +1,6 @@
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import { FAMILIES } from "../../../../domain/family/index.js";
-import { GWEI_DECIMALS } from "../../../../domain/fees/evm-gas.js";
+import { GWEI_DECIMALS } from "../../../../domain/evm/evm-gas.js";
 
 export function formatScalar(v: unknown): string {
   if (v === null || v === undefined) return "";

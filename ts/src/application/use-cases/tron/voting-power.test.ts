@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import { readVotingPower } from "./voting-power.js";
 
 describe("readVotingPower", () => {

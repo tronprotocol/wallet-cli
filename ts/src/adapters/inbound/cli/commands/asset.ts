@@ -4,7 +4,7 @@ import type { TronAssetService } from "../../../../application/use-cases/tron/as
 import { txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
-import { TRC10_MAX_PRECISION } from "../../../../domain/asset/index.js";
+import { TRC10_MAX_PRECISION } from "../../../../domain/tron/asset/index.js";
 
 const LEDGER_NOTE =
   "The Ledger TRON app cannot decode TRC10 issuance contracts, so this command needs a software account.";

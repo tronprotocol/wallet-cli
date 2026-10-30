@@ -7,7 +7,7 @@ import {
   MAX_PERCENT,
   utf8ByteLength,
   WITNESS_URL_MAX_BYTES,
-} from "../../../../domain/governance/limits.js";
+} from "../../../../domain/tron/governance/limits.js";
 
 const witnessUrl = z
   .string()

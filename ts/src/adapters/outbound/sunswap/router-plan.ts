@@ -15,7 +15,7 @@ import type {
   Permit2Plan,
   Permit2Port,
 } from "../../../application/ports/sunswap/permit2.js";
-import type { ContractParameter } from "../../../application/contracts/tron-contract-call.js";
+import type { ContractParameter } from "../../../application/contracts/tron/tron-contract-call.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";

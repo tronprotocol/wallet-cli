@@ -11,7 +11,7 @@ import type {
   TronHistoryReader as HistoryPort,
   TronHistoryRecord,
   TronHistoryResult,
-} from "../../../../application/ports/chain/tron-history-reader.js";
+} from "../../../../application/ports/chain/tron/tron-history-reader.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import {
   FetchHttpTransport,

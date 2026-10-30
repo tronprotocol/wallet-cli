@@ -9,10 +9,10 @@ import {
   slippageFloor,
   splitPair,
   tokenIdLabel,
-} from "../../../domain/exchange/index.js";
+} from "../../../domain/tron/exchange/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronExchange, TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronExchange, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -21,7 +21,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 

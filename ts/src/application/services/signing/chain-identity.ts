@@ -5,7 +5,7 @@ import type {
 } from "../../../domain/types/index.js";
 import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import { parseChainId } from "../../../domain/family/chain-id.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 
 function mismatch(subject: string, declared: string, network: NetworkDescriptor): ChainError {
   return new ChainError(

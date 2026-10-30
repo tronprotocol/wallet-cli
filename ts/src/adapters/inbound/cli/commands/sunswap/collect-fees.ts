@@ -1,7 +1,7 @@
 import { z, type RefinementCtx } from "zod";
 import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapCollectFeesService } from "../../../../../application/use-cases/tron/sunswap/collect-fees-service.js";
+import type { SunSwapCollectFeesService } from "../../../../../application/use-cases/sunswap/collect-fees-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { sunAmount } from "../../../../../domain/amounts/index.js";

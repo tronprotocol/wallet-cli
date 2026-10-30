@@ -2,7 +2,7 @@ import type { NetworkDescriptor, TokenEntry } from "../../../domain/types/index.
 import { ExecutionError } from "../../../domain/errors/index.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 
 export interface TokenSelector {

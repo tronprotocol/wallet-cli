@@ -266,7 +266,7 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
 });
 
 import { tronTransactionHooks } from "../../use-cases/tron/multisig-authorization.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
 
 describe("TRON signing lifetime", () => {

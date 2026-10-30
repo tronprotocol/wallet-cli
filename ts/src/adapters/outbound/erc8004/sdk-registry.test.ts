@@ -1,11 +1,9 @@
 import { AbiCoder, Interface, id, toBeHex, zeroPadValue } from "ethers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
-import type {
-  ChainGatewayProvider,
-  EvmGateway,
-} from "../../../application/ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../../application/ports/chain/tron-gateway.js";
+import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
+import type { EvmGateway } from "../../../application/ports/chain/evm/evm-gateway.js";
+import type { TronGateway } from "../../../application/ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { SdkAgentRegistry } from "./sdk-registry.js";
 

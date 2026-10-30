@@ -1,4 +1,4 @@
-import type { DeployConstructorArgs } from "../ports/chain/gateway-provider.js";
+import type { DeployConstructorArgs } from "../ports/chain/evm/evm-gateway.js";
 import type { Wei } from "../../domain/amounts/index.js";
 
 export type ApprovalKind = "erc721";

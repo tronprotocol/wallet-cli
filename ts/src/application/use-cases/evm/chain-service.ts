@@ -1,5 +1,5 @@
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
-import { evmFeeMode } from "../../../domain/fees/evm-gas.js";
+import { evmFeeMode } from "../../../domain/evm/evm-gas.js";
 import { NATIVE_TRANSFER_GAS, nativeTransferCostWei } from "../../../domain/evm/index.js";
 import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
 import { ChainError } from "../../../domain/errors/index.js";

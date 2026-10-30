@@ -13,7 +13,7 @@ import type {
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
 import { errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
-import { OWNER_PERMISSION_ID } from "../../../domain/permission/index.js";
+import { OWNER_PERMISSION_ID } from "../../../domain/tron/permission/index.js";
 import type { SignOrigin, SigningService } from "../signing/signing-service.js";
 import { authoritativeTxId, localTxId as txIdOf, submitWithTxId } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";

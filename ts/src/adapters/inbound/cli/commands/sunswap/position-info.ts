@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapPositionInfoService } from "../../../../../application/use-cases/tron/sunswap/position-info-service.js";
+import type { SunSwapPositionInfoService } from "../../../../../application/use-cases/sunswap/position-info-service.js";
 import { TextFormatters } from "../../render/index.js";
 
 const protocolField = z

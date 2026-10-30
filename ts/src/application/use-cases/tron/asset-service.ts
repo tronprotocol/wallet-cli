@@ -12,11 +12,15 @@ import {
   trc10Symbol,
   trc10Url,
   type IcoRate,
-} from "../../../domain/asset/index.js";
+} from "../../../domain/tron/asset/index.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAsset, TronAssetTranche, TronGateway } from "../../ports/chain/tron-gateway.js";
+import type {
+  TronAsset,
+  TronAssetTranche,
+  TronGateway,
+} from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -25,7 +29,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 

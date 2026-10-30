@@ -6,11 +6,11 @@ import {
   MAINTENANCE_INTERVAL_MS,
   MAX_REWARDED_RANK,
   MAX_VOTE_ITEMS,
-} from "../../../domain/governance/voting.js";
+} from "../../../domain/tron/governance/voting.js";
 import { addressCodec } from "../../../domain/family/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway, TronVote, TronWitness } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronVote, TronWitness } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -18,7 +18,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { readVotingPower } from "./voting-power.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 

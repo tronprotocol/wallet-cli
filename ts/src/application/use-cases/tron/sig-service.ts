@@ -6,10 +6,10 @@ import type {
   TxSignTransactionView,
 } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { operationForContractType } from "../../../domain/permission/index.js";
+import { operationForContractType } from "../../../domain/tron/permission/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import type { SigningService } from "../../services/signing/signing-service.js";
 import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";

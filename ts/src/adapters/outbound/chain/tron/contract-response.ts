@@ -3,7 +3,7 @@ import type {
   TronContractMetadata,
   TronRawContract,
   TronRawContractInfo,
-} from "../../../../application/ports/chain/tron-gateway.js";
+} from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 
 const ContractEntrySchema = z.looseObject({

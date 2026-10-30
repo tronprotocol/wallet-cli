@@ -13,7 +13,7 @@ import {
   isPermissionId,
   MAX_PERMISSION_ID,
   OWNER_PERMISSION_ID,
-} from "../../domain/permission/index.js";
+} from "../../domain/tron/permission/index.js";
 import { isTronExpirationMs, MAX_TRON_EXPIRATION_MS } from "../../domain/transaction/index.js";
 
 export type TransactionExecutionMode = "dry-run" | "build-only" | "sign-only" | "broadcast";

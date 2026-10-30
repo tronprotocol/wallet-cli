@@ -28,7 +28,7 @@ import type {
   SellQuote,
   SellRequest,
 } from "../../../application/ports/sunpump/launchpad.js";
-import type { ContractCallPayload } from "../../../application/contracts/tron-contract-call.js";
+import type { ContractCallPayload } from "../../../application/contracts/tron/tron-contract-call.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";

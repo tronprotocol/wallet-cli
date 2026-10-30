@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AccountPermissionsView, Signer } from "../../../domain/types/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { AccountStore } from "../../ports/account-store.js";
 import { TxPipeline, type TronTxPipelineParams } from "../../services/pipeline/index.js";
 import type { SignerResolver } from "../../services/signer/index.js";

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/tron/sunswap/market-query-service.js";
+import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/sunswap/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 
 // Symbol inputs use the token book; explicit addresses bypass it.

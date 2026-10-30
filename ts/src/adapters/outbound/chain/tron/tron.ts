@@ -13,7 +13,7 @@ import type {
   TronTransactionArtifact,
   UnsignedTx,
 } from "../../../../domain/types/index.js";
-import type { RpcResourceCode } from "../../../../domain/resources/index.js";
+import type { RpcResourceCode } from "../../../../domain/tron/resources/index.js";
 import { sunAmount, type Sun } from "../../../../domain/amounts/index.js";
 import type { Broadcaster } from "../../../../application/ports/chain/broadcaster.js";
 import {
@@ -49,7 +49,7 @@ import type {
   TronUnfreezing,
   TronVote,
   TronWitness,
-} from "../../../../application/ports/chain/tron-gateway.js";
+} from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
 import { withDeadline } from "../../http/deadline.js";
@@ -70,7 +70,10 @@ import {
   normalizeTransactionHex,
   refreshTransactionIdentity,
 } from "./transaction-codec.js";
-import { decodeOperations, isActivePermissionId } from "../../../../domain/permission/index.js";
+import {
+  decodeOperations,
+  isActivePermissionId,
+} from "../../../../domain/tron/permission/index.js";
 import { addressCodec, FAMILIES } from "../../../../domain/family/index.js";
 import {
   FetchHttpTransport,

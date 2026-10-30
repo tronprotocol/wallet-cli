@@ -5,7 +5,7 @@ import type {
   ApprovalKind,
   GovernanceTransactionInput,
 } from "../contracts/transaction-input.js";
-import type { TronContractParameter } from "./chain/tron-gateway.js";
+import type { TronContractParameter } from "./chain/tron/tron-gateway.js";
 import type { Sun } from "../../domain/amounts/index.js";
 
 export interface EvmContractPort {

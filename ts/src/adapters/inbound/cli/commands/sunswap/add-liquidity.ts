@@ -8,7 +8,7 @@ import {
   parseLiquidityProtocol,
 } from "../../../../../domain/sunswap/protocol.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapLiquidityService } from "../../../../../application/use-cases/tron/sunswap/liquidity-service.js";
+import type { SunSwapLiquidityService } from "../../../../../application/use-cases/sunswap/liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { sunAmount } from "../../../../../domain/amounts/index.js";

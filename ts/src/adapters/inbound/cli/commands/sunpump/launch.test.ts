@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { sunpumpLaunchSpec, sunpumpLaunchTronBinding } from "./launch.js";
 import { chainInputSchema } from "../../shell/index.js";
-import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
+import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/sunpump/token-launch-service.js";
 import type { NetworkDescriptor } from "../../../../../domain/types/index.js";
 import type { ExecutionContext } from "../../contracts/execution-context.js";
 

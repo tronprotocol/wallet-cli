@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TronLinkCollaborationPort } from "../../ports/tronlink-collaboration.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import {
   decodeTransactionHex,

@@ -1,4 +1,4 @@
-import type { TronGateway, TronResourceUsage } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronResourceUsage } from "../../ports/chain/tron/tron-gateway.js";
 
 // In TP: 1 TP per staked TRX.
 export interface VotingPowerView {

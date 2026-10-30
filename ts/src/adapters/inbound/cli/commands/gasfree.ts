@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
-import type { GasFreeService } from "../../../../application/use-cases/tron/gasfree-service.js";
+import type { GasFreeService } from "../../../../application/use-cases/gasfree/gasfree-service.js";
 import { TextFormatters } from "../render/index.js";
 import { isZeroAmount } from "../../../../domain/amounts/index.js";
 import { defaultToken } from "../../../../application/services/default-token.js";

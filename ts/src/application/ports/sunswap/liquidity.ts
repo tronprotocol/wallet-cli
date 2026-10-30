@@ -1,10 +1,13 @@
 // Amounts are exact base-unit decimal strings; signing and broadcasting belong to the pipeline.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
-import type { ContractCallPayload } from "../../contracts/tron-contract-call.js";
+import type { ContractCallPayload } from "../../contracts/tron/tron-contract-call.js";
 import type { BaseUnits, Sun } from "../../../domain/amounts/index.js";
 
-export type { ContractCallPayload, ContractParameter } from "../../contracts/tron-contract-call.js";
+export type {
+  ContractCallPayload,
+  ContractParameter,
+} from "../../contracts/tron/tron-contract-call.js";
 
 // Token facts read on chain.
 export interface TokenFacts {

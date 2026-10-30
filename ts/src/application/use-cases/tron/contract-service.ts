@@ -1,5 +1,5 @@
-import { currentTronEnergyPrice } from "../../../domain/amounts/tron-energy-price.js";
-import { percent } from "../../../domain/governance/limits.js";
+import { currentTronEnergyPrice } from "../../../domain/tron/tron-energy-price.js";
+import { percent } from "../../../domain/tron/governance/limits.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -7,10 +7,10 @@ import type {
   TronContractParameter,
   TronFeeEstimate,
   TronGateway,
-} from "../../ports/chain/tron-gateway.js";
+} from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { computeTronCreate2Address } from "../../../domain/governance/create2.js";
+import { computeTronCreate2Address } from "../../../domain/tron/governance/create2.js";
 import type { TronTransactionArtifact, UnsignedTx } from "../../../domain/types/index.js";
 import {
   governanceTransactionMode,
@@ -22,7 +22,7 @@ import {
   transactionMode,
   transactionRequiresSigner,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
 import { fromBaseUnits, type Sun } from "../../../domain/amounts/index.js";
 import { approveRows, type ApprovalKind } from "../../services/approve-receipt.js";

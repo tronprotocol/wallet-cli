@@ -9,10 +9,10 @@ import type {
   X402PaymentFacts,
 } from "../contracts/x402-payer.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
-import type { TronContractParameter } from "../ports/chain/tron-gateway.js";
+import type { TronContractParameter } from "../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../services/pipeline/index.js";
-import { resolveTronAccount } from "../services/tron-account.js";
-import { tronConfirmation } from "../services/tron-confirmation.js";
+import { resolveTronAccount } from "../services/tron/tron-account.js";
+import { tronConfirmation } from "../services/tron/tron-confirmation.js";
 import { X402_APPROVE_FEE_LIMIT_SUN } from "../services/x402/payer-policy.js";
 import { assertTronSignerAuthorized, tronTransactionHooks } from "./tron/multisig-authorization.js";
 import { UNLIMITED_ALLOWANCE } from "../../domain/token/allowance.js";

@@ -19,7 +19,7 @@ import type {
   EvmRawTransaction,
   EvmRpcJson,
   EvmTxView,
-} from "../../../../application/ports/chain/gateway-provider.js";
+} from "../../../../application/ports/chain/evm/evm-gateway.js";
 import {
   UNWIRED_BROADCAST_GUARD,
   type BroadcastGuard,

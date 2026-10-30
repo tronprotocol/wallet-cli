@@ -24,7 +24,7 @@ import {
   baseUnitAmount,
   type Wei,
 } from "../../../domain/amounts/index.js";
-import { evmConfirmation } from "../../services/evm-confirmation.js";
+import { evmConfirmation } from "../../services/evm/evm-confirmation.js";
 import { confirmationsOf } from "../../services/confirmations.js";
 import { buildEvmUnsignedTx } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
@@ -33,7 +33,7 @@ import type {
   EvmGateway,
   EvmRawTransaction,
   EvmTxView,
-} from "../../ports/chain/gateway-provider.js";
+} from "../../ports/chain/evm/evm-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";

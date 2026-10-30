@@ -1,5 +1,5 @@
 import { tronHexFromHash20, tronHexToBase58 } from "../../../../domain/address/index.js";
-import type { DecodedTronTransaction } from "../../../../application/ports/chain/tron-gateway.js";
+import type { DecodedTronTransaction } from "../../../../application/ports/chain/tron/tron-gateway.js";
 
 export interface DecodableTronTransaction {
   raw_data?: {

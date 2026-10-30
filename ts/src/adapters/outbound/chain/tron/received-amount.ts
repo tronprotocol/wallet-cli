@@ -1,4 +1,4 @@
-import type { TronTxInfo } from "../../../../application/ports/chain/tron-gateway.js";
+import type { TronTxInfo } from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { tronHash20Hex } from "../../../../domain/address/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 

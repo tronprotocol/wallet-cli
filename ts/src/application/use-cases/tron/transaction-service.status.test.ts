@@ -2,13 +2,13 @@ import { describe, it, expect } from "vitest";
 import { TronTransactionService } from "./transaction-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor, TronTransactionArtifact } from "../../../domain/types/index.js";
 import {
   parseTronTx,
   parseTronTxInfo,
 } from "../../../adapters/outbound/chain/tron/tron-responses.js";
-import { stageTronBroadcast } from "../../services/tron-confirmation.js";
+import { stageTronBroadcast } from "../../services/tron/tron-confirmation.js";
 
 const NET = {
   id: "tron:3448148188",

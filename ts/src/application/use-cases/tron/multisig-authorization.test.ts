@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import {
   assertTronSignerAuthorized,
   authorizationState,

@@ -3,7 +3,7 @@ import { TronTokenService } from "./token-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronTokenInfo } from "../../ports/chain/tron-gateway.js";
+import type { TronTokenInfo } from "../../ports/chain/tron/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 
 const net = { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as NetworkDescriptor;

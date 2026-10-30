@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { addressFieldsFor, allRefines, Schemas, slippageField } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunPumpCurveTradeService } from "../../../../../application/use-cases/tron/sunpump/curve-trade-service.js";
+import type { SunPumpCurveTradeService } from "../../../../../application/use-cases/sunpump/curve-trade-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { CURVE_TRADE_NOTES, curveTradeFields, refuseQuoteWithSendingFlags } from "./shared.js";

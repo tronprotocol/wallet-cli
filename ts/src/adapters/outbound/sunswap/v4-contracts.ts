@@ -35,7 +35,7 @@ import type {
   V4Position,
 } from "../../../application/ports/sunswap/liquidity.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../../application/ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../../application/ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";

@@ -4,7 +4,7 @@ import { decimalToBigInt } from "../../../domain/numbers/index.js";
 import {
   REWARD_WITHDRAW_INTERVAL_MS,
   rewardWithdrawStatus,
-} from "../../../domain/governance/voting.js";
+} from "../../../domain/tron/governance/voting.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
@@ -15,7 +15,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronRewardService {

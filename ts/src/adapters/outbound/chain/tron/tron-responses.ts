@@ -10,7 +10,7 @@ import type {
   TronTx,
   TronTxInfo,
   TronTxLog,
-} from "../../../../application/ports/chain/tron-gateway.js";
+} from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { decodeTronTransaction } from "./transaction-decoder.js";
 
 type Json = Record<string, unknown>;

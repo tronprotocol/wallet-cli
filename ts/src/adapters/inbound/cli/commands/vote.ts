@@ -7,7 +7,7 @@ import {
   ELECTED_SR_COUNT,
   MAX_REWARDED_RANK,
   MAX_VOTE_ITEMS,
-} from "../../../../domain/governance/voting.js";
+} from "../../../../domain/tron/governance/voting.js";
 
 const voteForField = z
   .array(z.string().min(1))

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { allRefines } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunPumpMarketQueryService } from "../../../../../application/use-cases/tron/sunpump/market-query-service.js";
+import type { SunPumpMarketQueryService } from "../../../../../application/use-cases/sunpump/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 import {
   limitField,

@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { ChainSpec, ExecutionContext, FamilyBinding } from "../contracts/index.js";
 import type { TronStakeService } from "../../../../application/use-cases/tron/stake-service.js";
-import { RESOURCES } from "../../../../domain/resources/index.js";
+import { RESOURCES } from "../../../../domain/tron/resources/index.js";
 import { Schemas } from "../schemas/index.js";
 import { ciEnum } from "../arity/index.js";
 import { txModeExclusive, txModeFields, tronTxModeFields } from "./shared.js";

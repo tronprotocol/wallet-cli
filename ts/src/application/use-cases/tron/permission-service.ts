@@ -5,7 +5,7 @@ import {
   buildLocalPermissionInventory,
   permissionSafetyWarnings,
   validatePermissionStructure,
-} from "../../../domain/permission/index.js";
+} from "../../../domain/tron/permission/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { AccountStore } from "../../ports/account-store.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -16,7 +16,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { warnOnPostCheck } from "../../services/post-check.js";
 import { assertTronSignerAuthorized, tronTransactionHooks } from "./multisig-authorization.js";
 

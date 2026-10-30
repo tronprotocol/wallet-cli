@@ -3,11 +3,12 @@ export type { EvmContractWriteInput } from "../../contracts/transaction-input.js
 import type { EvmFeeReport, NetworkDescriptor } from "../../../domain/types/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
-import { evmConfirmation } from "../../services/evm-confirmation.js";
+import { evmConfirmation } from "../../services/evm/evm-confirmation.js";
 import { approveRows } from "../../services/approve-receipt.js";
 import { buildEvmUnsignedTx, type EvmCall } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
-import type { ChainGatewayProvider, EvmGateway } from "../../ports/chain/gateway-provider.js";
+import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
+import type { EvmGateway } from "../../ports/chain/evm/evm-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,

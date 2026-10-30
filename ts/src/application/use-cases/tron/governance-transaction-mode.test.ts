@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import { TxPipeline } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";

@@ -3,11 +3,11 @@ import { readFile } from "node:fs/promises";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 import type { TronContractService } from "../../../../application/use-cases/tron/contract-service.js";
-import type { DeployConstructorArgs } from "../../../../application/ports/chain/gateway-provider.js";
+import type { DeployConstructorArgs } from "../../../../application/ports/chain/evm/evm-gateway.js";
 import type { EvmContractService } from "../../../../application/use-cases/evm/contract-service.js";
-import type { TronContractParameter } from "../../../../application/ports/chain/tron-gateway.js";
+import type { TronContractParameter } from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { Schemas, addressFieldsFor } from "../schemas/index.js";
-import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
+import { gweiToWei } from "../../../../domain/evm/evm-gas.js";
 import { toBaseUnits, sunAmount, type Sun } from "../../../../domain/amounts/index.js";
 import { FAMILIES } from "../../../../domain/family/index.js";
 import {
@@ -18,7 +18,7 @@ import {
   txModeFields,
 } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
-import { MAX_PERCENT } from "../../../../domain/governance/limits.js";
+import { MAX_PERCENT } from "../../../../domain/tron/governance/limits.js";
 import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
 
 function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {

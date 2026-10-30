@@ -9,9 +9,13 @@ import {
 import { cliMessage, errorEnvelope, exitCodeOf, flagFor, normalizeCliError } from "./errors.js";
 import { assertPositiveAmount } from "../../../../domain/amounts/index.js";
 import { resolveAgentId } from "../../../../domain/erc8004/index.js";
-import { normalizeTokenId, slippageFloor, splitPair } from "../../../../domain/exchange/index.js";
-import { planEvmFee } from "../../../../domain/fees/evm-gas.js";
-import { parseChainParameterAssignments } from "../../../../domain/governance/chain-parameters.js";
+import {
+  normalizeTokenId,
+  slippageFloor,
+  splitPair,
+} from "../../../../domain/tron/exchange/index.js";
+import { planEvmFee } from "../../../../domain/evm/evm-gas.js";
+import { parseChainParameterAssignments } from "../../../../domain/tron/governance/chain-parameters.js";
 import { selectFloor, slippageToBips } from "../../../../domain/sunpump/curve.js";
 import { sunpumpSortParam } from "../../../../domain/sunpump/market.js";
 import { parseMinTvl } from "../../../../domain/sunswap/min-tvl.js";

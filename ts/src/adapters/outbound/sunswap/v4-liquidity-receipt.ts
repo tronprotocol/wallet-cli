@@ -2,7 +2,7 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { tronHash20Hex } from "../../../domain/address/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../domain/sunswap/tokens.js";
-import type { TronTxInfo } from "../../../application/ports/chain/tron-gateway.js";
+import type { TronTxInfo } from "../../../application/ports/chain/tron/tron-gateway.js";
 import type {
   V4LiquidityReceiptQuery,
   V4LiquidityResult,

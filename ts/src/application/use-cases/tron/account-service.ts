@@ -5,8 +5,11 @@ import { FAMILIES } from "../../../domain/family/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TronHistoryQuery, TronHistoryReader } from "../../ports/chain/tron-history-reader.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
+import type {
+  TronHistoryQuery,
+  TronHistoryReader,
+} from "../../ports/chain/tron/tron-history-reader.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
 import { holding, portfolioTotal, unavailableHolding } from "../portfolio-holdings.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
@@ -17,7 +20,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { warnOnPostCheck } from "../../services/post-check.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 

@@ -4,7 +4,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 import type { TronProtocolValue } from "../../../../domain/types/index.js";
 import type { TronTransactionService } from "../../../../application/use-cases/tron/transaction-service.js";
 import type { EvmTransactionService } from "../../../../application/use-cases/evm/transaction-service.js";
-import { gweiToWei } from "../../../../domain/fees/evm-gas.js";
+import { gweiToWei } from "../../../../domain/evm/evm-gas.js";
 import type { TronSigService } from "../../../../application/use-cases/tron/sig-service.js";
 import type { TronMultisigService } from "../../../../application/use-cases/tron/multisig-service.js";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";

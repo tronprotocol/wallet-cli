@@ -4,7 +4,10 @@ import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
 import { isZeroAmount } from "../../../../domain/amounts/index.js";
-import { MAX_PERMISSION_ID, OWNER_PERMISSION_ID } from "../../../../domain/permission/index.js";
+import {
+  MAX_PERMISSION_ID,
+  OWNER_PERMISSION_ID,
+} from "../../../../domain/tron/permission/index.js";
 import { MAX_TRON_EXPIRATION_MS } from "../../../../domain/transaction/index.js";
 
 export const LEDGER_TRON_SETTINGS_NOTE =

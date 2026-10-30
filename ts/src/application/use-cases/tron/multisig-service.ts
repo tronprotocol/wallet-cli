@@ -5,11 +5,11 @@ import type {
   TxApprovalView,
 } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { operationForContractType } from "../../../domain/permission/index.js";
+import { operationForContractType } from "../../../domain/tron/permission/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import { stageTronBroadcast } from "../../services/tron-confirmation.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
+import { stageTronBroadcast } from "../../services/tron/tron-confirmation.js";
 import { assertTronReferenceBlock } from "../../services/signing/chain-identity.js";
 import { localTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
