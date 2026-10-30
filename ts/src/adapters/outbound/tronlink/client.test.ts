@@ -9,6 +9,8 @@ import type {
   NetworkDescriptor,
   TronTransactionArtifact,
 } from "../../../domain/types/index.js";
+import { ExecutionError } from "../../../domain/errors/index.js";
+import { ERROR_CODES, type ErrorCode } from "../../../domain/errors/codes.js";
 import { signTronLinkRequest } from "./auth.js";
 import { TronLinkClient } from "./client.js";
 
@@ -251,6 +253,21 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
         message: "TronLink returned unsupported transaction state 3",
       },
     });
+  });
+
+  it("classifies a malformed record hash as bad provider data", async () => {
+    const fetchMock = vi.fn(async () =>
+      response({ code: 0, data: { range_total: 1, data: [{ hash: "not-a-hash" }] } }),
+    );
+    const client = new TronLinkClient(CONFIG, 1_000, processBroadcastGuard, fetchMock as never);
+    const page = await client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 });
+
+    const entry = page.entries[0];
+    expect(entry).toMatchObject({ kind: "malformed", claimedTxId: null });
+    if (entry?.kind !== "malformed") throw new Error("expected a malformed entry");
+    expect(entry.error).toBeInstanceOf(ExecutionError);
+    expect(entry.error.code).toBe("provider_error");
+    expect(ERROR_CODES[entry.error.code as ErrorCode].exit).toBe(1);
   });
 
   it("carries the service's rejection message into the error details", async () => {

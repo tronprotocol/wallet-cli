@@ -116,7 +116,7 @@ echo "$PW" | wallet-cli permission update --file perms.json --network nile --wai
 |---|---|
 | default (submit) | `kind: "permission-update"`, `stage: "submitted"`, `txId` |
 | `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed`, and `permissions` (same shape as `permission show` data, read back from chain) |
-| `--dry-run` | `kind`, `mode: "dry-run"`, `tx`, `fee` (the account-permission fee), and `permissions` (the resulting structure); no `txId` |
+| `--dry-run` | `kind`, `mode: "dry-run"`, `tx`, `fee` (the account-permission fee; `fee.feeSun` and `fee.balanceSun` are decimal SUN strings), and `permissions` (the resulting structure); no `txId` |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `signed`, `hex` (signed tx hex — feed `tx broadcast --hex`), `fee`, `address`, `txId`, and `permissions` |
 | `--build-only` | `kind`, `mode: "build-only"`, `tx`, `hex` (unsigned tx hex — feed `tx multisig --create`), `fee`, and `permissions` |
 

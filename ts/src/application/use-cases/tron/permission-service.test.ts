@@ -120,7 +120,7 @@ describe("TRON permission service", () => {
     expect(pipeline.assertCanSign).not.toHaveBeenCalled();
     expect(captured()?.permissionId).toBe(0);
     expect((result as unknown as { fee: unknown }).fee).toMatchObject({
-      feeSun: 100_000_000,
+      feeSun: "100000000",
       balanceSun: "200000000",
     });
   });

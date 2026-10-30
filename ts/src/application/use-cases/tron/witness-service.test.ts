@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { FeeReport, NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
@@ -27,10 +27,12 @@ const scope: TransactionScope = {
 function createService(gateway: Partial<TronGateway>) {
   const concrete = gateway as TronGateway;
   const assertCanSign = vi.fn();
+  let estimatedFee: FeeReport | undefined;
   const pipeline = {
     assertCanSign,
     runTron: async (params: TronTxPipelineParams) => {
-      await params.build(OWNER);
+      const tx = await params.build(OWNER);
+      estimatedFee = await params.estimate(tx);
       return { stage: "submitted", txId: "tx-witness", feeSun: 0 } as never;
     },
   } as unknown as TxPipeline;
@@ -38,8 +40,12 @@ function createService(gateway: Partial<TronGateway>) {
     { get: () => concrete } as unknown as ChainGatewayProvider,
     pipeline,
   );
-  return Object.assign(service, { assertCanSign }) as TronWitnessService & {
+  return Object.assign(service, {
+    assertCanSign,
+    estimatedFee: () => estimatedFee,
+  }) as TronWitnessService & {
     assertCanSign: typeof assertCanSign;
+    estimatedFee: () => FeeReport | undefined;
   };
 }
 
@@ -63,6 +69,7 @@ describe("TronWitnessService", () => {
       registrationFeeSun: "9999000000",
     });
     expect(build).toHaveBeenCalledWith(OWNER, "https://sr.example", { permissionId: 2 });
+    expect(service.estimatedFee()).toMatchObject({ feeSun: "9999000000" });
   });
 
   it("rejects insufficient registration balance before building", async () => {

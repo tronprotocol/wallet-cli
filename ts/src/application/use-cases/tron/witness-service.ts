@@ -1,5 +1,6 @@
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { percent, witnessUrl } from "../../../domain/tron/governance/limits.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -70,7 +71,7 @@ export class TronWitnessService {
         gateway.buildWitnessCreate(address, url, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({
         feeModel: "tron-resource",
-        feeSun: registrationFeeSun.toString(),
+        feeSun: sunAmount(registrationFeeSun),
         note: "irreversible witness registration burn plus bandwidth",
       }),
     });

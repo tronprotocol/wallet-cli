@@ -434,7 +434,7 @@ function claimedHash(value: unknown): string | null {
 function hash(value: string): string {
   const normalized = normalizeTxHash("tron", value);
   if (normalized === undefined) {
-    throw new UsageError("invalid_value", "TronLink txId must be a 32-byte hex string");
+    throw new ChainError("provider_error", "TronLink hash is not a 32-byte hex string");
   }
   return normalized;
 }

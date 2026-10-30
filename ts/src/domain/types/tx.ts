@@ -17,7 +17,7 @@ export interface TronFeeReport {
   energy?: number;
   energyPriceSun?: string;
   availableEnergy?: number;
-  feeSun?: string | number;
+  feeSun?: Sun;
   balanceSun?: string;
   bandwidthBurnSunIfNoFreeze?: number;
   createAccountFeeSun?: string;

@@ -1,4 +1,5 @@
 import type { AccountPermissionsView, NetworkDescriptor } from "../../../domain/types/index.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import {
   annotateLocalPermissionKeys,
@@ -75,7 +76,11 @@ export class TronPermissionService {
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
       confirm: tronConfirmation(gateway, scope),
       build: () => gateway.buildAccountPermissionUpdate(address, permissions),
-      estimate: async () => ({ feeModel: "tron-resource", feeSun, balanceSun }),
+      estimate: async () => ({
+        feeModel: "tron-resource",
+        feeSun: sunAmount(BigInt(feeSun)),
+        balanceSun,
+      }),
     });
 
     let resultPermissions: AccountPermissionsView | undefined;
