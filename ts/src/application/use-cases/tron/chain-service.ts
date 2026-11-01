@@ -1,5 +1,5 @@
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { chainParameterByName } from "../../../domain/tron/governance/chain-parameters.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronPricePoint } from "../../ports/chain/tron/tron-gateway.js";
@@ -36,6 +36,9 @@ export class TronChainService {
       gateway.getChainParameters(),
     ]);
     const memo = params.find((p) => p.key === "getMemoFee")?.value;
+    if (memo !== undefined && memo < 0) {
+      throw new ChainError("provider_error", "chain parameter is unavailable: getMemoFee");
+    }
     return {
       energy: priceView(energy),
       bandwidth: priceView(bandwidth),

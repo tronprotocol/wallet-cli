@@ -497,7 +497,7 @@ export class EvmTransactionService {
 
 // Enforce the selected chain even when both networks are EVM.
 function assertChainId(tx: EvmRawTransaction, network: NetworkDescriptor): void {
-  assertEvmTransactionChain(tx.chainId === "0" ? undefined : tx.chainId, network);
+  assertEvmTransactionChain(tx.chainId, network);
 }
 
 function transactionType(transaction: EvmTxView): string {

@@ -584,13 +584,13 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
           if (strategy === "unsupported") throw new Error("approval_asset_unsupported");
           if (current !== 0n && strategy === "zero-first")
             throw new Error("approval_reset_required");
-          const approval = await approver.approve({
+          await approver.approve({
             token,
             spender,
             requiredAllowance: amount.toString(),
             readAllowance,
+            onConfirmed: recordApproval,
           });
-          recordApproval(approval);
           return true;
         },
       };

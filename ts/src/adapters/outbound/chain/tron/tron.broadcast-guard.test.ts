@@ -3,6 +3,7 @@ import {
   barBroadcasts,
   processBroadcastGuard,
 } from "../../../../application/services/broadcast-guard.js";
+import { submitWithTxId } from "../../../../application/services/broadcast-identity.js";
 import { TronRpcClient } from "./tron.js";
 import { withTronWeb } from "./__test-support__/tronweb.js";
 
@@ -105,6 +106,48 @@ describe("TronRpcClient.broadcastHex classifies a recognised rejection", () => {
       code: "transaction_rejected",
     });
   });
+});
+
+describe("TronRpcClient broadcast reports a node code that may follow acceptance as unknown", () => {
+  const TX_ID = "c6b3021357e73a2672b7ad714ab7d9dca3601ef72138822f07116827012457ca";
+
+  it.each(["OTHER_ERROR", "NOT_ENOUGH_EFFECTIVE_CONNECTION", "DUP_TRANSACTION_ERROR"])(
+    "broadcast and broadcastHex report %s as rpc_error with the local txId",
+    async (code) => {
+      const response = { result: false, code, message: Buffer.from("boom").toString("hex") };
+      const { client, tronweb } = withTronWeb(
+        () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      );
+      tronweb.trx.sendRawTransaction = (() => Promise.resolve(response)) as never;
+      tronweb.trx.sendHexTransaction = (() => Promise.resolve(response)) as never;
+
+      for (const submit of [
+        () => client.broadcast(SIGNED),
+        () => client.broadcastHex(SIGNED_HEX),
+      ]) {
+        await expect(submitWithTxId(TX_ID, submit)).rejects.toMatchObject({
+          code: "rpc_error",
+          details: { nodeCode: code, nodeMessage: "boom", txId: TX_ID },
+        });
+      }
+    },
+  );
+
+  it.each(["SIGERROR", "CONTRACT_VALIDATE_ERROR", "TAPOS_ERROR", "SERVER_BUSY", "NO_CONNECTION"])(
+    "keeps %s a definite rejection without a txId",
+    async (code) => {
+      const { client, tronweb } = withTronWeb(
+        () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      );
+      tronweb.trx.sendRawTransaction = (() => Promise.resolve({ result: false, code })) as never;
+
+      const error: unknown = await submitWithTxId(TX_ID, () => client.broadcast(SIGNED)).catch(
+        (e: unknown) => e,
+      );
+      expect(error).toMatchObject({ code: "transaction_rejected" });
+      expect((error as { details?: object }).details).not.toHaveProperty("txId");
+    },
+  );
 });
 
 describe("TronRpcClient broadcast keeps the node's own words in the message", () => {

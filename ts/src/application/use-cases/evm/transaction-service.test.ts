@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { Transaction } from "ethers";
 import { EvmTransactionService } from "./transaction-service.js";
 import {
   ChainError,
@@ -493,6 +494,48 @@ describe("EvmTransactionService.sign", () => {
       code: "chain_id_mismatch",
     });
     expect(pipeline.signOnly).not.toHaveBeenCalled();
+  });
+
+  describe("chain id 0", () => {
+    const CHAIN_ZERO = { ...SEPOLIA, id: "eip155:0", chainId: "0" } satisfies NetworkDescriptor;
+    const BASE = { chainId: 0n, nonce: 0, to: RECEIVER, value: 0n, gasLimit: 21000n };
+    const TYPED = [
+      ["type 1", { ...BASE, type: 1, gasPrice: 1n }],
+      ["type 2", { ...BASE, type: 2, maxFeePerGas: 2n, maxPriorityFeePerGas: 1n }],
+    ] as const;
+
+    it.each(TYPED)(
+      "signs a %s transaction for chain 0 on a chain-0 network",
+      async (_l, fields) => {
+        const { service, pipeline } = signHarness();
+
+        await service.sign(scope(), CHAIN_ZERO, Transaction.from(fields).unsignedSerialized);
+        expect(pipeline.signOnly).toHaveBeenCalledOnce();
+      },
+    );
+
+    it.each(TYPED)(
+      "refuses a %s transaction for chain 0 on another network",
+      async (_l, fields) => {
+        const { service, pipeline } = signHarness();
+
+        await expect(
+          service.sign(scope(), SEPOLIA, Transaction.from(fields).unsignedSerialized),
+        ).rejects.toMatchObject({ code: "chain_id_mismatch" });
+        expect(pipeline.signOnly).not.toHaveBeenCalled();
+      },
+    );
+
+    it("still refuses a legacy transaction without EIP-155 on a chain-0 network", async () => {
+      const { service, pipeline } = signHarness();
+      const legacy = Transaction.from({ ...BASE, type: 0, gasPrice: 1n }).unsignedSerialized;
+
+      await expect(service.sign(scope(), CHAIN_ZERO, legacy)).rejects.toMatchObject({
+        code: "chain_id_mismatch",
+        message: expect.stringContaining("names no chain id"),
+      });
+      expect(pipeline.signOnly).not.toHaveBeenCalled();
+    });
   });
 
   it("names the chain mismatch even when the foreign transaction is already signed", async () => {

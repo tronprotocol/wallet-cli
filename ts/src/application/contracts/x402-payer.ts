@@ -74,6 +74,8 @@ export interface Permit2ApproveRequest {
   readonly requiredAllowance: string;
   // Current on-chain allowance in base units.
   readAllowance(): Promise<string>;
+  // Receives the approval once it is confirmed, before the allowance is read.
+  onConfirmed(approval: SignedApproval): void;
 }
 
 export interface Permit2Approver {

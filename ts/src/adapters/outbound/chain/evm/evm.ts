@@ -8,7 +8,7 @@ import {
 } from "ethers";
 import { ChainError, UsageError, errorMessage, inputRef } from "../../../../domain/errors/index.js";
 import { decimalToSafeNumber, quantityToSafeNumber } from "../../../../domain/numbers/index.js";
-import { classifyEvmRejection, isAlreadyKnown } from "./node-errors.js";
+import { classifyEvmRejection, isAlreadyKnown, isDefiniteSubmitRefusal } from "./node-errors.js";
 import { evmChecksumAddress, isEvmAddress } from "../../../../domain/address/index.js";
 import { decodeErc20Transfer } from "../../../../domain/evm/index.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
@@ -184,9 +184,17 @@ export class EvmRpcClient implements EvmGateway {
       if (isAlreadyKnown(message)) return { alreadyKnown: true };
       const known = classifyEvmRejection(method, message);
       // Include node wording in the message because text output omits details.
+      if (known) {
+        throw new ChainError(known.code, `${known.message}: ${message}`, { nodeMessage: message });
+      }
+      if (isDefiniteSubmitRefusal(body.error.code)) {
+        throw new ChainError("transaction_rejected", `EVM broadcast rejected: ${message}`, {
+          nodeMessage: message,
+        });
+      }
       throw new ChainError(
-        known?.code ?? "transaction_rejected",
-        known ? `${known.message}: ${message}` : `EVM broadcast rejected: ${message}`,
+        "rpc_error",
+        `EVM broadcast outcome unknown (JSON-RPC error ${body.error.code}): ${message}`,
         { nodeMessage: message },
       );
     }
@@ -661,8 +669,10 @@ const ERC20_WRITE = new Interface(["function transfer(address,uint256) returns (
 
 export function decodeEvmRawTransaction(hex: string): EvmRawTransaction {
   let parsed: Transaction;
+  let chainId: string | undefined;
   try {
     parsed = Transaction.from(hex);
+    chainId = boundChainId(parsed);
   } catch (e) {
     throw new ChainError(
       "invalid_transaction",
@@ -671,7 +681,7 @@ export function decodeEvmRawTransaction(hex: string): EvmRawTransaction {
   }
   const signed = parsed.signature !== null;
   return {
-    chainId: parsed.chainId.toString(),
+    ...(chainId === undefined ? {} : { chainId }),
     signed,
     ...(signed && parsed.from !== null ? { from: parsed.from } : {}),
     ...(parsed.to === null ? {} : { to: parsed.to }),
@@ -686,14 +696,18 @@ export function decodeEvmRawTransaction(hex: string): EvmRawTransaction {
 }
 
 export function evmTransactionChainId(tx: UnsignedTx): string | undefined {
-  let chainId: bigint;
   try {
-    chainId = Transaction.from(tx as TransactionLike).chainId;
+    return boundChainId(Transaction.from(tx as TransactionLike));
   } catch (e) {
     throw new UsageError(
       "invalid_payload",
       `EVM transaction could not be encoded: ${(e as Error).message}`,
     );
   }
-  return chainId === 0n ? undefined : chainId.toString();
+}
+
+// Typed transactions always sign their chain id, even 0; a legacy one with chain id 0 has no EIP-155 binding.
+// An explicit type is read as given: inferType() also validates fees and would preempt the signer's own error.
+function boundChainId(tx: Transaction): string | undefined {
+  return (tx.type ?? tx.inferType()) === 0 && tx.chainId === 0n ? undefined : tx.chainId.toString();
 }

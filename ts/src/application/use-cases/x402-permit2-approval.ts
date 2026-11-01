@@ -96,6 +96,14 @@ export class X402Permit2Approvals {
         evidence,
       );
     }
+    const approval: SignedApproval = {
+      txId,
+      token: request.token,
+      spender: request.spender,
+      allowance: "unlimited",
+      feeLimitSun: X402_APPROVE_FEE_LIMIT_SUN,
+    };
+    request.onConfirmed(approval);
     // A successful receipt does not guarantee the allowance was granted.
     const allowance = await request.readAllowance();
     if (BigInt(allowance) < BigInt(request.requiredAllowance)) {
@@ -105,13 +113,7 @@ export class X402Permit2Approvals {
         { txId },
       );
     }
-    return {
-      txId,
-      token: request.token,
-      spender: request.spender,
-      allowance: "unlimited",
-      feeLimitSun: X402_APPROVE_FEE_LIMIT_SUN,
-    };
+    return approval;
   }
 }
 

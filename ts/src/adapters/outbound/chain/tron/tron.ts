@@ -56,7 +56,7 @@ import { withDeadline } from "../../http/deadline.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
-import { classifyNodeRejection } from "./node-errors.js";
+import { classifyNodeRejection, isOutcomeUnknownBroadcastCode } from "./node-errors.js";
 import { decodeTronTransaction } from "./transaction-decoder.js";
 import { isDeployedContract, normalizeContractResponses } from "./contract-response.js";
 import {
@@ -1338,7 +1338,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async getChainParameters(): Promise<Array<{ key: string; value?: number }>> {
     return this.#wrap("getChainParameters", async () =>
       (await this.#tw.trx.getChainParameters()).map(({ key, value }) =>
-        value === undefined ? { key } : { key, value: safeNodeInteger(value, key) },
+        value === undefined ? { key } : { key, value: safeChainParameter(value, key) },
       ),
     );
   }
@@ -1995,6 +1995,16 @@ function safeNodeInteger(value: unknown, field: string): number {
   throw new ChainError("provider_error", `TRON node returned an imprecise or invalid ${field}`);
 }
 
+// A node may report -1 for a parameter that is not active; readers that use a value as a fee check its sign.
+function safeChainParameter(value: unknown, key: string): number {
+  if (typeof value === "number" && Number.isSafeInteger(value)) return value;
+  if (typeof value === "string" && /^-?\d+$/.test(value)) {
+    const parsed = Number(value);
+    if (Number.isSafeInteger(parsed)) return parsed;
+  }
+  throw new ChainError("provider_error", `TRON node returned an imprecise or invalid ${key}`);
+}
+
 function safePermissionName(value: unknown, fallback: string, field: string): string {
   const name = value === undefined ? fallback : value;
   if (
@@ -2189,6 +2199,13 @@ function broadcastResult(response: unknown): BroadcastResult {
       );
     }
     const known = classifyNodeRejection(reason, nodeCode);
+    if (!known && isOutcomeUnknownBroadcastCode(nodeCode)) {
+      throw new ChainError(
+        "rpc_error",
+        `TRON broadcast outcome unknown (${nodeCode}): ${redactErrorMessage(reason)}`,
+        { nodeCode, nodeMessage: redactErrorMessage(reason) },
+      );
+    }
     throw new ChainError(
       known?.code ?? "transaction_rejected",
       known?.message

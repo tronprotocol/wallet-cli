@@ -76,6 +76,17 @@ export function isAlreadyKnown(message: string): boolean {
   );
 }
 
+// JSON-RPC 2.0 and EIP-1474 codes that prove the node refused the transaction (-32003) or did not process the
+// request (-32700, -32600, -32601, -32602, -32004, -32006). Any other code may follow acceptance, so its outcome
+// is unknown: -32000 too, because endpoints in the implementation-defined server range use it for timeouts.
+const DEFINITE_SUBMIT_ERROR_CODES: ReadonlySet<number> = new Set([
+  -32003, -32700, -32600, -32601, -32602, -32004, -32006,
+]);
+
+export function isDefiniteSubmitRefusal(code: number): boolean {
+  return DEFINITE_SUBMIT_ERROR_CODES.has(code);
+}
+
 export const EVM_REJECTION_CODES: readonly string[] = [
   ...new Set(PATTERNS.map(({ code }) => code)),
 ];

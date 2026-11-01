@@ -32,11 +32,18 @@ function harness(outcome: TxOutcome | Error, allowanceAfter = "1000000") {
     warn: vi.fn(),
   };
   const readAllowance = vi.fn(async () => allowanceAfter);
+  const onConfirmed = vi.fn();
   const approver = new X402Permit2Approvals(gateways, {
     runTron: run,
   } as unknown as TxPipeline).approver(scope, NETWORK, FACTS);
-  const request = { token: USDT, spender: PERMIT2, requiredAllowance: "1000000", readAllowance };
-  return { approver, request, run, gateway, readAllowance };
+  const request = {
+    token: USDT,
+    spender: PERMIT2,
+    requiredAllowance: "1000000",
+    readAllowance,
+    onConfirmed,
+  };
+  return { approver, request, run, gateway, readAllowance, onConfirmed };
 }
 
 describe("X402Permit2Approvals", () => {
@@ -68,6 +75,13 @@ describe("X402Permit2Approvals", () => {
       { callValue: "0", feeLimit: "100000000", permissionId: 0 },
     );
     expect(h.readAllowance).toHaveBeenCalledOnce();
+    expect(h.onConfirmed).toHaveBeenCalledWith({
+      txId: TX_ID,
+      token: USDT,
+      spender: PERMIT2,
+      allowance: "unlimited",
+      feeLimitSun: 100_000_000,
+    });
   });
 
   it.each([
@@ -90,6 +104,21 @@ describe("X402Permit2Approvals", () => {
       details: { txId: TX_ID },
     });
     expect(h.readAllowance).not.toHaveBeenCalled();
+    expect(h.onConfirmed).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    new TransportError("timeout", "allowance read timed out"),
+    new TransportError("rpc_error", "allowance read failed"),
+  ])("hands over the confirmed approval before a failed allowance read ($code)", async (error) => {
+    const h = harness({ stage: "confirmed", txId: TX_ID });
+    h.readAllowance.mockRejectedValueOnce(error);
+
+    await expect(h.approver.approve(h.request)).rejects.toBe(error);
+    expect(h.onConfirmed).toHaveBeenCalledWith(expect.objectContaining({ txId: TX_ID }));
+    expect(h.onConfirmed.mock.invocationCallOrder[0]).toBeLessThan(
+      h.readAllowance.mock.invocationCallOrder[0]!,
+    );
   });
 
   it("reports an unconfirmed approval as a timeout with its transaction id", async () => {

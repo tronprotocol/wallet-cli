@@ -5,7 +5,7 @@ import { TronWeb, providers, utils } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload, UnsignedTx } from "../../../domain/types/index.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import type { Permit2ApproveRequest } from "../../../application/contracts/x402-payer.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
@@ -24,7 +24,7 @@ afterEach(() => vi.restoreAllMocks());
 const APPROVAL_TX = "cd".repeat(32);
 
 // Stands in for the application's TxPipeline approval; `granted` lets the RPC mock report the new allowance.
-function fakeApprovals(fail?: Error) {
+function fakeApprovals(fail?: Error, failAfterConfirm?: Error) {
   const requests: Permit2ApproveRequest[] = [];
   const state = { granted: false };
   const approvals = {
@@ -32,21 +32,24 @@ function fakeApprovals(fail?: Error) {
       approve: async (request: Permit2ApproveRequest) => {
         requests.push(request);
         if (fail) throw fail;
-        state.granted = true;
-        return {
+        const approval = {
           txId: APPROVAL_TX,
           token: request.token,
           spender: request.spender,
           allowance: "unlimited" as const,
           feeLimitSun: 100_000_000,
         };
+        request.onConfirmed(approval);
+        if (failAfterConfirm) throw failAfterConfirm;
+        state.granted = true;
+        return approval;
       },
     }),
   };
   return { requests, state, approvals };
 }
 
-it.each(["sufficient", "auto", "sponsored", "reverted"])(
+it.each(["sufficient", "auto", "sponsored", "reverted", "recheck-fails"])(
   "handles TRON allowance through the installed SDK: %s",
   async (mode) => {
     const fake = fakeApprovals(
@@ -54,6 +57,9 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
         ? new ChainError("execution_reverted", "the Permit2 approval failed on chain", {
             txId: APPROVAL_TX,
           })
+        : undefined,
+      mode === "recheck-fails"
+        ? new TransportError("timeout", "the allowance read timed out")
         : undefined,
     );
     const key = Wallet.createRandom().privateKey;
@@ -194,6 +200,16 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
       });
       expect(signTypedData).not.toHaveBeenCalled();
       expect(fetcher).toHaveBeenCalledOnce();
+    } else if (mode === "recheck-fails") {
+      await expect(payment).rejects.toMatchObject({
+        code: "timeout",
+        details: {
+          paymentStatus: "not_sent",
+          approval: { txId: APPROVAL_TX, allowance: "unlimited", status: "confirmed" },
+        },
+      });
+      expect(signTypedData).not.toHaveBeenCalled();
+      expect(fetcher).toHaveBeenCalledOnce();
     } else {
       await expect(payment).resolves.toMatchObject({ delivered: true });
       if (mode === "sponsored") expect(sign).toHaveBeenCalledOnce();
@@ -206,6 +222,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted"])(
             spender: "TYQuuhGbEMxF7nZxUHV3uHJxAVVAegNU9h",
             requiredAllowance: "1000000",
             readAllowance: expect.any(Function),
+            onConfirmed: expect.any(Function),
           },
         ]);
       }

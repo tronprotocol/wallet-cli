@@ -153,3 +153,14 @@ describe("TronChainService.node", () => {
     await expect(svc(gateway).node(net)).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 });
+
+describe("TronChainService.prices with a negative memo fee", () => {
+  it("refuses to report a negative memo fee", async () => {
+    const gateway = {
+      getEnergyPrices: async () => points([0, 100]),
+      getBandwidthPrices: async () => points([0, 1000]),
+      getChainParameters: async () => [{ key: "getMemoFee", value: -1 }],
+    };
+    await expect(svc(gateway).prices(net)).rejects.toMatchObject({ code: "provider_error" });
+  });
+});

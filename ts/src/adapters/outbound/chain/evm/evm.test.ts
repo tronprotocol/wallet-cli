@@ -5,6 +5,7 @@ import {
 } from "../../../../application/services/broadcast-guard.js";
 import { Transaction } from "ethers";
 import { EvmRpcClient } from "./evm.js";
+import { submitWithTxId } from "../../../../application/services/broadcast-identity.js";
 import { HttpTransportError, type HttpTransport } from "../../http/index.js";
 import { UsageError, type CliError } from "../../../../domain/errors/index.js";
 import { baseUnitAmount } from "../../../../domain/amounts/index.js";
@@ -946,7 +947,7 @@ describe("EvmRpcClient.sendRawTransaction", () => {
   });
 
   it("keeps an unrecognised rejection under transaction_rejected with the node's words", async () => {
-    stubResponse({ error: { code: -32000, message: "some new validator rule" } });
+    stubResponse({ error: { code: -32003, message: "some new validator rule" } });
 
     await expect(
       new EvmRpcClient(
@@ -956,6 +957,70 @@ describe("EvmRpcClient.sendRawTransaction", () => {
         processBroadcastGuard,
       ).sendRawTransaction(RAW),
     ).rejects.toMatchObject({ code: "transaction_rejected" });
+  });
+
+  it.each([
+    [-32003, "transaction rejected"],
+    [-32700, "parse error"],
+    [-32600, "invalid request"],
+    [-32601, "the method eth_sendRawTransaction does not exist"],
+    [-32602, "invalid argument 0: hex string has odd length"],
+    [-32004, "method not supported"],
+    [-32006, "JSON-RPC version not supported"],
+  ])("keeps code %i (%s) a definite rejection without a txId", async (code, message) => {
+    stubResponse({ error: { code, message } });
+
+    const error = await submitWithTxId(HASH, () =>
+      new EvmRpcClient(
+        "https://node.example",
+        5_000,
+        undefined,
+        processBroadcastGuard,
+      ).sendRawTransaction(RAW),
+    ).catch((e: unknown) => e as CliError);
+    expect(error).toMatchObject({
+      code: "transaction_rejected",
+      details: { nodeMessage: message },
+    });
+    expect((error as CliError).details).not.toHaveProperty("txId");
+  });
+
+  it.each([
+    [-32000, "request timed out"],
+    [-32000, "context deadline exceeded"],
+    [-32000, "Internal error"],
+    [-32000, "some new validator rule"],
+    [-32002, "request timed out"],
+    [-32603, "Internal error"],
+    [-32005, "limit exceeded"],
+    [-32099, "upstream unavailable"],
+    [502, "bad gateway"],
+  ])("reports code %i (%s) as an unknown outcome with the local txId", async (code, message) => {
+    stubResponse({ error: { code, message } });
+
+    await expect(
+      submitWithTxId(HASH, () =>
+        new EvmRpcClient(
+          "https://node.example",
+          5_000,
+          undefined,
+          processBroadcastGuard,
+        ).sendRawTransaction(RAW),
+      ),
+    ).rejects.toMatchObject({ code: "rpc_error", details: { nodeMessage: message, txId: HASH } });
+  });
+
+  it("keeps a recognised rejection message under any JSON-RPC code", async () => {
+    stubResponse({ error: { code: -32603, message: "nonce too low" } });
+
+    await expect(
+      new EvmRpcClient(
+        "https://node.example",
+        5_000,
+        undefined,
+        processBroadcastGuard,
+      ).sendRawTransaction(RAW),
+    ).rejects.toMatchObject({ code: "nonce_too_low" });
   });
 
   it.each(["already known", "ALREADY KNOWN", "transaction already exists"])(

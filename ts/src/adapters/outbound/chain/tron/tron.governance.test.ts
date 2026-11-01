@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { assertTronTxIntegrity } from "./tx-integrity.js";
 import { TronRpcClient } from "./tron.js";
 import { withTronWeb } from "./__test-support__/tronweb.js";
+import { TronChainService } from "../../../../application/use-cases/tron/chain-service.js";
+import { ChainFormatters } from "../../../inbound/cli/render/chain.js";
 
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -74,9 +76,69 @@ describe("TronRpcClient chain parameters", () => {
     ]);
   });
 
-  it.each([2 ** 53 + 2, 1.5, -1])("refuses a value it cannot prove exact: %s", async (value) => {
+  it.each([2 ** 53 + 2, 1.5, "1.5", "abc"])(
+    "refuses a value it cannot prove exact: %s",
+    async (value) => {
+      const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+      vi.spyOn(tronweb.trx, "getChainParameters").mockResolvedValue([
+        { key: "getEnergyFee", value },
+      ] as never);
+      await expect(client.getChainParameters()).rejects.toMatchObject({ code: "provider_error" });
+    },
+  );
+
+  it.each([-1, "-1"])("lists a negative value %j as the node reports it", async (value) => {
     const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
-    vi.spyOn(tronweb.trx, "getChainParameters").mockResolvedValue([{ key: "getEnergyFee", value }]);
-    await expect(client.getChainParameters()).rejects.toMatchObject({ code: "provider_error" });
+    vi.spyOn(tronweb.trx, "getChainParameters").mockResolvedValue([
+      { key: "getRemoveThePowerOfTheGr", value },
+      { key: "getEnergyFee", value: 100 },
+    ] as never);
+    await expect(client.getChainParameters()).resolves.toEqual([
+      { key: "getRemoveThePowerOfTheGr", value: -1 },
+      { key: "getEnergyFee", value: 100 },
+    ]);
+  });
+
+  it.each(["getMultiSignFee", "getUpdateAccountPermissionFee"] as const)(
+    "still refuses a negative %s used as a fee",
+    async (key) => {
+      const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+      vi.spyOn(tronweb.trx, "getChainParameters").mockResolvedValue([{ key, value: -1 }] as never);
+      await expect(client[key]()).rejects.toMatchObject({ code: "provider_error" });
+    },
+  );
+});
+
+describe("chain params and chain prices with an inactive (-1) parameter", () => {
+  const NILE = { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as never;
+
+  function service() {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://127.0.0.1:1"));
+    vi.spyOn(tronweb.trx, "getChainParameters").mockResolvedValue([
+      { key: "getRemoveThePowerOfTheGr", value: -1 },
+      { key: "getEnergyFee", value: 100 },
+      { key: "getMemoFee", value: 1_000_000 },
+    ] as never);
+    tronweb.trx.getEnergyPrices = vi.fn(async () => "0:100,1670515200000:210") as never;
+    tronweb.trx.getBandwidthPrices = vi.fn(async () => "0:10,1670515200000:1000") as never;
+    return new TronChainService({ get: () => client } as never);
+  }
+
+  it("chain params lists the parameter and renders -1", async () => {
+    const data = await service().params(NILE);
+    expect(data.params).toContainEqual({ key: "getRemoveThePowerOfTheGr", value: -1, unit: "" });
+    const text = ChainFormatters.chainParams(data);
+    expect(text).toMatch(/\| getRemoveThePowerOfTheGr \| -1 +\|/);
+    expect(text).toMatch(/\| getEnergyFee +\| 100 sun +\|/);
+  });
+
+  it("chain params --key renders -1", async () => {
+    const data = await service().params(NILE, "getRemoveThePowerOfTheGr");
+    expect(data).toEqual({ key: "getRemoveThePowerOfTheGr", value: -1, unit: "" });
+    expect(ChainFormatters.chainParams(data)).toMatch(/Value\s+-1\b/);
+  });
+
+  it("chain prices ignores a negative parameter it does not use", async () => {
+    await expect(service().prices(NILE)).resolves.toMatchObject({ memoFeeSun: "1000000" });
   });
 });

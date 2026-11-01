@@ -99,8 +99,8 @@ export interface EvmTxView {
 
 // Quantities are decimal strings.
 export interface EvmRawTransaction {
-  // "0" when the transaction names no chain.
-  readonly chainId: string;
+  // Absent for a legacy transaction without EIP-155 protection, which is valid on every chain.
+  readonly chainId?: string;
   readonly signed: boolean;
   // Checksummed signer; present only when signed.
   readonly from?: string;
