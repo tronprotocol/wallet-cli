@@ -67,7 +67,7 @@ export const baiRechargeSpec: ChainSpec = {
   wallet: "optional",
   auth: "conditional",
   broadcasts: true,
-  supportsWait: false,
+  rejectsWait: "the recharge payment follows its own workflow and is reported to B.AI",
   capability: "bai.recharge",
   requires,
   positionals: [{ field: "amount" }],

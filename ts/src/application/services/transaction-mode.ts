@@ -109,3 +109,16 @@ export function outcomeData(outcome: TxOutcome): TxOutcomeView {
 export function receiptOf(view: TxOutcomeView): Partial<TxConfirmation> {
   return "stage" in view ? view : {};
 }
+
+// Waiting for confirmation is the default where the main transaction is submitted; an explicit
+// intent (true = wait, false = do not wait) is refused where nothing is submitted.
+export function waitsForConfirmation(intent: boolean | undefined, submits: boolean): boolean {
+  if (submits) return intent ?? true;
+  if (intent !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      errorMessage`${inputRef(intent ? "wait" : "noWait")} applies only when a transaction is submitted`,
+    );
+  }
+  return false;
+}

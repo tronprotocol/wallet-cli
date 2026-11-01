@@ -6,7 +6,7 @@ Set the share of a call's energy paid by the caller.
 
 ```
 wallet-cli contract set-user-resource-percent <address> <percent>
-                                              [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait]
+                                              [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                                               [--permission-id <n>] [options]
 ```
 
@@ -22,7 +22,7 @@ The number is the **caller's** share, matching the chain field's own direction; 
 
 Only the contract's deployer can do this; the current value is in [`contract info`](info.md). Settings take effect as soon as the transaction confirms.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 The Ledger TRON app cannot parse this governance contract type. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
@@ -37,7 +37,8 @@ The Ledger TRON app cannot parse this governance contract type. A Ledger account
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -49,7 +50,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Callers pay the full energy cost:
 
 ```bash
-echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network nile --password-stdin
 ```
 
 ```console
@@ -64,7 +65,7 @@ echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 -
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -77,14 +78,14 @@ echo "$PW" | wallet-cli contract set-user-resource-percent TQ5nJ8mV...4wRe 100 -
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "contract-set-user-resource-percent"`, `stage: "submitted"`, `txId`, `contractAddress`, `deployerAddress`, `consumeUserResourcePercent` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
+| `--no-wait` (submitted) | `kind: "contract-set-user-resource-percent"`, `stage: "submitted"`, `txId`, `contractAddress`, `deployerAddress`, `consumeUserResourcePercent` |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 `consumeUserResourcePercent` is the value now in effect — the caller's share.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address, or percent outside 0–100; `family_mismatch` on an EVM network).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address, or percent outside 0–100; `family_mismatch` on an EVM network).
 
 ## See also
 

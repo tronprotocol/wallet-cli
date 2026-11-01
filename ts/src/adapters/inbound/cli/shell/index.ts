@@ -6,7 +6,7 @@ import type {
   ChainFamily,
   NetworkDescriptor,
 } from "../../../../domain/types/index.js";
-import { isChainCommand } from "../contracts/index.js";
+import { acceptsWaitFlags, isChainCommand, NO_SUBMIT_MODE_FIELDS } from "../contracts/index.js";
 import type {
   ChainCommandDefinition,
   ChainSpec,
@@ -472,7 +472,7 @@ function assertKnownFlags(
     | "path"
     | "fields"
     | "positionals"
-    | "supportsWait"
+    | "broadcasts"
     | "rejectsAccount"
     | "rejectsWait"
     | "rejectsWaitWith"
@@ -486,20 +486,7 @@ function assertKnownFlags(
       `${cmd.path.join(" ")} does not accept --account: ${cmd.rejectsAccount}`,
     );
   }
-  if (cmd.rejectsWait !== undefined && argv.wait !== undefined) {
-    throw new UsageError(
-      "invalid_option",
-      `${cmd.path.join(" ")} does not accept --wait: ${cmd.rejectsWait}`,
-    );
-  }
-  if (cmd.rejectsWaitWith !== undefined && argv[cmd.rejectsWaitWith] === true) {
-    if (argv.wait !== undefined) {
-      throw new UsageError(
-        "invalid_option",
-        `--wait cannot be used with --${camelToKebab(cmd.rejectsWaitWith)}, which sends no transaction`,
-      );
-    }
-  }
+  if (argv.wait !== undefined) assertWaitIntentApplies(cmd, argv);
   if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {
     if (
       argv.account !== undefined ||
@@ -510,12 +497,6 @@ function assertKnownFlags(
         "provider commands do not accept --account; --network is only a provider-list filter",
       );
     }
-  }
-  if (cmd.supportsWait === false && argv.wait !== undefined) {
-    throw new UsageError(
-      "invalid_option",
-      "This command uses facilitator settlement and does not support --wait",
-    );
   }
   const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {
@@ -546,6 +527,35 @@ function assertKnownFlags(
           return family ? `--${u} (a ${family} option on this command)` : `--${u}`;
         })
         .join(", ")}`,
+    );
+  }
+}
+
+// Refuses an explicit wait intent where no transaction is submitted, before any work starts.
+function assertWaitIntentApplies(
+  cmd: Pick<CommandExecutionSpec, "path" | "broadcasts" | "rejectsWait" | "rejectsWaitWith">,
+  argv: any,
+): void {
+  const flag = argv.wait ? "--wait" : "--no-wait";
+  if (cmd.rejectsWait !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      `${cmd.path.join(" ")} does not accept ${flag}: ${cmd.rejectsWait}`,
+    );
+  }
+  if (!acceptsWaitFlags(cmd)) {
+    throw new UsageError(
+      "invalid_option",
+      `${cmd.path.join(" ")} does not accept ${flag}: it submits no transaction to wait for`,
+    );
+  }
+  const mode = [...NO_SUBMIT_MODE_FIELDS, cmd.rejectsWaitWith].find(
+    (field) => field !== undefined && argv[field] === true,
+  );
+  if (mode !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      `${flag} cannot be used with --${camelToKebab(mode)}, which submits no transaction`,
     );
   }
 }

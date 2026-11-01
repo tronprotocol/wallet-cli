@@ -153,7 +153,7 @@ describe("RequestPacer spacing", () => {
 });
 
 describe("RequestPacer dispatch check", () => {
-  it("runs the check after the pacing wait, immediately before the request starts", async () => {
+  it("runs the check when the slot is claimed and again immediately before the request starts", async () => {
     const pacer = new RequestPacer({ minIntervalMs: 50, maxInFlight: 1 });
     const events: string[] = [];
     let allowed = true;
@@ -172,7 +172,12 @@ describe("RequestPacer dispatch check", () => {
       }),
     );
     await settle(second);
-    expect(events).toEqual(["first", `check@${started + 50}`, `sent@${started + 50}`]);
+    expect(events).toEqual([
+      "first",
+      `check@${started + 50}`,
+      `check@${started + 50}`,
+      `sent@${started + 50}`,
+    ]);
 
     allowed = false;
     let sent = 0;
@@ -223,6 +228,24 @@ describe("RequestPacer dispatch check", () => {
     const at: number[] = [];
     await settle(pacer.run(async () => at.push(Date.now())));
     expect(at).toEqual([started]);
+  });
+
+  it("checks again in the turn that sends, after the pacing wait has resolved", async () => {
+    const pacer = new RequestPacer({ minIntervalMs: 200, maxInFlight: 1 });
+    let calls = 0;
+    // Passes the check made when the slot is claimed, then expires before the send.
+    const check: DispatchCheck = {
+      signal: new AbortController().signal,
+      assertDispatchable: () => {
+        calls += 1;
+        if (calls > 1) throw new DeadlineExpiredError();
+      },
+    };
+    let sent = 0;
+    await expect(
+      withDispatchCheck(check, () => pacer.run(async () => (sent += 1))),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(sent).toBe(0);
   });
 
   it("refuses at once when the deadline has already fired", async () => {

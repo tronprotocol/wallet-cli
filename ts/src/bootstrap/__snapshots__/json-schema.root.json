@@ -41,8 +41,12 @@
     {
       "flag": "--wait",
       "type": "boolean",
-      "description": "after submitting, poll until the transaction is confirmed/failed before returning; default returns the submitted receipt without blocking",
-      "defaultValue": false
+      "description": "after submitting, poll until the transaction is confirmed or failed before returning; this is the default where a transaction is submitted"
+    },
+    {
+      "flag": "--no-wait",
+      "type": "boolean",
+      "description": "return the submitted receipt without polling for confirmation; prerequisite approvals still wait"
     },
     {
       "flag": "--password-stdin",
@@ -4738,7 +4742,7 @@
       },
       "examples": [
         "wallet-cli gasfree transfer --to T... --amount 25 --password-stdin",
-        "wallet-cli gasfree transfer --to alice --amount 25 --wait --password-stdin"
+        "wallet-cli gasfree transfer --to alice --amount 25 --no-wait --password-stdin"
       ],
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",

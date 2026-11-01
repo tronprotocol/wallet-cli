@@ -98,6 +98,50 @@ describe("parseGlobals", () => {
   });
 });
 
+describe("parseGlobals wait intent", () => {
+  it.each([
+    [[], undefined],
+    [["--wait"], true],
+    [["--no-wait"], false],
+    [["--wait", "--wait"], true],
+    [["--no-wait", "tx", "send", "--no-wait"], false],
+  ])("%j → wait %s", (tokens, wait) => {
+    const parsed = parseGlobals(tokens);
+    expect(parsed.globals.wait).toBe(wait);
+    expect(parsed.intentError).toBeUndefined();
+  });
+
+  it.each([
+    ["--wait=true"],
+    ["--wait=false"],
+    ["--wait=0"],
+    ["--wait="],
+    ["--no-wait=true"],
+    ["--no-wait=false"],
+    ["--no-wait="],
+    ["--wait", "false"],
+    ["--wait", "true"],
+    ["--no-wait", "false"],
+    ["--no-wait", "true"],
+    ["--wait", "--no-wait"],
+    ["--no-wait", "--wait"],
+    ["--wait", "--wait", "--no-wait"],
+  ])("refuses %j as invalid_option, before or after the command", (...flags) => {
+    for (const tokens of [
+      [...flags, "tx", "send"],
+      ["tx", "send", ...flags],
+    ]) {
+      expect(parseGlobals(tokens).intentError).toMatchObject({ code: "invalid_option" });
+    }
+  });
+
+  it("treats --no-wait as a global flag when locating the command path", () => {
+    expect(
+      commandPathOf(["--no-wait", "tx", "send", "--to", "x"], (p) => p.join(" ") === "tx send"),
+    ).toEqual(["tx", "send"]);
+  });
+});
+
 describe("commandTokens", () => {
   it("drops the node binary and script path", () => {
     expect(commandTokens(["node", "wallet-cli", "list", "-o", "json"])).toEqual([

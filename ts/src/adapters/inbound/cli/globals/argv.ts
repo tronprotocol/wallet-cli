@@ -7,8 +7,11 @@ import { UsageError } from "../../../../domain/errors/index.js";
 const {
   valueFlags: VALUE_FLAGS,
   booleanFlags: BOOLEAN_FLAGS,
+  negatedFlags: NEGATED_FLAGS,
   secretStdinFlags: SECRET_STDIN_FLAGS,
 } = globalTokenMaps();
+
+const NEGATABLE_FIELDS = new Set(Object.values(NEGATED_FLAGS));
 
 export interface InvalidGlobal {
   flag: string;
@@ -28,11 +31,15 @@ export function parseGlobals(tokens: string[]): {
   invalid: InvalidGlobal[];
   // Distinct secret flags in argv order; stdin can supply only one secret per run.
   stdinFlags: string[];
+  // The first misuse of a flag that has a --no- form: a value, or both forms together.
+  intentError?: UsageError;
 } {
   const globals = { verbose: false } as Globals;
   const secretPaths: SecretPaths = {};
   const invalid: InvalidGlobal[] = [];
   const stdinFlags: string[] = [];
+  let intentError: UsageError | undefined;
+  const intentSeen = new Map<string, string>();
   for (let i = 0; i < tokens.length; i++) {
     let token = tokens[i]!;
     let inlineValue: string | undefined;
@@ -60,10 +67,34 @@ export function parseGlobals(tokens: string[]): {
       continue;
     }
 
+    const negatedField = NEGATED_FLAGS[token];
     const booleanField = BOOLEAN_FLAGS[token];
+    const intentField =
+      negatedField ??
+      (booleanField && NEGATABLE_FIELDS.has(booleanField) ? booleanField : undefined);
+    if (intentField) {
+      // yargs reads `--flag=<v>` and a following true/false as a value; only the bare forms are accepted.
+      const next = tokens[i + 1];
+      const value = inlineValue ?? (next === "true" || next === "false" ? next : undefined);
+      const previous = intentSeen.get(intentField);
+      if (value !== undefined) {
+        intentError ??= new UsageError(
+          "invalid_option",
+          `${token} takes no value ("${value}"); pass ${token} alone`,
+        );
+      } else if (previous !== undefined && previous !== token) {
+        intentError ??= new UsageError(
+          "invalid_option",
+          `${previous} and ${token} cannot be combined; pass one of them`,
+        );
+      }
+      intentSeen.set(intentField, token);
+      (globals as unknown as Record<string, unknown>)[intentField] = negatedField === undefined;
+      continue;
+    }
     if (booleanField) (globals as unknown as Record<string, unknown>)[booleanField] = true;
   }
-  return { globals, secretPaths, invalid, stdinFlags };
+  return { globals, secretPaths, invalid, stdinFlags, ...(intentError ? { intentError } : {}) };
 }
 
 export function hasCommand(tokens: string[]): boolean {
@@ -110,7 +141,7 @@ export function commandPathOf(
       if (!token.includes("=")) i++;
       continue;
     }
-    if (SECRET_STDIN_FLAGS[flag] || BOOLEAN_FLAGS[flag]) continue;
+    if (SECRET_STDIN_FLAGS[flag] || BOOLEAN_FLAGS[flag] || NEGATED_FLAGS[flag]) continue;
     break;
   }
   for (let length = words.length; length > 0; length--) {

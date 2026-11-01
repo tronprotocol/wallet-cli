@@ -1068,14 +1068,55 @@ it.each([
   ["x402", "roundtrip", "--pay-to", TRON1],
   ["bai", "recharge", "1"],
 ])("rejects unused wait flags before payment: %j", (...args) => {
-  const wait = run([...args, "--network", "tron", "--wait", "-o", "json"], { password: null });
-  expect(wait.json?.error.code).toBe("invalid_option");
-  expect(wait.json?.error.message).toContain("does not support --wait");
+  for (const flag of ["--wait", "--no-wait"]) {
+    const wait = run([...args, "--network", "tron", flag, "-o", "json"], { password: null });
+    expect(wait.status).toBe(2);
+    expect(wait.json?.error.code).toBe("invalid_option");
+    expect(wait.json?.error.message).toContain(`does not accept ${flag}: `);
+  }
   const removed = run([...args, "--network", "tron", "--wait-timeout", "100", "-o", "json"], {
     password: null,
   });
   expect(removed.json?.error.code).toBe("invalid_option");
   expect(removed.json?.error.message).toBe("unknown option(s): --wait-timeout");
+});
+
+it.each([["--wait"], ["--no-wait"]])(
+  "refuses %s on reads and local commands, which run normally without it",
+  (flag) => {
+    for (const args of [
+      ["config"],
+      ["contact", "list"],
+      ["account", "balance", "--network", "nile"],
+    ]) {
+      const r = run([...args, flag, "-o", "json"], { password: null });
+      expect(r.status).toBe(2);
+      expect(r.json?.error.code).toBe("invalid_option");
+      expect(r.json?.error.message).toContain(`does not accept ${flag}: `);
+    }
+    expect(run(["config", "-o", "json"], { password: null }).status).toBe(0);
+  },
+);
+
+it.each([
+  [["--wait=true"]],
+  [["--wait=false"]],
+  [["--wait="]],
+  [["--no-wait=false"]],
+  [["--wait", "false"]],
+  [["--no-wait", "true"]],
+  [["--wait", "--no-wait"]],
+  [["--no-wait", "--wait"]],
+])("refuses the wait spelling %j before and after the command", (flags) => {
+  const send = ["tx", "send", "--to", TRON1, "--amount", "1", "--network", "tron"];
+  for (const args of [
+    [...flags, ...send],
+    [...send, ...flags],
+  ]) {
+    const r = run([...args, "-o", "json"], { password: null });
+    expect(r.status).toBe(2);
+    expect(r.json?.error.code).toBe("invalid_option");
+  }
 });
 
 it("reads --body-file - from stdin instead of treating the dash as a positional", () => {

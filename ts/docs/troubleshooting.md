@@ -80,7 +80,7 @@ The command did not finish within `--timeout` (default 90000 ms), which covers t
 
 - Check basic connectivity to the network; if you are behind a proxy, verify the CLI's traffic actually goes through it.
 - Raise the limit: `--timeout 180000`. A `--timeout` below 2000 never submits a transaction or payment.
-- With `--wait`, a transaction that was accepted but not yet confirmed returns `stage: "submitted"` and a warning instead of `timeout`; check it with `tx status`.
+- A transaction that was accepted but not yet confirmed when the time runs out returns `stage: "submitted"` and a warning instead of `timeout`; check it with `tx status`.
 - Ledger: confirm the device is unlocked and the app the account was registered with (`--app tron` or `--app ethereum`) is open, then retry.
 - **If `error.details.txId` is present**, the transaction may have been submitted. Check `tx status` with that id before resending.
 

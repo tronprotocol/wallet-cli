@@ -32,6 +32,8 @@ export class RequestPacer {
     await this.#acquire(signal);
     try {
       await this.#awaitStart(context);
+      // Time passes across the await above; check again in the same turn as the send.
+      dispatchNow(context);
       return await fn();
     } finally {
       this.#release();

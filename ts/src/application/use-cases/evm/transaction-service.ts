@@ -51,6 +51,7 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
   type TxOutcomeView,
+  waitsForConfirmation,
 } from "../../services/transaction-mode.js";
 
 type EvmTokenMetadata = Awaited<ReturnType<EvmGateway["getErc20Metadata"]>>;
@@ -293,6 +294,7 @@ export class EvmTransactionService {
     if (!parsed.signed) {
       throw new ChainError("invalid_transaction", "this transaction carries no signature");
     }
+    waitsForConfirmation(scope.wait, !dryRun);
     if (dryRun) return this.#dryRunBroadcast(scope, network, gateway, parsed);
     assertChainId(parsed, network);
     const local = parsed.hash;
@@ -308,11 +310,11 @@ export class EvmTransactionService {
       txId,
       ...(result.alreadyKnown ? { alreadyKnown: true } : {}),
     };
-    if (!scope.wait) return submitted;
+    if (!waitsForConfirmation(scope.wait, true)) return submitted;
     const confirmed = await evmConfirmation(gateway, scope)(txId).catch(() => undefined);
     if (!confirmed) {
       scope.warn(
-        errorMessage`${inputRef("wait")}: ${txId} not confirmed before the command's time limit; returning submitted`,
+        errorMessage`${txId} not confirmed before the command's time limit; returning submitted`,
       );
       return submitted;
     }

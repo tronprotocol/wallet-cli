@@ -26,7 +26,7 @@ const scope: TransactionScope = {
   activeAccount: "wlt_test.0" as never,
   resolveAddress: () => OWNER,
   deadline: new CommandDeadline(0),
-  wait: false,
+  wait: undefined,
 
   emit: () => {},
   warn: () => {},

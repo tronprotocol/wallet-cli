@@ -14,7 +14,7 @@ import { SigningService } from "../signing/signing-service.js";
 function scope(over: Partial<TransactionScope> = {}): TransactionScope {
   return {
     deadline: new CommandDeadline(0),
-    wait: false,
+    wait: undefined,
     activeAccount: "acct" as never,
     resolveAddress: () => "TSender",
     emit: () => {},
@@ -243,7 +243,7 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
     const outcome = await new TxPipeline(signers, new SigningService({} as never)).runTron(
       params(signer, {
-        ctx: scope({ warn: (m: string) => warnings.push(String(m)) }),
+        ctx: scope({ wait: false, warn: (m: string) => warnings.push(String(m)) }),
         mode: "broadcast",
         broadcaster: { broadcast: async () => ({ txId: nodeTxId }) } as never,
       }),
@@ -477,7 +477,7 @@ describe("TxPipeline TRON entry runs every lifecycle step for its mode", () => {
     const signers = { assertCanSign: vi.fn(), resolve: () => signer } as unknown as SignerResolver;
     const input = params(signer, {
       mode,
-      ctx: scope({ wait: mode === "broadcast" }),
+      ctx: scope({ wait: mode === "broadcast" ? true : undefined }),
       build: async () => {
         calls.push("build");
         return { txID: "aa" } as never;
@@ -558,6 +558,34 @@ describe("TxPipeline TRON entry runs every lifecycle step for its mode", () => {
     expect(h.calls).toEqual(expected);
   });
 
+  it.each([
+    [undefined, "confirmed"],
+    [true, "confirmed"],
+    [false, "submitted"],
+  ] as const)("broadcast with wait intent %s returns %s", async (wait, stage) => {
+    const h = tracked("broadcast");
+    const outcome = await h.pipeline.runTron({ ...h.input, ctx: scope({ wait }) });
+    expect(outcome.stage).toBe(stage);
+    expect(h.calls.filter((c) => c === "broadcast")).toHaveLength(1);
+    expect(h.calls.includes("confirm")).toBe(stage === "confirmed");
+  });
+
+  it.each(["dry-run", "build-only", "sign-only"] as const)(
+    "%s runs normally without a wait intent and refuses an explicit one before building",
+    async (mode) => {
+      const plain = tracked(mode);
+      await plain.pipeline.runTron({ ...plain.input, ctx: scope({ wait: undefined }) });
+      expect(plain.calls).not.toContain("broadcast");
+      for (const wait of [true, false]) {
+        const h = tracked(mode);
+        await expect(
+          h.pipeline.runTron({ ...h.input, ctx: scope({ wait }) }),
+        ).rejects.toMatchObject({ code: "invalid_option" });
+        expect(h.calls).toEqual([]);
+      }
+    },
+  );
+
   it("keeps a caller-set expiration instead of extending it for a device", async () => {
     const h = tracked("sign-only");
     await h.pipeline.runTron({ ...h.input, expiration: 90_000 });
@@ -637,7 +665,7 @@ describe("TxPipeline under the command deadline", () => {
     );
     expect(out).toMatchObject({ stage: "submitted", txId: "tx" });
     expect(warnings).toEqual([
-      "--wait: tx not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
+      "tx not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
     ]);
   });
 });

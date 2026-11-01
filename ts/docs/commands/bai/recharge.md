@@ -205,7 +205,7 @@ With `--dry-run`:
 
 ## Exit status
 
-`0` paid (check `creditStatus`), or previewed with `--dry-run` · `1` execution failure (the payment errors of [`x402 pay`](../x402/pay.md#exit-status); `auth_required` — no `--password-stdin`, before any order is created; `provider_error` — including a `--to` recipient B.AI does not recognize, or a binding B.AI returns for a different address or chain; `bai_auth_failed` — B.AI rejected the stored key; `bai_rejected` — with `error.details.reason`) · `2` usage error (`bai_credentials_missing`; `unsupported_network_capability`; `invalid_value` — a token the network does not accept, or `exact_gasfree` outside TRON; `invalid_amount` — not a positive amount, below the minimum, or more than 6 decimal places; `invalid_option` — both GasFree fee caps, or `--wait`, which this command does not take).
+`0` paid (check `creditStatus`), or previewed with `--dry-run` · `1` execution failure (the payment errors of [`x402 pay`](../x402/pay.md#exit-status); `auth_required` — no `--password-stdin`, before any order is created; `provider_error` — including a `--to` recipient B.AI does not recognize, or a binding B.AI returns for a different address or chain; `bai_auth_failed` — B.AI rejected the stored key; `bai_rejected` — with `error.details.reason`) · `2` usage error (`bai_credentials_missing`; `unsupported_network_capability`; `invalid_value` — a token the network does not accept, or `exact_gasfree` outside TRON; `invalid_amount` — not a positive amount, below the minimum, or more than 6 decimal places; `invalid_option` — both GasFree fee caps, or `--wait` / `--no-wait`, which this command does not take).
 
 ## See also
 

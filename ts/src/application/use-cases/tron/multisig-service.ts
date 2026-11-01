@@ -6,6 +6,7 @@ import type {
   TxApprovalView,
 } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
+import { waitsForConfirmation } from "../../services/transaction-mode.js";
 import { operationForContractType } from "../../../domain/tron/permission/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -89,6 +90,7 @@ export class TronMultisigService implements TronCheckedSigner {
     hex: string,
     dryRun: boolean,
   ) {
+    waitsForConfirmation(scope.wait, !dryRun);
     const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const transaction = gateway.decodeTransactionHex(hex);
     const approval = await this.#assertBroadcastable(gateway, network, transaction);

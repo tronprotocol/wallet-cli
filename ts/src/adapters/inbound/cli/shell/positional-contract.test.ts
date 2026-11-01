@@ -3,7 +3,12 @@ import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { buildCli, type ShellOptions } from "./index.js";
-import { isChainCommand, type SessionRef } from "../contracts/index.js";
+import {
+  acceptsWaitFlags,
+  isChainCommand,
+  type SessionRef,
+  type StoredCommand,
+} from "../contracts/index.js";
 import { composeCliRuntime } from "../../../../bootstrap/composition.js";
 import { Prompter } from "../input/prompt/index.js";
 import { SecretResolver } from "../input/secret/index.js";
@@ -197,41 +202,75 @@ describe("every registered positional command rejects its --<field> spelling", (
     }
   });
 
-  it("refuses --wait on every command that declares it has nothing to wait for", async () => {
-    const paths = newRuntime()
-      .registry.all()
-      .flatMap((c) => (isChainCommand(c) && c.spec.rejectsWait !== undefined ? [c.spec.path] : []));
-    expect(paths.map((path) => path.join(" ")).sort()).toEqual(["sunpump launch"]);
-    for (const path of paths) {
-      await expect(buildCli(shellOpts()).parseAsync([...path, "--wait"])).rejects.toMatchObject({
-        code: "invalid_option",
-        message: new RegExp(`^${path.join(" ")} does not accept --wait: `),
-      });
-    }
-  });
+  const commandPath = (c: StoredCommand) => (isChainCommand(c) ? c.spec.path : c.path);
+  const commandFields = (c: StoredCommand): string[] =>
+    isChainCommand(c)
+      ? [
+          ...Object.keys(c.spec.baseFields.shape),
+          ...Object.values(c.families).flatMap((b) => Object.keys(b?.fields?.shape ?? {})),
+        ]
+      : Object.keys(c.fields.shape);
 
-  it("refuses --wait with --quote on the commands that declare it", async () => {
-    const commands = newRuntime()
-      .registry.all()
-      .flatMap((c) =>
-        isChainCommand(c) && c.spec.rejectsWaitWith !== undefined
-          ? [{ path: c.spec.path, field: c.spec.rejectsWaitWith }]
-          : [],
-      );
-    expect(commands.map((c) => `${c.path.join(" ")} --${c.field}`).sort()).toEqual([
-      "sunpump buy --quote",
-      "sunpump sell --quote",
-      "sunswap swap --quote",
-    ]);
-    for (const { path } of commands) {
-      await expect(
-        buildCli(shellOpts()).parseAsync([...path, "--quote", "--wait"]),
-      ).rejects.toMatchObject({
-        code: "invalid_option",
-        message: "--wait cannot be used with --quote, which sends no transaction",
+  it.each(["--wait", "--no-wait"])(
+    "refuses %s on every command that submits no transaction to wait for",
+    async (flag) => {
+      const all = newRuntime().registry.all();
+      const declined = all.filter((c) => {
+        const spec = isChainCommand(c) ? c.spec : c;
+        return spec.broadcasts === true && spec.rejectsWait !== undefined;
       });
-    }
-  });
+      expect(declined.map((c) => commandPath(c).join(" ")).sort()).toEqual([
+        "bai recharge",
+        "x402 pay",
+        "x402 roundtrip",
+      ]);
+      for (const c of all.filter((c) => !acceptsWaitFlags(isChainCommand(c) ? c.spec : c))) {
+        const path = commandPath(c);
+        await expect(buildCli(shellOpts()).parseAsync([...path, flag])).rejects.toMatchObject({
+          code: "invalid_option",
+          message: new RegExp(`^${path.join(" ")} does not accept ${flag}: `),
+        });
+      }
+    },
+  );
+
+  it.each(["--wait", "--no-wait"])(
+    "refuses %s with every mode that submits nothing",
+    async (flag) => {
+      const commands = newRuntime()
+        .registry.all()
+        .filter((c) => acceptsWaitFlags(isChainCommand(c) ? c.spec : c));
+      const checked: string[] = [];
+      for (const c of commands) {
+        const path = commandPath(c);
+        const extra = isChainCommand(c) ? c.spec.rejectsWaitWith : undefined;
+        const fields = commandFields(c);
+        for (const mode of ["dryRun", "buildOnly", "signOnly", ...(extra ? [extra] : [])]) {
+          if (!fields.includes(mode)) continue;
+          const modeFlag = `--${mode.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}`;
+          checked.push(`${path.join(" ")} ${modeFlag}`);
+          await expect(
+            buildCli(shellOpts()).parseAsync([...path, modeFlag, flag]),
+          ).rejects.toMatchObject({
+            code: "invalid_option",
+            message: `${flag} cannot be used with ${modeFlag}, which submits no transaction`,
+          });
+        }
+      }
+      expect(checked).toEqual(
+        expect.arrayContaining([
+          "tx send --dry-run",
+          "tx send --build-only",
+          "tx send --sign-only",
+          "tx broadcast --dry-run",
+          "gasfree transfer --dry-run",
+          "sunpump buy --quote",
+          "sunpump sell --quote",
+          "sunswap swap --quote",
+        ]),
+      );
+    },
+  );
 
   it("keeps the global --account usable on the commands whose positional shares its name", async () => {
     for (const cmd of positionalCommands().filter((c) =>

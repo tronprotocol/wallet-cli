@@ -79,7 +79,7 @@ printf '%s' "$PW" | wallet-cli x402 roundtrip --pay-to TMSgJxtPw29AFEHMXsjGo4kWV
 
 ## Exit status
 
-`0` paid · `1` execution failure (the payment errors of [`x402 pay`](pay.md#exit-status); `auth_required` — no `--password-stdin`; `missing_wallet_address`; `port_in_use`) · `2` usage error (the usage errors of [`x402 serve`](serve.md#exit-status); `invalid_option` — two exclusive options (`--amount` / `--raw-amount`, `--token` / `--asset`, both GasFree fee caps), `--decimals` without `--asset`, or `--wait`, which this command does not take; `gasfree_credentials_missing`).
+`0` paid · `1` execution failure (the payment errors of [`x402 pay`](pay.md#exit-status); `auth_required` — no `--password-stdin`; `missing_wallet_address`; `port_in_use`) · `2` usage error (the usage errors of [`x402 serve`](serve.md#exit-status); `invalid_option` — two exclusive options (`--amount` / `--raw-amount`, `--token` / `--asset`, both GasFree fee caps), `--decimals` without `--asset`, or `--wait` / `--no-wait`, which this command does not take; `gasfree_credentials_missing`).
 
 ## See also
 

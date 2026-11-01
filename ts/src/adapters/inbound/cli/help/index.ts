@@ -1,6 +1,6 @@
 import { z, type ZodObject, type ZodRawShape } from "zod";
 import type { ChainFamily, ExitCode } from "../../../../domain/types/index.js";
-import { isChainCommand } from "../contracts/index.js";
+import { acceptsWaitFlags, isChainCommand } from "../contracts/index.js";
 import type {
   ChainCommandDefinition,
   ChainSpec,
@@ -175,6 +175,11 @@ export class HelpService {
         "--timeout int",
         `Deadline for the whole command in milliseconds; 0 = no limit (default from config timeoutMs, built-in ${CONFIG_DEFAULTS.timeoutMs})`,
       ],
+      [
+        "--wait",
+        "Wait until the submitted transaction is confirmed or failed (default where a transaction is submitted)",
+      ],
+      ["--no-wait", "Return after submission without waiting for confirmation"],
       ["-v, --verbose", "Verbose / debug logging"],
       ["-h, --help", "Show help"],
       ["-V, --version", "Print version information and quit"],
@@ -254,7 +259,7 @@ export class HelpService {
       auth: cmd.auth,
       wallet: cmd.wallet,
       broadcasts: cmd.broadcasts,
-      supportsWait: cmd.supportsWait,
+      rejectsWait: cmd.rejectsWait,
       fields: introspectFields(cmd.fields),
       inputFlags: inputFlagsFor(cmd),
       exclusive: cmd.exclusive,
@@ -277,7 +282,7 @@ export class HelpService {
       auth: spec.auth,
       wallet: spec.wallet,
       broadcasts: spec.broadcasts,
-      supportsWait: spec.supportsWait,
+      rejectsWait: spec.rejectsWait,
       fields: introspectFields(mergedFields(def)),
       fieldFamilies: fieldFamilies(def),
       inputFlags: spec.stdin ? inputFlagsFor(spec) : [],
@@ -298,7 +303,7 @@ export class HelpService {
     auth: CommandDefinition["auth"];
     wallet: CommandDefinition["wallet"];
     broadcasts?: boolean;
-    supportsWait?: boolean;
+    rejectsWait?: string;
     fields: FieldInfo[];
     fieldFamilies?: Map<string, ChainFamily>;
     inputFlags: readonly GlobalFlag[];
@@ -414,7 +419,7 @@ export class HelpService {
       c.network,
       c.auth,
       c.wallet,
-      c.supportsWait ?? c.broadcasts ?? false,
+      acceptsWaitFlags(c),
       c.secretsTtyOnly ?? false,
     ))
       lines.push(globalFlagLine(g));
@@ -556,14 +561,14 @@ function globalFlagsForText(
   network: ChainSpec["network"] | "none",
   auth: CommandDefinition["auth"],
   wallet: CommandDefinition["wallet"],
-  broadcasts: boolean,
+  acceptsWait: boolean,
   secretsTtyOnly: boolean,
 ): GlobalFlag[] {
   return GLOBAL_FLAGS.filter((g) => {
     if (g.flag === "--account") return wallet !== "none";
     if (g.flag === "--network") return network !== "none";
     if (g.flag === "--password-stdin") return auth !== "none" && !secretsTtyOnly;
-    if (g.flag === "--wait") return broadcasts;
+    if (g.flag === "--wait" || g.flag === "--no-wait") return acceptsWait;
     return true;
   });
 }

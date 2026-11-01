@@ -16,7 +16,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway, TronProposal } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { outcomeData } from "../../services/transaction-mode.js";
+import { outcomeData, waitsForConfirmation } from "../../services/transaction-mode.js";
 import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import {
@@ -95,7 +95,7 @@ export class TronProposalService {
     const mode = governanceTransactionMode(this.pipeline, scope, input);
     const owner = scope.resolveAddress("tron");
     // Snapshot before submission to distinguish new proposals; lookup failure must not block writes.
-    const wantsId = scope.wait && mode.mode === "broadcast";
+    const wantsId = waitsForConfirmation(scope.wait, mode.mode === "broadcast");
     const [parameters, , before] = await Promise.all([
       gateway.getChainParameters(),
       assertWitness(gateway, owner),

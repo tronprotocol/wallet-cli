@@ -40,7 +40,14 @@ function globalFlagDoc(f: GlobalFlagSpec): GlobalFlag {
 
 export const GLOBAL_FLAGS: readonly GlobalFlag[] = GLOBAL_FLAG_SPECS.filter(
   (f) => !f.commandScoped,
-).map(globalFlagDoc);
+).flatMap((f) =>
+  f.negation === undefined
+    ? [globalFlagDoc(f)]
+    : [
+        globalFlagDoc(f),
+        { flag: `--no-${f.name}`, type: "boolean" as const, description: f.negation },
+      ],
+);
 
 const STDIN_FLAGS = Object.fromEntries(
   GLOBAL_FLAG_SPECS.filter((f) => f.commandScoped).map((f) => [f.secretKey, globalFlagDoc(f)]),

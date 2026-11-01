@@ -6,7 +6,7 @@ Remove an operator's permission to manage all of this account's Agents.
 
 ```
 wallet-cli 8004 remove-operator <operator>
-                  [--wait | --sign-only | --build-only | --dry-run]
+                  [--wait | --no-wait | --sign-only | --build-only | --dry-run]
                   [--fee-limit <sun>] [--permission-id <n>] [--expiration <ms>] [options]
 ```
 
@@ -26,7 +26,8 @@ Runs on networks with an ERC-8004 Identity Registry: `tron`, `nile`, `shasta`, `
 
 | Option | Description |
 |---|---|
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
 | `--build-only` | Build and estimate, output the **unsigned** hex without unlocking the wallet; excludes `--dry-run` / `--sign-only` |
 | `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
@@ -49,7 +50,7 @@ Plus the [global options](../index.md#global-options-every-command).
 Remove `TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH` as an operator for all Agents of the active account. `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-printf '%s' "$PW" | wallet-cli 8004 remove-operator TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --network nile --wait --password-stdin
+printf '%s' "$PW" | wallet-cli 8004 remove-operator TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --network nile --password-stdin
 ```
 
 ```console
@@ -64,7 +65,7 @@ printf '%s' "$PW" | wallet-cli 8004 remove-operator TGkbaCYB4kRBc3Q6wjqkACefUvRw
 ```
 
 ```bash
-printf '%s' "$PW" | wallet-cli 8004 remove-operator TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --network nile --wait --password-stdin -o json
+printf '%s' "$PW" | wallet-cli 8004 remove-operator TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --network nile --password-stdin -o json
 ```
 
 ```json
@@ -79,17 +80,17 @@ printf '%s' "$PW" | wallet-cli 8004 remove-operator TGkbaCYB4kRBc3Q6wjqkACefUvRw
 
 | Mode | Fields |
 |---|---|
-| default (submit) | `kind: "contract-send"`, `stage: "submitted"`, `txId`, `method`, `contract`, `identity` |
-| `--wait` (confirmed/failed) | above, but `stage: "confirmed"` or `"failed"`, plus `confirmed`, `blockNumber`, `failed`, and the realised cost — `feeSun` / `energyUsed` / `energyFeeSun` / `netFeeSun` / `result` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
+| `--no-wait` (submitted) | `kind: "contract-send"`, `stage: "submitted"`, `txId`, `method`, `contract`, `identity` |
+| default or `--wait` (confirmed/failed) | above, but `stage: "confirmed"` or `"failed"`, plus `confirmed`, `blockNumber`, `failed`, and the realised cost — `feeSun` / `energyUsed` / `energyFeeSun` / `netFeeSun` / `result` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `hex`, `signed`, `address` (signer), `txId`, `fee`, `method`, `contract`, `identity` |
 | `--build-only` | `kind`, `mode: "build-only"`, `hex` (**unsigned**), `tx`, `fee`, `method`, `contract`, `identity` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee`, unsigned `tx`, `method`, `contract`, plus `nonce` on EVM, `identity` |
 
-`identity` holds `operator` and `requestedApproval` (`false` for this command). After a confirmed `--wait`, it adds `approved` — the permission read back from the registry, which should equal `requestedApproval`. If that read fails, you get a warning instead; do not send the transaction again.
+`identity` holds `operator` and `requestedApproval` (`false` for this command). After confirmation, it adds `approved` — the permission read back from the registry, which should equal `requestedApproval`. If that read fails, you get a warning instead; do not send the transaction again.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`execution_reverted` — the registry refused the call during estimation, with the raw revert data in `error.details.revertData`; `auth_required` — a signing mode without `--password-stdin`; `watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value` — a malformed id or URI, or a bad option combination such as `--expiration` without `--sign-only` / `--build-only`; `family_mismatch` — an address of the other chain family; `invalid_option` — `--wait` with an early-exit mode; `unsupported_network_capability` — no registry on the selected network)
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`execution_reverted` — the registry refused the call during estimation, with the raw revert data in `error.details.revertData`; `auth_required` — a signing mode without `--password-stdin`; `watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value` — a malformed id or URI, or a bad option combination such as `--expiration` without `--sign-only` / `--build-only`; `family_mismatch` — an address of the other chain family; `invalid_option` — `--wait` or `--no-wait` with an early-exit mode; `unsupported_network_capability` — no registry on the selected network)
 
 ## See also
 

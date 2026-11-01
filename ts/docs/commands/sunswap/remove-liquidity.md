@@ -9,7 +9,7 @@ wallet-cli sunswap remove-liquidity --protocol <V2|V3|V4> --liquidity <n>
                                     [--token0 <token> --token1 <token>] [--position-id <id>]
                                     [--fee <n>] [--min0 <n>] [--min1 <n>] [--slippage <decimal>]
                                     [--recipient <address>] [--deadline <timestamp>] [--fee-limit <sun>]
-                                    [--dry-run | --build-only | --wait] [options]
+                                    [--dry-run | --build-only | --wait | --no-wait] [options]
 ```
 
 ## Description
@@ -62,7 +62,8 @@ A V4 withdrawal needs **both** `--position-id` and `--token0` / `--token1`. The 
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transactions in execution order |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--account <label\|accountId>` | Account to withdraw for; default the active account |
 | `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 
@@ -76,7 +77,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 701 --liquidity 1000000 \
-  --wait --password-stdin --network nile
+  --password-stdin --network nile
 ```
 
 ```console
@@ -97,7 +98,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 701
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 702 --liquidity 1000000 \
-  --wait --password-stdin --network nile -o json
+  --password-stdin --network nile -o json
 ```
 
 ```json
@@ -108,7 +109,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 702
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 188 --token0 TRX --token1 USDT \
-  --liquidity 1000000 --wait --password-stdin --network nile
+  --liquidity 1000000 --password-stdin --network nile
 ```
 
 ```console
@@ -134,7 +135,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 188
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 189 --token0 TRX --token1 USDT \
-  --liquidity 1000000 --wait --password-stdin --network nile -o json
+  --liquidity 1000000 --password-stdin --network nile -o json
 ```
 
 ```json
@@ -145,7 +146,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 189
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --token1 TRX \
-  --liquidity 0.000000000000770874 --wait --password-stdin --network nile
+  --liquidity 0.000000000000770874 --password-stdin --network nile
 ```
 
 ```console
@@ -166,7 +167,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --t
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --token1 TRX \
-  --liquidity 0.000000000000770874 --wait --password-stdin --network nile -o json
+  --liquidity 0.000000000000770874 --password-stdin --network nile -o json
 ```
 
 ```json
@@ -191,7 +192,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --t
 | `fee` / `feeCovers` | — | The estimate and what it covers |
 | `approvalTxIds[]`, `amountsEstimated` | — | Once sent, as in [`add-liquidity`](add-liquidity.md#output) |
 
-The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
 
 ## Exit status
 

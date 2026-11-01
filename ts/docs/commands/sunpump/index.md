@@ -60,7 +60,7 @@ Default slippage is **5%**, ten times [`sunswap swap`](../sunswap/swap.md)'s 0.5
 
 ## `--quote` costs nothing
 
-`--quote` prices the trade from contract reads alone: **no account, no password, no transaction**. It publishes **no minimum and no slippage**, and refuses `--slippage`, `--min-out` and `--wait` — a quote sends no transaction, so a floor would never be enforced.
+`--quote` prices the trade from contract reads alone: **no account, no password, no transaction**. It publishes **no minimum and no slippage**, and refuses `--slippage`, `--min-out`, `--wait` and `--no-wait` — a quote sends no transaction, so a floor would never be enforced.
 
 **Ledger** accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app — see [TRON app settings](../../guide/ledger.md#tron-app-settings).
 

@@ -9,7 +9,7 @@ wallet-cli sunswap collect-fees --protocol <V3|V4> --position-id <id>
                                 [--recipient <address>]
                                 [--token0 <token> --token1 <token> [--fee <n>]] [--deadline <timestamp>]
                                 [--fee-limit <sun>]
-                                [--dry-run | --build-only | --wait] [options]
+                                [--dry-run | --build-only | --wait | --no-wait] [options]
 ```
 
 ## Description
@@ -41,7 +41,8 @@ Ownership is checked in the dry run **and again immediately before sending**. `-
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transaction |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--account <label\|accountId>` | Account holding the position; default the active account |
 | `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 
@@ -54,7 +55,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Collecting everything position #690 is owed. `Collected` is what the transaction's `Collect` event says arrived; `tokensAuto: true` in JSON means the pair was read from the position, not given:
 
 ```bash
-echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --wait --password-stdin --account led --network nile
+echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --password-stdin --account led --network nile
 ```
 
 ```console
@@ -72,7 +73,7 @@ echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --w
 ```
 
 ```bash
-echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --wait --password-stdin --account led --network nile -o json
+echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --password-stdin --account led --network nile -o json
 ```
 
 ```json
@@ -93,7 +94,7 @@ echo "$PW" | wallet-cli sunswap collect-fees --protocol V3 --position-id 690 --w
 | `poolId`, `feeTier`, `tickSpacing`, `hooks` | — | V4: the position's pool key |
 | `fee` / `feeCovers` | — | The estimated network cost; always `feeCovers: "all"`, since nothing is approved |
 
-The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
 
 ## Exit status
 

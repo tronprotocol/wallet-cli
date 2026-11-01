@@ -14,7 +14,8 @@ describe("global --wait / --timeout wording holds for every command that shows t
     expect(text).not.toMatch(/broadcast/i);
     expect(text).not.toMatch(/txid/i);
     expect(text).toMatch(/confirmed/i);
-    expect(text).toMatch(/without blocking/i);
+    expect(text).toMatch(/default/i);
+    expect(spec("wait").negation).toMatch(/without polling/i);
   });
 
   it("describes one deadline for the whole command, with 0 as no limit", () => {

@@ -6,7 +6,7 @@ Activate a not-yet-existing account on-chain.
 
 ```
 wallet-cli account activate --address <T...>
-                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait]
+                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                             [--permission-id <n>] [options]
 ```
 
@@ -18,7 +18,7 @@ Use it only when an address needs to *exist* on its own — to be queryable, or 
 
 Requires the payer account. The master password via `--password-stdin` is needed only when the selected mode signs — `--dry-run` and `--build-only` never unlock the wallet. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
-The Ledger TRON app cannot sign `AccountCreateContract`. A Ledger account can still use `--dry-run` or `--build-only`; `--sign-only`, plain submission and `--wait` fail with `ledger_unsupported` before the device is touched.
+The Ledger TRON app cannot sign `AccountCreateContract`. A Ledger account can still use `--dry-run` or `--build-only`; `--sign-only` and submission fail with `ledger_unsupported` before the device is touched.
 
 ## Options
 
@@ -30,7 +30,8 @@ The Ledger TRON app cannot sign `AccountCreateContract`. A Ledger account can st
 | `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command). `--account` selects the payer.
@@ -39,10 +40,10 @@ Plus the [global options](../index.md#global-options-every-command). `--account`
 
 In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`.
 
-Default — broadcast and return the **submitted** receipt:
+With `--no-wait` — broadcast and return the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli account activate --address TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ --network nile --password-stdin
+echo "$PW" | wallet-cli account activate --address TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ --network nile --no-wait --password-stdin
 ```
 
 ```console
@@ -58,10 +59,10 @@ echo "$PW" | wallet-cli account activate --address TGQhRHn5tseyGo3RpWjn9ZA7fGDhJ
 {"schema":"wallet-cli.result.v1","success":true,"command":"account.activate","data":{"kind":"account-activate","stage":"submitted","txId":"a1b...","address":"TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ","payer":"TP2Zs9qKScTMs8jDYV3SAHQ5pqgKY1NQ5V"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-Add `--wait` to block until confirmed, with the actual block and fee:
+Without `--no-wait`, the command blocks until confirmed, with the actual block and fee:
 
 ```bash
-echo "$PW" | wallet-cli account activate --address TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ --network nile --wait --password-stdin
+echo "$PW" | wallet-cli account activate --address TGQhRHn5tseyGo3RpWjn9ZA7fGDhJyWmcZ --network nile --password-stdin
 ```
 
 ```console
@@ -84,13 +85,13 @@ echo "$PW" | wallet-cli account activate --address TGQhRHn5tseyGo3RpWjn9ZA7fGDhJ
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "account-activate"`, `stage: "submitted"`, `txId`, `address`, `payer` |
-| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
+| `--no-wait` (submitted) | `kind: "account-activate"`, `stage: "submitted"`, `txId`, `address`, `payer` |
+| default or `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, fee estimate, `address`, `payer`; no `txId` |
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed/dry-run in early-exit modes) · `1` execution failure (`account_already_active`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed address).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_activate_postcheck_mismatch` / `account_activate_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

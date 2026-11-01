@@ -244,7 +244,7 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 -h, --help / -V, --version
 ```
 
-Commands whose schema allows post-broadcast polling take `--wait`, which polls within the command's `--timeout` (see [time limit](../machine-interface.md#time-limit---timeout)). The early-exit modes are command-specific too: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while a submit-only command such as `tx broadcast` neither rebuilds nor signs and therefore has no `--sign-only` / `--build-only`.
+Commands that submit a transaction wait for its confirmation within the command's `--timeout` (see [time limit](../machine-interface.md#time-limit---timeout)); `--no-wait` returns at submission, and `--wait` names the default. Elsewhere, and with an early-exit mode, both flags fail with `invalid_option`. The early-exit modes are command-specific too: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while a submit-only command such as `tx broadcast` neither rebuilds nor signs and therefore has no `--sign-only` / `--build-only`.
 
 Fee and multi-sig flags are **family-scoped**, so they are not global:
 

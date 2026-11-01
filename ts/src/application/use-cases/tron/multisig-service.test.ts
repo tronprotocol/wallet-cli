@@ -17,6 +17,7 @@ import { SigningService } from "../../services/signing/signing-service.js";
 import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
 import { DeadlineExpiredError } from "../../contracts/deadline.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
+import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
 
@@ -84,11 +85,11 @@ function fakeGateway(overrides: Partial<TronGateway> = {}): TronGateway {
   } as unknown as TronGateway;
 }
 
-function scope(): TransactionScope {
+function scope(wait?: boolean): TransactionScope {
   return {
     activeAccount: "local" as never,
     deadline: new CommandDeadline(0),
-    wait: false,
+    wait,
 
     resolveAddress: () => A,
     emit: vi.fn(),
@@ -258,9 +259,43 @@ describe("local TRON multi-signature workflow", () => {
     expect(dry).toMatchObject({ multiSignFeeSun: 1_000_000, mode: "dry-run" });
     expect(gateway.broadcastHex).not.toHaveBeenCalled();
 
-    await service(gateway).broadcastHex(scope(), NETWORK, multiSigned, false);
+    await service(gateway).broadcastHex(scope(false), NETWORK, multiSigned, false);
     expect(gateway.broadcastHex).toHaveBeenCalledWith(multiSigned, expect.anything());
   });
+
+  it.each([
+    [undefined, "confirmed"],
+    [true, "confirmed"],
+    [false, "submitted"],
+  ] as const)(
+    "broadcasts the imported bytes once with wait intent %s and returns %s",
+    async (wait, stage) => {
+      const gateway = fakeGateway({
+        getTransactionInfoById: vi.fn(async () => parseTronTxInfo({ blockNumber: 7, receipt: {} })),
+      });
+      const multiSigned = encodeTransactionHex({
+        ...decodeTransactionHex(unsignedHex()),
+        signature: [SIG_A, SIG_B],
+      });
+      const out = await service(gateway).broadcastHex(scope(wait), NETWORK, multiSigned, false);
+      expect(out).toMatchObject({ stage });
+      expect(gateway.broadcastHex).toHaveBeenCalledOnce();
+      expect(gateway.broadcastHex).toHaveBeenCalledWith(multiSigned, expect.anything());
+      expect(gateway.getTransactionInfoById).toHaveBeenCalledTimes(stage === "confirmed" ? 1 : 0);
+    },
+  );
+
+  it.each([true, false])(
+    "refuses an explicit wait intent (%s) on a dry run before any node read",
+    async (wait) => {
+      const gateway = fakeGateway();
+      await expect(
+        service(gateway).broadcastHex(scope(wait), NETWORK, unsignedHex(), true),
+      ).rejects.toMatchObject({ code: "invalid_option" });
+      expect(gateway.getSignWeight).not.toHaveBeenCalled();
+      expect(gateway.broadcastHex).not.toHaveBeenCalled();
+    },
+  );
 
   it("fails closed when the two node approval endpoints disagree", async () => {
     const gateway = fakeGateway({ getApprovedList: vi.fn(async () => [B]) });

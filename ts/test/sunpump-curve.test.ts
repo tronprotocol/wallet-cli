@@ -96,7 +96,7 @@ describe("--quote excludes the flags that describe a transaction", () => {
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_option");
     expect(r.json.error.message).toBe(
-      "--wait cannot be used with --quote, which sends no transaction",
+      "--wait cannot be used with --quote, which submits no transaction",
     );
   });
 

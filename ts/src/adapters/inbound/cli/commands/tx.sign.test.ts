@@ -221,9 +221,8 @@ describe("tx send exclusive groups", () => {
 });
 
 describe("tx broadcast binding", () => {
-  const broadcastContext = (stdin?: string, wait = false) =>
+  const broadcastContext = (stdin?: string) =>
     ({
-      wait,
       secrets: {
         has: (kind: string) => kind === "tx" && stdin !== undefined,
         pick: (inline: string | undefined) => inline ?? stdin,
@@ -284,19 +283,13 @@ describe("tx broadcast binding", () => {
     expect(received).toEqual({ txID: "abc" });
   });
 
-  it("rejects ambiguous input and --wait with --dry-run", async () => {
+  it("rejects ambiguous input", async () => {
     const service = { broadcastHex: async () => ({}), broadcastJson: async () => ({}) };
     await expect(
       txBroadcastTronBinding(service as never).run(broadcastContext(), net, {
         transaction: "{}",
         hex: "aabb",
         dryRun: false,
-      }),
-    ).rejects.toMatchObject({ code: "invalid_option" });
-    await expect(
-      txBroadcastTronBinding(service as never).run(broadcastContext(undefined, true), net, {
-        hex: "aabb",
-        dryRun: true,
       }),
     ).rejects.toMatchObject({ code: "invalid_option" });
   });

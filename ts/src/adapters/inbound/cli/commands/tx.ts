@@ -117,9 +117,6 @@ export const txSignEvmBinding = (svc: EvmTransactionService): FamilyBinding => (
 
 export const txBroadcastEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
   run: async (ctx, net, input) => {
-    if (input.dryRun && ctx.wait) {
-      throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
-    }
     return svc.broadcast(ctx, net, evmHexOnly(input, ctx.secrets.has("tx")), input.dryRun === true);
   },
 });
@@ -193,9 +190,6 @@ export const txBroadcastSpec: ChainSpec = {
 export const txBroadcastTronBinding = (service: TronMultisigService): FamilyBinding => ({
   fields: tronBroadcastFields,
   run: async (ctx, net, input) => {
-    if (input.dryRun && ctx.wait) {
-      throw new UsageError("invalid_option", "--wait cannot be used with --dry-run");
-    }
     const stdin = ctx.secrets.has("tx");
     exactlyOne(
       [input.transaction, stdin ? true : undefined, input.hex, input.file],
@@ -374,6 +368,7 @@ export const txTronLinkMultisigSpec: ChainSpec = {
   network: "optional",
   wallet: "optional",
   auth: "conditional",
+  rejectsWait: "the collection is managed by TronLink and follows its own workflow",
   capability: "tx.multisig.tronlink",
   summary: "Create / co-sign a multi-sig transaction",
   description:

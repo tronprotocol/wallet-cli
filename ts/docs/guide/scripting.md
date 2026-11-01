@@ -49,14 +49,14 @@ printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
 
 ## Waiting for confirmation
 
-`tx send` returns at submission. For scripts, the simplest safe form is `--wait`:
+`tx send` waits for confirmation by default and reports the outcome in `data.stage` (`confirmed`, `failed`, or `submitted` when the time limit ends the wait):
 
 ```bash
 wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
-  --password-stdin --wait --timeout 120000 -o json
+  --password-stdin --timeout 120000 -o json
 ```
 
-Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.md) until `data.state` is `confirmed` (abort on `failed`). The full four-state polling pattern, including the batch-operation rules, is in [machine-interface.md → Script safety](../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
+Or decouple: pass `--no-wait`, capture `data.txId`, then poll [`tx status`](../commands/tx/status.md) until `data.state` is `confirmed` (abort on `failed`). The full four-state polling pattern, including the batch-operation rules, is in [machine-interface.md → Script safety](../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## Sign here, broadcast there
 
@@ -95,7 +95,7 @@ wallet-cli tx broadcast --tx-stdin --network tron:3448148188 -o json < signed.js
 
 ## Timeouts and retries
 
-`--timeout` (ms, default 90000) is one deadline for the whole command, including `--wait`; `0` removes it. On `error.code = "timeout"`, retrying with a larger value is safe for **read** commands. For a write, look for `error.details.txId` first: when it is present the transaction may have been submitted, so check `tx status` before resending — blind resend is how double-spends happen. See [time limit](../machine-interface.md#time-limit---timeout).
+`--timeout` (ms, default 90000) is one deadline for the whole command, including the wait for confirmation; `0` removes it. On `error.code = "timeout"`, retrying with a larger value is safe for **read** commands. For a write, look for `error.details.txId` first: when it is present the transaction may have been submitted, so check `tx status` before resending — blind resend is how double-spends happen. See [time limit](../machine-interface.md#time-limit---timeout).
 
 ## See also
 

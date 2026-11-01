@@ -43,10 +43,10 @@ interface CommandDefinitionBase<I, O> {
   stdin?: StdinChannel;
   wallet: WalletRequirement;
   auth: AuthRequirement;
-  // Enables --wait in help.
+  // Submits a transaction whose confirmation the command can wait for; enables --wait and --no-wait.
   broadcasts?: boolean;
-  // Overrides waiting support for externally submitted payments.
-  supportsWait?: boolean;
+  // Reason to reject --wait and --no-wait on a command that otherwise broadcasts.
+  rejectsWait?: string;
   // Establish sets the first password or verifies an existing one; verify requires one.
   passwordMode?: "establish" | "verify";
   // Leading positional fields, in order; placeholder defaults to the field name.
@@ -101,15 +101,15 @@ export interface ChainSpec<_I = any, O = any> {
   network: Exclude<NetworkRequirement, "none">;
   wallet: WalletRequirement;
   auth: AuthRequirement;
+  // Submits a transaction whose confirmation the command can wait for; enables --wait and --no-wait.
   broadcasts?: boolean;
-  // Overrides waiting support for externally submitted payments.
-  supportsWait?: boolean;
   capability?: string;
   // Reason to reject --account; wallet: "none" alone does not reject it.
   rejectsAccount?: string;
-  // Reason to reject --wait.
+  // Reason to reject --wait and --no-wait on a command that otherwise broadcasts.
   rejectsWait?: string;
-  // Boolean mode field that disables waiting; schema refinements cannot see global flags.
+  // Boolean mode field, besides dryRun, buildOnly and signOnly, that submits nothing; schema
+  // refinements cannot see global flags.
   rejectsWaitWith?: string;
   stdin?: StdinChannel;
   // Only this family accepts the stdin channel.
@@ -142,7 +142,6 @@ export type CommandExecutionSpec = Pick<
   | "wallet"
   | "auth"
   | "broadcasts"
-  | "supportsWait"
   | "capability"
   | "rejectsAccount"
   | "rejectsWait"
@@ -160,4 +159,11 @@ export type StoredCommand = CommandDefinition | ChainCommandDefinition;
 
 export function isChainCommand(c: StoredCommand): c is ChainCommandDefinition {
   return (c as ChainCommandDefinition).families !== undefined;
+}
+
+// Modes that submit nothing, so an explicit wait intent has nothing to apply to.
+export const NO_SUBMIT_MODE_FIELDS = ["dryRun", "buildOnly", "signOnly"] as const;
+
+export function acceptsWaitFlags(cmd: Pick<ChainSpec, "broadcasts" | "rejectsWait">): boolean {
+  return cmd.broadcasts === true && cmd.rejectsWait === undefined;
 }

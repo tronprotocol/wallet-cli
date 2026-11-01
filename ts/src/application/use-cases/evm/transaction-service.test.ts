@@ -28,12 +28,12 @@ const SEPOLIA = {
   capabilities: [],
 } satisfies NetworkDescriptor;
 
-function scope(): TransactionScope {
+function scope(wait?: boolean): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
     deadline: new CommandDeadline(0),
-    wait: false,
+    wait,
 
     emit: vi.fn(),
     warn: vi.fn(),
@@ -635,7 +635,7 @@ describe("EvmTransactionService.broadcast", () => {
 
   it("submits the hex and reports the locally derived hash", async () => {
     const { service, seen } = bcHarness();
-    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED)) as Record<string, unknown>;
+    const out = (await service.broadcast(scope(false), SEPOLIA, SIGNED)) as Record<string, unknown>;
 
     expect(seen[0]).toBe(SIGNED);
     expect(out.txId).toBe("0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026");
@@ -643,11 +643,41 @@ describe("EvmTransactionService.broadcast", () => {
 
   it("reports an already-known transaction as submitted, not as an error", async () => {
     const { service } = bcHarness({ alreadyKnown: true });
-    const out = (await service.broadcast(scope(), SEPOLIA, SIGNED)) as Record<string, unknown>;
+    const out = (await service.broadcast(scope(false), SEPOLIA, SIGNED)) as Record<string, unknown>;
 
     expect(out.stage).toBe("submitted");
     expect(out.alreadyKnown).toBe(true);
   });
+
+  it.each([
+    [undefined, "confirmed"],
+    [true, "confirmed"],
+    [false, "submitted"],
+  ] as const)(
+    "submits the imported bytes once with wait intent %s and returns %s",
+    async (wait, stage) => {
+      const { service, seen, gateway } = bcHarness();
+      gateway.getTransactionReceipt.mockResolvedValue({ success: true, blockNumber: "9" } as never);
+      const out = (await service.broadcast(scope(wait), SEPOLIA, SIGNED)) as Record<
+        string,
+        unknown
+      >;
+      expect(out.stage).toBe(stage);
+      expect(seen).toEqual([SIGNED]);
+      expect(gateway.getTransactionReceipt).toHaveBeenCalledTimes(stage === "confirmed" ? 1 : 0);
+    },
+  );
+
+  it.each([true, false])(
+    "refuses an explicit wait intent (%s) on a dry run without submitting",
+    async (wait) => {
+      const { service, seen } = bcHarness();
+      await expect(service.broadcast(scope(wait), SEPOLIA, SIGNED, true)).rejects.toMatchObject({
+        code: "invalid_option",
+      });
+      expect(seen).toEqual([]);
+    },
+  );
 
   it("refuses a transaction built for another chain without submitting it", async () => {
     const { service, seen } = bcHarness();

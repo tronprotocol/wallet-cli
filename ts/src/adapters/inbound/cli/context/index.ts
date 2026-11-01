@@ -43,7 +43,7 @@ export interface RuntimeDeps {
 
 class ExecutionContextImpl implements ExecutionContext {
   output: OutputMode;
-  wait: boolean;
+  wait: boolean | undefined;
   #selected?: AccountSelector;
 
   constructor(
@@ -51,7 +51,7 @@ class ExecutionContextImpl implements ExecutionContext {
     private readonly deps: RuntimeDeps,
   ) {
     this.output = globals.output ?? deps.config.defaultOutput;
-    this.wait = globals.wait ?? false;
+    this.wait = globals.wait;
   }
 
   get deadline(): ExecutionDeadline {

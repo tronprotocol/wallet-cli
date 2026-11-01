@@ -8,7 +8,7 @@ Swap one side of a pair for the other.
 wallet-cli exchange trade <id> --sell <TRX|asset-id>
                           (--amount <n> | --raw-amount <n>)
                           [--min-received <n> | --raw-min-received <n> | --slippage <percent>]
-                          [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait]
+                          [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                           [--permission-id <n>] [options]
 ```
 
@@ -30,7 +30,7 @@ Slippage grows with trade size relative to the reserves — that is the curve, n
 
 > **Trading may be closed on the network you are on.** java-tron refuses `ExchangeTransactionContract` outright until the TIP-836 hardening proposal (`getAllowHardenExchangeCalculation`) is activated — it is unset on both mainnet and Nile, and the command then fails with `exchange_trading_disabled`. [`exchange create`](create.md), [`inject`](inject.md) and [`withdraw`](withdraw.md) are unaffected.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -48,7 +48,8 @@ Slippage grows with trade size relative to the reserves — that is the curve, n
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -60,7 +61,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 With an explicit floor:
 
 ```bash
-echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received 4900 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received 4900 --network nile --password-stdin
 ```
 
 ```console
@@ -79,7 +80,7 @@ echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --min-received
 The same trade via `--slippage 1`: the CLI computes 4,950 from the current reserves, takes 1 % off, and sends 4,900.5 as the floor. The percentage is first converted to basis points, **rounded to the nearest** one — so `--slippage 1.006` tolerates 1.01 % — and the floor itself is then integer-divided, i.e. rounded down.
 
 ```bash
-echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -98,11 +99,11 @@ echo "$PW" | wallet-cli exchange trade 12 --sell TRX --amount 100 --slippage 1 -
 | `receivedQuant` | string | What the trade actually returned; **only once confirmed**, since it exists only in the receipt |
 | `minReceivedQuant` | string | The floor that went on chain — yours, the one `--slippage` derived, or `"1"` when no floor was given |
 
-TRX is identified as `"_"`; every quantity is a **string** in minimal units. Before confirmation text shows `Estimated return` in place of `Received`. `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun`, `failed`.
+TRX is identified as `"_"`; every quantity is a **string** in minimal units. Before confirmation text shows `Estimated return` in place of `Received`. Confirmation adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun`, `failed`.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`exchange_not_found` — no such pair, `token_not_in_exchange`, `exchange_closed` — a side holds zero, `exchange_trading_disabled` — the network is not accepting Bancor trades, `slippage_exceeded` — the return fell below the floor, `transaction_rejected` — the node refused it, for example for lack of balance, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--sell`; `invalid_option` — both or neither of `--amount` / `--raw-amount`, or more than one floor flag; `invalid_amount` — the amount or `--min-received` is not a decimal number, or has more decimal places than that token allows; `invalid_value` — amount ≤ 0, or a `--slippage` that is not both greater than 0 and less than 100; `0` and `100` are themselves rejected).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`exchange_not_found` — no such pair, `token_not_in_exchange`, `exchange_closed` — a side holds zero, `exchange_trading_disabled` — the network is not accepting Bancor trades, `slippage_exceeded` — the return fell below the floor, `transaction_rejected` — the node refused it, for example for lack of balance, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--sell`; `invalid_option` — both or neither of `--amount` / `--raw-amount`, or more than one floor flag; `invalid_amount` — the amount or `--min-received` is not a decimal number, or has more decimal places than that token allows; `invalid_value` — amount ≤ 0, or a `--slippage` that is not both greater than 0 and less than 100; `0` and `100` are themselves rejected).
 
 ## See also
 

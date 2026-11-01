@@ -6,7 +6,7 @@ Buy into a TRC10's ICO with TRX.
 
 ```
 wallet-cli asset participate <asset> --pay <trx>
-                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait]
+                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                              [--permission-id <n>] [options]
 ```
 
@@ -18,7 +18,7 @@ Buys from a token's issuance inside its funding window, at the fixed rate set wh
 
 The acting account cannot be the token's own issuer.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 The Ledger TRON app cannot sign TRC10 issuance contract types. A Ledger account can dry-run or build unsigned hex; signing modes fail with `ledger_unsupported` before the device is touched.
 
@@ -33,7 +33,8 @@ The Ledger TRON app cannot sign TRC10 issuance contract types. A Ledger account 
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -45,7 +46,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 Spend 100 TRX on a token issued at `1:100`:
 
 ```bash
-echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network nile --password-stdin
 ```
 
 ```console
@@ -62,7 +63,7 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network nile --wai
 ```
 
 ```bash
-echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -75,14 +76,14 @@ echo "$PW" | wallet-cli asset participate 1000124 --pay 100 --network nile --wai
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "asset-participate"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, `participantAddress`, `paidSun`, `receivedAmount`, `precision` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), and `failed` |
+| `--no-wait` (submitted) | `kind: "asset-participate"`, `stage: "submitted"`, `txId`, `assetId`, `name`, `issuerAddress`, `participantAddress`, `paidSun`, `receivedAmount`, `precision` |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), and `failed` |
 
 `paidSun` is the TRX spent in sun; `receivedAmount` is the token amount in its smallest unit. Both are decimal strings, and `precision` is included so text and machine consumers can scale the token amount.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`asset_not_found` — no such token, `not_in_ico_window` — outside the funding window, `self_participation` — you issued this token, `transaction_rejected` — the node refused it, e.g. the balance cannot cover `--pay`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--pay`; `invalid_amount` — `--pay` is not a decimal number, or has more than 6 decimal places; `invalid_value` — `--pay` ≤ 0, or too small to buy one unit).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`asset_not_found` — no such token, `not_in_ico_window` — outside the funding window, `self_participation` — you issued this token, `transaction_rejected` — the node refused it, e.g. the balance cannot cover `--pay`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--pay`; `invalid_amount` — `--pay` is not a decimal number, or has more than 6 decimal places; `invalid_value` — `--pay` ≤ 0, or too small to buy one unit).
 
 ## See also
 

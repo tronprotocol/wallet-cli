@@ -19,7 +19,7 @@ Reports which step a transaction is at, using **four states**, on TRON and EVM n
 | `pending` | Seen by the node, with no execution result / receipt yet | no — keep polling |
 | `not_found` | Unknown to the queried endpoint (wrong network, not propagated, dropped, or pruned); the outcome is unknown | no — keep polling and reconcile; do not assume failure |
 
-> On TRON, a contract call (`TriggerSmartContract`, `CreateSmartContract`) that is mined while its execution result is still unknown — receipt result `DEFAULT` or no result — is reported as `confirmed` here. `--wait` on a write treats the same transaction as not yet confirmed and returns `submitted` when the wait ends.
+> On TRON, a contract call (`TriggerSmartContract`, `CreateSmartContract`) that is mined while its execution result is still unknown — receipt result `DEFAULT` or no result — is reported as `confirmed` here. Waiting for confirmation on a write treats the same transaction as not yet confirmed and returns `submitted` when the wait ends.
 
 > `confirmed` is an inclusion-and-receipt state, not a finality guarantee. If a workflow needs finality, verify it separately with a TRON SolidityNode view or an EVM finalized-block check.
 

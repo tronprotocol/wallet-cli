@@ -6,7 +6,7 @@ Stake TRX for energy/bandwidth.
 
 ```
 wallet-cli stake freeze --amount-sun <n> [--resource energy|bandwidth]
-                        [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait] [--permission-id <n>] [options]
+                        [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait] [--permission-id <n>] [options]
 ```
 
 ## Description
@@ -15,7 +15,7 @@ Stakes TRX from the active account's balance (Stake 2.0) in exchange for a stead
 
 Amount is in SUN (1 TRX = 1,000,000 SUN). Staked TRX stays yours; to get it back, [`stake unfreeze`](unfreeze.md) and, after the waiting period, [`stake withdraw`](withdraw.md).
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation**; `--no-wait` returns at submission. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -28,7 +28,8 @@ Amount is in SUN (1 TRX = 1,000,000 SUN). Staked TRX stays yours; to get it back
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -37,10 +38,10 @@ Plus the [global options](../index.md#global-options-every-command).
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
-Default — stake 1,000 TRX for energy, returns the **submitted** receipt:
+With `--no-wait` — stake 1,000 TRX for energy, returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --password-stdin
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --no-wait --password-stdin
 ```
 
 ```console
@@ -51,17 +52,17 @@ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy -
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --password-stdin -o json
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --no-wait --password-stdin -o json
 ```
 
 ```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"stake.freeze","data":{"kind":"stake-freeze","stage":"submitted","txId":"c3d...","amountSun":"1000000000","resource":"energy"},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-Add `--wait` to block until confirmed:
+Without `--no-wait`, the command blocks until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --wait --password-stdin
+echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy --network nile --password-stdin
 ```
 
 ```console
@@ -77,12 +78,12 @@ echo "$PW" | wallet-cli stake freeze --amount-sun 1000000000 --resource energy -
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "stake-freeze"`, `stage: "submitted"`, `txId`, `amountSun` (string), `resource` |
-| `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
+| `--no-wait` (submitted) | `kind: "stake-freeze"`, `stage: "submitted"`, `txId`, `amountSun` (string), `resource` |
+| default or `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
 
 ## See also
 

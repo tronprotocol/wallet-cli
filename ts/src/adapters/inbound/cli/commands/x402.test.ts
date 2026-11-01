@@ -97,7 +97,7 @@ it("does not advertise unsupported provider type or facilitator waiting", () => 
     "type",
   );
   for (const command of ["pay", "roundtrip"])
-    expect(registry.resolveNeutral(["x402", command])!.supportsWait).toBe(false);
+    expect(registry.resolveNeutral(["x402", command])!.rejectsWait).toBeDefined();
 });
 
 it.each(["password", "privateKey", "mnemonic", "apiKey", "tx", "message"])(

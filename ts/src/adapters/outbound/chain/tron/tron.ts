@@ -137,14 +137,27 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       const axios = provider.instance as unknown as {
         defaults: { maxRedirects: number };
         interceptors: {
-          request: { use(fn: (request: AxiosSignalConfig) => AxiosSignalConfig): void };
+          request: {
+            use(
+              fn: (request: AxiosSignalConfig) => AxiosSignalConfig,
+              onRejected: undefined,
+              options: { synchronous: boolean },
+            ): void;
+          };
         };
       };
-      axios.interceptors.request.use((request) => {
-        const signal = activeDispatch()?.check.signal;
-        if (signal) request.signal = signal;
-        return request;
-      });
+      // Synchronous, so Axios starts the HTTP request in the same turn as this check; an
+      // asynchronous interceptor leaves a gap in which the deadline can pass before the send.
+      axios.interceptors.request.use(
+        (request) => {
+          const check = activeDispatch()?.check;
+          check?.assertDispatchable();
+          if (check) request.signal = check.signal;
+          return request;
+        },
+        undefined,
+        { synchronous: true },
+      );
       // Prevent redirects from forwarding configured credential headers.
       if (Object.keys(config.headers).length > 0) axios.defaults.maxRedirects = 0;
       return provider;

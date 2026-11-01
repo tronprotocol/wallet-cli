@@ -6,7 +6,7 @@ Exchange one token for another.
 
 ```
 wallet-cli sunswap swap <tokenIn> <tokenOut> <amountIn>
-                        [--quote [--all] | --dry-run | --build-only | --wait]
+                        [--quote [--all] | --dry-run | --build-only | --wait | --no-wait]
                         [--slippage <decimal>] [--fee-limit <sun>] [options]
 ```
 
@@ -66,7 +66,7 @@ In every mode except `--quote`, the account must hold what the swap spends: an a
 | `--quote` | nothing — no account, no password | The best route (highest output, then lowest fee, then fewest hops); `--all` lists every candidate. No floor is published — `--quote` refuses `--slippage` |
 | `--dry-run` | an account (watch-only works), no password | The chosen route, the floor, the grants it would ask for, and a fee estimate |
 | `--build-only` | an account, no password | The unsigned transaction. **Refused for a router swap that spends a token**: the transaction embeds the Permit2 signature, which does not exist yet |
-| default / `--wait` | a signing account (software password via stdin/TTY, or Ledger approval) | Sends. Returns at submission unless `--wait` |
+| default / `--wait` / `--no-wait` | a signing account (software password via stdin/TTY, or Ledger approval) | Sends. Waits for confirmation unless `--no-wait` |
 
 For a swap spending **TRX** it prices the swap itself. For a swap spending a **token**, what it can price depends on what is already on chain, and `feeCovers` says which case applies:
 
@@ -81,13 +81,14 @@ For a swap spending **TRX** it prices the swap itself. For a swap spending a **t
 | `<tokenIn>` | **Required.** Token to spend, symbol or contract address |
 | `<tokenOut>` | **Required.** Token to receive, symbol or contract address |
 | `<amountIn>` | **Required.** Amount of `<tokenIn>` to spend, in whole tokens, > 0 |
-| `--quote` | Price only. Excludes `--dry-run`, `--build-only`, `--wait` and `--slippage` |
+| `--quote` | Price only. Excludes `--dry-run`, `--build-only`, `--wait`, `--no-wait` and `--slippage` |
 | `--all` | List every candidate route instead of the best one; only with `--quote` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transaction(s) without signing them |
 | `--slippage <decimal>` | Tolerance, e.g. `0.005` for 0.5%; default `0.005` |
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The dry run's estimate is a lower bound, so a limit set from it can fail |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--account <label\|accountId>` | Account to trade from; default the active account. `--quote` reads the same account's token book |
 | `--password-stdin` | Master password from stdin (fd 0); needed only by the modes that sign |
 
@@ -159,10 +160,10 @@ Token out  TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E
 | TRX → Justin | 10 TRX    | 251,195.108099 Justin | 0.1 TRX      |
 ```
 
-Swapping 10 TRX for USDT. `--wait` returns the confirmed receipt, whose `Received` is what actually arrived, read from the transaction:
+Swapping 10 TRX for USDT. The command returns the confirmed receipt, whose `Received` is what actually arrived, read from the transaction:
 
 ```bash
-echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --wait --password-stdin --account lp --network tron
+echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --password-stdin --account lp --network tron
 ```
 
 ```console
@@ -184,7 +185,7 @@ echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --wait --password-stdin --accou
 ```
 
 ```bash
-echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --wait --password-stdin --account lp --network tron -o json
+echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --password-stdin --account lp --network tron -o json
 ```
 
 ```json
@@ -194,7 +195,7 @@ echo "$PW" | wallet-cli sunswap swap TRX USDT 10 --wait --password-stdin --accou
 Swapping 1 USDT for TRX. The Permit2 grant is signed locally and travels inside the swap; no approval transaction was needed, because the allowance to Permit2 already covered the trade:
 
 ```bash
-echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --wait --password-stdin --account lp --network tron
+echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --password-stdin --account lp --network tron
 ```
 
 ```console
@@ -219,7 +220,7 @@ echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --wait --password-stdin --accoun
 ```
 
 ```bash
-echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --wait --password-stdin --account lp --network tron -o json
+echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --password-stdin --account lp --network tron -o json
 ```
 
 ```json
@@ -260,11 +261,11 @@ echo "$PW" | wallet-cli sunswap swap USDT TRX 1 --wait --password-stdin --accoun
 | `approvalTxIds[]` | string[] | Once sent: the approvals, in the order sent, beside the swap's own `txId` |
 | `amountOut` | string | Confirmed receipts only: what actually arrived, read from the transaction. `amountsEstimated: false` marks it as measured; if the receipt could not be read, `amountOutExpected` stands, `amountsEstimated` is `true` and a warning says why |
 
-The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
 
 ## Exit status
 
-`0` success (submitted, or quoted/built/estimated) · `1` execution failure (`account_not_active`, `insufficient_balance`, `insufficient_token_balance`, `same_token` — the two sides are the same token, `no_matching_route` — no path for that pair (retry later), `launchpad_trading_closed`, `permit_mismatch`, `router_call_mismatch`, `slippage_exceeded`, `watch_only_no_signer` — a watch-only account in a mode that signs, `auth_failed`, `provider_error`, `provider_rate_limited` — the route service returned HTTP 429, with `details.retryAfterSeconds` when sent, `timeout`) · `2` usage error (`invalid_amount` — `<amountIn>` not a positive number; `invalid_value` — a `--slippage` outside 0.0001–0.5 or finer than 0.0001; `invalid_option` — two modes together, `--wait` with `--quote` / `--dry-run` / `--build-only`, `--slippage` with `--quote`, `--all` without `--quote`, `--build-only` for a token swap; `account_not_found`; `unsupported_token`, `ambiguous_token_symbol`; `unsupported_network_capability`; `family_mismatch`).
+`0` success (submitted, or quoted/built/estimated) · `1` execution failure (`account_not_active`, `insufficient_balance`, `insufficient_token_balance`, `same_token` — the two sides are the same token, `no_matching_route` — no path for that pair (retry later), `launchpad_trading_closed`, `permit_mismatch`, `router_call_mismatch`, `slippage_exceeded`, `watch_only_no_signer` — a watch-only account in a mode that signs, `auth_failed`, `provider_error`, `provider_rate_limited` — the route service returned HTTP 429, with `details.retryAfterSeconds` when sent, `timeout`) · `2` usage error (`invalid_amount` — `<amountIn>` not a positive number; `invalid_value` — a `--slippage` outside 0.0001–0.5 or finer than 0.0001; `invalid_option` — two modes together, `--wait` or `--no-wait` with `--quote` / `--dry-run` / `--build-only`, `--slippage` with `--quote`, `--all` without `--quote`, `--build-only` for a token swap; `account_not_found`; `unsupported_token`, `ambiguous_token_symbol`; `unsupported_network_capability`; `family_mismatch`).
 
 ## See also
 

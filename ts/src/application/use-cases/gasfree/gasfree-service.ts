@@ -31,6 +31,7 @@ import {
   TransportError,
   UsageError,
 } from "../../../domain/errors/index.js";
+import { waitsForConfirmation } from "../../services/transaction-mode.js";
 import {
   gasFreeDigest,
   gasFreeTypedData,
@@ -121,12 +122,7 @@ export class GasFreeService {
     network: NetworkDescriptor,
     input: GasFreeTransferInput,
   ): Promise<GasFreeTransferView> {
-    if (input.dryRun && scope.wait) {
-      throw new UsageError(
-        "invalid_option",
-        errorMessage`${inputRef("wait")} cannot be used with ${inputRef("dryRun")}`,
-      );
-    }
+    const wait = waitsForConfirmation(scope.wait, !input.dryRun);
     if (!input.dryRun) {
       this.signers.assertCanSign(scope.activeAccount, "tron");
     }
@@ -257,7 +253,7 @@ export class GasFreeService {
       traceId: submitted.id,
       state: submitted.state,
     };
-    if (!scope.wait) return accepted;
+    if (!wait) return accepted;
     const terminal = await this.#wait(
       scope,
       network,
@@ -378,7 +374,7 @@ export class GasFreeService {
       // No trace is sent once the deadline has expired.
       if (deadline.expired()) {
         scope.warn(
-          errorMessage`${inputRef("wait")}: GasFree transfer ${initial.id} did not finish before the command's time limit; returning submitted`,
+          errorMessage`GasFree transfer ${initial.id} did not finish before the command's time limit; returning submitted`,
         );
         return undefined;
       }
@@ -389,7 +385,7 @@ export class GasFreeService {
         if (isRetryablePoll(error)) continue;
         if (error instanceof CliError && error.code === "gasfree_integrity") throw error;
         scope.warn(
-          errorMessage`${inputRef("wait")}: GasFree trace could not be polled (${
+          errorMessage`GasFree trace could not be polled (${
             error instanceof CliError ? error.code : "provider_error"
           }); returning submitted — reconcile with \`${followUp("gasfree-trace", initial.id)}\``,
         );

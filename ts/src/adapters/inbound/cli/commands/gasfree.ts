@@ -58,21 +58,12 @@ export const gasFreeTransferSpec: ChainSpec = {
   description:
     "Sign a GasFree PermitTransfer and submit it to the provider. No TRX is needed; --dry-run checks the token balance and fee breakdown without unlocking or signing.",
   baseFields: transferFields,
-  baseRefine: (value, context) => {
-    if (value.dryRun && value.wait) {
-      context.addIssue({
-        code: "custom",
-        path: ["dryRun"],
-        message: "--dry-run cannot be combined with --wait",
-      });
-    }
-  },
   examples: [
     {
       cmd: "wallet-cli gasfree transfer --to T... --amount 25 --password-stdin",
     },
     {
-      cmd: "wallet-cli gasfree transfer --to alice --amount 25 --wait --password-stdin",
+      cmd: "wallet-cli gasfree transfer --to alice --amount 25 --no-wait --password-stdin",
     },
   ],
   formatText: TextFormatters.gasFreeTransfer,

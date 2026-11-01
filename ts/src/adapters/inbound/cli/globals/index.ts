@@ -33,6 +33,8 @@ export interface GlobalFlagSpec {
   description: string;
   // Absent means help shows [optional].
   defaultValue?: string | number | boolean;
+  // Boolean flags only: --no-<name> sets the field to false; help documents it with this text.
+  negation?: string;
   // Document under the owning command instead of in the global flag list.
   commandScoped?: boolean;
 }
@@ -84,8 +86,9 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     name: "wait",
     kind: "boolean",
     description:
-      "after submitting, poll until the transaction is confirmed/failed before returning; default returns the submitted receipt without blocking",
-    defaultValue: false,
+      "after submitting, poll until the transaction is confirmed or failed before returning; this is the default where a transaction is submitted",
+    negation:
+      "return the submitted receipt without polling for confirmation; prerequisite approvals still wait",
   },
   {
     name: "password-stdin",
@@ -174,6 +177,8 @@ export interface GlobalTokenMaps {
   // Flag token (--long or -alias) to runtime field.
   valueFlags: Record<string, string>;
   booleanFlags: Record<string, string>;
+  // --no-<name> to runtime field, set to false.
+  negatedFlags: Record<string, string>;
   // --<kind>-stdin to secret kind; stdin uses fd 0.
   secretStdinFlags: Record<string, SecretKind>;
 }
@@ -181,12 +186,15 @@ export interface GlobalTokenMaps {
 export function globalTokenMaps(): GlobalTokenMaps {
   const valueFlags: Record<string, string> = {};
   const booleanFlags: Record<string, string> = {};
+  const negatedFlags: Record<string, string> = {};
   const secretStdinFlags: Record<string, SecretKind> = {};
   for (const f of GLOBAL_FLAG_SPECS) {
     const tokens = f.alias ? [`--${f.name}`, `-${f.alias}`] : [`--${f.name}`];
     if (f.kind === "value") for (const t of tokens) valueFlags[t] = specField(f);
-    else if (f.kind === "boolean") for (const t of tokens) booleanFlags[t] = specField(f);
-    else secretStdinFlags[`--${f.name}`] = f.secretKey!;
+    else if (f.kind === "boolean") {
+      for (const t of tokens) booleanFlags[t] = specField(f);
+      if (f.negation !== undefined) negatedFlags[`--no-${f.name}`] = specField(f);
+    } else secretStdinFlags[`--${f.name}`] = f.secretKey!;
   }
-  return { valueFlags, booleanFlags, secretStdinFlags };
+  return { valueFlags, booleanFlags, negatedFlags, secretStdinFlags };
 }

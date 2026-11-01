@@ -12,7 +12,7 @@ wallet-cli sunswap add-liquidity --protocol <V2|V3|V4>
                                  [--tick-spacing <n>] [--hooks <address>] [--slippage <decimal>]
                                  [--create-pool --sqrt-price <Q64.96>]
                                  [--recipient <address>] [--deadline <timestamp>] [--fee-limit <sun>]
-                                 [--dry-run | --build-only | --wait] [options]
+                                 [--dry-run | --build-only | --wait | --no-wait] [options]
 ```
 
 ## Description
@@ -27,7 +27,7 @@ Works on **`tron` and `nile`**; on Shasta it fails with `unsupported_network_cap
 
 **Approvals come first.** On V2 and V3, each token side is approved for **exactly the amount this deposit needs**; the approval is sent, confirmed and re-read before the deposit follows. The router consumes it, so a repeat deposit needs a fresh one. V4 is different — see [Approvals on V4](#approvals-on-v4). A TRX side never needs approving. If an approval went out and a later step failed, its ID is in `error.details.approvalTxIds` and the approval stays on chain.
 
-**A new position's id exists only in the confirmed receipt.** The contract assigns it during execution, so pass `--wait` to learn it ([`position-list`](position-list.md) is mainnet only). Once you have it, [`position-info`](position-info.md) reads the position on either network.
+**A new position's id exists only in the confirmed receipt.** The contract assigns it during execution, so it is reported unless you pass `--no-wait` ([`position-list`](position-list.md) is mainnet only). Once you have it, [`position-info`](position-info.md) reads the position on either network.
 
 **A V3 deposit that rounds to zero liquidity is refused.** The command checks the computed liquidity, not the pool's trading history, and fails with `invalid_value` before estimating or sending. At the minimum or maximum representable tick, the message identifies the pool's price-bound state; otherwise it asks for a wider range or a larger deposit.
 
@@ -87,7 +87,8 @@ Because the deposit carries its signed grant, **`--build-only` is refused** on a
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The estimate is a lower bound, so a limit set from it can fail |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transactions in execution order (`data.transactions[]` as `{purpose, tx, hex}` when there are approvals); they share a one-hour lifetime. Send each approval and wait for it to confirm before the deposit |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--account <label\|accountId>` | Account to deposit from; default the active account |
 | `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 
@@ -101,7 +102,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --token1 TRX --amount0 1 \
-  --wait --password-stdin --network nile
+  --password-stdin --network nile
 ```
 
 ```console
@@ -122,7 +123,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --toke
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --token1 TRX --amount0 1 \
-  --wait --password-stdin --network nile -o json
+  --password-stdin --network nile -o json
 ```
 
 ```json
@@ -135,7 +136,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V2 --token0 USDT --toke
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --token1 WTRX --fee 500 --amount0 1 \
-  --wait --password-stdin --network nile
+  --password-stdin --network nile
 ```
 
 ```console
@@ -159,7 +160,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --toke
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --token0 USDT --token1 WTRX --fee 500 --amount0 1 \
-  --wait --password-stdin --network nile -o json
+  --password-stdin --network nile -o json
 ```
 
 ```json
@@ -170,7 +171,7 @@ Adding to position #701 — the pair, fee and range come from the position. The 
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --position-id 701 --amount0 0.5 \
-  --wait --password-stdin --network nile
+  --password-stdin --network nile
 ```
 
 ```console
@@ -196,7 +197,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V3 --position-id 701 --
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 --tick-spacing 10 \
-  --amount0 1 --wait --password-stdin --network nile
+  --amount0 1 --password-stdin --network nile
 ```
 
 ```console
@@ -221,7 +222,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --token0 TRX --token1 USDT --fee 500 --tick-spacing 10 \
-  --amount0 1 --wait --password-stdin --network nile -o json
+  --amount0 1 --password-stdin --network nile -o json
 ```
 
 ```json
@@ -234,7 +235,7 @@ Adding to V4 position #188 with a 1% ceiling. The tokens are checked against the
 
 ```bash
 echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --position-id 188 --token0 TRX --token1 USDT \
-  --amount0 1 --slippage 0.01 --wait --password-stdin --network nile
+  --amount0 1 --slippage 0.01 --password-stdin --network nile
 ```
 
 ```console
@@ -282,7 +283,7 @@ echo "$PW" | wallet-cli sunswap add-liquidity --protocol V4 --position-id 188 --
 | `approvalTxIds[]` | string[] | Once sent: the approvals, in the order sent, beside the deposit's own `txId` |
 | `amountsEstimated` | boolean | Once sent: `false` when amounts were read from this transaction's receipt, `true` when they are still the pre-transaction estimate (text then labels them `(est)`) |
 
-`fee` is always the estimated network cost; the V3 / V4 pool tier is the separate key `feeTier`. The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+`fee` is always the estimated network cost; the V3 / V4 pool tier is the separate key `feeTier`. The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
 
 ## Exit status
 

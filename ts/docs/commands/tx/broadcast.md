@@ -48,17 +48,18 @@ The reported `txId` is derived from the transaction's own bytes, never taken fro
 | `--file <path>` | File containing the signed transaction hex (size-capped at just over 1 MiB) |
 | `--transaction <string>` | **TRON only.** Signed TRON transaction JSON inline |
 | `--tx-stdin` | **TRON only.** Read the signed transaction JSON from stdin (fd 0) |
-| `--dry-run` | Validate **without broadcasting** — signatures, threshold, expiration and the dynamic multi-sig fee on TRON; signature, chain id, nonce and balance on EVM. Cannot be combined with `--wait` |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--dry-run` | Validate **without broadcasting** — signatures, threshold, expiration and the dynamic multi-sig fee on TRON; signature, chain id, nonce and balance on EVM. Cannot be combined with `--wait` or `--no-wait` |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 
 Plus the [global options](../index.md#global-options-every-command).
 
 ## Examples
 
-Broadcast a signed hex from a file:
+Broadcast a signed hex from a file, returning at submission with `--no-wait`:
 
 ```bash
-wallet-cli tx broadcast --file tx.signed.hex --network nile
+wallet-cli tx broadcast --file tx.signed.hex --network nile --no-wait
 ```
 
 ```console
@@ -72,7 +73,7 @@ wallet-cli tx broadcast --file tx.signed.hex --network nile
 Or inline hex, and the JSON receipt:
 
 ```bash
-wallet-cli tx broadcast --hex 0a02...9f31 --network nile -o json
+wallet-cli tx broadcast --hex 0a02...9f31 --network nile --no-wait -o json
 ```
 
 ```json
@@ -85,17 +86,17 @@ wallet-cli tx broadcast --hex 0a02...9f31 --network nile -o json
 
 | Stage | Fields |
 |---|---|
-| default (submit, TRON) | `kind`, `stage: "submitted"`, `txId`, `transaction` (the approval view), `multiSignFeeSun` |
-| default (submit, EVM) | `kind`, `stage: "submitted"`, `txId`, and `alreadyKnown: true` when the node had already seen the transaction |
+| `--no-wait` (submitted, TRON) | `kind`, `stage: "submitted"`, `txId`, `transaction` (the approval view), `multiSignFeeSun` |
+| `--no-wait` (submitted, EVM) | `kind`, `stage: "submitted"`, `txId`, and `alreadyKnown: true` when the node had already seen the transaction |
 | `--dry-run` (TRON) | `kind`, `mode: "dry-run"`, `transaction` (the approval view), `multiSignFeeSun` |
-| `--wait` (confirmed/failed) | the submit fields, plus `confirmed`, `blockNumber`, `failed`, and result fields — `netUsed` / `feeSun` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
+| default or `--wait` (confirmed/failed) | the submit fields, plus `confirmed`, `blockNumber`, `failed`, and result fields — `netUsed` / `feeSun` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
 | `--dry-run` (EVM) | `kind`, `mode: "dry-run"`, `txId`, `hash`, `address` (recovered signer), `to`, `rawAmount`, `fee` (`feeModel`, `maxCostWei`, `gasLimit`, `maxPerGasWei`), `tx`, and `checks[]` (`name` — `signature` / `chainId` / `nonce` / `balance` — plus `status` (`ok` / `warning` / `skipped`) and `detail`) |
 
 On TRON `multiSignFeeSun` is always present — `0` for a single-signature transaction, since the fee applies only from the second signature on — so the text receipt always carries a `Multi-sign fee` row ahead of `TxID`.
 
 If the node cannot be reached, the EVM nonce and balance checks degrade to `status: "skipped"` with a warning rather than failing the command. On EVM a node that already knows the transaction sets `alreadyKnown: true` on the submitted receipt rather than failing.
 
-As with `tx send`, the default return point is **submission** — confirm via `--wait` or [`tx status`](status.md).
+As with `tx send`, the command waits for confirmation by default; with `--no-wait` it returns at **submission** — confirm later with [`tx status`](status.md).
 
 ## Exit status
 

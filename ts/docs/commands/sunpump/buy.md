@@ -6,7 +6,7 @@ Spend TRX to buy a token on its SunPump bonding curve.
 
 ```
 wallet-cli sunpump buy <address> --trx <amount>
-                       [--quote | --dry-run | --build-only | --wait]
+                       [--quote | --dry-run | --build-only | --wait | --no-wait]
                        [--slippage <decimal> | --min-out <base-units>] [--fee-limit <sun>] [options]
 ```
 
@@ -18,7 +18,7 @@ The TRX travels as the call's **value**, so **nothing is approved**: a buy is on
 
 Before anything is built, the account is checked: one the chain has no record of fails with `account_not_active`, one holding less than `--trx` with `insufficient_balance`. The energy fee is not part of that check.
 
-`--quote` needs no account. `--dry-run` and `--build-only` need an account but no password, and work for a watch-only account. The default mode signs and sends, and returns at submission unless `--wait`.
+`--quote` needs no account. `--dry-run` and `--build-only` need an account but no password, and work for a watch-only account. The default mode signs and sends, and waits for confirmation unless `--no-wait`.
 
 ## Options
 
@@ -26,13 +26,14 @@ Before anything is built, the account is checked: one the chain has no record of
 |---|---|
 | `<address>` | **Required.** The SunPump token's contract address |
 | `--trx <amount>` | **Required.** Whole TRX to spend, platform fee included |
-| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only`, `--slippage`, `--min-out` and `--wait` |
+| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only`, `--slippage`, `--min-out`, `--wait` and `--no-wait` |
 | `--slippage <decimal>` | Tolerance, e.g. `0.05`; **default `0.05`** (5%). Excludes `--min-out` |
 | `--min-out <base-units>` | Least to accept, in the token's smallest unit. Excludes `--slippage` |
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The estimate is a lower bound |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transaction |
-| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--account <label\|accountId>` | Account to buy with; default the active account. Not used by `--quote` |
 | `--password-stdin` | Master password from stdin; needed only when sending |
 
@@ -66,7 +67,7 @@ One TRX pays the **0.01 TRX minimum** fee — the fee is 1% only above 1 TRX.
 Buying with 1 TRX. A buy is one transaction; `Received` is what actually arrived:
 
 ```bash
-echo "$PW" | wallet-cli sunpump buy TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --trx 1 --wait --password-stdin --account lp --network tron
+echo "$PW" | wallet-cli sunpump buy TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --trx 1 --password-stdin --account lp --network tron
 ```
 
 ```console
@@ -85,7 +86,7 @@ echo "$PW" | wallet-cli sunpump buy TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --trx 1 -
 ```
 
 ```bash
-echo "$PW" | wallet-cli sunpump buy TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --trx 1 --wait --password-stdin --account lp --network tron -o json
+echo "$PW" | wallet-cli sunpump buy TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --trx 1 --password-stdin --account lp --network tron -o json
 ```
 
 ```json
@@ -107,11 +108,11 @@ echo "$PW" | wallet-cli sunpump buy TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --trx 1 -
 | `fee` / `feeCovers` | — | The chain's energy estimate, separate from `platformFee`; always `feeCovers: "all"` |
 | `tokensOut` | string | Confirmed receipts only: the tokens that actually arrived, read from the transaction (`amountsEstimated: false`). If the receipt could not be read, `tokensOutExpected` stands, `amountsEstimated` is `true` and a warning says why |
 
-The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
 
 ## Exit status
 
-`0` success (submitted, or quoted/built/estimated) · `1` execution failure (`launchpad_token_not_found`, `launchpad_trading_closed`, `account_not_active`, `insufficient_balance`, `slippage_exceeded`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `provider_error`, `timeout`) · `2` usage error (`missing_option` — no `<address>` or `--trx`; `invalid_option` — `--quote` with another mode, `--slippage`, `--min-out` or `--wait`, or `--slippage` with `--min-out`; `invalid_amount`; `invalid_value` — a `--slippage` out of range; `invalid_address`; `account_not_found`; `unsupported_network_capability`; `family_mismatch`).
+`0` success (submitted, or quoted/built/estimated) · `1` execution failure (`launchpad_token_not_found`, `launchpad_trading_closed`, `account_not_active`, `insufficient_balance`, `slippage_exceeded`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `provider_error`, `timeout`) · `2` usage error (`missing_option` — no `<address>` or `--trx`; `invalid_option` — `--quote` with another mode, `--slippage`, `--min-out`, `--wait` or `--no-wait`, or `--slippage` with `--min-out`; `invalid_amount`; `invalid_value` — a `--slippage` out of range; `invalid_address`; `account_not_found`; `unsupported_network_capability`; `family_mismatch`).
 
 ## See also
 

@@ -16,7 +16,8 @@ export interface AccountScope {
 }
 
 export interface TransactionScope extends AccountScope {
-  readonly wait: boolean;
+  // Explicit wait intent; undefined applies the default of the execution mode.
+  readonly wait: boolean | undefined;
   emit(event: ProgressEvent): void;
   // Nonfatal warning for JSON meta.warnings or text-mode stderr.
   warn(message: string | WarningView | UserMessage | CodedWarning): void;

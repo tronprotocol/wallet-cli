@@ -17,7 +17,7 @@ import { OWNER_PERMISSION_ID } from "../../../domain/tron/permission/index.js";
 import type { SignOrigin, SigningService } from "../signing/signing-service.js";
 import { authoritativeTxId, localTxId as txIdOf, submitWithTxId } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
-import type { TransactionExecutionMode } from "../transaction-mode.js";
+import { waitsForConfirmation, type TransactionExecutionMode } from "../transaction-mode.js";
 import { assertSubmitAdmitted, submitDispatchCheck } from "../command-deadline.js";
 
 export interface SignerAuthorization {
@@ -152,12 +152,7 @@ export class TxPipeline {
     steps: LifecycleSteps<T>,
   ): Promise<TxOutcome> {
     const mode = p.mode;
-    if (p.ctx.wait && mode !== "broadcast") {
-      throw new UsageError(
-        "invalid_option",
-        errorMessage`${inputRef("wait")} cannot be used with ${inputRef("dryRun")}, ${inputRef("signOnly")}, or ${inputRef("buildOnly")}`,
-      );
-    }
+    const wait = waitsForConfirmation(p.ctx.wait, mode === "broadcast");
 
     const deadline = p.ctx.deadline;
     const ownerAddress = p.ctx.resolveAddress(p.net.family);
@@ -208,11 +203,9 @@ export class TxPipeline {
     const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) =>
       p.ctx.warn(m),
     );
-    if (!p.ctx.wait || !txId) {
-      if (p.ctx.wait && !txId) {
-        p.ctx.warn(
-          errorMessage`${inputRef("wait")} requested but the broadcast returned no txid; returning submitted (unconfirmed)`,
-        );
+    if (!wait || !txId) {
+      if (wait && !txId) {
+        p.ctx.warn("the broadcast returned no txid; returning submitted (unconfirmed)");
       }
       return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
     }
@@ -225,7 +218,7 @@ export class TxPipeline {
     }
     if (!confirmed) {
       p.ctx.warn(
-        errorMessage`${inputRef("wait")}: ${txId} not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)`,
+        errorMessage`${txId} not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)`,
       );
       return { stage: "submitted", ...result, txId };
     }

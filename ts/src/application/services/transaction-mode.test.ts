@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { transactionMode } from "./transaction-mode.js";
+import { transactionMode, waitsForConfirmation } from "./transaction-mode.js";
 
 function expectCode(fn: () => unknown, code: string) {
   expect(fn).toThrowError();
@@ -55,4 +55,40 @@ describe("transactionMode", () => {
       "expiration is only valid with signOnly or buildOnly",
     );
   });
+});
+
+describe("waitsForConfirmation", () => {
+  it.each([
+    [undefined, true],
+    [true, true],
+    [false, false],
+  ] as const)(
+    "waits by default where a transaction is submitted (intent %s → %s)",
+    (intent, wait) => {
+      expect(waitsForConfirmation(intent, true)).toBe(wait);
+    },
+  );
+
+  it("runs without waiting where nothing is submitted and no intent is given", () => {
+    expect(waitsForConfirmation(undefined, false)).toBe(false);
+  });
+
+  it.each([
+    [true, "wait"],
+    [false, "noWait"],
+  ] as const)(
+    "refuses explicit intent %s where nothing is submitted, naming %s",
+    (intent, input) => {
+      let error: unknown;
+      try {
+        waitsForConfirmation(intent, false);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toMatchObject({ code: "invalid_option" });
+      expect((error as { userMessage: { parts: unknown[] } }).userMessage.parts).toContainEqual({
+        input,
+      });
+    },
+  );
 });

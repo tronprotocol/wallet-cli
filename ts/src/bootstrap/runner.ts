@@ -97,7 +97,7 @@ async function runCommand(argv: string[]): Promise<CommandEnd> {
   const startedAt = Date.now();
   setRedactedHomeDirectory(homedir());
   const tokens = commandTokens(argv);
-  const { globals, secretPaths, invalid, stdinFlags } = parseGlobals(tokens);
+  const { globals, secretPaths, invalid, stdinFlags, intentError } = parseGlobals(tokens);
 
   // Reject competing stdin secrets before migration or command logic can consume stdin.
   const stdinConflict = stdinConflictError(stdinFlags);
@@ -143,6 +143,7 @@ async function runCommand(argv: string[]): Promise<CommandEnd> {
 
     const invalidGlobal = invalidGlobalError(invalid);
     if (invalidGlobal) throw invalidGlobal;
+    if (intentError) throw intentError;
 
     // Reject reserved tail flags before yargs makes them indistinguishable from command fields.
     assertNoTailFlags(tokens);

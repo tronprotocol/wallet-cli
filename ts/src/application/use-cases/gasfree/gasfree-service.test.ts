@@ -42,7 +42,7 @@ const NETWORK = {
 } satisfies NetworkDescriptor;
 
 // The deadline follows the fixture's clock, which the fixture's sleep advances.
-function scope(wait = false, limitMs = 0, clock?: MonotonicClock): TransactionScope {
+function scope(wait?: boolean, limitMs = 0, clock?: MonotonicClock): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
@@ -237,7 +237,7 @@ describe("GasFreeService", () => {
 
   it("signs the exact TIP-712 digest and accepts Java millisecond expiry", async () => {
     const fixtureValue = fixture({ active: true });
-    const result = await fixtureValue.service.transfer(scope(), NETWORK, {
+    const result = await fixtureValue.service.transfer(scope(false), NETWORK, {
       to: RECEIVER,
       amount: "25",
       token: "USDT",
@@ -334,6 +334,39 @@ describe("GasFreeService", () => {
     });
   });
 
+  it.each([
+    [undefined, "confirmed"],
+    [true, "confirmed"],
+    [false, "submitted"],
+  ] as const)("submits once with wait intent %s and returns %s", async (wait, stage) => {
+    const fixtureValue = fixture({ active: true, terminal: "success" });
+    const result = await fixtureValue.service.transfer(scope(wait), NETWORK, {
+      to: RECEIVER,
+      amount: "25",
+      token: "USDT",
+      dryRun: false,
+    });
+    expect(result).toMatchObject({ stage, traceId: "trace-1" });
+    expect(fixtureValue.submitTransfer).toHaveBeenCalledOnce();
+  });
+
+  it.each([true, false])(
+    "refuses an explicit wait intent (%s) on a dry run before signing",
+    async (wait) => {
+      const fixtureValue = fixture({ active: true });
+      await expect(
+        fixtureValue.service.transfer(scope(wait), NETWORK, {
+          to: RECEIVER,
+          amount: "25",
+          token: "USDT",
+          dryRun: true,
+        }),
+      ).rejects.toMatchObject({ code: "invalid_option" });
+      expect(fixtureValue.signer.signTypedData).not.toHaveBeenCalled();
+      expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
+    },
+  );
+
   it("rejects a final provider fee above the signed maxFee", async () => {
     const fixtureValue = fixture({
       active: true,
@@ -417,7 +450,7 @@ describe("GasFreeService", () => {
 
       expect(result).toMatchObject({ stage: "submitted", state: "WAITING", traceId: "trace-1" });
       expect(cliWarnings(ctx)).toEqual([
-        "--wait: GasFree transfer trace-1 did not finish before the command's time limit; returning submitted",
+        "GasFree transfer trace-1 did not finish before the command's time limit; returning submitted",
       ]);
     });
 
@@ -435,7 +468,7 @@ describe("GasFreeService", () => {
       expect(result).toMatchObject({ stage: "submitted", traceId: "trace-1" });
       expect(fixtureValue.provider.trace).toHaveBeenCalledTimes(1);
       expect(cliWarnings(ctx)).toEqual([
-        "--wait: GasFree trace could not be polled (gasfree_rejected); returning submitted — reconcile with `gasfree trace trace-1`",
+        "GasFree trace could not be polled (gasfree_rejected); returning submitted — reconcile with `gasfree trace trace-1`",
       ]);
     });
 

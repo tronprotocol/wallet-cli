@@ -64,7 +64,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
     expect(s.warnings[0]).toContain("not confirmed");
     expect(s.warnings[0]).toContain("abc");
     expect(s.cliWarnings[0]).toBe(
-      "--wait: abc not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
+      "abc not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
     );
   });
 
@@ -80,7 +80,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
     expect(s.warnings).toHaveLength(1);
     expect(s.warnings[0]).toContain("no txid");
     expect(s.cliWarnings[0]).toBe(
-      "--wait requested but the broadcast returned no txid; returning submitted (unconfirmed)",
+      "the broadcast returned no txid; returning submitted (unconfirmed)",
     );
   });
 
