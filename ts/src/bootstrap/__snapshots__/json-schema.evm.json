@@ -28,7 +28,7 @@
       "type": "number",
       "minimum": 0,
       "maximum": 2147483647,
-      "description": "deadline for the whole command, in milliseconds; 0 = no limit",
+      "description": "deadline for the whole command, in milliseconds (0-2147483647); 0 = no limit",
       "defaultValue": "config.timeoutMs (built-in: 90000)"
     },
     {
@@ -41,12 +41,12 @@
     {
       "flag": "--wait",
       "type": "boolean",
-      "description": "after submitting, poll until the transaction is confirmed or failed before returning; this is the default where a transaction is submitted"
+      "description": "after submitting, wait until the transaction is confirmed or failed, within the command deadline; the default where a transaction is submitted"
     },
     {
       "flag": "--no-wait",
       "type": "boolean",
-      "description": "return the submitted receipt without polling for confirmation; prerequisite approvals still wait"
+      "description": "return the submitted receipt without waiting for confirmation; approvals still wait"
     },
     {
       "flag": "--password-stdin",
@@ -2137,11 +2137,14 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           }
         },
+        "required": [
+          "contract"
+        ],
         "additionalProperties": false
       }
     },
@@ -2181,11 +2184,14 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           }
         },
+        "required": [
+          "contract"
+        ],
         "additionalProperties": false
       }
     },
@@ -2225,11 +2231,14 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           }
         },
+        "required": [
+          "contract"
+        ],
         "additionalProperties": false
       }
     },
@@ -2307,11 +2316,14 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           }
         },
+        "required": [
+          "contract"
+        ],
         "additionalProperties": false
       }
     },
@@ -2621,7 +2633,7 @@
           },
           "offline": {
             "default": false,
-            "description": "sign locally without contacting a node; skips the signer-permission and approval-weight checks",
+            "description": "sign locally without contacting a node; skips the reference-block, signer-permission and approval-weight checks",
             "type": "boolean"
           },
           "out": {
@@ -2712,7 +2724,7 @@
           "typedData": {
             "type": "string",
             "minLength": 1,
-            "description": "EIP-712/TIP-712 JSON: {\"domain\":…,\"types\":…,\"primaryType\"?:…,\"message\":…}"
+            "description": "EIP-712/TIP-712 JSON: {\"domain\":…,\"types\":…,\"primaryType\"?:…,\"message\":…}; a domain.chainId must match the selected network"
           }
         },
         "required": [

@@ -15,7 +15,7 @@ wallet-cli derive [--seed-id <wlt_…>] [--account <account>] [--index <n>] [--l
 | `--seed-id <string>` | seed id of the HD wallet to derive from — the HD group header in `list`. Wins over `--account` when both are given |
 | `--account <string>` | accountId, label, or address of any account in the HD wallet; defaults to the active account |
 | `--index <number>` | explicit HD account index; omit to use the next free index. An index that already exists is not re-derived — that account is made active, `status` comes back `"existing"`, and text output is headed `Selected existing account` instead of `Derived sub-account` |
-| `--label <string>` | label for the new account, 1-64 chars; omit to auto-generate |
+| `--label <string>` | label for the new account, 1-64 chars; omit to auto-generate. A duplicate label is refused before an account is written |
 | `--password-stdin` | read the master password from stdin (fd 0) |
 
 Plus [global options](index.md).
@@ -28,7 +28,7 @@ Each new account gets `m/44'/195'/0'/0/<index>` for TRON and `m/44'/60'/0'/0/<in
 
 Private-key, Ledger, and watch-only accounts have no seed and cannot derive; selecting one fails with `seed_not_found` (exit 2). See [Accounts & HD](../concepts/accounts-and-hd.md).
 
-A wallet created before 4.13.1 may hold TRON accounts at the old path. Deriving a new account from it fails with `legacy_derivation`. Naming one of those accounts with `--index` still works — it is made active with a warning. See [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+A seed wallet may hold TRON accounts at `m/44'/195'/<index>'/0/0` with index greater than zero. Deriving a new account from it fails with `legacy_derivation`. Naming one of those accounts with `--index` still works — it is made active with a warning. See [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 If a stored address does not match the seed, `derive` fails with `derivation_mismatch`.
 
@@ -70,7 +70,7 @@ To derive from another wallet, name any of its accounts with `--account`, or its
 |---|---|---|
 | `status` | string | `"created"` for a newly derived index, `"existing"` when `--index` names an index this wallet already holds — that account is simply made active again, and no new key is derived |
 | `accountId` | string | Stable id `<seedId>.<index>` |
-| `label` | string | Account label (default `<wallet-name>-<index>`, e.g. `main-1`) |
+| `label` | string | Account label (default `<wallet-name>-<index>`, e.g. `main-1`; the base name is truncated so the complete label fits 64 characters) |
 | `type` | string | Always `"seed"` |
 | `index` | number | HD derivation index |
 | `active` | boolean | Always `true` (the account is made active) |

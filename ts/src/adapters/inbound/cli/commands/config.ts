@@ -20,7 +20,11 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
       .describe(
         `config key to read or set (${CONFIG_KEYS.join(", ")}, or networks.<id> / networks.<id>.{${NETWORK_CONFIG_FIELDS.join(" | ")}}); omit to show the whole effective config`,
       ),
-    value: z.string().min(1).optional().describe("new value; omit to read the key"),
+    value: z
+      .string()
+      .min(1)
+      .optional()
+      .describe("new value; omit to read the key; credentials use --api-key-stdin instead"),
   });
 
   registry.add({
@@ -33,7 +37,7 @@ export function registerConfigCommands(registry: CommandRegistry, service: Confi
     stdin: "apiKey",
     summary: "Show / get / set configuration values",
     description:
-      "Read or update configuration. Credentials (tronlinkSecretId, tronlinkSecretKey, gasfreeApiKey, gasfreeApiSecret, baiApiKey, networks.<id>.apiKey) are read only from --api-key-stdin, never from the command line. Setting baiApiKey only saves the key locally; no network, account, password or wallet binding is required. Recharge checks binding when used.",
+      "Read or update configuration. Credentials (tronlinkSecretId, tronlinkSecretKey, gasfreeApiKey, gasfreeApiSecret, baiApiKey, networks.<id>.apiKey) are read only from --api-key-stdin, never from the command line, and are masked in output; a config file holding one must have mode 0600. timeoutMs is the whole-command deadline in milliseconds (0 = no limit). Setting baiApiKey only saves the key locally; no network, account, password or wallet binding is required. Recharge checks binding when used.",
     positionals: [{ field: "key" }, { field: "value" }],
     fields,
     input: fields,

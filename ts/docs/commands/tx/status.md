@@ -82,6 +82,8 @@ On EVM, `not_found` also carries a `meta.warnings` entry, because a public endpo
 | `blockNumber` | number | Present when confirmed |
 | `confirmations` | number | Blocks on top of the including block; present when confirmed |
 
+On TRON, a mined transaction with top-level `FAILED` or a failing receipt result has `state: "failed"`. A receipt result of `DEFAULT` alone is not failure. Contract submission commands keep polling for an execution result before reporting confirmation.
+
 ## Exit status
 
 `0` query answered (including `not_found`) · `1` execution failure (node unreachable, timeout) · `2` usage error.

@@ -96,6 +96,8 @@ EVM:
 | `symbol` | string | The network's native coin — `ETH`, `BNB` |
 | `type` | string | `eoa` (no code) or `contract` (code deployed at this address) |
 
+Malformed TRON account balances, staking quantities or permissions fail with `provider_error`; missing protobuf zero values retain their zero defaults. An unactivated account has `permissions: null`, displayed as `—`.
+
 ## Exit status
 
 `0` · `1` execution failure · `2` usage error.

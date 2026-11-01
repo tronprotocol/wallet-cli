@@ -104,6 +104,8 @@ EVM adds:
 | `transaction` | object | `eth_getTransactionByHash` result, as returned. A result without `from`, `value` or `input` fails with `invalid_node_response` |
 | `receipt` | object | Decoded receipt (`success`, `gasUsed`, `feeWei`, `effectiveGasPriceWei`, `blockNumber`) with the node's own response under `raw` |
 
+On TRON, a top-level `FAILED` is reported as a failed status; a receipt result of `DEFAULT` leaves the transaction's own result code authoritative. Malformed required EVM transaction fields fail with `invalid_node_response`; a contract-creation transaction omits `to`.
+
 ## Exit status
 
 `0` found · `1` execution failure — including *not found* on TRON (`rpc_error`) · `2` usage error, including *not found* on EVM (`not_found`).

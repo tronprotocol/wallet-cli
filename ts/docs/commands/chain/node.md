@@ -78,7 +78,7 @@ wallet-cli chain node --network sepolia -o json
 | `solidBlock` | object \| null | Solidified block on TRON, the finalized block on EVM — `{number}` |
 | `lagBlocks` | number \| null | Head − solid block gap |
 | `inSync` | boolean \| null | Whether the node is caught up. TRON: the head block is fresh (within 3 block intervals, i.e. ≤ 9 s). EVM: the node's own `eth_syncing` answer, inverted — `null` when it could not be read, which is not the same as out of sync |
-| `peers` | object \| null | `{connected, active}`; `null` when the endpoint hides it. EVM reports one peer count, so both fields carry it |
+| `peers` | object \| null | `{connected, active}`; `null` when either peer count is unavailable. EVM reports one peer count, so both fields carry it |
 
 ## Exit status
 

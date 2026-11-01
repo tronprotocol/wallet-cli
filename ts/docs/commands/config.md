@@ -39,8 +39,8 @@ Known keys:
 | `aliases` | — | — | Short name → canonical id map (read-only) |
 | `networks` | — | — | Known networks and their configurable fields (read-only as a whole) |
 | `networks.<id>` | — | — | One network's configurable fields; `<id>` may be a canonical id or an alias |
-| `networks.<id>.httpEndpoint` | URL | per network | The node/RPC endpoint to use |
-| `networks.<id>.apiKeyHeader` | header name | (unset) | Header a commercial endpoint authenticates by, e.g. `TRON-PRO-API-KEY` |
+| `networks.<id>.httpEndpoint` | absolute HTTP(S) URL | per network | The node/RPC endpoint to use; invalid values fail with `invalid_value` |
+| `networks.<id>.apiKeyHeader` | header name | (unset) | HTTP header name, 1–64 characters without spaces, colons or control characters; surrounding whitespace is trimmed, e.g. `TRON-PRO-API-KEY` |
 | `networks.<id>.apiKey` | string | (unset) | Credential sent in that header. **Secret** — always rendered masked, set only through `--api-key-stdin` |
 
 `networks` and `aliases` are read-only as a whole; the writable network settings are the three `networks.<id>.…` leaves. Any other sub-key is `invalid_value`, and the error names the ones that are supported.
@@ -59,7 +59,7 @@ The external-service credentials are **per-environment**: the GasFree (`gasfreeA
 
 **Setting `baiApiKey` only saves the key locally:** it does not contact B.AI, needs no network, account or master password, and neither checks the key nor binds a wallet. [`bai recharge`](bai/recharge.md) checks the paying address's binding each time it runs and binds it first if needed.
 
-An invalid value returns `invalid_value` (exit 2).
+An invalid value returns `invalid_value` (exit 2). Credential values must contain 1–256 characters without control characters. Network endpoints, header names and credentials are validated on load as well as on set.
 
 ## Examples
 

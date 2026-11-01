@@ -34,7 +34,7 @@ wallet-cli networks
 
 An **alias** is a short name you may type instead of the id. It resolves once, at selection, and nothing downstream ever sees it — `chain.network` in the JSON envelope always reports the canonical id. Aliases live in config and can be re-pointed, so scripts should pass canonical ids. The TRON ids used before CAIP-2 — `tron:mainnet`, `tron:nile`, `tron:shasta` — remain permanent aliases.
 
-For every built-in network the **chain id** is the canonical id's second segment. It is a separate field rather than a derived one: a network added in `config.yaml` supplies its own `chainId`, and nothing checks that the two agree. On EVM it is the EIP-155 number every signature commits to (`56`); on TRON it is the decimal genesis-hash prefix (`3448148188`), which nothing but the display layer reads. The readable name for a TRON network lives in its alias (`nile`), not in this field.
+For every built-in network the **chain id** is the canonical id's second segment. It is a separate field rather than a derived one: a network added in `config.yaml` supplies its own `chainId`, and nothing checks that the two agree. On EVM it is the EIP-155 number every signature commits to (`56`); on TRON it is the decimal genesis-hash prefix (`3448148188`), also used to check a typed-data domain's chain id. The readable name for a TRON network lives in its alias (`nile`), not in this field.
 
 Point a network at your own node, or at a commercial endpoint, with [`config`](../commands/config.md):
 
@@ -79,6 +79,8 @@ Omitted values are filled in from the node: the gas limit from `eth_estimateGas`
 Units: **1 coin = 10^18 wei**, and `--max-fee` / `--priority-fee` are given in **gwei** (`25` or `25gwei`). JSON payloads carry raw wei as strings.
 
 The coin itself is a **network** fact, not a family one: `eip155:1` pays in ETH and `eip155:56` in BNB. The base unit and its 18 decimals are shared; the symbol is not.
+
+Address checks compare TRON base58 and hex representations of the same account by their decoded bytes; base58 addresses remain case-sensitive. EVM address comparison ignores case.
 
 ## See also
 

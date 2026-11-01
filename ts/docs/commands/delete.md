@@ -24,7 +24,7 @@ Plus [global options](index.md).
 
 Deleting an HD wallet cascades from the seed root — all derived accounts go with it. On-chain assets are untouched. Run [`backup`](backup.md) first and act on any warning it prints. Metadata-only — no master password needed.
 
-**Deleting from an HD wallet that has TRON sub-accounts** (index 1 or higher) always prints a warning, before the confirmation. `delete` cannot tell, without the password, which derivation path created those addresses; if they came from an older version, re-importing the mnemonic will not recreate them. Back up and verify their keys first — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md). The warning does not stop the deletion.
+**Deleting from an HD wallet that has TRON sub-accounts** (index 1 or higher) always prints a warning, before the confirmation. `delete` cannot tell, without the password, which derivation path created those addresses; if they use `m/44'/195'/<index>'/0/0` with index greater than zero, re-importing the mnemonic will not recreate them. Back up and verify their keys first — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md). The warning does not stop the deletion.
 
 ## Examples
 

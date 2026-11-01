@@ -4,7 +4,7 @@ Remedies for humans, keyed by the [error codes](machine-interface.md#error-codes
 
 ## `migration_required` (exit 2)
 
-Your local wallet data was written by an older version and has to be upgraded before a command that uses it can run. The upgrade gate runs ahead of the command you typed, and that command is deliberately not executed. `--help`, `--version`, `--json-schema`, and a bare `wallet-cli` never read wallet data, so they skip the gate.
+Local wallet data whose schema requires an upgrade must be upgraded before a command that uses it can run. The upgrade gate runs ahead of the command you typed, and that command is deliberately not executed. `--help`, `--version`, `--json-schema`, and a bare `wallet-cli` never read wallet data, so they skip the gate.
 
 - **At a terminal**: re-run it. The gate asks for consent first, then for the master password when the upgrade has to re-derive account data.
 - **Non-interactive (CI, pipes)**: pass `--password-stdin`. Ledger-only and watch-only wallets hold no secret to re-encrypt and upgrade without a password; a wallet holding a seed or a private key needs one, and this code is what you get when it is missing.
@@ -15,15 +15,18 @@ The full behaviour, including the `migration` result envelope, is in [startup wa
 
 ## `encoding_error`: an account this build cannot read (exit 1)
 
-The opposite direction of `migration_required` — a wallet registry written by a **newer** wallet-cli, holding an account whose storage kind this build has no reader for.
+A wallet registry can hold an account whose storage kind this build has no reader for.
 
 - [`list`](commands/list.md) degrades instead of failing: it shows every account it can read and warns, naming the wallet ids it skipped. The address scan behaves the same way, so an address you can still see keeps resolving.
 - Naming an unreadable account — `--account`, or by label or address — is refused with `encoding_error` **before the command acts**, so nothing is written and no receipt is half-built.
-- The remedy is to upgrade wallet-cli to a version that understands the format. Nothing local is corrupt.
+- Use a wallet-cli build that understands that storage kind.
+- Malformed `wallets.json`, `tokens.json` or `contacts.json` also fails with `encoding_error`. Restore the affected file from a verified backup; do not replace it with an empty file. Token-book validation also applies when adding or removing an official token.
+
+Stored contact addresses may be duplicated, but contact names must be unique across families. Stored wallet labels may exceed 64 characters; added or changed labels must satisfy the 1–64 character rule. Writes preserve unchanged records.
 
 ## `legacy_derivation` (exit 1)
 
-The account is a TRON account #1 or later in a wallet created before 4.13.1, and uses a derivation path this version no longer signs with. The same error stops `derive` from adding accounts to that wallet. Nothing is lost: follow [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) **before deleting anything**.
+The seed account uses `m/44'/195'/<index>'/0/0` with index greater than zero, which the CLI refuses to sign as a seed account. The same error stops `derive` from adding accounts to that wallet. Nothing is lost: follow [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) **before deleting anything**.
 
 ## `derivation_mismatch` (exit 1)
 

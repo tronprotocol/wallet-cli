@@ -12,7 +12,7 @@ wallet-cli typed-data sign --typed-data <json> [options]
 
 Signs structured (typed) data with the active account's key (or `--account`), and prints the signature, the digest that was signed, and the primary type. Signing only — nothing is broadcast, and no node is contacted.
 
-Works on TRON and EVM. The selected network decides which of the account's keys signs and which address is reported, and must be the chain the payload is for: a `domain.chainId` that differs from the network's chain id is refused (`chain_id_mismatch`). A domain without `chainId` is signed as is. `--network` is optional and falls back to `config.defaultNetwork`.
+Works on TRON and EVM. The selected network decides which of the account's keys signs and which address is reported, and must be the chain the payload is for: a `domain.chainId` that differs from the network's chain id is refused (`chain_id_mismatch`). `domain.chainId` must be an integer when present; zero is accepted on a network whose chain id is zero. A domain without `chainId` is signed as is. `--network` is optional and falls back to `config.defaultNetwork`.
 
 The `--typed-data` value is EIP-712 / TIP-712 JSON with the shape `{"domain":…,"types":…,"primaryType"?:…,"message":…}`. Three conveniences apply when it is parsed:
 
@@ -20,7 +20,7 @@ The `--typed-data` value is EIP-712 / TIP-712 JSON with the shape `{"domain":…
 - `value` is accepted as an alias for `message`.
 - TRON **base58** addresses work in `address` fields, alongside `0x` hex.
 
-`primaryType` is optional — it is inferred when omitted.
+`primaryType` is optional — it is inferred when omitted. `domain` and `message` must be objects of JSON values; invalid members fail with `invalid_payload`.
 
 Like [`message sign`](../message/sign.md), this command **never prompts** for the master password: software accounts must pass `--password-stdin`. Watch-only accounts cannot sign (`watch_only_no_signer`).
 
@@ -80,7 +80,7 @@ echo "$PW" | wallet-cli typed-data sign --typed-data "$(cat permit-sepolia.json)
 
 ## Exit status
 
-`0` signed · `1` execution failure (`chain_id_mismatch` — `domain.chainId` is not the selected network's chain id, `watch_only_no_signer`, `auth_failed`, `signing_rejected` — declined on the Ledger, `ledger_setting_required` — enable blind signing / EIP-712 support in the device app, `ledger_unsupported` — the device app cannot sign this payload) · `2` usage error (`--typed-data` missing → `missing_option`, or its value is not JSON → `invalid_value`).
+`0` signed · `1` execution failure (`chain_id_mismatch` — `domain.chainId` is not the selected network's chain id, `watch_only_no_signer`, `auth_failed`, `signing_rejected` — declined on the Ledger, `ledger_setting_required` — enable blind signing / EIP-712 support in the device app, `ledger_unsupported` — the device app cannot sign this payload) · `2` usage error (`--typed-data` missing → `missing_option`, its value is not JSON → `invalid_value`, or its domain/message is not an object of JSON values → `invalid_payload`).
 
 ## See also
 

@@ -9,7 +9,9 @@ const typedDataFields = z.object({
   typedData: z
     .string()
     .min(1)
-    .describe(`EIP-712/TIP-712 JSON: {"domain":…,"types":…,"primaryType"?:…,"message":…}`),
+    .describe(
+      `EIP-712/TIP-712 JSON: {"domain":…,"types":…,"primaryType"?:…,"message":…}; a domain.chainId must match the selected network`,
+    ),
 });
 
 export const typedDataSignSpec: ChainSpec = {
@@ -23,7 +25,7 @@ export const typedDataSignSpec: ChainSpec = {
   description:
     "Sign an EIP-712 / TIP-712 typed-data payload.\n" +
     "`EIP712Domain` in `types` is ignored and `value` is accepted for `message`; address values\n" +
-    "are interpreted by the selected chain family's signing strategy.",
+    "are interpreted by the selected chain family's signing strategy. Nothing is broadcast.",
   baseFields: typedDataFields,
   examples: [
     {

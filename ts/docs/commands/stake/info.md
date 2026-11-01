@@ -14,7 +14,7 @@ One read-only screen of the account's staking state: staked amounts, voting powe
 
 Reading the fields:
 
-- **Staked** — the parenthesis splits the staked TRX by resource direction (TRX staked toward energy vs. bandwidth) — *not* the resource units obtained. The actual allowances are the `Energy` / `Bandwidth` limits (dynamic, network-wide conversion).
+- **Staked** — the parenthesis splits the staked TRX by resource direction (energy, bandwidth and TRON Power) — *not* the resource units obtained. The actual allowances are the `Energy` / `Bandwidth` limits (dynamic, network-wide conversion).
 - **Voting power** — same source as [`vote status`](../vote/status.md): 1 TP = 1 staked TRX. Shown here to bridge stake → vote.
 - **Unfreezing** — Stake 2.0 allows max **32 concurrent pending unstakes**; `N more allowed` is the chain's remaining count. When full, withdraw expired entries before unstaking more.
 - **Withdrawable** — what [`stake withdraw`](withdraw.md) would claim right now.
@@ -62,6 +62,8 @@ wallet-cli stake info --account main --network nile -o json
 | `unfreezing[]` | array | Pending unstakes: `{amountSun, withdrawableAt (epoch ms)}` |
 | `withdrawableSun` | string | Currently withdrawable TRX, in SUN |
 | `unfreeze` | object | Slot usage `{used, max, remaining}` |
+
+Stake totals count `BANDWIDTH`, `ENERGY` and `TRON_POWER` entries; an omitted type means bandwidth, and unrecognized types are excluded. Malformed account quantities fail with `provider_error`.
 
 ## Exit status
 

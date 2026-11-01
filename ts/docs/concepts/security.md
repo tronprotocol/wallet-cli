@@ -8,7 +8,7 @@ All secrets (seeds, private keys) are stored **encrypted under your master passw
 
 The master password is local protection only: it is never sent anywhere and **cannot be recovered**. It must be at least 8 characters with an uppercase letter, a lowercase letter, a digit, and a special character.
 
-The recovery object is the BIP39 mnemonic, but `create` never prints it — the seed is stored encrypted. Run [`backup`](../commands/backup.md) to export the plaintext mnemonic to a `0600` file and keep that file offline. Lose both password and backup and the funds are gone; lose only the password and `import mnemonic` (using the phrase from your backup) restores the wallet. The exception is TRON accounts #1 and later in a wallet created before 4.13.1 — back those up as keystores; see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+The recovery object is the BIP39 mnemonic, but `create` never prints it — the seed is stored encrypted. Run [`backup`](../commands/backup.md) to export the plaintext mnemonic to a `0600` file and keep that file offline. Lose both password and backup and the funds are gone; lose only the password and `import mnemonic` (using the phrase from your backup) restores the wallet. The exception is seed accounts at `m/44'/195'/<index>'/0/0` with index greater than zero — back those up as keystores; see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 One seed covers **every chain family** — the same phrase re-derives your TRON and your EVM addresses — so there is one thing to back up, not one per chain.
 

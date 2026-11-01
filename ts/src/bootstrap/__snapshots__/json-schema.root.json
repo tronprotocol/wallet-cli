@@ -28,7 +28,7 @@
       "type": "number",
       "minimum": 0,
       "maximum": 2147483647,
-      "description": "deadline for the whole command, in milliseconds; 0 = no limit",
+      "description": "deadline for the whole command, in milliseconds (0-2147483647); 0 = no limit",
       "defaultValue": "config.timeoutMs (built-in: 90000)"
     },
     {
@@ -41,12 +41,12 @@
     {
       "flag": "--wait",
       "type": "boolean",
-      "description": "after submitting, poll until the transaction is confirmed or failed before returning; this is the default where a transaction is submitted"
+      "description": "after submitting, wait until the transaction is confirmed or failed, within the command deadline; the default where a transaction is submitted"
     },
     {
       "flag": "--no-wait",
       "type": "boolean",
-      "description": "return the submitted receipt without polling for confirmation; prerequisite approvals still wait"
+      "description": "return the submitted receipt without waiting for confirmation; approvals still wait"
     },
     {
       "flag": "--password-stdin",
@@ -957,7 +957,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -1065,7 +1065,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -1222,7 +1222,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -1319,7 +1319,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -1473,7 +1473,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -1578,7 +1578,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -1665,7 +1665,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -1920,7 +1920,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -2148,7 +2148,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -2297,7 +2297,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -2378,7 +2378,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -2477,7 +2477,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -3049,7 +3049,7 @@
             "minLength": 1
           },
           "value": {
-            "description": "new value; omit to read the key",
+            "description": "new value; omit to read the key; credentials use --api-key-stdin instead",
             "type": "string",
             "minLength": 1
           }
@@ -3289,7 +3289,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -3506,7 +3506,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -3684,7 +3684,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -3794,7 +3794,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -3885,7 +3885,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -4044,7 +4044,7 @@
             "maximum": 9007199254740991
           },
           "label": {
-            "description": "label for the new derived account, 1-64 chars; omit to auto-generate <wallet-name>-<index>",
+            "description": "label for the new derived account, 1-64 chars, unique; omit to auto-generate <wallet-name>-<index>",
             "type": "string",
             "minLength": 1,
             "maxLength": 64
@@ -4174,7 +4174,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -4282,7 +4282,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -4514,7 +4514,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -4623,7 +4623,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -5226,7 +5226,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -5317,7 +5317,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -5408,7 +5408,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -5494,7 +5494,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -5751,7 +5751,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -5830,7 +5830,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -5937,7 +5937,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -6088,7 +6088,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -6215,7 +6215,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -6311,7 +6311,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -6392,7 +6392,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -7819,9 +7819,9 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           },
           "assetId": {
             "description": "TRC10 numeric asset id",
@@ -7880,9 +7880,9 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           },
           "assetId": {
             "description": "TRC10 numeric asset id",
@@ -7941,9 +7941,9 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           },
           "assetId": {
             "description": "TRC10 numeric asset id",
@@ -8043,9 +8043,9 @@
         "type": "object",
         "properties": {
           "contract": {
-            "description": "token contract address",
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "token contract address"
           },
           "assetId": {
             "description": "TRC10 numeric asset id",
@@ -8296,7 +8296,7 @@
           },
           "watch": {
             "default": false,
-            "description": "keep a WebSocket open and report only the count of transactions awaiting this account",
+            "description": "keep a WebSocket open and report only the count of transactions awaiting this account; ends at the command deadline (--timeout 0 = until stopped)",
             "type": "boolean"
           }
         },
@@ -8436,7 +8436,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -8534,7 +8534,7 @@
           },
           "offline": {
             "default": false,
-            "description": "sign locally without contacting a node; skips the signer-permission and approval-weight checks",
+            "description": "sign locally without contacting a node; skips the reference-block, signer-permission and approval-weight checks",
             "type": "boolean"
           },
           "out": {
@@ -8543,7 +8543,7 @@
             "minLength": 1
           },
           "transaction": {
-            "description": "unsigned transaction JSON; TRON compatibility path, never checked online",
+            "description": "unsigned TRON transaction JSON; signed without contacting a node",
             "type": "string",
             "minLength": 1
           }
@@ -8633,7 +8633,7 @@
           "typedData": {
             "type": "string",
             "minLength": 1,
-            "description": "EIP-712/TIP-712 JSON: {\"domain\":…,\"types\":…,\"primaryType\"?:…,\"message\":…}"
+            "description": "EIP-712/TIP-712 JSON: {\"domain\":…,\"types\":…,\"primaryType\"?:…,\"message\":…}; a domain.chainId must match the selected network"
           }
         },
         "required": [
@@ -8748,7 +8748,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -8917,7 +8917,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -9003,7 +9003,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -9088,7 +9088,7 @@
             "maximum": 9
           },
           "expiration": {
-            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s)",
+            "description": "transaction expiration in ms, up to 86400000 (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger",
             "type": "integer",
             "minimum": 1,
             "maximum": 86400000
@@ -9465,7 +9465,7 @@
             "type": "string"
           },
           "token": {
-            "description": "payment token symbol (default USDT)",
+            "description": "payment token symbol (default USDT where the network registers it; otherwise pass --token or --asset with --decimals)",
             "type": "string",
             "minLength": 1
           },
@@ -9596,7 +9596,7 @@
             "type": "string"
           },
           "token": {
-            "description": "payment token symbol (default USDT)",
+            "description": "payment token symbol (default USDT where the network registers it; otherwise pass --token or --asset with --decimals)",
             "type": "string",
             "minLength": 1
           },

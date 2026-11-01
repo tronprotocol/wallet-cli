@@ -126,6 +126,8 @@ echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount
 
 The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
 
+A non-integer transaction call value built by the SunPump SDK fails with `provider_error`.
+
 ## Exit status
 
 `0` success (submitted, or quoted/built/estimated) · `1` execution failure (`launchpad_token_not_found`, `launchpad_trading_closed`, `account_not_active`, `insufficient_token_balance`, `slippage_exceeded`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `provider_error`, `timeout`) · `2` usage error (`missing_option` — no `<address>` or `--amount`; `invalid_option` — `--quote` with another mode, `--slippage`, `--min-out`, `--wait` or `--no-wait`, or `--slippage` with `--min-out`; `invalid_amount` — not a positive number, or a sale too small to pay anything; `invalid_value` — a `--slippage` out of range; `invalid_address`; `account_not_found`; `unsupported_network_capability`; `family_mismatch`).

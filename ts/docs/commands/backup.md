@@ -28,7 +28,7 @@ Without `--keystore`, a fully interactive terminal asks which format to write, b
 
 When the password comes from `--password-stdin`, or the run is otherwise non-interactive, there is no prompt and the native format is written.
 
-A native backup of a wallet created before 4.13.1 can print a warning: some of its TRON accounts use an old path that importing the recovery phrase will not bring back. The warning names each account and the `--keystore` command that saves its key. Run those before deleting the wallet — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+A native backup warns when a seed account uses `m/44'/195'/<index>'/0/0` with index greater than zero: importing the recovery phrase uses the default path and will not recreate that TRON address. The warning names each account and the `--keystore` command that saves its key. Run those before deleting the wallet — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 A seed derives a different key per chain family, and a keystore carries only one of them, so `--network` selects which family's key is written — falling back to `config.defaultNetwork` when omitted. The receipt names the family it wrote, and so does the export log. A private-key account has one key and ignores the selection; the native format covers every family at once, so it needs no choice and reports none.
 

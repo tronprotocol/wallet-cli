@@ -147,7 +147,9 @@ const serveFields = z.object({
     .trim()
     .min(1)
     .optional()
-    .describe(`payment token symbol (default ${defaultToken("x402.serve")})`),
+    .describe(
+      `payment token symbol (default ${defaultToken("x402.serve")} where the network registers it; otherwise pass --token or --asset with --decimals)`,
+    ),
   rawAmount: rawPaymentAmount.optional().describe("payment in smallest units"),
   asset: z.string().trim().min(1).optional().describe("explicit payment asset address"),
   decimals: integerLiteral(0, 18).optional().describe("precision for an explicit asset"),
@@ -228,6 +230,9 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     broadcasts: false,
     capability: "x402.serve",
     summary: "Run a local x402-protected endpoint",
+    description:
+      "Run a local x402-protected endpoint. --timeout limits startup and each request's\n" +
+      "verify-and-settle; the ready server keeps running until stopped.",
     fields: serveFields,
     input: serveFields.superRefine(serveRefinement),
     exclusive: serveExclusive,
@@ -253,6 +258,9 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     rejectsWait: "the payment is settled by the facilitator and follows its own workflow",
     capability: "x402.pay",
     summary: "Start a local paywall, pay it, and exit",
+    description:
+      "Start a loopback x402 paywall, pay it, and exit, all within one command deadline.\n" +
+      "Prerequisite approvals confirm before the payment.",
     fields: roundtripFields,
     input: roundtripInput,
     exclusive: [...serveExclusive, gasfreeFeeLimitGroup],

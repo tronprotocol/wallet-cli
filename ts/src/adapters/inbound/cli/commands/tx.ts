@@ -171,7 +171,8 @@ export const txBroadcastSpec: ChainSpec = {
   summary: "Broadcast a presigned transaction",
   description:
     "Broadcast an already-signed transaction. It must have been built for the network you\n" +
-    "select — one built for another chain is rejected before it is sent.",
+    "select — one built for another chain is rejected before it is sent. Waits for\n" +
+    "confirmation by default; --no-wait returns the submitted receipt.",
   baseFields: broadcastFields,
   exclusive: [
     {
@@ -227,7 +228,7 @@ export const txApprovalsSpec: ChainSpec = {
   capability: "tx.multisig.local",
   summary: "Show collected signatures on a multi-sig transaction",
   description:
-    "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing.",
+    "Inspect the transaction, selected permission group, approved signers, accumulated weight, missing weight, and expiration without signing. On TRON, the selected network's node must hold the transaction's reference block.",
   baseFields: approvalsFields,
   exclusive: [{ label: "the transaction to inspect", flags: ["hex", "file"] }],
   examples: [{ cmd: "wallet-cli tx approvals --file partially-signed.hex" }],
@@ -243,7 +244,7 @@ const tronSignFields = z.object({
     .string()
     .min(1)
     .optional()
-    .describe("unsigned transaction JSON; TRON compatibility path, never checked online"),
+    .describe("unsigned TRON transaction JSON; signed without contacting a node"),
 });
 
 const signFields = z.object({
@@ -252,7 +253,7 @@ const signFields = z.object({
     .boolean()
     .default(false)
     .describe(
-      "sign locally without contacting a node; skips the signer-permission and approval-weight checks",
+      "sign locally without contacting a node; skips the reference-block, signer-permission and approval-weight checks",
     ),
   out: z
     .string()
@@ -274,8 +275,9 @@ export const txSignSpec: ChainSpec = {
     "later with `tx broadcast`. A transaction built for another network is rejected before it\n" +
     "is signed.\n" +
     "On TRON, --hex/--file append one signature to those already collected and report the\n" +
-    "resulting approval weight; --offline skips the online permission checks. An EVM\n" +
-    "transaction carries exactly one signature, so an already-signed one is refused.",
+    "resulting approval weight; --offline and --transaction contact no node and skip the\n" +
+    "online checks. An EVM transaction must be unsigned and carry the selected network's\n" +
+    "chain id.",
   baseFields: signFields,
   exclusive: [{ label: "the transaction to co-sign", flags: ["hex", "file", "transaction"] }],
   examples: [
@@ -359,7 +361,7 @@ const tronLinkMultisigFields = z.object({
     .boolean()
     .default(false)
     .describe(
-      "keep a WebSocket open and report only the count of transactions awaiting this account",
+      "keep a WebSocket open and report only the count of transactions awaiting this account; ends at the command deadline (--timeout 0 = until stopped)",
     ),
 });
 
@@ -375,7 +377,8 @@ export const txTronLinkMultisigSpec: ChainSpec = {
     "With no mode flag, list service-managed transactions for the selected account. --create signs\n" +
     "an UNSIGNED transaction locally and submits it, which opens the collection at the first\n" +
     "signature; --sign fetches the accumulated transaction, signs locally, and submits it;\n" +
-    "--watch opens the official WebSocket count-only notification channel.",
+    "--watch opens the official WebSocket count-only notification channel. --create and --sign\n" +
+    "check the transaction's reference block on the selected network.",
   requires: [
     "TronLink service credentials — config tronlinkSecretId / tronlinkSecretKey / tronlinkChannel",
   ],

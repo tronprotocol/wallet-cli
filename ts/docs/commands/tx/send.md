@@ -145,7 +145,7 @@ A reverted transaction still leaves the envelope at `success: true` and exit `0`
 
 ## Exit status
 
-`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`nonce_too_low` — `--dry-run` with an already-mined `--nonce`, `rpc_error`, `timeout`, `invalid_node_response` — **on submission these can leave the outcome unknown**) · `2` usage error (conflicting selectors/amounts/modes; `family_mismatch` when the recipient or the account belongs to another family; `invalid_option` when a fee flag is scoped to the other family).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`nonce_too_low` — `--dry-run` with an already-mined `--nonce`, `rpc_error`, `timeout`, `invalid_node_response` — **on submission these can leave the outcome unknown**) · `2` usage error (`invalid_option` — conflicting selectors/amounts/modes; `family_mismatch` when the recipient or the account belongs to another family; `invalid_option` when a fee flag is scoped to the other family).
 
 A `timeout`, `rpc_error` or `invalid_node_response` from submission includes the locally computed signed transaction id in `error.details.txId`; text output shows it too. Check it with [`tx status`](status.md) before sending again. Resending `tx send` builds and signs a new transaction, which on TRON can be a second transfer. Definite rejections and failures before submission do not gain this field.
 

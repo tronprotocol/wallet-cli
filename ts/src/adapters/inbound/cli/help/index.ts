@@ -1,4 +1,4 @@
-import { z, type ZodObject, type ZodRawShape } from "zod";
+import { z } from "zod";
 import type { ChainFamily, ExitCode } from "../../../../domain/types/index.js";
 import { acceptsWaitFlags, isChainCommand } from "../contracts/index.js";
 import type {
@@ -10,6 +10,7 @@ import type {
 } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { CONFIG_DEFAULTS } from "../../../../application/contracts/config-defaults.js";
+import { MAX_TIMEOUT_MS } from "../../../../domain/config/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import { introspectFields, type FieldInfo } from "../arity/index.js";
 import {
@@ -18,6 +19,7 @@ import {
   type GlobalFlag,
   inputFlagsFor,
   buildCatalog,
+  mergedFields,
 } from "./catalog.js";
 
 const META = new Set(["--help", "-h", "--version", "-V", "--json-schema"]);
@@ -173,13 +175,16 @@ export class HelpService {
       ["--account string", "Account label or address to act as (overrides active)"],
       [
         "--timeout int",
-        `Deadline for the whole command in milliseconds; 0 = no limit (default from config timeoutMs, built-in ${CONFIG_DEFAULTS.timeoutMs})`,
+        `Deadline for the whole command in milliseconds (0-${MAX_TIMEOUT_MS}); 0 = no limit (default from config timeoutMs, built-in ${CONFIG_DEFAULTS.timeoutMs})`,
       ],
       [
         "--wait",
-        "Wait until the submitted transaction is confirmed or failed (default where a transaction is submitted)",
+        "Wait until the submitted transaction is confirmed or failed, within the deadline (default where a transaction is submitted)",
       ],
-      ["--no-wait", "Return after submission without waiting for confirmation"],
+      [
+        "--no-wait",
+        "Return after submission without waiting for confirmation; approvals still wait",
+      ],
       ["-v, --verbose", "Verbose / debug logging"],
       ["-h, --help", "Show help"],
       ["-V, --version", "Print version information and quit"],
@@ -482,13 +487,6 @@ export class HelpService {
   #catalog(familyFilter?: ChainFamily): string {
     return buildCatalog(this.registry, this.version, familyFilter, this.capabilities);
   }
-}
-
-function mergedFields(def: ChainCommandDefinition, family?: ChainFamily): ZodObject<ZodRawShape> {
-  let shape = { ...def.spec.baseFields.shape };
-  const bindings = family ? [def.families[family]] : Object.values(def.families);
-  for (const b of bindings) if (b?.fields) shape = { ...shape, ...b.fields.shape };
-  return z.object(shape);
 }
 
 // Help lists all families regardless of --network; shared fields must stay untagged.

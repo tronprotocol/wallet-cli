@@ -28,7 +28,7 @@ export const tronTxModeFields = {
     .max(MAX_TRON_EXPIRATION_MS)
     .optional()
     .describe(
-      `transaction expiration in ms, up to ${MAX_TRON_EXPIRATION_MS} (24h); only with --sign-only or --build-only; omitted = node default (~60s)`,
+      `transaction expiration in ms, up to ${MAX_TRON_EXPIRATION_MS} (24h); only with --sign-only or --build-only; omitted = node default (~60s), at least 10 minutes when signed on a Ledger`,
     ),
 };
 

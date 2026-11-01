@@ -75,7 +75,7 @@ wallet-cli tx approvals --file tx.hex --network nile -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`invalid_transaction`, `chain_id_mismatch`, `rpc_error`) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`invalid_transaction`, `chain_id_mismatch`, `rpc_error`) · `2` usage error (`invalid_value` — malformed values; `invalid_option` — missing or conflicting input sources).
 
 ## See also
 

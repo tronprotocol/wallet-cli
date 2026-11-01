@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { ChainSpec, ExclusiveGroup, FamilyBinding } from "../contracts/index.js";
 import type { TronTokenService } from "../../../../application/use-cases/tron/token-service.js";
-import { Schemas, addressFieldsFor, allRefines } from "../schemas/index.js";
+import { Schemas, addressFieldsFor } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { TokenBookService } from "../../../../application/use-cases/token-book-service.js";
 import type { EvmTokenService } from "../../../../application/use-cases/evm/token-service.js";
@@ -12,14 +12,10 @@ const selectorFields = z.object({
 });
 
 const evmSelector = {
-  refine: allRefines(
-    (v: { contract?: string }, ctx: z.RefinementCtx) => {
-      if (v.contract === undefined) {
-        ctx.addIssue({ code: "custom", path: ["contract"], message: "--contract is required" });
-      }
-    },
-    addressFieldsFor("evm", "contract"),
-  ),
+  fields: z.object({
+    contract: Schemas.address().describe("token contract address"),
+  }),
+  refine: addressFieldsFor("evm", "contract"),
 };
 
 const tronSelector = {

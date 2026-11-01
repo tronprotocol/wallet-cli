@@ -148,13 +148,22 @@ function exclusiveEntry(groups: ExclusiveGroup[]): { exclusive?: ExclusiveGroup[
   return groups.length ? { exclusive: groups } : {};
 }
 
-function mergedFields(
+// A shared field is required only when every family requires it.
+export function mergedFields(
   def: ChainCommandDefinition,
   family?: ChainFamily,
 ): z.ZodObject<z.ZodRawShape> {
-  let shape = { ...def.spec.baseFields.shape };
-  for (const binding of bindingsFor(def, family)) {
-    if (binding?.fields) shape = { ...shape, ...binding.fields.shape };
+  const shapes = bindingsFor(def, family).map((binding): z.ZodRawShape => ({
+    ...def.spec.baseFields.shape,
+    ...binding?.fields?.shape,
+  }));
+  const shape: Record<string, z.ZodRawShape[string]> = Object.assign({}, ...shapes);
+  const acceptsAbsent = (field: z.ZodRawShape[string] | undefined) =>
+    field !== undefined && z.safeParse(field, undefined).success;
+  for (const [name, field] of Object.entries(shape)) {
+    if (!acceptsAbsent(field) && shapes.some((s) => acceptsAbsent(s[name]))) {
+      shape[name] = z.optional(field);
+    }
   }
   return z.object(shape);
 }

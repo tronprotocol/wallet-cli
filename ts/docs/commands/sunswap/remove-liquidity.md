@@ -36,7 +36,7 @@ It is not a mirror image of adding:
 
 ### V3 and V4 pay out the fees too
 
-A V3 or V4 withdrawal also pays out **every fee the position has accrued**, in the same transaction, so more arrives than the principal the estimate quotes — on an older position, the fees can be most of it. The dry run warns about this. In the confirmed receipt, `Received` is the total; JSON splits it into `amount` (principal) and `feeAmount` (fees), and V4 adds `receivedAmount`, the net amount that actually reached you.
+A V3 or V4 withdrawal also pays out **every fee the position has accrued**, in the same transaction, so more arrives than the principal the estimate quotes — on an older position, the fees can be most of it. The dry run warns about this. In the confirmed receipt, `Received` is the total; JSON splits it into `amount` (principal) and `feeAmount` (fees), and `receivedAmount` is their total; on V4 it is the measured balance change.
 
 To take the fees **without** touching the principal, use [`sunswap collect-fees`](collect-fees.md).
 
@@ -105,7 +105,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 702
 {"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.remove-liquidity","data":{"kind":"sunswap-remove-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V3","positionManager":"TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R","nftTokenId":"702","liquidity":"1000000","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","collectsFees":true,"token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"55917","feeAmount":"0","receivedAmount":"55917"},"token1":{"address":"TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a","symbol":"WTRX","decimals":6,"amount":"42532","feeAmount":"0","receivedAmount":"42532"},"stage":"confirmed","txId":"110ac4aa0de576d58f7ddcca0a24b46d23783d80d30089ecdcaa0046cdb42e02","confirmed":true,"blockNumber":71636717,"feeSun":30506600,"energyUsed":296797,"energyFeeSun":29679600,"netFeeSun":827000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"liquidityAfter":"16883571"},"meta":{"durationMs":12819,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-**V4**, naming the pair as a check on position #188. JSON adds `receivedAmount`, the net amount that reached the account:
+**V4**, naming the pair as a check on position #188. JSON reports `receivedAmount` as the measured net amount that reached the account:
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 188 --token0 TRX --token1 USDT \

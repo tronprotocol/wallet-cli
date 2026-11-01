@@ -18,7 +18,7 @@ wallet-cli contract deploy (--artifact <path> | --code <hex> | --code-file <path
 
 Deploys contract creation bytecode from the active account (or `--account`) and reports the new contract's address, on TRON and EVM networks alike.
 
-**Where the bytecode comes from** — exactly one of three, else `invalid_value`:
+**Where the bytecode comes from** — exactly one of three, else `invalid_option`:
 
 | Source | Use it when |
 |---|---|

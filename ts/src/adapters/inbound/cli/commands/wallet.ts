@@ -490,7 +490,7 @@ export function registerWalletCommands(
     label: Schemas.label()
       .optional()
       .describe(
-        "label for the new derived account, 1-64 chars; omit to auto-generate <wallet-name>-<index>",
+        "label for the new derived account, 1-64 chars, unique; omit to auto-generate <wallet-name>-<index>",
       ),
   });
   reg.add({
@@ -719,7 +719,8 @@ export function registerWalletCommands(
     description:
       "Change the master password. Re-encrypts every software wallet keystore with the\n" +
       "new password (Ledger / watch-only accounts are unaffected). Passwords are read\n" +
-      "interactively from the TTY (hidden input); they never touch argv or stdin.",
+      "interactively from the TTY (hidden input); they never touch argv or stdin.\n" +
+      "If a write fails, the error says which password is in effect.",
     fields: changePasswordFields,
     input: changePasswordFields,
     examples: [{ cmd: "wallet-cli change-password" }],

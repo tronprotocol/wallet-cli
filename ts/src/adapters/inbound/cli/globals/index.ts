@@ -71,7 +71,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     rule: TIMEOUT_MS_RULE,
     bounds: { minimum: 0, maximum: MAX_TIMEOUT_MS },
     fromText: timeoutMsFromText,
-    description: "deadline for the whole command, in milliseconds; 0 = no limit",
+    description: `deadline for the whole command, in milliseconds (0-${MAX_TIMEOUT_MS}); 0 = no limit`,
     defaultValue: `config.timeoutMs (built-in: ${CONFIG_DEFAULTS.timeoutMs})`,
   },
   {
@@ -86,9 +86,8 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     name: "wait",
     kind: "boolean",
     description:
-      "after submitting, poll until the transaction is confirmed or failed before returning; this is the default where a transaction is submitted",
-    negation:
-      "return the submitted receipt without polling for confirmation; prerequisite approvals still wait",
+      "after submitting, wait until the transaction is confirmed or failed, within the command deadline; the default where a transaction is submitted",
+    negation: "return the submitted receipt without waiting for confirmation; approvals still wait",
   },
   {
     name: "password-stdin",
