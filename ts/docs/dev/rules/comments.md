@@ -1,11 +1,11 @@
 # Comment rules (`ts/`)
 
 Code is the source of truth. Write a comment only when the code cannot say it, and say it in the fewest words
-that help a human review the code. Applies to every code file under `ts/`, including tests.
+that help a human review the code. These rules apply to every code file under `ts/`, including tests.
 
 ## When to write a comment
 
-- A non-obvious constraint whose removal would invite a "simplification" that breaks behaviour: money,
+- A non-obvious constraint whose removal would invite a "simplification" that breaks behavior: money,
   security, signing, atomicity or lock scope, ordering, protocol or node quirks.
 - A unit or encoding the type does not show (SUN vs TRX, raw vs decimal, hex vs base58).
 - An exported API whose name and types are not enough.
@@ -22,11 +22,11 @@ Otherwise, make the code clearer instead: a better name, a smaller function, a n
 
 - History or decisions: "previously", "used to", "we chose", "fixed", incident stories, commit hashes, PR or
   issue numbers, dates, measurements, audit references. Record a decision that must survive in
-  `ts/docs/dev/rules/`.
+  `ts/docs/dev/rules/` (architecture rule 8.2).
 - What the code, the name, or the types already say.
 - Commented-out code.
 - Long rationale, or details of another file's internals that can drift.
-- Intended behaviour the code does not have. If the code is wrong, fix the code.
+- Intended behavior the code does not have (see [Keep comments true](#keep-comments-true)).
 
 ## Keep comments true
 
