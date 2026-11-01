@@ -8,6 +8,9 @@ import type { SunSwapTokenResolver } from "../../services/sunswap/sunswap-token-
 import { SunSwapCollectFeesService } from "./collect-fees-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { cliMessage, errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const SYMBOLS: Record<string, string> = {
   USDT: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
@@ -86,6 +89,7 @@ function makeHarness(port: LiquidityPort = makePort(), confirmed = true) {
     }),
   } as unknown as TxPipeline;
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: {},
     wait: false,
     waitTimeoutMs: 1_000,
@@ -155,7 +159,13 @@ describe("collect-fees", () => {
     })) as Record<string, unknown>;
 
     expect(result.recipient).toBe(ELSEWHERE);
-    expect(port.v3OwedFees).toHaveBeenCalledWith(NETWORK, "686", ELSEWHERE, OWNER);
+    expect(port.v3OwedFees).toHaveBeenCalledWith(
+      NETWORK,
+      "686",
+      ELSEWHERE,
+      OWNER,
+      expect.anything(),
+    );
   });
 
   it("defaults the recipient to the account, resolved rather than left absent", async () => {
@@ -393,7 +403,7 @@ describe("collect-fees — V4", () => {
 
     await service.collectFees(scope, NETWORK, { ...V4, token0: "TRX", token1: "USDT" });
 
-    expect(port.v4PoolState).toHaveBeenCalledWith(NETWORK, POOL_ID);
+    expect(port.v4PoolState).toHaveBeenCalledWith(NETWORK, POOL_ID, expect.anything());
   });
 
   it("puts the position and the signing account in the call", async () => {
@@ -478,6 +488,7 @@ describe("collect-fees — V4", () => {
     expect((port.v4OwedFees as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]).toEqual([
       NETWORK,
       { tokenId: "1", poolId: POOL_ID, tickLower: -1284, tickUpper: 1116 },
+      expect.anything(),
     ]);
   });
 
@@ -663,7 +674,7 @@ describe("collect-fees — V4", () => {
     await service.collectFees(scope, NETWORK, V4);
 
     expect((port.tokenFacts as unknown as { mock: { calls: unknown[][] } }).mock.calls).toEqual([
-      [NETWORK, USDT],
+      [NETWORK, USDT, expect.anything()],
     ]);
   });
 

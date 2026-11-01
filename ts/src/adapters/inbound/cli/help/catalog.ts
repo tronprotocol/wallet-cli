@@ -19,6 +19,8 @@ export interface GlobalFlag {
   alias?: string;
   type: "string" | "number" | "boolean";
   values?: string[];
+  minimum?: number;
+  maximum?: number;
   description: string;
   optional?: boolean;
   defaultValue?: string | number | boolean;
@@ -30,6 +32,7 @@ function globalFlagDoc(f: GlobalFlagSpec): GlobalFlag {
     ...(f.alias ? { alias: `-${f.alias}` } : {}),
     type: f.kind === "value" ? f.valueType! : "boolean",
     ...(f.choices ? { values: [...f.choices] } : {}),
+    ...(f.bounds ? { minimum: f.bounds.minimum, maximum: f.bounds.maximum } : {}),
     description: f.description,
     ...(f.defaultValue !== undefined ? { defaultValue: f.defaultValue } : {}),
   };

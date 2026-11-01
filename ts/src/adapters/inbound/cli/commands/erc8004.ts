@@ -191,7 +191,7 @@ export function showEvmBinding(service: AgentService): FamilyBinding {
   return binding(
     "evm",
     async (ctx, net, input) => {
-      const { warnings, ...result } = await service.show(net, input.id);
+      const { warnings, ...result } = await service.show(ctx.deadline, net, input.id);
       for (const warning of warnings ?? []) ctx.warn(warning);
       return result;
     },
@@ -203,7 +203,7 @@ export function showTronBinding(service: AgentService): FamilyBinding {
   return binding(
     "tron",
     async (ctx, net, input) => {
-      const { warnings, ...result } = await service.show(net, input.id);
+      const { warnings, ...result } = await service.show(ctx.deadline, net, input.id);
       for (const warning of warnings ?? []) ctx.warn(warning);
       return result;
     },
@@ -290,7 +290,8 @@ export function operatorRemoveTronBinding(service: AgentService): FamilyBinding 
 export function operatorCheckEvmBinding(service: AgentService): FamilyBinding {
   return binding(
     "evm",
-    async (_ctx, net, input) => service.operatorCheck(net, input.owner, input.operator),
+    async (ctx, net, input) =>
+      service.operatorCheck(ctx.deadline, net, input.owner, input.operator),
     ["owner", "operator"],
     false,
   );
@@ -298,7 +299,8 @@ export function operatorCheckEvmBinding(service: AgentService): FamilyBinding {
 export function operatorCheckTronBinding(service: AgentService): FamilyBinding {
   return binding(
     "tron",
-    async (_ctx, net, input) => service.operatorCheck(net, input.owner, input.operator),
+    async (ctx, net, input) =>
+      service.operatorCheck(ctx.deadline, net, input.owner, input.operator),
     ["owner", "operator"],
     false,
   );

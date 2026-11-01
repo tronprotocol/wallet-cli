@@ -1,4 +1,6 @@
-// Price lookup failures return null.
+// Price lookup failures return null; expiry of the command deadline fails the lookup.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import { abortReason } from "../http/dispatch-context.js";
 import type { PriceProvider } from "../../../application/ports/price-provider.js";
 
 export class CoinGeckoPriceProvider implements PriceProvider {
@@ -16,19 +18,20 @@ export class CoinGeckoPriceProvider implements PriceProvider {
     "eip155:56": "binance-smart-chain",
   };
 
-  constructor(
-    private readonly baseUrl = "https://api.coingecko.com/api/v3",
-    private readonly timeoutMs = 60_000,
-  ) {}
+  constructor(private readonly baseUrl = "https://api.coingecko.com/api/v3") {}
 
-  async nativeUsd(networkId: string): Promise<number | null> {
+  async nativeUsd(networkId: string, check: DispatchCheck): Promise<number | null> {
     const id = CoinGeckoPriceProvider.#prefixed(CoinGeckoPriceProvider.#NATIVE_IDS, networkId);
     if (!id) return null;
-    const body = await this.#get(`/simple/price?ids=${id}&vs_currencies=usd`);
+    const body = await this.#get(`/simple/price?ids=${id}&vs_currencies=usd`, check);
     return num(body?.[id]?.usd);
   }
 
-  async tokenUsd(networkId: string, contracts: string[]): Promise<Map<string, number | null>> {
+  async tokenUsd(
+    networkId: string,
+    contracts: string[],
+    check: DispatchCheck,
+  ): Promise<Map<string, number | null>> {
     const out = new Map<string, number | null>(contracts.map((c) => [c, null]));
     const platform = CoinGeckoPriceProvider.#prefixed(CoinGeckoPriceProvider.#PLATFORMS, networkId);
     if (!platform || contracts.length === 0) return out;
@@ -37,6 +40,7 @@ export class CoinGeckoPriceProvider implements PriceProvider {
       contracts.map(async (contract) => {
         const body = await this.#get(
           `/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(contract)}&vs_currencies=usd`,
+          check,
         );
         if (!body || typeof body !== "object") return;
         // CoinGecko returns lowercase contract keys.
@@ -49,14 +53,15 @@ export class CoinGeckoPriceProvider implements PriceProvider {
     return out;
   }
 
-  async #get(path: string): Promise<any | null> {
+  // An unknown price is null, except when the command deadline ends the read.
+  async #get(path: string, check: DispatchCheck): Promise<any | null> {
+    check.assertDispatchable();
     try {
-      const res = await fetch(`${this.baseUrl}${path}`, {
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
+      const res = await fetch(`${this.baseUrl}${path}`, { signal: check.signal });
       if (!res.ok) return null;
       return await res.json();
     } catch {
+      if (check.signal.aborted) throw abortReason(check.signal);
       return null;
     }
   }

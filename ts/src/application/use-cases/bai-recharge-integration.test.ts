@@ -7,6 +7,9 @@ import type { BaiApi } from "../ports/bai-api.js";
 import type { X402PaymentResult, X402ResponseResult } from "../ports/x402-payment.js";
 import type { X402ServeDetails } from "../ports/x402-server.js";
 import type { BaiRawOrder } from "../ports/bai-recharge.js";
+import { CommandDeadline } from "../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const rawOrder = (value: object) => value as unknown as BaiRawOrder;
 const payer = "0x1111111111111111111111111111111111111111";
@@ -25,7 +28,7 @@ function fixture(
     bind: vi.fn(),
     createOrder: vi.fn(async () => {
       calls.push("order");
-      return rawOrder({ id: 1 });
+      return { orderId: "1" };
     }),
     reportTxHash: vi.fn(async () => {
       calls.push("report");
@@ -53,12 +56,16 @@ function fixture(
     payTo,
   });
   const run = (to?: string, amount = "10", token = "USDT") =>
-    service.recharge({ resolveAddress: () => payer, emit: vi.fn() } as never, network as never, {
-      amount,
-      token,
-      apiKey: "secret",
-      to,
-    });
+    service.recharge(
+      { deadline: NO_DEADLINE, resolveAddress: () => payer, emit: vi.fn() } as never,
+      network as never,
+      {
+        amount,
+        token,
+        apiKey: "secret",
+        to,
+      },
+    );
   return { api, payments, calls, run };
 }
 it("resolves another recipient, then reuses exactly that target for preorder and report", async () => {
@@ -77,15 +84,19 @@ it("resolves another recipient, then reuses exactly that target for preorder and
       amount: "10",
       rechargeTarget: target,
     }),
+    expect.anything(),
   );
-  expect(api.reportTxHash).toHaveBeenCalledWith({
-    chain: "bnb",
-    amount: "10",
-    txHash,
-    rechargeTarget: target,
-  });
+  expect(api.reportTxHash).toHaveBeenCalledWith(
+    {
+      chain: "bnb",
+      amount: "10",
+      txHash,
+      rechargeTarget: target,
+    },
+    expect.anything(),
+  );
   expect(result).toMatchObject({ creditStatus: "credited", txHash });
-  expect(api.isBound).toHaveBeenCalledWith({ chain: "bnb", address: payer });
+  expect(api.isBound).toHaveBeenCalledWith({ chain: "bnb", address: payer }, expect.anything());
 });
 it.each([
   ["TRX", "14.999999", "15"],
@@ -136,6 +147,7 @@ it.each([undefined, payer, payer.toUpperCase().replace("0X", "0x")])(
     expect(api.resolveTarget).not.toHaveBeenCalled();
     expect(api.createOrder).toHaveBeenCalledWith(
       expect.not.objectContaining({ rechargeTarget: expect.anything() }),
+      expect.anything(),
     );
   },
 );
@@ -199,7 +211,8 @@ it("previews a recipient recharge without creating an order or obtaining any sig
     {} as never,
     {} as never,
     {
-      facilitator: new X402FacilitatorClient(undefined, 1000),
+      facilitator: new X402FacilitatorClient(undefined),
+      requestTimeoutMs: 0,
       host: new X402PaywallHttpServer(
         () => {},
         () => {},
@@ -218,7 +231,7 @@ it("previews a recipient recharge without creating an order or obtaining any sig
   });
   const emit = vi.fn();
   const result = await service.recharge(
-    { resolveAddress: () => payer, timeoutMs: 1000, emit } as never,
+    { resolveAddress: () => payer, deadline: new CommandDeadline(0), emit } as never,
     network as never,
     { amount: "1", token: "USDT", apiKey: "test-key", dryRun: true, to: "recipient@example.com" },
   );
@@ -264,7 +277,7 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
     },
   );
   await expect(
-    service.recharge({ activeAccount: payer } as never, network as never, {
+    service.recharge({ deadline: NO_DEADLINE, activeAccount: payer } as never, network as never, {
       amount: "1",
       token: "USDT",
       apiKey: "test-key",
@@ -284,6 +297,7 @@ it("checks relay configuration before creating any preorder", async () => {
   const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
   const payments = new X402Service(new X402PaymentClient(), {} as never, {} as never, {} as never, {
     facilitator: new X402FacilitatorClient(),
+    requestTimeoutMs: 0,
     host: new X402PaywallHttpServer(
       () => {},
       () => {},
@@ -295,7 +309,10 @@ it("checks relay configuration before creating any preorder", async () => {
   });
   await expect(
     service.recharge(
-      { resolveAddress: () => "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" } as never,
+      {
+        deadline: NO_DEADLINE,
+        resolveAddress: () => "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+      } as never,
       { id: "tron:728126428", family: "tron", chainId: "728126428" } as never,
       {
         amount: "1",
@@ -333,7 +350,7 @@ it("rejects token precision before account and binding checks", async () => {
     { resolveAccount },
   );
   await expect(
-    service.recharge({ resolveAddress } as never, network as never, {
+    service.recharge({ deadline: NO_DEADLINE, resolveAddress } as never, network as never, {
       amount: "1.0000000000000000001",
       token: "USDT",
       apiKey: "test-key",
@@ -390,6 +407,7 @@ function liveBindingFixture() {
     }),
   };
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: "selected",
     resolveAddress: () => payer,
     emit: vi.fn(),
@@ -478,6 +496,7 @@ it.each([false, true])(
       {} as never,
       {
         facilitator: new X402FacilitatorClient(),
+        requestTimeoutMs: 0,
         host: {
           start: async () => ({
             details: {

@@ -1,3 +1,4 @@
+import type { DispatchCheck, ExecutionDeadline } from "../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 
 declare const agentRegistrationMetadata: unique symbol;
@@ -13,13 +14,21 @@ export type AgentRegistryValue = string | boolean | bigint;
 export interface AgentRegistryReader {
   registry(network: NetworkDescriptor): string;
   read(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     method: string,
     params: Array<{ type: string; value: unknown }>,
   ): Promise<AgentRegistryValue>;
-  registeredAgentId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
+  registeredAgentId(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined>;
 }
 
 export interface AgentRegistrationLoader {
-  load(uri: string): Promise<{ metadata?: AgentRegistrationMetadata; warning?: string }>;
+  load(
+    uri: string,
+    check: DispatchCheck,
+  ): Promise<{ metadata?: AgentRegistrationMetadata; warning?: string }>;
 }

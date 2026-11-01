@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { fetchBounded } from "../http/http-response.js";
 import { mkdir, rename, writeFile, readFile, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -20,11 +21,10 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
   constructor(
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly cacheFile = join(homedir(), ".cache", "wallet-cli", "x402", "catalog.json"),
-    private readonly timeoutMs = 60000,
   ) {}
 
-  async list(input: ProviderListInput): Promise<ProviderListView> {
-    const payload = await this.catalog();
+  async list(input: ProviderListInput, check: DispatchCheck): Promise<ProviderListView> {
+    const payload = await this.catalog(check);
     let providers = arrayOfObjects(payload.providers).map(normalizeObject);
     validateFilter(providers, "type", input.type, "type is not exposed by the catalog yet");
     validateFilter(providers, "category", input.category);
@@ -73,16 +73,16 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     };
   }
 
-  async show(fqn: string): Promise<ProviderRecord> {
+  async show(fqn: string, check: DispatchCheck): Promise<ProviderRecord> {
     safeFqn(fqn);
     const cached = await this.cached();
     const details = cached?.cached_details as Record<string, Record<string, unknown>> | undefined;
     if (details && Object.hasOwn(details, fqn)) return normalizeObject(details[fqn]!);
-    return normalizeObject(await this.readJson(detailUrl("providers", fqn)));
+    return normalizeObject(await this.readJson(detailUrl("providers", fqn), check));
   }
 
-  async endpoints(fqn: string): Promise<ProviderEndpointsView> {
-    const provider = await this.show(fqn);
+  async endpoints(fqn: string, check: DispatchCheck): Promise<ProviderEndpointsView> {
+    const provider = await this.show(fqn, check);
     return {
       fqn,
       endpoints: Array.isArray(provider.endpoints) ? provider.endpoints : [],
@@ -90,14 +90,14 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     };
   }
 
-  async update(): Promise<ProviderCatalogUpdate> {
-    const payload = validateCatalog(await this.readJson(CATALOG_URL));
+  async update(check: DispatchCheck): Promise<ProviderCatalogUpdate> {
+    const payload = validateCatalog(await this.readJson(CATALOG_URL, check));
     const details: Record<string, Record<string, unknown>> = {};
     // Cache provider details for offline show/endpoints calls.
     for (const provider of arrayOfObjects(payload.providers)) {
       const fqn = String(provider.fqn);
       safeFqn(fqn);
-      details[fqn] = await this.readJson(detailUrl("providers", fqn));
+      details[fqn] = await this.readJson(detailUrl("providers", fqn), check);
     }
     const body = `${JSON.stringify({ ...payload, cached_details: details }, null, 2)}\n`;
     const temporary = `${this.cacheFile}.${randomUUID()}.tmp`;
@@ -121,10 +121,10 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     };
   }
 
-  private async catalog() {
+  private async catalog(check: DispatchCheck) {
     const cached = await this.cached();
     if (cached) return cached;
-    return validateCatalog(await this.readJson(CATALOG_URL));
+    return validateCatalog(await this.readJson(CATALOG_URL, check));
   }
 
   private async cached(): Promise<Record<string, unknown> | undefined> {
@@ -135,14 +135,14 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     }
   }
 
-  private async readJson(url: string): Promise<Record<string, unknown>> {
+  private async readJson(url: string, check: DispatchCheck): Promise<Record<string, unknown>> {
     let response: Response;
     try {
       response = await fetchBounded(
         this.fetcher,
         url,
         { headers: { accept: "application/json" }, redirect: "error" },
-        this.timeoutMs,
+        check,
       );
     } catch (error) {
       if (error instanceof CliError) throw error;

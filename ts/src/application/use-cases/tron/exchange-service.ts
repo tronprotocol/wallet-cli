@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { assertPositive, isPositive, toBaseUnits } from "../../../domain/amounts/index.js";
@@ -69,8 +71,8 @@ export class TronExchangeService {
     private readonly pipeline: TxPipeline,
   ) {}
 
-  async show(network: NetworkDescriptor, input: ExchangeShowInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async show(deadline: ExecutionDeadline, network: NetworkDescriptor, input: ExchangeShowInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const exchange = await this.#requireExchange(gateway, input.id);
     const [first, second] = await Promise.all([
       this.#tokenMeta(gateway, exchange.firstTokenId),
@@ -94,8 +96,8 @@ export class TronExchangeService {
   }
 
   // Avoid per-row token lookups when listing exchanges.
-  async list(network: NetworkDescriptor, input: ExchangeListInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async list(deadline: ExecutionDeadline, network: NetworkDescriptor, input: ExchangeListInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const exchanges = await gateway.listExchanges(input.limit, input.offset);
     return {
       kind: "exchange-list" as const,
@@ -114,7 +116,7 @@ export class TronExchangeService {
 
   async create(scope: TransactionScope, network: NetworkDescriptor, input: ExchangeCreateInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
 
     const [rawFirst, rawSecond] = splitPair(input.pair, inputRef("pair"));
@@ -186,7 +188,7 @@ export class TronExchangeService {
 
   async trade(scope: TransactionScope, network: NetworkDescriptor, input: ExchangeTradeInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     const exchange = await this.#requireExchange(gateway, input.id);
     const sellTokenId = normalizeTokenId(input.sell);
@@ -253,7 +255,7 @@ export class TronExchangeService {
     action: "inject" | "withdraw",
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     const exchange = await this.#requireExchange(gateway, input.id);
     if (exchange.creatorAddress !== owner) {

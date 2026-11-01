@@ -1,7 +1,8 @@
+import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { activeTronAccount, resolveTronAccount } from "../../services/tron/tron-account.js";
 import { tradeOutput } from "../../services/trade-output.js";
 import { quoteCurveSale } from "../sunpump/curve-sale.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TransactionModeInput } from "../../contracts/transaction-input.js";
 import type { ContractCallPayload } from "../../contracts/tron/tron-contract-call.js";
@@ -38,7 +39,7 @@ import type { RouterExecutionPort } from "../../ports/sunswap/router-execution.j
 import type { Permit2Port } from "../../ports/sunswap/permit2.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import type { SigningService } from "../../services/signing/signing-service.js";
-import type { TypedDataPayload } from "../../../domain/types/index.js";
+import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
 import {
   assertPermitAuthorizes,
   assertSignedBy,
@@ -128,7 +129,7 @@ export class SunSwapSwapService {
       }
     }
 
-    const market = await this.#chooseMarket(network, inAddress, outAddress);
+    const market = await this.#chooseMarket(scope.deadline, network, inAddress, outAddress);
     const result =
       market === "sunswap"
         ? await this.#routerSwap(scope, network, input, inAddress, outAddress)
@@ -144,16 +145,20 @@ export class SunSwapSwapService {
     outAddress: string,
   ): Promise<Record<string, unknown>> {
     const [tokenIn, tokenOut] = await Promise.all([
-      this.#facts(network, inAddress),
-      this.#facts(network, outAddress),
+      this.#facts(scope.deadline, network, inAddress),
+      this.#facts(scope.deadline, network, outAddress),
     ]);
     const amountIn = toBaseUnits(input.amountIn, tokenIn.decimals, tokenIn.symbol, "<amountIn>");
     // The route API accepts base units; whole tokens would silently quote a smaller trade.
-    const candidates = await this.router.routes(network, {
-      fromToken: inAddress,
-      toToken: outAddress,
-      amountInRaw: amountIn,
-    });
+    const candidates = await this.router.routes(
+      network,
+      {
+        fromToken: inAddress,
+        toToken: outAddress,
+        amountInRaw: amountIn,
+      },
+      requestDispatchCheck(scope.deadline),
+    );
     if (candidates.length === 0) {
       throw new ChainError("no_matching_route", "the router found no route for this pair");
     }
@@ -196,7 +201,7 @@ export class SunSwapSwapService {
     }
     if (transactionRequiresSigner(input)) this.routerTx.assertCanSign(scope);
     const owner = resolveTronAccount(scope);
-    await this.#assertCovers(network, owner, tokenIn, spending);
+    await this.#assertCovers(scope.deadline, network, owner, tokenIn, spending);
     const bips = slippageToBips(input.slippage ?? DEFAULT_SWAP_SLIPPAGE);
     const minimumOut = lowerBySlippage(chosen.amountOutRaw, bips);
     const feeLimit = input.feeLimit ?? DEFAULT_FEE_LIMIT_SUN;
@@ -224,30 +229,44 @@ export class SunSwapSwapService {
 
     // Native TRX travels as call value and needs no permit signature.
     if (spending.nativeIn) {
-      const call = await this.#encode(network, chosen, owner, bips, minimumOut, feeLimit, {
-        amountIn: spending.amountIn,
-        nativeIn: true,
-      });
+      const call = await this.#encode(
+        scope.deadline,
+        network,
+        chosen,
+        owner,
+        bips,
+        minimumOut,
+        feeLimit,
+        {
+          amountIn: spending.amountIn,
+          nativeIn: true,
+        },
+      );
       return this.#send(scope, network, input, mode, call, [], view);
     }
 
-    const permit = await this.permits.planPermit(network, {
-      owner,
-      token: spending.tokenAddress,
-      spender: this.routerExec.routerAddress(network),
-      amount: baseUnitAmount(spending.amountIn),
-      ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
-    });
+    const permit = await this.permits.planPermit(
+      network,
+      {
+        owner,
+        token: spending.tokenAddress,
+        spender: this.routerExec.routerAddress(network),
+        amount: baseUnitAmount(spending.amountIn),
+        ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
+      },
+      requestDispatchCheck(scope.deadline),
+    );
     if (permit === undefined) {
       // A standing Permit2 grant suffices, but the token's allowance to Permit2 still needs checking.
       const approvals = await this.routerTx.planApprovals(
+        scope.deadline,
         network,
         owner,
         this.liquidity.permit2Address(network),
         [{ facts: tokenIn, amount: spending.amountIn }],
       );
       const encode = () =>
-        this.#encode(network, chosen, owner, bips, minimumOut, feeLimit, {
+        this.#encode(scope.deadline, network, chosen, owner, bips, minimumOut, feeLimit, {
           amountIn: spending.amountIn,
           nativeIn: false,
         });
@@ -280,9 +299,13 @@ export class SunSwapSwapService {
           }),
       );
     }
-    const approvals = await this.routerTx.planApprovals(network, owner, permit.permit2, [
-      { facts: tokenIn, amount: spending.amountIn },
-    ]);
+    const approvals = await this.routerTx.planApprovals(
+      scope.deadline,
+      network,
+      owner,
+      permit.permit2,
+      [{ facts: tokenIn, amount: spending.amountIn }],
+    );
     const authorization = {
       permit2: permit.permit2,
       spender: permit.spender,
@@ -312,11 +335,20 @@ export class SunSwapSwapService {
       feeLimit,
       async (approvalTxIds) => {
         const signed = await this.#signPermit(scope, network, permit, owner, spending);
-        const call = await this.#encode(network, chosen, owner, bips, minimumOut, feeLimit, {
-          amountIn: spending.amountIn,
-          nativeIn: false,
-          permit: { grant: permit.grant, signature: signed.signature, facts: signed.facts },
-        });
+        const call = await this.#encode(
+          scope.deadline,
+          network,
+          chosen,
+          owner,
+          bips,
+          minimumOut,
+          feeLimit,
+          {
+            amountIn: spending.amountIn,
+            nativeIn: false,
+            permit: { grant: permit.grant, signature: signed.signature, facts: signed.facts },
+          },
+        );
         const sent = await this.#send(scope, network, input, mode, call, approvalTxIds, {
           ...view,
           approvals: approvals.map(publishedApproval),
@@ -330,12 +362,13 @@ export class SunSwapSwapService {
 
   // Check funds before spending on approvals; this check excludes chain fees.
   async #assertCovers(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     tokenIn: SwapSide,
     spending: { amountIn: string; nativeIn: boolean; tokenAddress: string },
   ): Promise<void> {
-    const account = await activeTronAccount(this.gateways, network, owner);
+    const account = await activeTronAccount(deadline, this.gateways, network, owner);
     const native = BigInt(account.balance ?? "0");
     if (spending.nativeIn) {
       if (native < BigInt(spending.amountIn)) {
@@ -346,7 +379,12 @@ export class SunSwapSwapService {
       }
       return;
     }
-    const held = await this.liquidity.balanceOf(network, spending.tokenAddress, owner);
+    const held = await this.liquidity.balanceOf(
+      network,
+      spending.tokenAddress,
+      owner,
+      requestDispatchCheck(deadline),
+    );
     if (BigInt(held) < BigInt(spending.amountIn)) {
       throw new ChainError(
         "insufficient_token_balance",
@@ -390,6 +428,7 @@ export class SunSwapSwapService {
   }
 
   async #encode(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     chosen: RouterRoute,
     owner: string,
@@ -402,20 +441,27 @@ export class SunSwapSwapService {
       permit?: { grant: unknown; signature: string; facts: PermitFacts };
     },
   ): Promise<ContractCallPayload> {
-    const call = await this.routerExec.buildSwapCall(network, {
-      route: chosen.source,
-      slippageBips: bips,
-      recipient: owner,
-      validForSeconds: SWAP_VALID_SECONDS,
-      feeLimitSun: feeLimit,
-      ...(spending.permit === undefined
-        ? {}
-        : {
-            permit: { grant: spending.permit.grant, signature: spending.permit.signature },
-          }),
-    });
+    const call = await this.routerExec.buildSwapCall(
+      network,
+      {
+        route: chosen.source,
+        slippageBips: bips,
+        recipient: owner,
+        validForSeconds: SWAP_VALID_SECONDS,
+        feeLimitSun: feeLimit,
+        ...(spending.permit === undefined
+          ? {}
+          : {
+              permit: { grant: spending.permit.grant, signature: spending.permit.signature },
+            }),
+      },
+      requestDispatchCheck(commandDeadline),
+    );
     // Use the encoder's memoized chain time so deadline checks share its clock.
-    const now = await this.routerExec.transactionTime(network);
+    const now = await this.routerExec.transactionTime(
+      network,
+      requestDispatchCheck(commandDeadline),
+    );
     const checked = assertRouterCallMatches(call, {
       router: this.routerExec.routerAddress(network),
       amountIn: spending.amountIn,
@@ -509,11 +555,12 @@ export class SunSwapSwapService {
 
   // Native TRX has no token contract to query.
   async #facts(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     address: string,
   ): Promise<{ address: string; symbol: string; decimals: number }> {
     if (isNative(address)) return NATIVE_TRX;
-    return this.liquidity.tokenFacts(network, address);
+    return this.liquidity.tokenFacts(network, address, requestDispatchCheck(deadline));
   }
 
   // The API fee is in whole input tokens; scale it to base units.
@@ -549,6 +596,7 @@ export class SunSwapSwapService {
   }
 
   async #chooseMarket(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     inAddress: string,
     outAddress: string,
@@ -558,7 +606,7 @@ export class SunSwapSwapService {
     // No configured launchpad means no curve; a failed curve read still aborts.
     if (!this.#hasLaunchpad(network)) return "sunswap";
     const other = isNative(inAddress) ? outAddress : inAddress;
-    const state = await this.#curveState(network, other);
+    const state = await this.#curveState(deadline, network, other);
     return state === LAUNCHPAD_STATE.TRADING ? "sunpump" : "sunswap";
   }
 
@@ -572,11 +620,15 @@ export class SunSwapSwapService {
   }
 
   // A failed probe leaves the market unknown; do not fall back to another market.
-  async #curveState(network: NetworkDescriptor, token: string): Promise<number> {
+  async #curveState(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    token: string,
+  ): Promise<number> {
     try {
-      return await this.launchpad.tokenState(network, token);
+      return await this.launchpad.tokenState(network, token, requestDispatchCheck(deadline));
     } catch (error) {
-      if (error instanceof UsageError) throw error;
+      if (error instanceof UsageError || endedByDeadline(error, deadline)) throw error;
       throw new ChainError(
         "provider_error",
         `could not read whether ${token} is still trading on the SunPump curve, so the market for this swap is unknown: ${error instanceof Error ? error.message : String(error)}`,
@@ -593,7 +645,11 @@ export class SunSwapSwapService {
   ): Promise<Record<string, unknown>> {
     const buying = isNative(inAddress);
     const tokenAddress = buying ? outAddress : inAddress;
-    const facts = await this.launchpad.tokenFacts(network, tokenAddress);
+    const facts = await this.launchpad.tokenFacts(
+      network,
+      tokenAddress,
+      requestDispatchCheck(scope.deadline),
+    );
     const tokenIn = buying ? NATIVE_TRX : published(facts);
     const tokenOut = buying ? published(facts) : NATIVE_TRX;
 
@@ -604,14 +660,23 @@ export class SunSwapSwapService {
     // Both expected outputs are net of the platform fee.
     const quoted = buying
       ? await this.launchpad
-          .quoteBuy(network, tokenAddress, sunAmount(amountIn))
+          .quoteBuy(
+            network,
+            tokenAddress,
+            sunAmount(amountIn),
+            requestDispatchCheck(scope.deadline),
+          )
           .then((q) => ({ expected: q.tokenAmount, feeSun: q.feeSun }))
-      : await quoteCurveSale(this.launchpad, network, facts, baseUnitAmount(amountIn)).then(
-          (q) => ({
-            expected: q.trxOutSun,
-            feeSun: q.feeSun,
-          }),
-        );
+      : await quoteCurveSale(
+          scope.deadline,
+          this.launchpad,
+          network,
+          facts,
+          baseUnitAmount(amountIn),
+        ).then((q) => ({
+          expected: q.trxOutSun,
+          feeSun: q.feeSun,
+        }));
     const expected = quoted.expected;
     if (buying && BigInt(expected) <= 0n) {
       throw new UsageError("invalid_amount", `${input.amountIn} TRX buys no ${facts.symbol}`);
@@ -665,7 +730,7 @@ export class SunSwapSwapService {
     };
 
     const owner = resolveTronAccount(scope);
-    const account = await activeTronAccount(this.gateways, network, owner);
+    const account = await activeTronAccount(scope.deadline, this.gateways, network, owner);
     if (buying) {
       const held = String(account.balance ?? "0");
       if (BigInt(held) < BigInt(amountIn)) {
@@ -687,7 +752,9 @@ export class SunSwapSwapService {
           minTrxSun: sunAmount(minimum),
         });
 
-    const approvals = buying ? [] : await this.#sellApprovals(network, owner, facts, amountIn);
+    const approvals = buying
+      ? []
+      : await this.#sellApprovals(scope.deadline, network, owner, facts, amountIn);
 
     return this.#execute(scope, network, input, payload, approvals, {
       ...priced,
@@ -697,21 +764,31 @@ export class SunSwapSwapService {
 
   // Check funds before requesting the launchpad's standing unlimited allowance.
   async #sellApprovals(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     facts: LaunchpadTokenFacts,
     amountIn: string,
   ): Promise<ApprovalPlan[]> {
-    const held = await this.launchpad.balanceOf(network, facts.address, owner);
+    const held = await this.launchpad.balanceOf(
+      network,
+      facts.address,
+      owner,
+      requestDispatchCheck(deadline),
+    );
     if (BigInt(held) < BigInt(amountIn)) {
       throw new ChainError(
         "insufficient_token_balance",
         `this swap sells ${amountIn} of ${facts.symbol} in base units and the account holds ${held}`,
       );
     }
-    return this.tx.planApprovals(network, owner, this.launchpad.launchpadAddress(network), [
-      { facts, amount: UNLIMITED_ALLOWANCE },
-    ]);
+    return this.tx.planApprovals(
+      deadline,
+      network,
+      owner,
+      this.launchpad.launchpadAddress(network),
+      [{ facts, amount: UNLIMITED_ALLOWANCE }],
+    );
   }
 
   async #execute(

@@ -1,4 +1,8 @@
 import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
+import {
   barBroadcasts,
   processBroadcastGuard,
 } from "../../../application/services/broadcast-guard.js";
@@ -6,6 +10,10 @@ import { describe, expect, it } from "vitest";
 import { SunPumpLaunchApi } from "./launch-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { CliError } from "../../../domain/errors/index.js";
+import { expiredCheck, expiringCheck } from "../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const MAINNET = {
   id: "tron:728126428",
@@ -69,20 +77,24 @@ function transport(body: unknown, status = 200) {
 const ok = (data: unknown) => ({ code: 0, msg: "SUCCESS", data });
 
 const api = (fetchImpl: typeof globalThis.fetch) =>
-  new SunPumpLaunchApi(5_000, processBroadcastGuard, { fetchImpl });
+  new SunPumpLaunchApi(processBroadcastGuard, { fetchImpl });
 
 describe("the request body", () => {
   it("carries every option it was given, under the names the service reads", async () => {
     const { calls, fetchImpl } = transport(ok(CREATED));
-    await api(fetchImpl).launchToken(MAINNET, {
-      name: "Test Token",
-      symbol: "TST",
-      description: "demo",
-      imageBase64: "QUJDRA==",
-      twitterUrl: "https://x.com/example",
-      telegramUrl: "https://t.me/example",
-      websiteUrl: "https://example.com",
-    });
+    await api(fetchImpl).launchToken(
+      MAINNET,
+      {
+        name: "Test Token",
+        symbol: "TST",
+        description: "demo",
+        imageBase64: "QUJDRA==",
+        twitterUrl: "https://x.com/example",
+        telegramUrl: "https://t.me/example",
+        websiteUrl: "https://example.com",
+      },
+      NO_CHECK,
+    );
     expect(calls).toHaveLength(1);
     expect(calls[0]!.method).toBe("POST");
     expect(calls[0]!.url).toBe("https://api-v2.sunpump.meme/pump-api/ai/agentTokenLaunch");
@@ -99,28 +111,36 @@ describe("the request body", () => {
 
   it("omits every option that was not given rather than sending it empty", async () => {
     const { calls, fetchImpl } = transport(ok(CREATED));
-    await api(fetchImpl).launchToken(MAINNET, {
-      name: "Test Token",
-      symbol: "TST",
-      description: "demo",
-    });
+    await api(fetchImpl).launchToken(
+      MAINNET,
+      {
+        name: "Test Token",
+        symbol: "TST",
+        description: "demo",
+      },
+      NO_CHECK,
+    );
     expect(calls[0]!.body).toEqual({ name: "Test Token", symbol: "TST", description: "demo" });
   });
 
   it("has no field nobody can set", async () => {
     const { calls, fetchImpl } = transport(ok(CREATED));
-    await api(fetchImpl).launchToken(MAINNET, {
-      name: "Test Token",
-      symbol: "TST",
-      description: "demo",
-    });
+    await api(fetchImpl).launchToken(
+      MAINNET,
+      {
+        name: "Test Token",
+        symbol: "TST",
+        description: "demo",
+      },
+      NO_CHECK,
+    );
     expect(Object.keys(calls[0]!.body as object)).not.toContain("tweetUsername");
   });
 
   it("refuses a network with no SunPump endpoint instead of falling back to mainnet", async () => {
     const { calls, fetchImpl } = transport(ok(CREATED));
     await expect(
-      api(fetchImpl).launchToken(NILE, { name: "T", symbol: "T", description: "d" }),
+      api(fetchImpl).launchToken(NILE, { name: "T", symbol: "T", description: "d" }, NO_CHECK),
     ).rejects.toMatchObject({ code: "unsupported_network" });
     expect(calls).toEqual([]);
   });
@@ -129,11 +149,15 @@ describe("the request body", () => {
 describe("the created token", () => {
   it("is mapped by the same mapper the catalogue uses", async () => {
     const { fetchImpl } = transport(ok(CREATED));
-    const token = await api(fetchImpl).launchToken(MAINNET, {
-      name: "Test Token",
-      symbol: "TST",
-      description: "demo",
-    });
+    const token = await api(fetchImpl).launchToken(
+      MAINNET,
+      {
+        name: "Test Token",
+        symbol: "TST",
+        description: "demo",
+      },
+      NO_CHECK,
+    );
     expect(token).toMatchObject({
       address: "TNfW9m6BzWpZ4gZ8y8sJQ8PjRKzvGx1a9x",
       symbol: "TST",
@@ -152,31 +176,43 @@ describe("the created token", () => {
 
   it("reads the create endpoint's instants on the same scale as the query endpoints", async () => {
     const { fetchImpl } = transport(ok(CREATED));
-    const token = await api(fetchImpl).launchToken(MAINNET, {
-      name: "Test Token",
-      symbol: "TST",
-      description: "demo",
-    });
+    const token = await api(fetchImpl).launchToken(
+      MAINNET,
+      {
+        name: "Test Token",
+        symbol: "TST",
+        description: "demo",
+      },
+      NO_CHECK,
+    );
     expect(token.createdAt).toBe("2026-09-27 19:02");
   });
 
   it("publishes no date for an instant it cannot read", async () => {
     const { fetchImpl } = transport(ok({ ...CREATED, tokenCreatedInstant: "not-a-time" }));
-    const token = await api(fetchImpl).launchToken(MAINNET, {
-      name: "T",
-      symbol: "T",
-      description: "d",
-    });
+    const token = await api(fetchImpl).launchToken(
+      MAINNET,
+      {
+        name: "T",
+        symbol: "T",
+        description: "d",
+      },
+      NO_CHECK,
+    );
     expect(token.createdAt).toBeFalsy();
   });
 
   it("reads the token from data.token when the service nests it there", async () => {
     const { fetchImpl } = transport(ok({ token: CREATED }));
-    const token = await api(fetchImpl).launchToken(MAINNET, {
-      name: "T",
-      symbol: "T",
-      description: "d",
-    });
+    const token = await api(fetchImpl).launchToken(
+      MAINNET,
+      {
+        name: "T",
+        symbol: "T",
+        description: "d",
+      },
+      NO_CHECK,
+    );
     expect(token.address).toBe("TNfW9m6BzWpZ4gZ8y8sJQ8PjRKzvGx1a9x");
   });
 });
@@ -185,7 +221,7 @@ describe("failures", () => {
   it("translates a refusal that arrives as HTTP 200", async () => {
     const { fetchImpl } = transport({ code: 1, msg: "Invalid request parameter: description" });
     const error = await api(fetchImpl)
-      .launchToken(MAINNET, { name: "T", symbol: "T", description: "" })
+      .launchToken(MAINNET, { name: "T", symbol: "T", description: "" }, NO_CHECK)
       .catch((e: unknown) => e);
     expect(error).toBeInstanceOf(CliError);
     expect(error).toMatchObject({
@@ -197,7 +233,7 @@ describe("failures", () => {
   it("says plainly that a token may exist when the service names none", async () => {
     const { fetchImpl } = transport(ok({}));
     const error = await api(fetchImpl)
-      .launchToken(MAINNET, { name: "T", symbol: "T", description: "d" })
+      .launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }, NO_CHECK)
       .catch((e: unknown) => e as CliError);
     expect(error).toMatchObject({
       code: "launch_outcome_unknown",
@@ -215,8 +251,12 @@ describe("failures", () => {
         init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
       });
     }) as typeof fetch;
-    const error = await new SunPumpLaunchApi(20, processBroadcastGuard, { fetchImpl })
-      .launchToken(MAINNET, { name: "WqaR111008", symbol: "WQ111008", description: "d" })
+    const error = await new SunPumpLaunchApi(processBroadcastGuard, { fetchImpl })
+      .launchToken(
+        MAINNET,
+        { name: "WqaR111008", symbol: "WQ111008", description: "d" },
+        expiringCheck(20),
+      )
       .catch((e: unknown) => e as CliError);
     expect(sent).toBe(1);
     expect(error).toBeInstanceOf(CliError);
@@ -224,8 +264,25 @@ describe("failures", () => {
       code: "launch_outcome_unknown",
       details: { name: "WqaR111008", symbol: "WQ111008" },
     });
-    expect((error as CliError).message).toMatch(/did not answer within 20 ms/);
+    expect((error as CliError).message).toMatch(/did not answer in time/);
     expect((error as CliError).message).toMatch(/sunpump token-search "WQ111008"/);
+  });
+
+  it("refuses an expired deadline before sending, with no unknown outcome", async () => {
+    let sent = 0;
+    const fetchImpl = (async () => {
+      sent += 1;
+      return new Response("{}");
+    }) as typeof fetch;
+    const error = await new SunPumpLaunchApi(processBroadcastGuard, { fetchImpl })
+      .launchToken(
+        MAINNET,
+        { name: "WqaR111008", symbol: "WQ111008", description: "d" },
+        expiredCheck(),
+      )
+      .catch((e: unknown) => e);
+    expect(sent).toBe(0);
+    expect(error).toBeInstanceOf(DeadlineExpiredError);
   });
 
   it.each([
@@ -250,7 +307,7 @@ describe("failures", () => {
   ])("reports %s as an unknown outcome", async (_label, answer, failure) => {
     const fetchImpl = (async () => answer()) as typeof fetch;
     const error = await api(fetchImpl)
-      .launchToken(MAINNET, { name: "T", symbol: "T", description: "d" })
+      .launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }, NO_CHECK)
       .catch((e: unknown) => e as CliError);
     expect(error).toMatchObject({
       code: "launch_outcome_unknown",
@@ -262,7 +319,7 @@ describe("failures", () => {
   it("passes a 4xx through as the refusal it is", async () => {
     const fetchImpl = (async () => new Response("bad request", { status: 400 })) as typeof fetch;
     await expect(
-      api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }),
+      api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }, NO_CHECK),
     ).rejects.toMatchObject({ code: "provider_error", details: { httpStatus: 400 } });
   });
 
@@ -270,7 +327,7 @@ describe("failures", () => {
     const fetchImpl = (async () =>
       new Response("{}", { status: 429, headers: { "retry-after": "30" } })) as typeof fetch;
     await expect(
-      api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }),
+      api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }, NO_CHECK),
     ).rejects.toMatchObject({
       code: "provider_rate_limited",
       details: { retryAfterSeconds: 30 },
@@ -283,7 +340,7 @@ describe("SunPumpLaunchApi.launchToken dry-run guard", () => {
     const { calls, fetchImpl } = transport(ok(CREATED));
     await barBroadcasts("sunpump launch --dry-run", async () => {
       await expect(
-        api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }),
+        api(fetchImpl).launchToken(MAINNET, { name: "T", symbol: "T", description: "d" }, NO_CHECK),
       ).rejects.toMatchObject({ code: "dry_run_violation" });
     });
     expect(calls).toEqual([]);

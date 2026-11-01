@@ -1,3 +1,4 @@
+import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { accountText } from "../../../domain/account/index.js";
@@ -51,7 +52,7 @@ export class TronAccountService {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
     const mode = transactionMode(input);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const existing = await gateway.getAccountState(input.address);
     if (existing.address !== undefined) {
       throw new ChainError(
@@ -120,7 +121,7 @@ export class TronAccountService {
     }
     const value = accountText(field, input.name ?? input.id!);
     const address = scope.resolveAddress("tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const account = await gateway.getAccountState(address);
     if (account.address === undefined) {
       throw new ChainError("not_found", `TRON account is not activated: ${address}`);
@@ -174,7 +175,7 @@ export class TronAccountService {
 
   async info(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const [account, resources, permissions] = await Promise.all([
       gateway.getAccountState(address),
       gateway.getAccountResources(address),
@@ -200,12 +201,17 @@ export class TronAccountService {
   }
 
   historyFor(scope: AccountScope, network: NetworkDescriptor, query: TronHistoryQuery) {
-    return this.history.get(network, scope.resolveAddress("tron"), query);
+    return this.history.get(
+      network,
+      scope.resolveAddress("tron"),
+      query,
+      requestDispatchCheck(scope.deadline),
+    );
   }
 
   async portfolio(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const tokens = this.tokens.effective(network.id, scope.activeAccount);
     const [nativeRaw, tokenBalances] = await Promise.all([
       gateway.getNativeBalance(address),
@@ -218,7 +224,10 @@ export class TronAccountService {
           )
             .then((raw) => ({ raw }) as const)
             // Downstream errors may contain endpoint credentials.
-            .catch(() => ({ unavailable: true }) as const),
+            .catch((error: unknown) => {
+              if (endedByDeadline(error, scope.deadline)) throw error;
+              return { unavailable: true } as const;
+            }),
         ),
       ),
     ]);
@@ -228,13 +237,15 @@ export class TronAccountService {
     let tokenPrices = new Map<string, number | null>();
     try {
       [nativePrice, tokenPrices] = await Promise.all([
-        this.prices.nativeUsd(network.id),
+        this.prices.nativeUsd(network.id, requestDispatchCheck(scope.deadline)),
         this.prices.tokenUsd(
           network.id,
           tokens.filter((token) => token.kind === "trc20").map((token) => token.id),
+          requestDispatchCheck(scope.deadline),
         ),
       ]);
-    } catch {
+    } catch (error) {
+      if (endedByDeadline(error, scope.deadline)) throw error;
       // Price-provider errors may contain keyed URLs.
       priceUnavailable = true;
     }

@@ -2,8 +2,9 @@
 import type { SecretKind } from "../contracts/index.js";
 import {
   OUTPUT_MODES,
+  MAX_TIMEOUT_MS,
   TIMEOUT_MS_RULE,
-  WAIT_TIMEOUT_MS_RULE,
+  timeoutMsFromText,
   type ValueRule,
 } from "../../../../domain/config/index.js";
 import { CONFIG_DEFAULTS } from "../../../../application/contracts/config-defaults.js";
@@ -21,6 +22,10 @@ export interface GlobalFlagSpec {
   choices?: readonly string[];
   // Numeric flags without a rule accept any number >= 0.
   rule?: ValueRule<number>;
+  // Published in --json-schema; must match the rule.
+  bounds?: { minimum: number; maximum: number };
+  // Turns argument text into the number the rule checks; defaults to Number.
+  fromText?: (text: string) => number;
   // Secret-stdin flags only.
   secretKey?: SecretKind;
   // Overrides the default camelCase runtime field.
@@ -62,7 +67,9 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     valueType: "number",
     field: "timeoutMs",
     rule: TIMEOUT_MS_RULE,
-    description: "per node, service, or device call timeout, in milliseconds",
+    bounds: { minimum: 0, maximum: MAX_TIMEOUT_MS },
+    fromText: timeoutMsFromText,
+    description: "deadline for the whole command, in milliseconds; 0 = no limit",
     defaultValue: `config.timeoutMs (built-in: ${CONFIG_DEFAULTS.timeoutMs})`,
   },
   {
@@ -79,15 +86,6 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     description:
       "after submitting, poll until the transaction is confirmed/failed before returning; default returns the submitted receipt without blocking",
     defaultValue: false,
-  },
-  {
-    name: "wait-timeout",
-    kind: "value",
-    valueType: "number",
-    field: "waitTimeoutMs",
-    rule: WAIT_TIMEOUT_MS_RULE,
-    description: "--wait polling cap, in milliseconds; on timeout return the submitted receipt",
-    defaultValue: `config.waitTimeoutMs (built-in: ${CONFIG_DEFAULTS.waitTimeoutMs})`,
   },
   {
     name: "password-stdin",
@@ -136,7 +134,7 @@ export function coerceGlobalValue(field: string, raw: string): GlobalCoercion {
   const spec = VALUE_SPEC_BY_FIELD[field];
   if (!spec) return { ok: true, value: raw };
   if (spec.valueType === "number") {
-    const n = Number(raw);
+    const n = (spec.fromText ?? Number)(raw);
     if (spec.rule) {
       return spec.rule.accepts(n)
         ? { ok: true, value: n }

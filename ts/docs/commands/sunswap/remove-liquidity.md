@@ -9,7 +9,7 @@ wallet-cli sunswap remove-liquidity --protocol <V2|V3|V4> --liquidity <n>
                                     [--token0 <token> --token1 <token>] [--position-id <id>]
                                     [--fee <n>] [--min0 <n>] [--min1 <n>] [--slippage <decimal>]
                                     [--recipient <address>] [--deadline <timestamp>] [--fee-limit <sun>]
-                                    [--dry-run | --build-only | --wait [--wait-timeout <ms>]] [options]
+                                    [--dry-run | --build-only | --wait] [options]
 ```
 
 ## Description
@@ -62,7 +62,7 @@ A V4 withdrawal needs **both** `--position-id` and `--token0` / `--token1`. The 
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transactions in execution order |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--account <label\|accountId>` | Account to withdraw for; default the active account |
 | `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 

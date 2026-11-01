@@ -127,7 +127,7 @@ describe("reading the logo file", () => {
   function bindingCapturing() {
     const calls: Record<string, unknown>[] = [];
     const service = {
-      launch: async (_n: NetworkDescriptor, input: Record<string, unknown>) => {
+      launch: async (_d: unknown, _n: NetworkDescriptor, input: Record<string, unknown>) => {
         calls.push(input);
         return { kind: "sunpump-launch", mode: "dry-run" };
       },

@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
-import { bindGroupedPositionals, gapFillRequiredFields, isInteractiveCommand } from "./index.js";
 import { accountRef } from "../arity/index.js";
-import type { CommandDefinition } from "../contracts/index.js";
 import type { Prompter as PrompterType } from "../input/prompt/index.js";
 
 describe("grouped leaf positionals", () => {
@@ -267,8 +265,14 @@ describe("gapFillRequiredFields", () => {
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { buildCli, ShellOptions } from "./index.js";
-import type { SessionRef } from "../contracts/index.js";
+import {
+  bindGroupedPositionals,
+  buildCli,
+  gapFillRequiredFields,
+  isInteractiveCommand,
+  ShellOptions,
+} from "./index.js";
+import type { CommandDefinition, SessionRef } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { TargetResolver } from "../../../../application/services/target/index.js";
@@ -280,6 +284,7 @@ import { Keystore } from "../../../outbound/keystore/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import { SecretResolver } from "../input/secret/index.js";
 import { Prompter } from "../input/prompt/index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
 describe("grouped positional parsing through yargs", () => {
   function positionalFixture(_tokens: string[]): { shellOpts: ShellOptions; seen: () => unknown } {
@@ -379,7 +384,16 @@ describe("grouped positional parsing through yargs", () => {
       shellOpts: {
         registry,
         globals: { output: "text" as const, verbose: false },
-        deps: { config, networkRegistry, streams, secrets, accounts, prompter, formatter },
+        deps: {
+          config,
+          deadline: new CommandDeadline(0),
+          networkRegistry,
+          streams,
+          secrets,
+          accounts,
+          prompter,
+          formatter,
+        },
         targetResolver: new TargetResolver({ networkRegistry, keystore }),
         caps: new CapabilityRegistry(),
         streams,
@@ -521,7 +535,16 @@ describe("dispatch password-prime wiring", () => {
       output: "text" as const,
       verbose: false,
     };
-    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
+    const deps = {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts,
+      prompter,
+      formatter,
+    };
     const capabilityRegistry = new CapabilityRegistry();
 
     const shellOpts: ShellOptions = {
@@ -583,7 +606,16 @@ describe("dispatch password-prime wiring", () => {
     const formatter = createOutputFormatter("text", streams, startedAt);
     const session: SessionRef = {};
     const globals = { output: "text" as const, verbose: false };
-    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
+    const deps = {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts,
+      prompter,
+      formatter,
+    };
     const shellOpts: ShellOptions = {
       registry,
       globals,

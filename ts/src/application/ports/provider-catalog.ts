@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../contracts/deadline.js";
 export interface ProviderListInput {
   limit: number;
   offset: number;
@@ -46,8 +47,8 @@ export interface ProviderCatalogUpdate {
 }
 
 export interface ProviderCatalogPort {
-  list(input: ProviderListInput): Promise<ProviderListView>;
-  show(fqn: string): Promise<ProviderRecord>;
-  endpoints(fqn: string): Promise<ProviderEndpointsView>;
-  update(): Promise<ProviderCatalogUpdate>;
+  list(input: ProviderListInput, check: DispatchCheck): Promise<ProviderListView>;
+  show(fqn: string, check: DispatchCheck): Promise<ProviderRecord>;
+  endpoints(fqn: string, check: DispatchCheck): Promise<ProviderEndpointsView>;
+  update(check: DispatchCheck): Promise<ProviderCatalogUpdate>;
 }

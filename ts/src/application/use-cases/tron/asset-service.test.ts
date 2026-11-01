@@ -5,6 +5,9 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronAsset, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -21,9 +24,9 @@ const NOW = 1_800_000_000_000;
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
@@ -289,7 +292,7 @@ describe("ambiguous asset names", () => {
         asset({ id: "1000488", owner_address: OWNER_HEX, total_supply: "50000000", precision: 2 }),
       ],
     });
-    await expect(svc.info(NET, { assetRef: "MyToken" })).rejects.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "MyToken" })).rejects.toMatchObject({
       code: "ambiguous_asset_name",
       details: {
         name: "MyToken",
@@ -304,7 +307,7 @@ describe("ambiguous asset names", () => {
 
   it("resolves a name matching exactly one asset instead of erroring", async () => {
     const svc = service({ getAssetsByName: async () => [asset({ id: "1000123" })] });
-    await expect(svc.info(NET, { assetRef: "MyToken" })).resolves.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "MyToken" })).resolves.toMatchObject({
       assetId: "1000123",
     });
   });
@@ -366,7 +369,7 @@ describe("asset info / list", () => {
       getAssetById: async () =>
         asset({ start_time: start, frozen_supply: [{ frozen_amount: "5", frozen_days: 30 }] }),
     });
-    await expect(svc.info(NET, { assetRef: "1000123" })).resolves.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "1000123" })).resolves.toMatchObject({
       assetId: "1000123",
       price: "1:100",
       precision: 6,
@@ -376,13 +379,15 @@ describe("asset info / list", () => {
 
   it("requires exactly one of <asset> and issuer", async () => {
     const svc = service({});
-    await expect(svc.info(NET, {})).rejects.toThrow(/exactly one/);
-    await expect(svc.info(NET, { assetRef: "1", issuer: OWNER })).rejects.toThrow(/exactly one/);
+    await expect(svc.info(NO_DEADLINE, NET, {})).rejects.toThrow(/exactly one/);
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "1", issuer: OWNER })).rejects.toThrow(
+      /exactly one/,
+    );
   });
 
   it("errors on an unknown reference rather than returning an empty result", async () => {
     const svc = service({ getAssetById: async () => undefined });
-    await expect(svc.info(NET, { assetRef: "999" })).rejects.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "999" })).rejects.toMatchObject({
       code: "asset_not_found",
     });
   });
@@ -390,7 +395,7 @@ describe("asset info / list", () => {
   it("pages server-side and reports only offset and limit", async () => {
     const listAssets = vi.fn(async () => [asset()]);
     const svc = service({ listAssets });
-    await expect(svc.list(NET, { limit: 10, offset: 20 })).resolves.toMatchObject({
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 10, offset: 20 })).resolves.toMatchObject({
       assets: [{ assetId: "1000123", name: "MyToken", precision: 6 }],
       pagination: { offset: 20, limit: 10 },
     });

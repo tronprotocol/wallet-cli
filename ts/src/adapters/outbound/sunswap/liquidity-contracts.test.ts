@@ -1,3 +1,7 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it } from "vitest";
 import { AbiCoder, Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
@@ -63,7 +67,7 @@ describe("tokenFacts", () => {
           "symbol()": uint(32) + uint(0),
         }),
       );
-      await expect(port.tokenFacts(NILE, USDT)).rejects.toMatchObject({
+      await expect(port.tokenFacts(NILE, USDT, NO_CHECK)).rejects.toMatchObject({
         code: "invalid_node_response",
       });
     },
@@ -75,7 +79,7 @@ describe("tokenFacts", () => {
         "symbol()": `${uint(32)}${uint(4)}${Buffer.from("USDT").toString("hex").padEnd(64, "0")}`,
       }),
     );
-    await expect(port.tokenFacts(NILE, USDT)).resolves.toEqual({
+    await expect(port.tokenFacts(NILE, USDT, NO_CHECK)).resolves.toEqual({
       address: USDT,
       decimals: 6,
       symbol: "USDT",
@@ -96,7 +100,7 @@ describe("v2PairState", () => {
     const forward = new SunSwapLiquidityContracts(
       gatewayAnswering({ ...answers, "token0()": addressWord(HEX.usdt) }),
     );
-    await expect(forward.v2PairState(NILE, USDT, WTRX)).resolves.toMatchObject({
+    await expect(forward.v2PairState(NILE, USDT, WTRX, NO_CHECK)).resolves.toMatchObject({
       pairAddress: PAIR,
       reserve0: "8971373980412",
       reserve1: "6154765875016",
@@ -105,7 +109,7 @@ describe("v2PairState", () => {
     const reversed = new SunSwapLiquidityContracts(
       gatewayAnswering({ ...answers, "token0()": addressWord(HEX.usdt) }),
     );
-    await expect(reversed.v2PairState(NILE, WTRX, USDT)).resolves.toMatchObject({
+    await expect(reversed.v2PairState(NILE, WTRX, USDT, NO_CHECK)).resolves.toMatchObject({
       reserve0: "6154765875016",
       reserve1: "8971373980412",
     });
@@ -118,7 +122,7 @@ describe("v2PairState", () => {
         "getPair(address,address)": addressWord("0".repeat(40)),
       }),
     );
-    await expect(port.v2PairState(NILE, USDT, WTRX)).resolves.toEqual({
+    await expect(port.v2PairState(NILE, USDT, WTRX, NO_CHECK)).resolves.toEqual({
       pairAddress: "",
       reserve0: "0",
       reserve1: "0",
@@ -133,7 +137,7 @@ describe("v2PairState", () => {
     const port = new SunSwapLiquidityContracts(
       gatewayAnswering({ ...answers, "token0()": addressWord(HEX.usdt) }, seen),
     );
-    await port.v2PairState(NILE, USDT, WTRX);
+    await port.v2PairState(NILE, USDT, WTRX, NO_CHECK);
     expect(seen[0]).toBe("TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy:factory() []");
     expect(seen[1]).toBe(`${FACTORY}:getPair(address,address) [${USDT},${WTRX}]`);
   });
@@ -144,7 +148,7 @@ describe("allowance", () => {
     const port = new SunSwapLiquidityContracts(
       gatewayAnswering({ "allowance(address,address)": uint(1234567890123456789n) }),
     );
-    await expect(port.allowance(NILE, USDT, "TOwner", "TSpender")).resolves.toBe(
+    await expect(port.allowance(NILE, USDT, "TOwner", "TSpender", NO_CHECK)).resolves.toBe(
       "1234567890123456789",
     );
   });
@@ -685,7 +689,7 @@ describe("the V4 owed-fees read", () => {
 
   it("returns the two figures the helper reported", async () => {
     const { contracts } = answering(OWED);
-    await expect(contracts.v4OwedFees(NILE, QUERY)).resolves.toEqual({
+    await expect(contracts.v4OwedFees(NILE, QUERY, NO_CHECK)).resolves.toEqual({
       amount0: "13974",
       amount1: "4108",
     });
@@ -694,7 +698,7 @@ describe("the V4 owed-fees read", () => {
   it("carries an amount larger than a double can hold, exactly", async () => {
     const huge = 123456789012345678901234567890n;
     const { contracts } = answering(uint(huge) + uint(1n));
-    await expect(contracts.v4OwedFees(NILE, QUERY)).resolves.toEqual({
+    await expect(contracts.v4OwedFees(NILE, QUERY, NO_CHECK)).resolves.toEqual({
       amount0: huge.toString(),
       amount1: "1",
     });
@@ -702,7 +706,7 @@ describe("the V4 owed-fees read", () => {
 
   it("returns a zero when the helper says the position is owed nothing", async () => {
     const { contracts } = answering(uint(0n) + uint(0n));
-    await expect(contracts.v4OwedFees(NILE, QUERY)).resolves.toEqual({
+    await expect(contracts.v4OwedFees(NILE, QUERY, NO_CHECK)).resolves.toEqual({
       amount0: "0",
       amount1: "0",
     });
@@ -714,12 +718,12 @@ describe("the V4 owed-fees read", () => {
     ["something that is not hex", "z".repeat(128)],
   ])("gives no answer at all for %s, rather than zeros", async (_name, answer) => {
     const { contracts } = answering(answer);
-    await expect(contracts.v4OwedFees(NILE, QUERY)).resolves.toBeUndefined();
+    await expect(contracts.v4OwedFees(NILE, QUERY, NO_CHECK)).resolves.toBeUndefined();
   });
 
   it("asks the helper about this position's pool, range and id", async () => {
     const { contracts, seen } = answering(OWED);
-    await contracts.v4OwedFees(NILE, QUERY);
+    await contracts.v4OwedFees(NILE, QUERY, NO_CHECK);
 
     expect(seen).toHaveLength(1);
     expect(seen[0]).toContain(`${LP_FEE_HELPER}:${GET_LP_FEES}`);
@@ -753,7 +757,7 @@ describe("the V3 owed-fees read", () => {
     } as unknown as ChainGatewayProvider;
 
     await expect(
-      new SunSwapLiquidityContracts(gateways).v3OwedFees(NILE, "686", RECIPIENT, OWNER),
+      new SunSwapLiquidityContracts(gateways).v3OwedFees(NILE, "686", RECIPIENT, OWNER, NO_CHECK),
     ).resolves.toEqual({ amount0: "1200", amount1: "800" });
     expect(callers).toEqual([OWNER]);
   });
@@ -812,7 +816,9 @@ describe("V2 transaction return amounts", () => {
   it.each([false, true])("decodes a real Nile withdrawal, nativeFirst=%s", async (nativeFirst) => {
     const raw =
       "000000000000000000000000000000000000000000000000000000004db8f50e00000000000000000000000000000000000000000000000000000000355c95ab";
-    expect(await portFor([raw]).v2LiquidityResult(NILE, "qa-tx", "remove", nativeFirst)).toEqual({
+    expect(
+      await portFor([raw]).v2LiquidityResult(NILE, "qa-tx", "remove", nativeFirst, NO_CHECK),
+    ).toEqual({
       amount0: nativeFirst ? "895260075" : "1303966990",
       amount1: nativeFirst ? "1303966990" : "895260075",
     });
@@ -828,6 +834,7 @@ describe("V2 transaction return amounts", () => {
           "tx",
           "add",
           nativeFirst,
+          NO_CHECK,
         ),
       ).toEqual({
         amount0: nativeFirst ? "456" : large.toString(),
@@ -840,15 +847,23 @@ describe("V2 transaction return amounts", () => {
   it.each([undefined, [], [""], ["zz".repeat(64)], [uint(1)], [uint(1) + uint(2) + uint(3)]])(
     "does not turn missing or malformed removal output into zero: %j",
     async (raw) => {
-      expect(await portFor(raw).v2LiquidityResult(NILE, "tx", "remove", false)).toBeUndefined();
+      expect(
+        await portFor(raw).v2LiquidityResult(NILE, "tx", "remove", false, NO_CHECK),
+      ).toBeUndefined();
     },
   );
   it("rejects failed receipts and truncated deposit output", async () => {
     expect(
-      await portFor([uint(1) + uint(2)], "REVERT").v2LiquidityResult(NILE, "tx", "remove", false),
+      await portFor([uint(1) + uint(2)], "REVERT").v2LiquidityResult(
+        NILE,
+        "tx",
+        "remove",
+        false,
+        NO_CHECK,
+      ),
     ).toBeUndefined();
     expect(
-      await portFor([uint(1) + uint(2)]).v2LiquidityResult(NILE, "tx", "add", false),
+      await portFor([uint(1) + uint(2)]).v2LiquidityResult(NILE, "tx", "add", false, NO_CHECK),
     ).toBeUndefined();
   });
 });
@@ -856,6 +871,8 @@ describe("V2 transaction return amounts", () => {
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { tronHexAddress } from "../../../domain/address/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 describe("V3 deposited amounts", () => {
   const event = {
     address: tronHexAddress("TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R").slice(2).toLowerCase(),
@@ -872,24 +889,30 @@ describe("V3 deposited amounts", () => {
       }),
     } as unknown as ChainGatewayProvider);
   it("reads exact amounts and position liquidity from one transaction", async () => {
-    await expect(port([event]).v3DepositedAmounts(NILE, "tx", "686")).resolves.toEqual({
+    await expect(port([event]).v3DepositedAmounts(NILE, "tx", NO_CHECK, "686")).resolves.toEqual({
       tokenId: "686",
       liquidity: "12345",
       amount0: "999000",
       amount1: "173000",
     });
-    await expect(port([event]).v3DepositedAmounts(NILE, "tx")).resolves.toHaveProperty(
+    await expect(port([event]).v3DepositedAmounts(NILE, "tx", NO_CHECK)).resolves.toHaveProperty(
       "tokenId",
       "686",
     );
   });
   it("rejects another position, malformed/ambiguous logs, and failed receipts", async () => {
-    await expect(port([event]).v3DepositedAmounts(NILE, "tx", "687")).resolves.toBeUndefined();
-    await expect(port([event, event]).v3DepositedAmounts(NILE, "tx")).resolves.toBeUndefined();
     await expect(
-      port([{ ...event, data: "00" }]).v3DepositedAmounts(NILE, "tx"),
+      port([event]).v3DepositedAmounts(NILE, "tx", NO_CHECK, "687"),
     ).resolves.toBeUndefined();
-    await expect(port([event], "REVERT").v3DepositedAmounts(NILE, "tx")).resolves.toBeUndefined();
+    await expect(
+      port([event, event]).v3DepositedAmounts(NILE, "tx", NO_CHECK),
+    ).resolves.toBeUndefined();
+    await expect(
+      port([{ ...event, data: "00" }]).v3DepositedAmounts(NILE, "tx", NO_CHECK),
+    ).resolves.toBeUndefined();
+    await expect(
+      port([event], "REVERT").v3DepositedAmounts(NILE, "tx", NO_CHECK),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -934,7 +957,7 @@ describe("a position read the node answered with undecodable data", () => {
   }
 
   it("decodes a complete V3 answer", async () => {
-    await expect(v3(POSITIONS).v3Position(NILE, "88")).resolves.toMatchObject({
+    await expect(v3(POSITIONS).v3Position(NILE, "88", NO_CHECK)).resolves.toMatchObject({
       token0: USDT,
       token1: WTRX,
       fee: 3000,
@@ -949,13 +972,13 @@ describe("a position read the node answered with undecodable data", () => {
     ["seven words, one short of the liquidity", POSITIONS.slice(0, 7 * 64)],
     ["words that are not hex", "z".repeat(POSITIONS.length)],
   ])("refuses a V3 positions answer of %s as invalid_node_response", async (_name, answer) => {
-    await expect(v3(answer).v3Position(NILE, "88")).rejects.toMatchObject({
+    await expect(v3(answer).v3Position(NILE, "88", NO_CHECK)).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });
 
   it("refuses a V3 ownerOf answer shorter than a word as invalid_node_response", async () => {
-    await expect(v3(POSITIONS, "deadbeef").v3Position(NILE, "88")).rejects.toMatchObject({
+    await expect(v3(POSITIONS, "deadbeef").v3Position(NILE, "88", NO_CHECK)).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });
@@ -985,7 +1008,7 @@ describe("a position read the node answered with undecodable data", () => {
         uint(0);
       const port = v4({ info, liquidity: uint(1), owner: OWNER });
       await expect(
-        readPosition("V4", "88", NILE, () => port.v4Position(NILE, "88")),
+        readPosition("V4", "88", NILE, () => port.v4Position(NILE, "88", NO_CHECK)),
       ).rejects.toMatchObject({
         code: "invalid_node_response",
         message: expect.stringMatching(spacing === 0 ? /tick spacing of 0/ : /two do not agree/),
@@ -998,7 +1021,7 @@ describe("a position read the node answered with undecodable data", () => {
     ["no liquidity word", { info: uint(0).repeat(6), liquidity: "", owner: OWNER }],
     ["an owner cut short", { info: uint(0).repeat(6), liquidity: uint(1), owner: "dead" }],
   ])("refuses a V4 position read with %s as invalid_node_response", async (_name, answers) => {
-    await expect(v4(answers).v4Position(NILE, "88")).rejects.toMatchObject({
+    await expect(v4(answers).v4Position(NILE, "88", NO_CHECK)).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });
@@ -1025,31 +1048,33 @@ describe("V3 Collect receipt identity", () => {
 
   it("selects the requested tokenId even when another position emitted first", async () => {
     await expect(
-      port([event(11), event(22)]).v3CollectedAmounts(NILE, "tx", "22"),
+      port([event(11), event(22)]).v3CollectedAmounts(NILE, "tx", "22", NO_CHECK),
     ).resolves.toEqual({ amount0: "22", amount1: "44" });
   });
   it("does not substitute another position's collection", async () => {
-    await expect(port([event(11)]).v3CollectedAmounts(NILE, "tx", "22")).resolves.toBeUndefined();
+    await expect(
+      port([event(11)]).v3CollectedAmounts(NILE, "tx", "22", NO_CHECK),
+    ).resolves.toBeUndefined();
   });
   it("rejects duplicate matching events", async () => {
     await expect(
-      port([event(22), event(22)]).v3CollectedAmounts(NILE, "tx", "22"),
+      port([event(22), event(22)]).v3CollectedAmounts(NILE, "tx", "22", NO_CHECK),
     ).resolves.toBeUndefined();
   });
   it.each([manager, USDT])(
     "identifies the position independently of recipient %s",
     async (recipient) => {
       await expect(
-        port([event(22, recipient)]).v3CollectedAmounts(NILE, "tx", "22"),
+        port([event(22, recipient)]).v3CollectedAmounts(NILE, "tx", "22", NO_CHECK),
       ).resolves.toEqual({ amount0: "22", amount1: "44" });
     },
   );
   it("ignores malformed event data and failed receipts", async () => {
     await expect(
-      port([{ ...event(22), data: "dead" }]).v3CollectedAmounts(NILE, "tx", "22"),
+      port([{ ...event(22), data: "dead" }]).v3CollectedAmounts(NILE, "tx", "22", NO_CHECK),
     ).resolves.toBeUndefined();
     await expect(
-      port([event(22)], "REVERT").v3CollectedAmounts(NILE, "tx", "22"),
+      port([event(22)], "REVERT").v3CollectedAmounts(NILE, "tx", "22", NO_CHECK),
     ).resolves.toBeUndefined();
   });
 });

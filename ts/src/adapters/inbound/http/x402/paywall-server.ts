@@ -1,5 +1,9 @@
 import { createServer, type Server, type ServerResponse } from "node:http";
 import { ExecutionError } from "../../../../domain/errors/index.js";
+import {
+  DeadlineExpiredError,
+  type ExecutionDeadline,
+} from "../../../../application/contracts/deadline.js";
 import type {
   X402ListenOptions,
   X402Paywall,
@@ -19,8 +23,12 @@ export class X402PaywallHttpServer implements X402PaywallHost {
     private readonly debugLog: (line: string) => void,
   ) {}
 
-  async start(paywall: X402Paywall, options: X402ListenOptions): Promise<X402ServerHandle> {
-    const open = await paywall.open();
+  async start(
+    paywall: X402Paywall,
+    options: X402ListenOptions,
+    startup: ExecutionDeadline,
+  ): Promise<X402ServerHandle> {
+    const open = await paywall.open(startup);
     const host = options.host.includes(":") ? `[${options.host}]` : options.host;
     let base = `http://${host}:${options.port}`;
     const server = createServer(async (request, response) => {
@@ -40,9 +48,21 @@ export class X402PaywallHttpServer implements X402PaywallHost {
       if (pathname !== "/pay") return json(response, 404, { error: "not found" });
       const signature = request.headers["payment-signature"];
       const paymentSignature = typeof signature === "string" && signature ? signature : undefined;
-      return respond(response, await open.handlePaymentRequest(paymentSignature));
+      const clientGone = new AbortController();
+      response.once("close", () => {
+        if (!response.writableFinished) clientGone.abort();
+      });
+      return respond(
+        response,
+        await open.handlePaymentRequest(paymentSignature, clientGone.signal),
+      );
     });
-    await listen(server, options.host, options.port);
+    await listen(server, options.host, options.port, startup.signal);
+    // Ready too late: no listener outlives the failed start-up.
+    if (startup.expired()) {
+      await close(server);
+      throw new DeadlineExpiredError();
+    }
     const address = server.address();
     if (address && typeof address === "object") base = `http://${host}:${address.port}`;
     return { details: open.publish(`${base}/pay`), close: () => close(server) };
@@ -95,24 +115,41 @@ function json(response: ServerResponse, status: number, body: unknown): void {
   response.end(JSON.stringify(body));
 }
 
-function listen(server: Server, host: string, port: number): Promise<void> {
+function listen(server: Server, host: string, port: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const onError = (error: NodeJS.ErrnoException) =>
+    if (signal.aborted) return reject(signal.reason);
+    const detach = () => {
+      server.off("error", onError);
+      signal.removeEventListener("abort", onAbort);
+    };
+    const onError = (error: NodeJS.ErrnoException) => {
+      detach();
       reject(
         error.code === "EADDRINUSE"
           ? new ExecutionError("port_in_use", "x402 server port is already in use")
           : error,
       );
+    };
+    const onAbort = () => {
+      detach();
+      server.close();
+      reject(signal.reason);
+    };
     server.once("error", onError);
+    signal.addEventListener("abort", onAbort, { once: true });
     server.listen(port, host, () => {
-      server.off("error", onError);
+      // A host lookup can finish after the abort; close what it opened.
+      if (signal.aborted) return void server.close();
+      detach();
       resolve();
     });
   });
 }
 
+// Drops open connections too, so in-flight and keep-alive requests cannot hold close() open.
 function close(server: Server): Promise<void> {
-  return new Promise((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
-  );
+  return new Promise((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+    server.closeAllConnections();
+  });
 }

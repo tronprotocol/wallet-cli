@@ -1,9 +1,12 @@
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { assertTronTxIntegrity } from "./tx-integrity.js";
 import { TronRpcClient } from "./tron.js";
 import { withTronWeb } from "./__test-support__/tronweb.js";
 import { TronChainService } from "../../../../application/use-cases/tron/chain-service.js";
 import { ChainFormatters } from "../../../inbound/cli/render/chain.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -125,7 +128,7 @@ describe("chain params and chain prices with an inactive (-1) parameter", () => 
   }
 
   it("chain params lists the parameter and renders -1", async () => {
-    const data = await service().params(NILE);
+    const data = await service().params(NO_DEADLINE, NILE);
     expect(data.params).toContainEqual({ key: "getRemoveThePowerOfTheGr", value: -1, unit: "" });
     const text = ChainFormatters.chainParams(data);
     expect(text).toMatch(/\| getRemoveThePowerOfTheGr \| -1 +\|/);
@@ -133,12 +136,14 @@ describe("chain params and chain prices with an inactive (-1) parameter", () => 
   });
 
   it("chain params --key renders -1", async () => {
-    const data = await service().params(NILE, "getRemoveThePowerOfTheGr");
+    const data = await service().params(NO_DEADLINE, NILE, "getRemoveThePowerOfTheGr");
     expect(data).toEqual({ key: "getRemoveThePowerOfTheGr", value: -1, unit: "" });
     expect(ChainFormatters.chainParams(data)).toMatch(/Value\s+-1\b/);
   });
 
   it("chain prices ignores a negative parameter it does not use", async () => {
-    await expect(service().prices(NILE)).resolves.toMatchObject({ memoFeeSun: "1000000" });
+    await expect(service().prices(NO_DEADLINE, NILE)).resolves.toMatchObject({
+      memoFeeSun: "1000000",
+    });
   });
 });

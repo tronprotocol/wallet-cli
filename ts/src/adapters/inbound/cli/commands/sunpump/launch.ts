@@ -2,8 +2,10 @@ import { z } from "zod";
 import type { RefinementCtx } from "zod";
 import { readFile } from "node:fs/promises";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/sunpump/token-launch-service.js";
-import type { SunPumpLaunchImage } from "../../../../../application/use-cases/sunpump/token-launch-service.js";
+import type {
+  SunPumpLaunchImage,
+  SunPumpTokenLaunchService,
+} from "../../../../../application/use-cases/sunpump/token-launch-service.js";
 import { errorMessage, UsageError } from "../../../../../domain/errors/index.js";
 import { TextFormatters } from "../../render/index.js";
 
@@ -72,8 +74,8 @@ export const sunpumpLaunchSpec: ChainSpec = {
 };
 
 export const sunpumpLaunchTronBinding = (service: SunPumpTokenLaunchService): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.launch(net, {
+  run: async (ctx, net, input) =>
+    service.launch(ctx.deadline, net, {
       name: input.name,
       symbol: input.symbol,
       description: input.description,

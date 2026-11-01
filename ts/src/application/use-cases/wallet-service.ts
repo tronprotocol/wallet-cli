@@ -1,3 +1,4 @@
+import type { ExecutionDeadline } from "../contracts/deadline.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Derivation } from "../../domain/derivation/index.js";
 import {
@@ -112,8 +113,16 @@ export class WalletService {
     return this.importSecret(secret, "privateKey", label);
   }
 
-  async importLedger(family: ChainFamily, path: string, label?: string) {
-    const address = await this.ledger.getAddress(family, path, { display: false });
+  async importLedger(
+    deadline: ExecutionDeadline,
+    family: ChainFamily,
+    path: string,
+    label?: string,
+  ) {
+    const address = await this.ledger.getAddress(family, path, {
+      display: false,
+      signal: deadline.signal,
+    });
     const result = this.wallets.registerLedger({ family, path, address, label });
     return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
   }

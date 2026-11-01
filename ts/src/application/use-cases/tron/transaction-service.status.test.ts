@@ -9,6 +9,9 @@ import {
   parseTronTxInfo,
 } from "../../../adapters/outbound/chain/tron/tron-responses.js";
 import { stageTronBroadcast } from "../../services/tron/tron-confirmation.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET = {
   id: "tron:3448148188",
@@ -48,7 +51,7 @@ describe("TronTransactionService.status — four-state", () => {
     const s = await service({
       tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
-    }).status(NET, "abc");
+    }).status(NO_DEADLINE, NET, "abc");
     expect(s.state).toBe("confirmed");
     expect(s.confirmed).toBe(true);
     expect(s.failed).toBe(false);
@@ -59,13 +62,13 @@ describe("TronTransactionService.status — four-state", () => {
     const s = await service({
       tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "REVERT" } },
-    }).status(NET, "abc");
+    }).status(NO_DEADLINE, NET, "abc");
     expect(s.state).toBe("failed");
     expect(s.failed).toBe(true);
   });
 
   it("pending: node knows tx (getTransactionById) but no block yet", async () => {
-    const s = await service({ tx: { txID: "abc" }, info: {} }).status(NET, "abc");
+    const s = await service({ tx: { txID: "abc" }, info: {} }).status(NO_DEADLINE, NET, "abc");
     expect(s.state).toBe("pending");
     expect(s.confirmed).toBe(false);
     expect(s.failed).toBe(false);
@@ -73,6 +76,7 @@ describe("TronTransactionService.status — four-state", () => {
 
   it("not_found: node throws Transaction not found and no info", async () => {
     const s = await service({ tx: new Error("Transaction not found"), info: {} }).status(
+      NO_DEADLINE,
       NET,
       "abc",
     );
@@ -81,7 +85,7 @@ describe("TronTransactionService.status — four-state", () => {
   });
 
   it("not_found: getTransactionById resolves without a txID", async () => {
-    const s = await service({ tx: {}, info: {} }).status(NET, "abc");
+    const s = await service({ tx: {}, info: {} }).status(NO_DEADLINE, NET, "abc");
     expect(s.state).toBe("not_found");
   });
 
@@ -90,7 +94,7 @@ describe("TronTransactionService.status — four-state", () => {
       service({
         tx: new ChainError("rpc_error", "boom"),
         info: new ChainError("rpc_error", "boom"),
-      }).status(NET, "abc"),
+      }).status(NO_DEADLINE, NET, "abc"),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
@@ -98,7 +102,7 @@ describe("TronTransactionService.status — four-state", () => {
     const s = await service({
       tx: new Error("Transaction not found"),
       info: {},
-    }).status(NET, "abc");
+    }).status(NO_DEADLINE, NET, "abc");
     expect(s.state).toBe("not_found");
   });
 });
@@ -111,8 +115,7 @@ describe("tx status and --wait read one execution fact", () => {
   };
   const waitScope = {
     wait: true,
-    waitTimeoutMs: 0,
-    timeoutMs: 1000,
+    deadline: new CommandDeadline(0),
     activeAccount: {} as never,
     resolveAddress: () => "T",
     emit: () => {},
@@ -125,7 +128,7 @@ describe("tx status and --wait read one execution fact", () => {
     [{ blockNumber: 42, receipt: { result: "REVERT" } }, "failed"],
     [{ blockNumber: 42, receipt: { result: "SUCCESS" } }, "confirmed"],
   ])("%j → %s in both", async (info, expected) => {
-    const status = await service({ tx: { txID: "abc" }, info }).status(NET, "abc");
+    const status = await service({ tx: { txID: "abc" }, info }).status(NO_DEADLINE, NET, "abc");
     const waited = await stageTronBroadcast(
       nodeGateway({ info }),
       waitScope,
@@ -146,7 +149,7 @@ describe("TronTransactionService.info status", () => {
     [{ blockNumber: 42 }, "success"],
   ])("%j → %s", async (info, expected) => {
     const tx = { txID: "abc", ret: [{ contractRet: "SUCCESS" }] };
-    const view = await service({ tx, info, head: 50 }).info(NET, "abc");
+    const view = await service({ tx, info, head: 50 }).info(NO_DEADLINE, NET, "abc");
 
     expect(view.status).toBe(expected);
     expect(view.info).toBe(info);
@@ -160,7 +163,7 @@ describe("TronTransactionService.status — confirmations", () => {
       tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
       head: 78,
-    }).status(NET, "abc");
+    }).status(NO_DEADLINE, NET, "abc");
 
     expect(s.confirmations).toBe(36);
   });
@@ -170,7 +173,7 @@ describe("TronTransactionService.status — confirmations", () => {
       tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
       head: 42,
-    }).status(NET, "abc");
+    }).status(NO_DEADLINE, NET, "abc");
 
     expect(s.confirmations).toBe(0);
   });
@@ -180,14 +183,18 @@ describe("TronTransactionService.status — confirmations", () => {
       tx: { txID: "abc" },
       info: { blockNumber: 42, receipt: { result: "SUCCESS" } },
       head: new Error("node unreachable"),
-    }).status(NET, "abc");
+    }).status(NO_DEADLINE, NET, "abc");
 
     expect(s.state).toBe("confirmed");
     expect(s.confirmations).toBeUndefined();
   });
 
   it("omits the field while the transaction has no block", async () => {
-    const s = await service({ tx: { txID: "abc" }, info: {}, head: 78 }).status(NET, "abc");
+    const s = await service({ tx: { txID: "abc" }, info: {}, head: 78 }).status(
+      NO_DEADLINE,
+      NET,
+      "abc",
+    );
 
     expect(s.state).toBe("pending");
     expect(s.confirmations).toBeUndefined();

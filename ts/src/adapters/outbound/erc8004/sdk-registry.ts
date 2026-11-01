@@ -1,3 +1,4 @@
+import type { DispatchCheck, ExecutionDeadline } from "../../../application/contracts/deadline.js";
 import { SDK } from "@bankofai/8004-sdk";
 import { Interface, type InterfaceAbi } from "ethers";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
@@ -32,6 +33,7 @@ interface RegistryFamily {
   sdkNetwork(network: NetworkDescriptor): string | undefined;
   // ABI-encoded return data of a registry view call.
   viewResult(
+    deadline: ExecutionDeadline,
     contracts: AgentContractPorts,
     network: NetworkDescriptor,
     contract: string,
@@ -43,6 +45,7 @@ interface RegistryFamily {
     network: NetworkDescriptor,
     sdk: SDK,
     txId: string,
+    check: DispatchCheck,
   ): Promise<string | undefined>;
   // The form in which log addresses are compared.
   logAddress(address: string, sdk: SDK): string;
@@ -53,10 +56,10 @@ const REGISTRY_FAMILIES: Record<ChainFamily, RegistryFamily> = {
   evm: {
     namespace: "eip155",
     sdkNetwork: (network) => network.id,
-    viewResult: async (contracts, network, contract, method, params) =>
-      (await contracts.evm.call(network, contract, method, params)).result,
-    async registeredAgentId(gateways, network, sdk, txId) {
-      const receipt = await gateways.get(network, "evm").getTransactionReceipt(txId);
+    viewResult: async (deadline, contracts, network, contract, method, params) =>
+      (await contracts.evm.call(deadline, network, contract, method, params)).result,
+    async registeredAgentId(gateways, network, sdk, txId, check) {
+      const receipt = await gateways.get(network, "evm", check).getTransactionReceipt(txId);
       if (!receipt) return undefined;
       const logs = matchingLogs(record(receipt.raw)?.logs, sdk, network.family);
       return sdk.chain.parseRegisteredAgentId({ logs });
@@ -66,10 +69,10 @@ const REGISTRY_FAMILIES: Record<ChainFamily, RegistryFamily> = {
   tron: {
     namespace: "tron",
     sdkNetwork: (network) => TRON_SDK_NETWORKS[network.chainId],
-    viewResult: async (contracts, network, contract, method, params) =>
-      (await contracts.tron.call(network, contract, method, params)).result[0],
-    async registeredAgentId(gateways, network, sdk, txId) {
-      const receipt = await gateways.get(network, "tron").getTransactionInfoById(txId);
+    viewResult: async (deadline, contracts, network, contract, method, params) =>
+      (await contracts.tron.call(deadline, network, contract, method, params)).result[0],
+    async registeredAgentId(gateways, network, sdk, txId, check) {
+      const receipt = await gateways.get(network, "tron", check).getTransactionInfoById(txId);
       const logs = matchingLogs(receipt.log, sdk, network.family);
       return sdk.chain.parseRegisteredAgentId({ log: logs });
     },
@@ -91,6 +94,7 @@ export class SdkAgentRegistry implements AgentRegistryReader {
   }
 
   async read(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     method: string,
     params: Array<{ type: string; value: unknown }>,
@@ -99,6 +103,7 @@ export class SdkAgentRegistry implements AgentRegistryReader {
     let decoded;
     try {
       const raw = await REGISTRY_FAMILIES[network.family].viewResult(
+        deadline,
         this.contracts,
         network,
         configured.sdk.identityRegistry,
@@ -149,9 +154,19 @@ export class SdkAgentRegistry implements AgentRegistryReader {
       : (value as AgentRegistryValue);
   }
 
-  async registeredAgentId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {
+  async registeredAgentId(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined> {
     const { sdk } = this.#for(network);
-    return REGISTRY_FAMILIES[network.family].registeredAgentId(this.gateways, network, sdk, txId);
+    return REGISTRY_FAMILIES[network.family].registeredAgentId(
+      this.gateways,
+      network,
+      sdk,
+      txId,
+      check,
+    );
   }
 
   #for(network: NetworkDescriptor): SdkNetwork {

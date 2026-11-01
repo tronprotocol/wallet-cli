@@ -1,4 +1,5 @@
 // Catalogue data may lag on-chain trading state; monetary values retain exact decimal digits.
+import type { DispatchCheck } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 export interface SunPumpMarketRecord {
@@ -109,13 +110,29 @@ export interface SunPumpSearchQuery extends SunPumpPageWindow {
 
 export interface SunPumpMarketDataPort {
   // Use tokensByOwner for creator filtering; the catalogue endpoint ignores ownerAddress.
-  listTokens(network: NetworkDescriptor, query: SunPumpListQuery): Promise<SunPumpTokenPage>;
+  listTokens(
+    network: NetworkDescriptor,
+    query: SunPumpListQuery,
+    check: DispatchCheck,
+  ): Promise<SunPumpTokenPage>;
 
   // Fixed tokenCreatedInstant:DESC order; the endpoint ignores sort.
-  tokensByOwner(network: NetworkDescriptor, query: SunPumpOwnerQuery): Promise<SunPumpTokenPage>;
+  tokensByOwner(
+    network: NetworkDescriptor,
+    query: SunPumpOwnerQuery,
+    check: DispatchCheck,
+  ): Promise<SunPumpTokenPage>;
 
-  getToken(network: NetworkDescriptor, address: string): Promise<SunPumpTokenRecord | null>;
+  getToken(
+    network: NetworkDescriptor,
+    address: string,
+    check: DispatchCheck,
+  ): Promise<SunPumpTokenRecord | null>;
 
   // Symbol/name substring or exact contract address.
-  searchTokens(network: NetworkDescriptor, query: SunPumpSearchQuery): Promise<SunPumpTokenPage>;
+  searchTokens(
+    network: NetworkDescriptor,
+    query: SunPumpSearchQuery,
+    check: DispatchCheck,
+  ): Promise<SunPumpTokenPage>;
 }

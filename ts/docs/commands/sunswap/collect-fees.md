@@ -9,7 +9,7 @@ wallet-cli sunswap collect-fees --protocol <V3|V4> --position-id <id>
                                 [--recipient <address>]
                                 [--token0 <token> --token1 <token> [--fee <n>]] [--deadline <timestamp>]
                                 [--fee-limit <sun>]
-                                [--dry-run | --build-only | --wait [--wait-timeout <ms>]] [options]
+                                [--dry-run | --build-only | --wait] [options]
 ```
 
 ## Description
@@ -41,7 +41,7 @@ Ownership is checked in the dry run **and again immediately before sending**. `-
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transaction |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--account <label\|accountId>` | Account holding the position; default the active account |
 | `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 

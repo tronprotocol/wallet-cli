@@ -6,6 +6,7 @@ import type { Signer, TypedDataPayload } from "../../../domain/types/index.js";
 import { WalletError } from "../../../domain/errors/index.js";
 import { SigningService } from "../signing/signing-service.js";
 import type { PayerPolicy } from "./payer-policy.js";
+import { CommandDeadline } from "../command-deadline.js";
 
 const PAYER = "0x000000000000000000000000000000000000dEaD";
 
@@ -31,9 +32,9 @@ const PAYLOAD: TypedDataPayload = {
 
 const scope = (): TransactionScope & { emitted: unknown[] } => ({
   activeAccount: "wlt_k",
-  timeoutMs: 50,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 50,
+
   emitted: [] as unknown[],
   emit(e: unknown) {
     (this.emitted as unknown[]).push(e);

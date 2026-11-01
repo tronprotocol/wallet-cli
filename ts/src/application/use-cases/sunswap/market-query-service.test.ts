@@ -1,3 +1,5 @@
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, expect, it } from "vitest";
 import { SunSwapMarketQueryService } from "./market-query-service.js";
 import type { CodedWarning } from "../../contracts/execution-scope.js";
@@ -5,6 +7,8 @@ import { cliMessage, errorEnvelope } from "../../../adapters/inbound/cli/output/
 import type { MarketDataPort, PriceRecord } from "../../ports/sunswap/market-data.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { NetworkDescriptor, TokenEntry } from "../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const MAINNET = {
   id: "tron:728126428",
@@ -94,20 +98,20 @@ function service(
 describe("symbol resolution", () => {
   it("resolves TRX and WTRX without consulting the book", async () => {
     const { service: s, asked } = service({ official: [] });
-    await s.prices(MAINNET, { token: "trx" });
-    await s.prices(MAINNET, { token: "WTRX" });
+    await s.prices(NO_DEADLINE, MAINNET, { token: "trx" });
+    await s.prices(NO_DEADLINE, MAINNET, { token: "WTRX" });
     expect(asked).toEqual([[TRX], [WTRX_MAINNET]]);
   });
 
   it("resolves an official book symbol, case-insensitively", async () => {
     const { service: s, asked } = service();
-    await s.prices(MAINNET, { token: "usdt" });
+    await s.prices(NO_DEADLINE, MAINNET, { token: "usdt" });
     expect(asked[0]).toEqual([USDT]);
   });
 
   it("refuses an unknown symbol without suggesting token add", async () => {
     const { service: s } = service();
-    const error = await s.prices(MAINNET, { token: "WIN" }).catch((e) => e);
+    const error = await s.prices(NO_DEADLINE, MAINNET, { token: "WIN" }).catch((e) => e);
     expect(error.code).toBe("unsupported_token");
     expect(errorEnvelope(error).message).toBe(
       "unknown token symbol WIN on tron; pass its contract address with --address",
@@ -118,7 +122,7 @@ describe("symbol resolution", () => {
   it("tells pool-list --token to pass the address with --token", async () => {
     const { service: s } = service();
     await expect(
-      s.poolList(SILENT, MAINNET, {
+      s.poolList(NO_DEADLINE, SILENT, MAINNET, {
         orderBy: "tvl",
         sort: "desc",
         limit: 10,
@@ -131,13 +135,13 @@ describe("symbol resolution", () => {
   it("names the network the way a person types it", async () => {
     const nile = { ...MAINNET, id: "tron:3448148188" } as NetworkDescriptor;
     const { service: s } = service({ official: [] });
-    await expect(s.prices(nile, { token: "WIN" })).rejects.toThrow(/on nile;/);
+    await expect(s.prices(NO_DEADLINE, nile, { token: "WIN" })).rejects.toThrow(/on nile;/);
   });
 
   it("refuses WTRX on a network with no known deployment", async () => {
     const other = { ...MAINNET, id: "tron:2494104990" } as NetworkDescriptor;
     const { service: s } = service({ official: [] });
-    await expect(s.prices(other, { token: "WTRX" })).rejects.toMatchObject({
+    await expect(s.prices(NO_DEADLINE, other, { token: "WTRX" })).rejects.toMatchObject({
       code: "unsupported_token",
     });
   });
@@ -146,26 +150,32 @@ describe("symbol resolution", () => {
 describe("input shape", () => {
   it("requires one of the symbol or --address", async () => {
     const { service: s } = service();
-    await expect(s.prices(MAINNET, {})).rejects.toMatchObject({ code: "missing_option" });
+    await expect(s.prices(NO_DEADLINE, MAINNET, {})).rejects.toMatchObject({
+      code: "missing_option",
+    });
   });
 
   it("refuses both at once", async () => {
     const { service: s } = service();
-    await expect(s.prices(MAINNET, { token: "TRX", addresses: [USDT] })).rejects.toMatchObject({
+    await expect(
+      s.prices(NO_DEADLINE, MAINNET, { token: "TRX", addresses: [USDT] }),
+    ).rejects.toMatchObject({
       code: "invalid_option",
     });
   });
 
   it("rejects an address that is not a TRON address", async () => {
     const { service: s } = service();
-    await expect(s.prices(MAINNET, { addresses: [USDT, "0xdead"] })).rejects.toMatchObject({
+    await expect(
+      s.prices(NO_DEADLINE, MAINNET, { addresses: [USDT, "0xdead"] }),
+    ).rejects.toMatchObject({
       code: "invalid_address",
     });
   });
 
   it("deduplicates addresses while keeping the order given", async () => {
     const { service: s, asked } = service();
-    await s.prices(MAINNET, { addresses: [USDT, TRX, USDT] });
+    await s.prices(NO_DEADLINE, MAINNET, { addresses: [USDT, TRX, USDT] });
     expect(asked[0]).toEqual([USDT, TRX]);
   });
 });
@@ -176,7 +186,7 @@ describe("symbol column", () => {
       prices: async () => [{ address: TRX, priceUsd: "0.34", quotedAt: "2026-09-23 08:09" }],
       symbols: async () => new Map([[TRX, "TRX"]]),
     });
-    const view = await s.prices(MAINNET, { addresses: [TRX, USDT] });
+    const view = await s.prices(NO_DEADLINE, MAINNET, { addresses: [TRX, USDT] });
     expect([...view.symbols.keys()]).toEqual([TRX]);
     expect(view.warnings).toEqual([]);
   });
@@ -187,7 +197,7 @@ describe("symbol column", () => {
         throw new Error("catalogue down");
       },
     });
-    const view = await s.prices(MAINNET, { addresses: [USDT] });
+    const view = await s.prices(NO_DEADLINE, MAINNET, { addresses: [USDT] });
     expect(view.prices).toHaveLength(1);
     expect(view.symbols.size).toBe(0);
     expect(view.warnings).toHaveLength(1);
@@ -198,7 +208,7 @@ describe("symbol column", () => {
     const { service: s } = service({
       prices: async () => [{ address: USDT, priceUsd: "0", quotedAt: "2026-09-23 08:09" }],
     });
-    const view = await s.prices(MAINNET, { addresses: [USDT] });
+    const view = await s.prices(NO_DEADLINE, MAINNET, { addresses: [USDT] });
     expect(view.prices[0]?.priceUsd).toBe("0");
   });
 });
@@ -208,7 +218,12 @@ const listQuery = { protocol: "ALL", orderBy: "tvl", limit: 20, offset: 0 };
 describe("token-list", () => {
   it("translates the CLI's window and vocabulary into the service's", async () => {
     const { service: s, tokenQueries } = service();
-    await s.tokenList(MAINNET, { ...listQuery, limit: 10, offset: 20, orderBy: "volume-24h" });
+    await s.tokenList(NO_DEADLINE, MAINNET, {
+      ...listQuery,
+      limit: 10,
+      offset: 20,
+      orderBy: "volume-24h",
+    });
     expect(tokenQueries[0]).toMatchObject({
       protocol: "ALL",
       sort: "volumeUsd1d",
@@ -219,32 +234,34 @@ describe("token-list", () => {
 
   it("normalises the protocol scope before sending it", async () => {
     const { service: s, tokenQueries } = service();
-    await s.tokenList(MAINNET, { ...listQuery, protocol: "v1_5" });
+    await s.tokenList(NO_DEADLINE, MAINNET, { ...listQuery, protocol: "v1_5" });
     expect(tokenQueries[0]?.protocol).toBe("V1_5");
   });
 
   it("echoes the ordering with sort fixed at desc", async () => {
     const { service: s } = service();
-    const view = await s.tokenList(MAINNET, listQuery);
+    const view = await s.tokenList(NO_DEADLINE, MAINNET, listQuery);
     expect(view.query).toEqual({ orderBy: "tvl", sort: "desc" });
   });
 
   it("reports the window with a null total", async () => {
     const { service: s } = service({ tokens: async () => ({ tokens: [], hasMore: true }) });
-    const view = await s.tokenList(MAINNET, { ...listQuery, limit: 5, offset: 10 });
+    const view = await s.tokenList(NO_DEADLINE, MAINNET, { ...listQuery, limit: 5, offset: 10 });
     expect(view.pagination).toEqual({ offset: 10, limit: 5, total: null, hasMore: true });
   });
 
   it("refuses a window no page boundary contains", async () => {
     const { service: s } = service();
-    await expect(s.tokenList(MAINNET, { ...listQuery, limit: 4, offset: 5 })).rejects.toMatchObject(
-      { code: "invalid_value" },
-    );
+    await expect(
+      s.tokenList(NO_DEADLINE, MAINNET, { ...listQuery, limit: 4, offset: 5 }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
   });
 
   it("validates --address before asking anyone", async () => {
     const { service: s, tokenQueries } = service();
-    await expect(s.tokenList(MAINNET, { ...listQuery, address: "0xdead" })).rejects.toMatchObject({
+    await expect(
+      s.tokenList(NO_DEADLINE, MAINNET, { ...listQuery, address: "0xdead" }),
+    ).rejects.toMatchObject({
       code: "invalid_address",
     });
     expect(tokenQueries).toHaveLength(0);
@@ -254,7 +271,12 @@ describe("token-list", () => {
 describe("token-search", () => {
   it("passes the trimmed keyword and the scope", async () => {
     const { service: s, tokenQueries } = service();
-    await s.tokenSearch(MAINNET, { keyword: "  USDT  ", protocol: "ALL", limit: 20, offset: 0 });
+    await s.tokenSearch(NO_DEADLINE, MAINNET, {
+      keyword: "  USDT  ",
+      protocol: "ALL",
+      limit: 20,
+      offset: 0,
+    });
     expect(tokenQueries[0]).toMatchObject({ keyword: "USDT", protocol: "ALL", pageNo: 1 });
   });
 
@@ -262,14 +284,14 @@ describe("token-search", () => {
     const { service: s } = service();
     for (const keyword of ["", "   "]) {
       await expect(
-        s.tokenSearch(MAINNET, { keyword, protocol: "ALL", limit: 20, offset: 0 }),
+        s.tokenSearch(NO_DEADLINE, MAINNET, { keyword, protocol: "ALL", limit: 20, offset: 0 }),
       ).rejects.toMatchObject({ code: "invalid_value" });
     }
   });
 
   it("reports no query echo", async () => {
     const { service: s } = service();
-    const view = await s.tokenSearch(MAINNET, {
+    const view = await s.tokenSearch(NO_DEADLINE, MAINNET, {
       keyword: "USDT",
       protocol: "ALL",
       limit: 20,
@@ -294,22 +316,28 @@ const onePool = (over: Record<string, unknown> = {}) => ({
 describe("pool-list", () => {
   it("translates the ordering and the direction the service understands", async () => {
     const { service: s, poolQueries } = service();
-    await s.poolList(SILENT, MAINNET, { ...poolQuery, orderBy: "fees-24h", sort: "asc" });
+    await s.poolList(NO_DEADLINE, SILENT, MAINNET, {
+      ...poolQuery,
+      orderBy: "fees-24h",
+      sort: "asc",
+    });
     expect(poolQueries[0]).toMatchObject({ sort: "feeUsd1d", desc: false, pageNo: 1 });
   });
 
   it("accepts every ordering the pool endpoint has, and no others", async () => {
     const { service: s } = service();
     for (const orderBy of ["tvl", "volume-24h", "fees-24h", "apr"]) {
-      await expect(s.poolList(SILENT, MAINNET, { ...poolQuery, orderBy })).resolves.toBeDefined();
+      await expect(
+        s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, orderBy }),
+      ).resolves.toBeDefined();
     }
     await expect(
-      s.poolList(SILENT, MAINNET, { ...poolQuery, orderBy: "nope" }),
+      s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, orderBy: "nope" }),
     ).rejects.toMatchObject({
       code: "invalid_value",
     });
     await expect(
-      s.poolList(SILENT, MAINNET, { ...poolQuery, sort: "sideways" }),
+      s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, sort: "sideways" }),
     ).rejects.toMatchObject({
       code: "invalid_value",
     });
@@ -317,29 +345,32 @@ describe("pool-list", () => {
 
   it("strips the 0x from a V4 pool id and leaves an address alone", async () => {
     const { service: s, poolQueries } = service();
-    await s.poolList(SILENT, MAINNET, { ...poolQuery, pool: `0x${V4_ID}` });
+    await s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, pool: `0x${V4_ID}` });
     expect(poolQueries[0]?.pool).toBe(V4_ID);
-    await s.poolList(SILENT, MAINNET, { ...poolQuery, pool: "TSUUVjysXV8YqHytSNjfkNXnnB49QDvZpx" });
+    await s.poolList(NO_DEADLINE, SILENT, MAINNET, {
+      ...poolQuery,
+      pool: "TSUUVjysXV8YqHytSNjfkNXnnB49QDvZpx",
+    });
     expect(poolQueries[1]?.pool).toBe("TSUUVjysXV8YqHytSNjfkNXnnB49QDvZpx");
   });
 
   it("resolves --token from a symbol, and passes an address straight through", async () => {
     const { service: s, poolQueries } = service();
-    await s.poolList(SILENT, MAINNET, { ...poolQuery, token: "USDT" });
+    await s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, token: "USDT" });
     expect(poolQueries[0]?.token).toBe(USDT);
-    await s.poolList(SILENT, MAINNET, { ...poolQuery, token: WTRX });
+    await s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, token: WTRX });
     expect(poolQueries[1]?.token).toBe(WTRX);
   });
 
   it("does not swap TRX for WTRX", async () => {
     const { service: s, poolQueries } = service();
-    await s.poolList(SILENT, MAINNET, { ...poolQuery, token: "TRX" });
+    await s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, token: "TRX" });
     expect(poolQueries[0]?.token).toBe(TRX);
   });
 
   it("quotes every pool in the chosen token and never publishes the raw rates", async () => {
     const { service: s } = service({ pools: async () => ({ pools: [onePool()] }) });
-    const view = await s.poolList(SILENT, MAINNET, { ...poolQuery, token: "USDT" });
+    const view = await s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, token: "USDT" });
     expect(view.pools[0]).not.toHaveProperty("rates");
     expect(view.pools[0]?.pairPrices).toEqual([
       { base: WTRX, quote: USDT, price: "0.343740192464323181" },
@@ -349,7 +380,7 @@ describe("pool-list", () => {
 
   it("omits pairPrices and the quote heading without --token", async () => {
     const { service: s } = service({ pools: async () => ({ pools: [onePool()] }) });
-    const view = await s.poolList(SILENT, MAINNET, poolQuery);
+    const view = await s.poolList(NO_DEADLINE, SILENT, MAINNET, poolQuery);
     expect(view.pools[0]).not.toHaveProperty("pairPrices");
     expect(view.pools[0]).not.toHaveProperty("rates");
     expect(view.view).toBeUndefined();
@@ -359,7 +390,7 @@ describe("pool-list", () => {
 describe("pool-search", () => {
   it("asks for the count under the same filters as the page", async () => {
     const { service: s, poolQueries, countQueries } = service({ total: 81 });
-    const view = await s.poolSearch(MAINNET, {
+    const view = await s.poolSearch(NO_DEADLINE, MAINNET, {
       keyword: "TRX USDT",
       protocol: "v3",
       limit: 3,
@@ -371,26 +402,28 @@ describe("pool-search", () => {
 
   it("reports a null total rather than a wrong one when the count fails", async () => {
     const { service: s } = service({ total: null });
-    const view = await s.poolSearch(MAINNET, { keyword: "TRX", limit: 3, offset: 0 });
+    const view = await s.poolSearch(NO_DEADLINE, MAINNET, { keyword: "TRX", limit: 3, offset: 0 });
     expect(view.pagination.total).toBeNull();
   });
 
   it("has no ordering flag, so it echoes no ordering", async () => {
     const { service: s } = service({ total: 1 });
-    const view = await s.poolSearch(MAINNET, { keyword: "TRX", limit: 3, offset: 0 });
+    const view = await s.poolSearch(NO_DEADLINE, MAINNET, { keyword: "TRX", limit: 3, offset: 0 });
     expect(view.query).toBeUndefined();
   });
 
   it("strips the 0x from a pool id used as the keyword", async () => {
     const { service: s, poolQueries } = service();
-    await s.poolSearch(MAINNET, { keyword: `0x${V4_ID}`, limit: 3, offset: 0 });
+    await s.poolSearch(NO_DEADLINE, MAINNET, { keyword: `0x${V4_ID}`, limit: 3, offset: 0 });
     expect(poolQueries[0]?.keyword).toBe(V4_ID);
   });
 
   it("refuses an empty or whitespace keyword", async () => {
     const { service: s } = service();
     for (const keyword of ["", "  "]) {
-      await expect(s.poolSearch(MAINNET, { keyword, limit: 3, offset: 0 })).rejects.toMatchObject({
+      await expect(
+        s.poolSearch(NO_DEADLINE, MAINNET, { keyword, limit: 3, offset: 0 }),
+      ).rejects.toMatchObject({
         code: "invalid_value",
       });
     }
@@ -402,7 +435,7 @@ const OWNER = "TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N";
 describe("position-list", () => {
   it("passes the owner, window and filters the service understands", async () => {
     const { service: s, positionQueries } = service();
-    await s.positionList(MAINNET, {
+    await s.positionList(NO_DEADLINE, MAINNET, {
       owner: OWNER,
       pool: `0x${V4_ID}`,
       protocol: "v4",
@@ -421,14 +454,14 @@ describe("position-list", () => {
   it("validates the owner rather than falling back to anything", async () => {
     const { service: s, positionQueries } = service();
     await expect(
-      s.positionList(MAINNET, { owner: "0xdead", limit: 20, offset: 0 }),
+      s.positionList(NO_DEADLINE, MAINNET, { owner: "0xdead", limit: 20, offset: 0 }),
     ).rejects.toMatchObject({ code: "invalid_address" });
     expect(positionQueries).toHaveLength(0);
   });
 
   it("reports the window and no ordering", async () => {
     const { service: s } = service({ positions: async () => ({ positions: [], hasMore: true }) });
-    const view = await s.positionList(MAINNET, { owner: OWNER, limit: 4, offset: 8 });
+    const view = await s.positionList(NO_DEADLINE, MAINNET, { owner: OWNER, limit: 4, offset: 8 });
     expect(view.pagination).toEqual({ offset: 8, limit: 4, total: null, hasMore: true });
     expect(view).not.toHaveProperty("query");
   });
@@ -436,7 +469,7 @@ describe("position-list", () => {
   it("refuses a window no page boundary contains", async () => {
     const { service: s } = service();
     await expect(
-      s.positionList(MAINNET, { owner: OWNER, limit: 4, offset: 5 }),
+      s.positionList(NO_DEADLINE, MAINNET, { owner: OWNER, limit: 4, offset: 5 }),
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 });
@@ -450,18 +483,20 @@ describe("the 1000-row window", () => {
 
   it("pool-list refuses it, with or without --min-tvl", async () => {
     const { service: s, poolQueries } = service();
-    await expect(s.poolList(SILENT, MAINNET, { ...poolQuery, ...past })).rejects.toMatchObject(
-      refusal,
-    );
     await expect(
-      s.poolList(SILENT, MAINNET, { ...poolQuery, ...past, minTvl: "100000" }),
+      s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, ...past }),
+    ).rejects.toMatchObject(refusal);
+    await expect(
+      s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, ...past, minTvl: "100000" }),
     ).rejects.toMatchObject(refusal);
     expect(poolQueries).toHaveLength(0);
   });
 
   it("pool-search refuses it", async () => {
     const { service: s, poolQueries, countQueries } = service();
-    await expect(s.poolSearch(MAINNET, { keyword: "TRX", ...past })).rejects.toMatchObject(refusal);
+    await expect(
+      s.poolSearch(NO_DEADLINE, MAINNET, { keyword: "TRX", ...past }),
+    ).rejects.toMatchObject(refusal);
     expect(poolQueries).toHaveLength(0);
     expect(countQueries).toHaveLength(0);
   });
@@ -469,7 +504,7 @@ describe("the 1000-row window", () => {
   it("token-list refuses it", async () => {
     const { service: s, tokenQueries } = service();
     await expect(
-      s.tokenList(MAINNET, { protocol: "ALL", orderBy: "tvl", ...past }),
+      s.tokenList(NO_DEADLINE, MAINNET, { protocol: "ALL", orderBy: "tvl", ...past }),
     ).rejects.toMatchObject(refusal);
     expect(tokenQueries).toHaveLength(0);
   });
@@ -477,20 +512,22 @@ describe("the 1000-row window", () => {
   it("token-search refuses it", async () => {
     const { service: s, tokenQueries } = service();
     await expect(
-      s.tokenSearch(MAINNET, { keyword: "USDT", protocol: "ALL", ...past }),
+      s.tokenSearch(NO_DEADLINE, MAINNET, { keyword: "USDT", protocol: "ALL", ...past }),
     ).rejects.toMatchObject(refusal);
     expect(tokenQueries).toHaveLength(0);
   });
 
   it("position-list refuses it", async () => {
     const { service: s, positionQueries } = service();
-    await expect(s.positionList(MAINNET, { owner: OWNER, ...past })).rejects.toMatchObject(refusal);
+    await expect(
+      s.positionList(NO_DEADLINE, MAINNET, { owner: OWNER, ...past }),
+    ).rejects.toMatchObject(refusal);
     expect(positionQueries).toHaveLength(0);
   });
 
   it("serves the last window that fits", async () => {
     const { service: s, poolQueries } = service();
-    await s.poolList(SILENT, MAINNET, { ...poolQuery, limit: 20, offset: 980 });
+    await s.poolList(NO_DEADLINE, SILENT, MAINNET, { ...poolQuery, limit: 20, offset: 980 });
     expect(poolQueries[0]).toMatchObject({ pageNo: 50, pageSize: 20 });
   });
 });
@@ -548,7 +585,7 @@ function scanService(universe: readonly FakePool[]) {
   const scope = { warn: (warning: unknown) => void warnings.push(warning) };
   return {
     list: (query: Partial<typeof poolQuery> & { minTvl?: string }) =>
-      new SunSwapMarketQueryService(market, tokens, ALIASES).poolList(scope, MAINNET, {
+      new SunSwapMarketQueryService(market, tokens, ALIASES).poolList(NO_DEADLINE, scope, MAINNET, {
         ...poolQuery,
         ...query,
       }),
@@ -697,5 +734,17 @@ describe("pool-list --min-tvl", () => {
       code: "invalid_value",
     });
     expect(queries).toHaveLength(0);
+  });
+});
+
+describe("prices under the command deadline", () => {
+  it("fails the read when the deadline ends the symbol lookup", async () => {
+    const expired = new DeadlineExpiredError();
+    const { service: s } = service({
+      symbols: async () => {
+        throw expired;
+      },
+    });
+    await expect(s.prices(NO_DEADLINE, MAINNET, { token: "USDT" })).rejects.toBe(expired);
   });
 });

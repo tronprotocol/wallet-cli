@@ -49,7 +49,7 @@ The reported `txId` is derived from the transaction's own bytes, never taken fro
 | `--transaction <string>` | **TRON only.** Signed TRON transaction JSON inline |
 | `--tx-stdin` | **TRON only.** Read the signed transaction JSON from stdin (fd 0) |
 | `--dry-run` | Validate **without broadcasting** — signatures, threshold, expiration and the dynamic multi-sig fee on TRON; signature, chain id, nonce and balance on EVM. Cannot be combined with `--wait` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default 60000) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 
 Plus the [global options](../index.md#global-options-every-command).
 

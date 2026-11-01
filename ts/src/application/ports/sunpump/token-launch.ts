@@ -1,4 +1,5 @@
 // The service creates the token and selects its owner; no caller signing or broadcasting.
+import type { DispatchCheck } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { SunPumpTokenRecord } from "./market-data.js";
 
@@ -18,5 +19,6 @@ export interface SunPumpTokenLaunchPort {
   launchToken(
     network: NetworkDescriptor,
     request: SunPumpTokenLaunchRequest,
+    check: DispatchCheck,
   ): Promise<SunPumpTokenRecord>;
 }

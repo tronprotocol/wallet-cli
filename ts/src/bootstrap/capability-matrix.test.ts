@@ -60,6 +60,7 @@ function matrix() {
     globals: { output: "json", verbose: false },
     secretPaths: {},
     startedAt: Date.now(),
+    monotonicStart: performance.now(),
   });
   const families = runtime.registry.capabilityKeysByFamily();
   const keys = [

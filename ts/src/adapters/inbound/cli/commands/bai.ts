@@ -192,7 +192,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
         type: "activity",
         message: "Submitting the existing transaction hash to B.AI; no new payment will be sent…",
       });
-      return service.rechargeReport(input);
+      return service.rechargeReport(ctx.deadline, input);
     },
   } satisfies CommandDefinition);
 
@@ -212,7 +212,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     examples: [{ cmd: "wallet-cli bai usage-summary" }],
     run: async (ctx) => {
       ctx.emit({ type: "activity", message: "Fetching B.AI credit balance and usage summary…" });
-      return service.usage();
+      return service.usage(ctx.deadline);
     },
   } satisfies CommandDefinition);
 
@@ -237,7 +237,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     examples: [{ cmd: "wallet-cli bai usage-records --limit 20" }],
     run: async (ctx, _network, input) => {
       ctx.emit({ type: "activity", message: "Fetching B.AI usage records…" });
-      return service.usageList(input);
+      return service.usageList(ctx.deadline, input);
     },
   } satisfies CommandDefinition);
 
@@ -254,7 +254,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     examples: [{ cmd: "wallet-cli bai recharge-orders --limit 20" }],
     run: async (context, _network, input) => {
       context.emit({ type: "activity", message: "Fetching B.AI recharge orders…" });
-      const { warnings, ...result } = await service.rechargeList(input);
+      const { warnings, ...result } = await service.rechargeList(context.deadline, input);
       for (const warning of warnings ?? []) context.warn(warning);
       return result;
     },

@@ -6,7 +6,7 @@ Sell a token back to its SunPump bonding curve for TRX.
 
 ```
 wallet-cli sunpump sell <address> --amount <tokens>
-                        [--quote | --dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                        [--quote | --dry-run | --build-only | --wait]
                         [--slippage <decimal> | --min-out <sun>] [--fee-limit <sun>] [options]
 ```
 
@@ -43,7 +43,7 @@ Before anything is approved, the account is checked: one the chain has no record
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transaction(s) in execution order — the approval first when one is needed |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--account <label\|accountId>` | Account to sell from; default the active account. Not used by `--quote` |
 | `--password-stdin` | Master password from stdin; needed only when sending |
 

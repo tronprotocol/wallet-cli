@@ -46,6 +46,7 @@ describe("help examples only use flags the command declares", () => {
       globals: { output: "text", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
+      monotonicStart: performance.now(),
     });
 
     const offenders: string[] = [];

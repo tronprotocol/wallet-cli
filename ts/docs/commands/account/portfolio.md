@@ -18,7 +18,7 @@ Three outcomes are kept distinct, because they are different claims:
 - **Test network** — priced at `0` without asking anyone. A testnet coin is not traded, so there is nothing to look up; the network declares itself a testnet rather than being guessed from its id.
 - **Unknown** — `priceUsd` / `valueUsd` are `null` (an unlisted chain, or the price source failed). `null` means "we could not find out", which is not the same as worthless. If the price source itself errored, `data.priceUnavailable` is `true` with a `priceReason`.
 
-A token whose **balance** cannot be read keeps its row rather than vanishing: `balance` / `rawBalance` are `null` and `balanceUnavailable` is `true` with a `reason`. One unreadable token never takes the whole portfolio down. `totalValueUsd` sums only the rows that could be valued.
+A token whose **balance** cannot be read keeps its row rather than vanishing: `balance` / `rawBalance` are `null` and `balanceUnavailable` is `true` with a `reason`. One unreadable token never takes the whole portfolio down. `totalValueUsd` sums only the rows that could be valued. Running out of `--timeout` is different: the command fails with `timeout` and returns no partial portfolio.
 
 ## Options
 

@@ -1,5 +1,6 @@
 // Monetary fields retain exact decimal digits.
 
+import type { DispatchCheck } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 // Service JSON passed through for display.
@@ -192,15 +193,47 @@ export interface PoolPage {
 }
 
 export interface MarketDataPort {
-  listPools(network: NetworkDescriptor, query: ListPoolsQuery): Promise<PoolPage>;
-  searchPools(network: NetworkDescriptor, query: SearchPoolsQuery): Promise<PoolPage>;
+  listPools(
+    network: NetworkDescriptor,
+    query: ListPoolsQuery,
+    check: DispatchCheck,
+  ): Promise<PoolPage>;
+  searchPools(
+    network: NetworkDescriptor,
+    query: SearchPoolsQuery,
+    check: DispatchCheck,
+  ): Promise<PoolPage>;
   // Count for the same search; null when unavailable.
-  countPools(network: NetworkDescriptor, query: SearchPoolsQuery): Promise<number | null>;
-  listTokens(network: NetworkDescriptor, query: ListTokensQuery): Promise<TokenPage>;
-  searchTokens(network: NetworkDescriptor, query: SearchTokensQuery): Promise<TokenPage>;
-  listPositions(network: NetworkDescriptor, query: ListPositionsQuery): Promise<PositionPage>;
+  countPools(
+    network: NetworkDescriptor,
+    query: SearchPoolsQuery,
+    check: DispatchCheck,
+  ): Promise<number | null>;
+  listTokens(
+    network: NetworkDescriptor,
+    query: ListTokensQuery,
+    check: DispatchCheck,
+  ): Promise<TokenPage>;
+  searchTokens(
+    network: NetworkDescriptor,
+    query: SearchTokensQuery,
+    check: DispatchCheck,
+  ): Promise<TokenPage>;
+  listPositions(
+    network: NetworkDescriptor,
+    query: ListPositionsQuery,
+    check: DispatchCheck,
+  ): Promise<PositionPage>;
   // Results may arrive in a different order from the requested addresses.
-  prices(network: NetworkDescriptor, addresses: readonly string[]): Promise<PriceRecord[]>;
+  prices(
+    network: NetworkDescriptor,
+    addresses: readonly string[],
+    check: DispatchCheck,
+  ): Promise<PriceRecord[]>;
   // Catalogue symbols are display labels, not proof of token authenticity.
-  symbols(network: NetworkDescriptor, addresses: readonly string[]): Promise<Map<string, string>>;
+  symbols(
+    network: NetworkDescriptor,
+    addresses: readonly string[],
+    check: DispatchCheck,
+  ): Promise<Map<string, string>>;
 }

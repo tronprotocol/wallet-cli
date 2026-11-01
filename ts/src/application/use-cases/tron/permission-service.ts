@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { AccountPermissionsView, NetworkDescriptor } from "../../../domain/types/index.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
@@ -28,8 +30,14 @@ export class TronPermissionService {
     private readonly pipeline: TxPipeline,
   ) {}
 
-  async show(network: NetworkDescriptor, address: string): Promise<AccountPermissionsView> {
-    const permissions = await this.gateways.get(network, "tron").getAccountPermissions(address);
+  async show(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<AccountPermissionsView> {
+    const permissions = await this.gateways
+      .get(network, "tron", requestDispatchCheck(deadline))
+      .getAccountPermissions(address);
     return annotateLocalPermissionKeys(
       permissions,
       buildLocalPermissionInventory(this.accounts.list()),
@@ -42,7 +50,7 @@ export class TronPermissionService {
     input: TransactionModeInput,
     requested: unknown,
   ) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const address = scope.resolveAddress("tron");
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const inventory = buildLocalPermissionInventory(this.accounts.list());
@@ -86,7 +94,7 @@ export class TronPermissionService {
     let resultPermissions: AccountPermissionsView | undefined;
     if (outcome.stage === "confirmed") {
       await warnOnPostCheck(scope, "permission_postcheck", async () => {
-        resultPermissions = await this.show(network, address);
+        resultPermissions = await this.show(scope.deadline, network, address);
         return canonicalPermissions(resultPermissions) === canonicalPermissions(permissions)
           ? undefined
           : "confirmed transaction permissions differ from the requested canonical structure";

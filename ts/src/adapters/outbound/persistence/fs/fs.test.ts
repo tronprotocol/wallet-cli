@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   existsSync,
   mkdirSync,
@@ -12,6 +12,8 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AtomicFileStore } from "./index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
 
 const EIO = () => Object.assign(new Error("EIO"), { code: "EIO" });
 
@@ -317,5 +319,47 @@ describe("AtomicFileStore.recoverJournal", () => {
       : ["a.json", "a.json.4242.1.tmp", "a.json.next"];
     expect(readdirSync(root).sort()).toEqual(expected);
     expect(readFileSync(join(root, "a.json"), "utf8")).toBe('"old"\n');
+  });
+});
+
+describe("AtomicFileStore.withLock under the command deadline", () => {
+  const held = () => {
+    const dir = mkdtempSync(join(tmpdir(), "wcli-lock-"));
+    const path = join(dir, "data.json");
+    // A live owner (this process) keeps the lock from being treated as stale.
+    writeFileSync(`${path}.lock`, `${process.pid}\n`);
+    return path;
+  };
+
+  it("waits for a held lock no longer than the time left, then reports timeout", () => {
+    const path = held();
+    const clock = { now: () => performance.now() };
+    const store = new AtomicFileStore(new CommandDeadline(150, clock.now(), clock));
+    const fn = vi.fn();
+    const started = Date.now();
+    expect(() => store.withLock(path, fn)).toThrow(DeadlineExpiredError);
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it("keeps the 5 s lock limit and its error when more time is left", () => {
+    const path = held();
+    const store = new AtomicFileStore(new CommandDeadline(0));
+    expect(() => store.withLock(path, () => {}, { timeoutMs: 50 })).toThrow(
+      /timed out acquiring lock/,
+    );
+  });
+
+  it("starts no write after expiry and releases the lock", () => {
+    const dir = mkdtempSync(join(tmpdir(), "wcli-lock-"));
+    const path = join(dir, "data.json");
+    const clock = { now: () => 0 };
+    const deadline = new CommandDeadline(1000, 0, clock);
+    deadline.dispose();
+    clock.now = () => 1000;
+    const fn = vi.fn();
+    expect(() => new AtomicFileStore(deadline).withLock(path, fn)).toThrow(DeadlineExpiredError);
+    expect(fn).not.toHaveBeenCalled();
+    expect(existsSync(`${path}.lock`)).toBe(false);
   });
 });

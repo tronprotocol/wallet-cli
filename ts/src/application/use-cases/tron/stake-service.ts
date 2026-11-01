@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   NetworkDescriptor,
   TronTransactionArtifact,
@@ -66,13 +68,20 @@ export class TronStakeService {
     private readonly pipeline: TxPipeline,
   ) {}
 
-  async votingPower(network: NetworkDescriptor, address: string): Promise<VotingPowerView> {
-    return readVotingPower(this.gateways.get(network, "tron"), address);
+  async votingPower(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<VotingPowerView> {
+    return readVotingPower(
+      this.gateways.get(network, "tron", requestDispatchCheck(deadline)),
+      address,
+    );
   }
 
   async info(scope: AccountScope, network: NetworkDescriptor): Promise<StakeInfoView> {
     const address = scope.resolveAddress("tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const [account, resources, withdrawableSun, remaining] = await Promise.all([
       gateway.getAccountState(address),
       gateway.getAccountResources(address),
@@ -96,7 +105,7 @@ export class TronStakeService {
     input: { direction: "out" | "in"; resource?: Resource; to?: string },
   ): Promise<StakeDelegatedView> {
     const address = scope.resolveAddress("tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const index = await gateway.getDelegatedIndexV2(address);
     const out = input.direction === "out";
     const counterparties = out ? (input.to ? [input.to] : index.toAccounts) : index.fromAccounts;
@@ -234,7 +243,7 @@ export class TronStakeService {
   ) {
     if (transactionRequiresSigner(input))
       this.pipeline.assertCanSign(scope.activeAccount, "tron", opts);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,

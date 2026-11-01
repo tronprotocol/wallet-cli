@@ -1,12 +1,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { PacedHttpTransport, RequestPacer } from "./request-pacer.js";
 import type { HttpRequest, HttpTransport } from "./index.js";
-import { withDeadline } from "./deadline.js";
+import { withDispatchCheck } from "./dispatch-context.js";
+import {
+  DeadlineExpiredError,
+  type DispatchCheck,
+} from "../../../application/contracts/deadline.js";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 const tick = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+// A check whose signal aborts after `ms` of fake time.
+const timedCheck = (ms: number): DispatchCheck => {
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(new DeadlineExpiredError()), ms);
+  return {
+    signal: controller.signal,
+    assertDispatchable: () => {
+      if (controller.signal.aborted) throw controller.signal.reason;
+    },
+  };
+};
+const withDeadline = <T>(ms: number, work: () => Promise<T>) =>
+  withDispatchCheck(timedCheck(ms), work);
 const unpaced = (maxInFlight: number) => new RequestPacer({ minIntervalMs: 0, maxInFlight });
 
 // Handle rejections while advancing the clock, then return the original promise.
@@ -135,35 +152,88 @@ describe("RequestPacer spacing", () => {
   });
 });
 
-describe("RequestPacer deadline credit", () => {
-  it("does not charge pacing against the caller's deadline", async () => {
-    const pacer = new RequestPacer({ minIntervalMs: 60, maxInFlight: 1 });
+describe("RequestPacer dispatch check", () => {
+  it("runs the check after the pacing wait, immediately before the request starts", async () => {
+    const pacer = new RequestPacer({ minIntervalMs: 50, maxInFlight: 1 });
+    const events: string[] = [];
+    let allowed = true;
+    const check: DispatchCheck = {
+      signal: new AbortController().signal,
+      assertDispatchable: () => {
+        events.push(`check@${Date.now()}`);
+        if (!allowed) throw new DeadlineExpiredError();
+      },
+    };
     const started = Date.now();
-    await settle(
-      withDeadline(100, () =>
-        Promise.all(Array.from({ length: 5 }, () => pacer.run(() => tick(5)))),
-      ),
+    await settle(pacer.run(async () => events.push("first")));
+    const second = withDispatchCheck(check, () =>
+      pacer.run(async () => {
+        events.push(`sent@${Date.now()}`);
+      }),
     );
-    expect(Date.now() - started).toBe(4 * 60 + 5);
+    await settle(second);
+    expect(events).toEqual(["first", `check@${started + 50}`, `sent@${started + 50}`]);
+
+    allowed = false;
+    let sent = 0;
+    await expect(
+      settle(withDispatchCheck(check, () => pacer.run(async () => (sent += 1)))),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(sent).toBe(0);
   });
 
-  it("survives a single pacing wait longer than the whole deadline", async () => {
+  it("does not send a request whose deadline fires during the pacing wait", async () => {
     const pacer = new RequestPacer({ minIntervalMs: 200, maxInFlight: 4 });
+    let sent = 0;
+    await settle(pacer.run(async () => "first"));
     await expect(
-      settle(
-        withDeadline(50, async () => {
-          await pacer.run(async () => "first");
-          return pacer.run(async () => "second");
-        }),
-      ),
-    ).resolves.toBe("second");
+      settle(withDeadline(50, () => pacer.run(async () => (sent += 1)))),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(sent).toBe(0);
   });
 
-  it("still lets the deadline fire on work that genuinely hangs", async () => {
-    const pacer = new RequestPacer({ minIntervalMs: 10, maxInFlight: 1 });
+  it.each([1, 4])(
+    "gives the slot of a request cancelled while pacing to the next one (maxInFlight %i)",
+    async (maxInFlight) => {
+      const pacer = new RequestPacer({ minIntervalMs: 200, maxInFlight });
+      const started = Date.now();
+      await settle(pacer.run(async () => "first"));
+      const cancelled = withDeadline(30, () => pacer.run(async () => "never"));
+      cancelled.catch(() => {});
+      await vi.advanceTimersByTimeAsync(30);
+      await expect(cancelled).rejects.toBeInstanceOf(DeadlineExpiredError);
+      const at: number[] = [];
+      await settle(Promise.all([0, 1].map(() => pacer.run(async () => at.push(Date.now())))));
+      expect(at).toEqual([started + 200, started + 400]);
+    },
+  );
+
+  it("claims no slot for a request whose deadline has passed before its timer fired", async () => {
+    const pacer = new RequestPacer({ minIntervalMs: 200, maxInFlight: 1 });
+    const expired: DispatchCheck = {
+      signal: new AbortController().signal,
+      assertDispatchable: () => {
+        throw new DeadlineExpiredError();
+      },
+    };
+    const started = Date.now();
     await expect(
-      settle(withDeadline(60, () => pacer.run(() => tick(5_000)))),
-    ).rejects.toMatchObject({ code: "timeout" });
+      withDispatchCheck(expired, () => pacer.run(async () => "never")),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    const at: number[] = [];
+    await settle(pacer.run(async () => at.push(Date.now())));
+    expect(at).toEqual([started]);
+  });
+
+  it("refuses at once when the deadline has already fired", async () => {
+    const pacer = unpaced(1);
+    const controller = new AbortController();
+    controller.abort(new DeadlineExpiredError());
+    const check = { signal: controller.signal, assertDispatchable: () => {} };
+    await expect(
+      withDispatchCheck(check, () => pacer.run(async () => "sent")),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    await expect(settle(pacer.run(async () => "later"))).resolves.toBe("later");
   });
 });
 
@@ -248,6 +318,23 @@ describe("RequestPacer abandonment", () => {
     await expect(settle(queued)).rejects.toMatchObject({ code: "timeout" });
     await settle(blocker);
     expect(sent).toBe(0);
+  });
+
+  it("drops an expired entry from the queue without using a permit", async () => {
+    const pacer = new RequestPacer({ minIntervalMs: 0, maxInFlight: 1 });
+    const order: string[] = [];
+    const blocker = pacer.run(async () => {
+      await tick(100);
+      order.push("blocker");
+    });
+    const expired = withDeadline(20, () => pacer.run(async () => order.push("expired")));
+    const next = pacer.run(async () => {
+      order.push(`next@${Date.now()}`);
+    });
+    const started = Date.now();
+    await expect(settle(expired)).rejects.toBeInstanceOf(DeadlineExpiredError);
+    await settle(Promise.all([blocker, next]));
+    expect(order).toEqual(["blocker", `next@${started + 100}`]);
   });
 
   it("frees the permit of an abandoned request, so the queue keeps draining", async () => {

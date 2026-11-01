@@ -12,7 +12,7 @@ wallet-cli sunswap add-liquidity --protocol <V2|V3|V4>
                                  [--tick-spacing <n>] [--hooks <address>] [--slippage <decimal>]
                                  [--create-pool --sqrt-price <Q64.96>]
                                  [--recipient <address>] [--deadline <timestamp>] [--fee-limit <sun>]
-                                 [--dry-run | --build-only | --wait [--wait-timeout <ms>]] [options]
+                                 [--dry-run | --build-only | --wait] [options]
 ```
 
 ## Description
@@ -87,7 +87,7 @@ Because the deposit carries its signed grant, **`--build-only` is refused** on a
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The estimate is a lower bound, so a limit set from it can fail |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transactions in execution order (`data.transactions[]` as `{purpose, tx, hex}` when there are approvals); they share a one-hour lifetime. Send each approval and wait for it to confirm before the deposit |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--account <label\|accountId>` | Account to deposit from; default the active account |
 | `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 

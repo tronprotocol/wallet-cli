@@ -30,7 +30,6 @@ import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 describe("CLI error projection", () => {
   it("spells input references as flags, including globals with their own names", () => {
     expect(flagFor("permissionId")).toBe("--permission-id");
-    expect(flagFor("waitTimeoutMs")).toBe("--wait-timeout");
     expect(flagFor("timeoutMs")).toBe("--timeout");
     expect(flagFor("wait")).toBe("--wait");
   });

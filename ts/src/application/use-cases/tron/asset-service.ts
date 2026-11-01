@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 // Inputs use whole tokens; chain quantities and returned supply amounts use minimal units.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
@@ -76,8 +78,8 @@ export class TronAssetService {
     private readonly now: () => number = () => Date.now(),
   ) {}
 
-  async info(network: NetworkDescriptor, input: AssetInfoInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async info(deadline: ExecutionDeadline, network: NetworkDescriptor, input: AssetInfoInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     if ((input.assetRef === undefined) === (input.issuer === undefined)) {
       throw new UsageError(
         "invalid_value",
@@ -92,8 +94,8 @@ export class TronAssetService {
     return { kind: "asset-info" as const, ...assetView(asset) };
   }
 
-  async list(network: NetworkDescriptor, input: AssetListInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async list(deadline: ExecutionDeadline, network: NetworkDescriptor, input: AssetListInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const assets = await gateway.listAssets(input.limit, input.offset);
     return {
       kind: "asset-list" as const,
@@ -110,7 +112,7 @@ export class TronAssetService {
 
   async issue(scope: TransactionScope, network: NetworkDescriptor, input: AssetIssueInput) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
 
     const precision = trc10Precision(input.precision ?? 0);
@@ -205,7 +207,7 @@ export class TronAssetService {
 
   async update(scope: TransactionScope, network: NetworkDescriptor, input: AssetUpdateInput) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     if (
       input.description === undefined &&
@@ -264,7 +266,7 @@ export class TronAssetService {
     input: AssetParticipateInput,
   ) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     const asset = await this.#resolveAsset(gateway, input.assetRef);
     if (!asset) throw new ChainError("asset_not_found", `no TRC10 matches ${input.assetRef}`);
@@ -321,7 +323,7 @@ export class TronAssetService {
 
   async unfreeze(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     const asset = await this.#requireOwnAsset(gateway, owner);
 

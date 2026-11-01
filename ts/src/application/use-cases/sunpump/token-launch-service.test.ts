@@ -1,4 +1,6 @@
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, expect, it } from "vitest";
+import { ChainError } from "../../../domain/errors/index.js";
 import { SunPumpTokenLaunchService } from "./token-launch-service.js";
 import type { SunPumpTokenRecord } from "../../ports/sunpump/market-data.js";
 import type {
@@ -6,6 +8,8 @@ import type {
   SunPumpTokenLaunchRequest,
 } from "../../ports/sunpump/token-launch.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const MAINNET = {
   id: "tron:728126428",
@@ -59,7 +63,7 @@ const BASE = { name: "Test Token", symbol: "TST", description: "demo" };
 describe("creating a token", () => {
   it("sends exactly the options it was given", async () => {
     const { sent, service } = port();
-    await service.launch(MAINNET, {
+    await service.launch(NO_DEADLINE, MAINNET, {
       ...BASE,
       image: { source: "base64", base64: "QUJDRA==" },
       twitterUrl: "https://x.com/example",
@@ -82,20 +86,20 @@ describe("creating a token", () => {
 
   it("omits what was not given rather than sending it empty", async () => {
     const { sent, service } = port();
-    await service.launch(MAINNET, { ...BASE, dryRun: false });
+    await service.launch(NO_DEADLINE, MAINNET, { ...BASE, dryRun: false });
     expect(sent).toEqual([{ name: "Test Token", symbol: "TST", description: "demo" }]);
   });
 
   it("publishes the token the service answered with", async () => {
     const { service } = port();
-    const view = await service.launch(MAINNET, { ...BASE, dryRun: false });
+    const view = await service.launch(NO_DEADLINE, MAINNET, { ...BASE, dryRun: false });
     expect(view).toEqual({ kind: "sunpump-launch", token: TOKEN });
   });
 });
 
 describe("--dry-run", () => {
   it("sends nothing to the create endpoint", async () => {
-    const view = await unreachable.launch(MAINNET, { ...BASE, dryRun: true });
+    const view = await unreachable.launch(NO_DEADLINE, MAINNET, { ...BASE, dryRun: true });
     expect(view).toEqual({
       kind: "sunpump-launch",
       mode: "dry-run",
@@ -106,7 +110,7 @@ describe("--dry-run", () => {
   });
 
   it("previews the file logo by path and size, and the links that were given", async () => {
-    const view = await unreachable.launch(MAINNET, {
+    const view = await unreachable.launch(NO_DEADLINE, MAINNET, {
       ...BASE,
       image: { source: "file", path: "./logo.png", bytes: 12_345, base64: "QUJDRA==" },
       websiteUrl: "https://example.com",
@@ -125,7 +129,7 @@ describe("--dry-run", () => {
   });
 
   it("previews a base64 logo by its length, with no path", async () => {
-    const view = await unreachable.launch(MAINNET, {
+    const view = await unreachable.launch(NO_DEADLINE, MAINNET, {
       ...BASE,
       image: { source: "base64", base64: "QUJDRA==" },
       dryRun: true,
@@ -135,8 +139,36 @@ describe("--dry-run", () => {
   });
 
   it("omits links entirely when none were given", async () => {
-    const view = await unreachable.launch(MAINNET, { ...BASE, dryRun: true });
+    const view = await unreachable.launch(NO_DEADLINE, MAINNET, { ...BASE, dryRun: true });
     expect(view).not.toHaveProperty("links");
     expect(view).not.toHaveProperty("image");
+  });
+});
+
+describe("SunPump launch under the command deadline", () => {
+  it("refuses the launch below the admission reserve with an ordinary timeout", async () => {
+    const deadline = new CommandDeadline(1999);
+    const { sent, service } = port();
+
+    await expect(
+      service.launch(deadline, MAINNET, { ...BASE, dryRun: false }),
+    ).rejects.toMatchObject({
+      code: "timeout",
+    });
+    expect(sent).toHaveLength(0);
+    deadline.dispose();
+  });
+
+  it("keeps the outcome-unknown error once the launch was dispatched", async () => {
+    const unknown = new ChainError("launch_outcome_unknown", "SunPump did not answer in time");
+    const service = new SunPumpTokenLaunchService({
+      launchToken: async () => {
+        throw unknown;
+      },
+    });
+
+    await expect(service.launch(NO_DEADLINE, MAINNET, { ...BASE, dryRun: false })).rejects.toBe(
+      unknown,
+    );
   });
 });

@@ -87,6 +87,7 @@ describe("every registered exclusive group", () => {
       globals: { output: "json", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
+      monotonicStart: performance.now(),
     }).registry;
     return registry.all().flatMap((cmd) => {
       if (!isChainCommand(cmd)) {
@@ -109,6 +110,7 @@ describe("every registered exclusive group", () => {
       globals: { output: "json", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
+      monotonicStart: performance.now(),
     }).registry;
     const modeFields = ["dryRun", "signOnly", "buildOnly"];
     let checked = 0;

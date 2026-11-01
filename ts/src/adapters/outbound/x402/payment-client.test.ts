@@ -8,6 +8,12 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { errorEnvelope } from "../../inbound/cli/output/errors.js";
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const signer = {
   kind: "software",
@@ -25,7 +31,7 @@ const net = {
 } as NetworkDescriptor;
 const scope = {
   activeAccount: "acc_1",
-  timeoutMs: 1000,
+  deadline: new CommandDeadline(0),
   emit: vi.fn(),
 } as never;
 
@@ -915,6 +921,7 @@ describe("settlement receipt normalization", () => {
       scope,
       net,
       { url: "https://api.example/free", method: "GET", headers: [] },
+      NO_CHECK,
     );
     expect(resource).toMatchObject({ kind: "response", result: { paymentResponse: receipt } });
     expect(resource.kind === "response" && resource.result.settlement).toEqual(settlement);

@@ -3,6 +3,8 @@ import { SecretResolver } from "./index.js";
 import { Prompter, type PromptBackend, type KeyEvent } from "../prompt/index.js";
 import { StreamManager } from "../../stream/index.js";
 
+const SIGNAL = new AbortController().signal;
+
 function streams(stdin = ""): StreamManager {
   const sm = new StreamManager(
     "text",
@@ -10,7 +12,7 @@ function streams(stdin = ""): StreamManager {
     () => {},
     () => {},
   );
-  vi.spyOn(sm, "readStdinOnce").mockReturnValue(stdin);
+  vi.spyOn(sm, "readStdinOnce").mockResolvedValue(stdin);
   return sm;
 }
 
@@ -69,6 +71,7 @@ describe("primePassword", () => {
       { password: "-" },
       new Prompter(new Backend([])),
     );
+    await r.loadStdin(SIGNAL);
     await expect(r.primePassword({ mode: "set" })).rejects.toMatchObject({ code: "weak_password" });
   });
   it("verify mode via --password-stdin just caches", async () => {
@@ -77,6 +80,7 @@ describe("primePassword", () => {
       { password: "-" },
       new Prompter(new Backend([])),
     );
+    await r.loadStdin(SIGNAL);
     await r.primePassword({ mode: "verify", verify: () => true });
     expect(r.masterPassword()).toBe(PW);
   });
@@ -86,6 +90,7 @@ describe("primePassword", () => {
       { password: "-" },
       new Prompter(new Backend([])),
     );
+    await r.loadStdin(SIGNAL);
     await expect(
       r.primePassword({ mode: "verify", verify: (pw) => pw === PW }),
     ).rejects.toMatchObject({ code: "auth_failed" });
@@ -141,15 +146,19 @@ describe("primePassword reuses an already-primed password", () => {
 });
 
 describe("SecretResolver --api-key-stdin", () => {
-  // Creating process.stdin makes fd 0 nonblocking and can cause EAGAIN on delayed pipes.
-  it("reads the key without creating process.stdin", () => {
-    const getter = vi.spyOn(process, "stdin", "get");
-    try {
-      const r = new SecretResolver(streams("sk-test\n"), { apiKey: "-" });
-      expect(r.read("apiKey")).toBe("sk-test");
-      expect(getter).not.toHaveBeenCalled();
-    } finally {
-      getter.mockRestore();
-    }
+  it("reads the key from stdin once, before the synchronous read", async () => {
+    const sm = streams("sk-test\n");
+    const r = new SecretResolver(sm, { apiKey: "-" });
+    expect(() => r.read("apiKey")).toThrow("no data available on stdin");
+    await r.loadStdin(SIGNAL);
+    await r.loadStdin(SIGNAL);
+    expect(r.read("apiKey")).toBe("sk-test");
+    expect(sm.readStdinOnce).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not touch stdin when no secret comes from it", async () => {
+    const sm = streams("ignored");
+    await new SecretResolver(sm, {}).loadStdin(SIGNAL);
+    expect(sm.readStdinOnce).not.toHaveBeenCalled();
   });
 });

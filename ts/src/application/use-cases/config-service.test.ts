@@ -4,7 +4,7 @@ import type { ConfigDocumentRepository } from "../ports/config-document-reposito
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import type { Config } from "../../domain/types/index.js";
 
-const effective = { timeoutMs: 60_000, waitTimeoutMs: 60_000, networks: {} } as unknown as Config;
+const effective = { timeoutMs: 90_000, networks: {} } as unknown as Config;
 const networks = {} as NetworkRegistry;
 
 function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
@@ -16,53 +16,34 @@ function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
 }
 
 describe("ConfigService timeoutMs validation", () => {
-  it("rejects a non-positive timeoutMs (0ms bound aborts instantly)", () => {
+  it.each(["-5", "1.5", "", "1e3", "abc", "2147483648"])("rejects %j", (value) => {
     const { svc, update } = service();
-    expect(() => svc.execute({ key: "timeoutMs", value: "0" }, effective, networks)).toThrow(
-      /timeoutMs must be a number >= 1/,
+    expect(() => svc.execute({ key: "timeoutMs", value }, effective, networks)).toThrow(
+      /timeoutMs must be an integer from 0 to 2147483647/,
     );
-    expect(() => svc.execute({ key: "timeoutMs", value: "-5" }, effective, networks)).toThrow();
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("accepts a positive timeoutMs", () => {
+  it.each([
+    ["0", 0],
+    ["5000", 5000],
+    ["2147483647", 2147483647],
+  ])("accepts %s", (value, stored) => {
     const { svc } = service();
-    expect(svc.execute({ key: "timeoutMs", value: "5000" }, effective, networks)).toMatchObject({
+    expect(svc.execute({ key: "timeoutMs", value }, effective, networks)).toMatchObject({
       key: "timeoutMs",
-      value: 5000,
+      value: stored,
     });
   });
 });
 
 describe("ConfigService waitTimeoutMs", () => {
-  it("shows waitTimeoutMs in the full view and single-key read", () => {
-    const { svc } = service();
-    expect(svc.execute({}, effective, networks)).toMatchObject({ waitTimeoutMs: 60_000 });
-    expect(svc.execute({ key: "waitTimeoutMs" }, effective, networks)).toMatchObject({
-      key: "waitTimeoutMs",
-      value: 60_000,
-    });
-  });
-
-  it("accepts 0 and positive integers, rejects negatives and non-numbers", () => {
+  it("is an unknown key for reads and writes", () => {
     const { svc, update } = service();
-    expect(svc.execute({ key: "waitTimeoutMs", value: "0" }, effective, networks)).toMatchObject({
-      key: "waitTimeoutMs",
-      value: 0,
-    });
-    expect(
-      svc.execute({ key: "waitTimeoutMs", value: "120000" }, effective, networks),
-    ).toMatchObject({
-      key: "waitTimeoutMs",
-      value: 120000,
-    });
-    expect(() => svc.execute({ key: "waitTimeoutMs", value: "-1" }, effective, networks)).toThrow(
-      /non-negative/,
-    );
-    expect(() => svc.execute({ key: "waitTimeoutMs", value: "abc" }, effective, networks)).toThrow(
-      /non-negative/,
-    );
-    expect(update).toHaveBeenCalledTimes(2);
+    expect(svc.execute({}, effective, networks)).not.toHaveProperty("waitTimeoutMs");
+    expect(() => svc.execute({ key: "waitTimeoutMs" }, effective, networks)).toThrow();
+    expect(() => svc.execute({ key: "waitTimeoutMs", value: "0" }, effective, networks)).toThrow();
+    expect(update).not.toHaveBeenCalled();
   });
 });
 

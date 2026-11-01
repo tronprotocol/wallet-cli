@@ -3,6 +3,7 @@ import { TypedDataService } from "./typed-data-service.js";
 import type { SignerResolver } from "../services/signer/index.js";
 import { SigningService } from "../services/signing/signing-service.js";
 import type { Signer, TypedDataPayload } from "../../domain/types/index.js";
+import { CommandDeadline } from "../services/command-deadline.js";
 
 const MAINNET = { id: "tron:728126428", family: "tron", chainId: "728126428" } as never;
 const NILE = { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as never;
@@ -23,7 +24,7 @@ function serviceWith(signer: Partial<Signer>, assertCanSign = () => {}) {
 }
 
 const scope = () => ({
-  timeoutMs: 100,
+  deadline: new CommandDeadline(0),
   warnings: [] as string[],
   events: [] as unknown[],
   emit(e: unknown) {

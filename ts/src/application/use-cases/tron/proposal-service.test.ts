@@ -7,6 +7,9 @@ import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/i
 import { TronProposalService } from "./proposal-service.js";
 import { isUserMessage } from "../../../domain/errors/index.js";
 import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -20,9 +23,9 @@ const OTHER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
@@ -87,7 +90,7 @@ describe("TronProposalService", () => {
     });
 
     await expect(
-      service.list(NET, { state: "active", offset: 1, limit: 1 }),
+      service.list(NO_DEADLINE, NET, { state: "active", offset: 1, limit: 1 }),
     ).resolves.toMatchObject({
       approvalThreshold: 18,
       pagination: { offset: 1, limit: 1, total: 2 },

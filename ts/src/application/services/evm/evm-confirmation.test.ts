@@ -2,16 +2,16 @@ import { describe, it, expect, vi } from "vitest";
 import { evmConfirmation } from "./evm-confirmation.js";
 import type { EvmGateway } from "../../ports/chain/evm/evm-gateway.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
+import { CommandDeadline } from "../command-deadline.js";
 
 const HASH = `0x${"ab".repeat(32)}`;
 
-function scope(waitTimeoutMs = 50): TransactionScope {
+function scope(limitMs = 50): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => "0xADDR",
-    timeoutMs: 1000,
+    deadline: new CommandDeadline(limitMs),
     wait: true,
-    waitTimeoutMs,
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -92,19 +92,16 @@ describe("evmConfirmation", () => {
 });
 
 describe("evmConfirmation bounds each poll by the wait budget", () => {
-  it("passes the remaining budget to the node call and ends the wait when it aborts", async () => {
-    const signals: Array<AbortSignal | undefined> = [];
+  it("ends the wait at the deadline even when the node call never settles", async () => {
+    let calls = 0;
     const gateway = {
-      getTransactionReceipt: (_hash: string, signal?: AbortSignal) => {
-        signals.push(signal);
-        return new Promise((_resolve, reject) =>
-          signal?.addEventListener("abort", () => reject(new Error("aborted"))),
-        );
+      getTransactionReceipt: () => {
+        calls += 1;
+        return new Promise(() => {});
       },
     } as unknown as EvmGateway;
 
     expect(await evmConfirmation(gateway, scope(30))(HASH)).toBeUndefined();
-    expect(signals).toHaveLength(1);
-    expect(signals[0]?.aborted).toBe(true);
+    expect(calls).toBe(1);
   });
 });

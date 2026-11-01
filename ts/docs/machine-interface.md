@@ -11,9 +11,21 @@ wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account 
 - Always pass `-o json`. Text output is for humans and carries no stability promise.
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
 - Long-running `x402` and `bai` commands also report progress on stderr: `⏳ …` lines in text mode, and one `{"type":"activity","message":"…"}` line per step in JSON mode. They are informational — ignore them or show them to a user, but never parse them for the outcome.
-- Every RPC / device call is bounded by `--timeout` (milliseconds, default `config.timeoutMs`, built-in 60000).
+- `--timeout <ms>` is one deadline for the whole command; see [Time limit](#time-limit---timeout).
 - `--network` takes a canonical **CAIP-2** id (`tron:3448148188`, `eip155:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). The namespace is not the chain family: `eip155` addresses the `evm` family. Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
 - The TRON ids used before CAIP-2 (`tron:mainnet`, `tron:nile`, `tron:shasta`) remain permanent aliases, so existing invocations keep working. **Output is a different matter**: `chain.network`, `chain.chainId`, the `networks` listing's `id`, and the `config` keys all report the CAIP-2 id now, so a consumer that string-matches or keys a map by `tron:nile` must be updated.
+
+### Time limit (`--timeout`)
+
+`--timeout <ms>` limits the whole command, from start to the result envelope. It is an integer from 0 to 2147483647; the default is `config.timeoutMs`, built-in 90000. `0` means no limit: every node, service and device call is then unbounded, except the ERC-8004 metadata fetch, which keeps its own 10 s cap.
+
+- **What counts.** Every node, service and device call, polling under `--wait`, approvals, on-device confirmation on a Ledger, and reading a `*-stdin` flag. A `*-stdin` read starts before the command runs, also when stdin is a terminal (end it with Ctrl-D). Time spent waiting for input at an interactive TTY prompt (`create`, `import`, `backup`, `change-password`, `delete`) does not count.
+- **Out of time.** The command fails with `timeout` (exit `1`). A read returns no partial result: optional data that a command otherwise leaves out when it is unavailable (prices, token metadata, ERC-8004 metadata, witness lists, brokerage, block numbers and times, a dry run's nonce and balance checks) also ends the command with `timeout`.
+- **Before a write is sent.** A transaction, payment or service submission is not started with less than 2000 ms left; it fails with `timeout` and no `error.details.txId`, and nothing was sent. A finite `--timeout` below 2000 can read and build, but never submits.
+- **After a write is sent.** A signed transaction whose reply is lost fails with `timeout`, `rpc_error` or `invalid_node_response`, with the transaction's id in `error.details.txId`; check it with `tx status` before sending again. A transaction that was accepted while `--wait` was still polling returns exit `0` with `stage: "submitted"`, its `txId`, and a warning. A read after an accepted write that runs out of time adds a warning and keeps the result (for example `proposal create --wait` when the new proposal's id was not read).
+- **Commands with their own outcome.** GasFree, TronLink, x402, B.AI and SunPump report an interrupted submission as described in [Out of time after a submission](#out-of-time-after-a-submission). `tx multisig --watch` fails with `timeout` at the deadline; pass `--timeout 0` to watch until stopped. `x402 serve` applies the limit to start-up and then to each request; see [`x402 serve`](commands/x402/serve.md).
+- **Local work.** Waiting for a file lock takes at most 5 s and never past the deadline, and no write starts after it. A write that has started finishes and reports its real result. Key derivation for the master password cannot be interrupted, so a command can end later than its deadline by the time that takes.
+- **Delivery.** The process ends after the result has been written to stdout. A reader that never reads the pipe can delay that; the deadline limits the command's work, not delivery to an unread pipe.
 
 ### Discovery
 
@@ -240,7 +252,7 @@ Common codes at exit **1** (execution — runtime failure):
 |---|---|
 | `rpc_error` | The node rejected or failed the request — a TRON API call, or a JSON-RPC method such as `eth_estimateGas` |
 | `invalid_node_response` | The node answered, but its answer contradicts the request or the protocol: a TRC10 or exchange record carrying an id other than the one asked for, a `precision` outside 0–6 or a rate that is not a positive int32, a JSON-RPC reply with neither a `result` nor an `error` field, or no latest block. These values decide signed amounts, so the command stops instead of acting on them; list reads drop the offending record and keep the page |
-| `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
+| `timeout` | The command's time limit (`--timeout`) ran out, or a node, service or device did not answer in time. A transaction that may have been sent carries its id in `error.details.txId` |
 | `auth_required` | A required credential was unavailable — a software master password, or Ledger app/device readiness |
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
@@ -313,8 +325,21 @@ A failed payment carries extra fields in `error.details` so a script can tell wh
 | `retryPayment` | `false` means do **not** pay again to recover. It overrides the code's generic `retry` value |
 | `candidateTxHash` / `candidateNetwork` | A transaction that may be the payment. Evidence for reconciliation, not proof of payment |
 | `approval` | TRON: the one-time Permit2 approve that was signed before the failure — `{txId, token, spender, allowance, feeLimitSun, status}` with `status` `confirmed` (mined before the payment was signed) or `exported` (signed into the payment package for the endpoint to sponsor). When the approve itself fails after it was sent, `error.details.txId` carries its transaction ID instead. It is not the payment; do not report it as one. A `paymentStatus: "not_sent"` beside it means the allowance exists on chain but no payment authorization was produced |
+| `orderId` | `bai recharge`: B.AI's id of the order created before the payment, when B.AI returned one |
 
 **Treat `paymentStatus: "unknown"` as possibly paid.** For example, an `exact` payment from an account with no token balance currently fails as `provider_error` with `phase: "create_payment"` and `paymentStatus: "unknown"`, even though nothing was sent.
+
+### Out of time after a submission
+
+These commands do not submit a chain transaction of their own, so a deadline that ends after their submission is reported this way:
+
+| Command | Result |
+|---|---|
+| `gasfree transfer` | The provider accepted the transfer but `--wait` ran out: exit `0`, the submitted receipt with its `traceId`, and a warning. The reply to the submission was lost: `timeout` or `provider_error` with `paymentStatus: "unknown"`, `retryPayment: false`, and `network`, `serviceProvider`, `owner`, `from` (the GasFree address), `to`, `token`, `tokenAddress`, `amount`, `authorizedMaxFee`, `nonce`, `deadline` (the authorization's expiry, unix seconds), and `permitDigest` in `error.details`. No `traceId` is known and the signature is not included. The CLI does not look the transfer up afterwards: compare the `nonce` that [`gasfree info`](commands/gasfree/info.md) reports with `details.nonce` before you transfer again |
+| `tx multisig --create` / `--sign` | The reply to the TronLink submission was lost: the error adds `txId` (when the transaction has one), `address`, `network` and `outcome: "unknown"` to `error.details`, with a warning to inspect the address's existing collection before submitting again |
+| `x402 pay`, `x402 roundtrip` | No paid request is sent with less than 2000 ms left (`timeout`, `phase: "payment_request"`, `retryPayment: false`). A limit that ends while the payment is being created — node reads, GasFree relay reads, signing — fails with `timeout` and `phase` `create_payment` or `sign`, and no request of the payment starts after it. An interrupted payment carries the [payment details](#x402-and-bai-payment-details) above |
+| `bai recharge` | The time ran out after the payment and before it was reported to B.AI: exit `0` with `creditStatus: "unconfirmed"`, the `txHash`, `retryPayment: false`, `code: "timeout"`, and a warning to report it with `bai report-recharge`. Do not pay again |
+| `sunpump launch` | A launch request that may have reached SunPump fails with `launch_outcome_unknown`; see [`sunpump launch`](commands/sunpump/launch.md) |
 
 ### `error.details.matches`
 
@@ -364,7 +389,7 @@ This is a wallet; a wrong success check loses money. The rules:
 
    The same applies to an Agent id: `8004 register` puts the requested `uri` in `data.identity` at once, and adds `identity.agentId` (a decimal string) only when a confirmed registration event can be read. `8004 update` reports `identity.agentId`, `oldURI` and `requestedURI`, plus `newURI` after confirmation; `8004 transfer` reports `agentId`, `oldOwner` and `requestedOwner`, plus `newOwner` after confirmation. `8004 approve` reports `agentId` and `operator` (the zero address for `--revoke`). `8004 add-operator` and `remove-operator` report `operator` and `requestedApproval`, plus `approved` — read back from the registry — after confirmation.
 
-2. To block until the outcome is known, pass `--wait` (polls until confirmed/failed, capped by `--wait-timeout`, default 60000 ms; on cap it returns the submitted receipt).
+2. To block until the outcome is known, pass `--wait`. It polls until the transaction is confirmed or failed, within the command's [time limit](#time-limit---timeout); when the time runs out first it returns the submitted receipt with a warning. With `--timeout 0` it polls until there is an outcome, which for an EVM transaction that is never mined means indefinitely.
 
    **A `--wait` receipt reports the transaction outcome in `data.stage`, never in `success`.** A transaction that was accepted, mined, and then reverted is a *successful command* carrying a *failed transaction*: the envelope stays `success: true` and the exit code stays `0`, while `data.stage` is `"failed"`. Exit codes say whether the CLI could carry out the request, not whether the chain accepted the result — so after any `--wait`, branch on `data.stage` (`confirmed` / `failed` / `submitted`) before recording the operation as done.
 
@@ -422,7 +447,7 @@ exit 1
 
 4. **Batch operations**: each command is one transaction with one exit code — except the ones in rule 5. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.
 
-5. **A command may send several transactions.** The `sunswap` liquidity commands, a router `sunswap swap` that spends a token, and a first `sunpump sell` approve before they act, and the approval must be on chain before the call that spends it. Each approval's txid is in `data.approvalTxIds`, in the order sent, beside the main `txId`. Approvals always wait for confirmation, even without `--wait` (which governs only the main transaction); each waits up to `--wait-timeout` (default 60000 ms), so several approvals lengthen the run, and one that does not confirm in time stops the command with `timeout` (exit 1) before the next step. If a later step fails — a confirmation timeout, another approval, the Permit2 signature, or the main call — the original error code is kept and `error.details.approvalTxIds` lists the approvals already submitted (text errors list them too). They are separate transactions and are not rolled back; a listed id records submission, not success, so check its receipt before retrying. Re-running is safe: an allowance that already suffices is not approved again.
+5. **A command may send several transactions.** The `sunswap` liquidity commands, a router `sunswap swap` that spends a token, and a first `sunpump sell` approve before they act, and the approval must be on chain before the call that spends it. Each approval's txid is in `data.approvalTxIds`, in the order sent, beside the main `txId`. Approvals always wait for confirmation, even without `--wait` (which governs only the main transaction). The approvals and the main transaction share the command's [time limit](#time-limit---timeout); an approval that does not confirm in time stops the command with `timeout` (exit 1) before the next step. If a later step fails — a confirmation timeout, another approval, the Permit2 signature, or the main call — the original error code is kept and `error.details.approvalTxIds` lists the approvals already submitted (text errors list them too). They are separate transactions and are not rolled back; a listed id records submission, not success, so check its receipt before retrying. Re-running is safe: an allowance that already suffices is not approved again.
 
 6. **One command writes without a transaction of ours.** `sunpump launch` asks SunPump to create a token; the service signs it, pays for it and chooses its owner. So there is no `stage`, no `confirmed`, no fee and no `--wait` — and `data.token.owner` is the creator the service picked, **not** the local account. Its `createTxHash` is the service's own: use `tx info` to find out whether it is on chain yet. A refusal from that service is `provider_error` (exit `1`), including a name or symbol it will not accept.
 

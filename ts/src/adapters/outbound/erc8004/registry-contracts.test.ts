@@ -1,3 +1,4 @@
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { Interface } from "ethers";
 import { registryContracts } from "./registry-contracts.js";
@@ -6,7 +7,9 @@ import type { AgentContractPorts } from "../../../application/ports/agent-regist
 import type { NetworkDescriptor, TxReceiptView } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 
-const scope = {} as TransactionScope;
+const NO_DEADLINE = new CommandDeadline(0);
+
+const scope = { deadline: NO_DEADLINE } as unknown as TransactionScope;
 const network = { id: "eip155:56", family: "evm", chainId: "56" } as NetworkDescriptor;
 const nonexistent = new Interface([
   "error ERC721NonexistentToken(uint256 tokenId)",
@@ -49,10 +52,12 @@ describe("registryContracts", () => {
   it("forwards reads and successful writes", async () => {
     const { inner, call } = ports(undefined);
     const wrapped = registryContracts(inner);
-    await expect(wrapped.evm.call(network, "0xc", "ownerOf(uint256)", [])).resolves.toEqual({
+    await expect(
+      wrapped.evm.call(NO_DEADLINE, network, "0xc", "ownerOf(uint256)", []),
+    ).resolves.toEqual({
       result: "0x01",
     });
-    expect(call).toHaveBeenCalledWith(network, "0xc", "ownerOf(uint256)", []);
+    expect(call).toHaveBeenCalledWith(NO_DEADLINE, network, "0xc", "ownerOf(uint256)", []);
     inner.evm.send = vi.fn(async () => ({ stage: "submitted" }) as TxReceiptView);
     await expect(wrapped.evm.send(scope, network, {} as never)).resolves.toEqual({
       stage: "submitted",

@@ -7,6 +7,9 @@ import type { TronAsset, TronExchange, TronGateway } from "../../ports/chain/tro
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { isUserMessage } from "../../../domain/errors/index.js";
 import { cliMessage, errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -23,9 +26,9 @@ const warnings: string[] = [];
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: (m) => {
     warnings.push(typeof m === "string" ? m : isUserMessage(m) ? cliMessage(m).message : "");
@@ -291,7 +294,7 @@ describe("exchange trade", () => {
 describe("exchange show / list", () => {
   it("resolves both sides for a single pair", async () => {
     const svc = service({ getExchangeById: async () => pool() });
-    await expect(svc.show(NET, { id: 12 })).resolves.toMatchObject({
+    await expect(svc.show(NO_DEADLINE, NET, { id: 12 })).resolves.toMatchObject({
       exchangeId: 12,
       pair: "TRX:1000123",
       firstTokenLabel: "TRX",
@@ -305,7 +308,7 @@ describe("exchange show / list", () => {
     const listExchanges = vi.fn(async () => [pool()]);
     const getAssetById = vi.fn(async () => MYTOKEN);
     const svc = service({ listExchanges, getAssetById });
-    await expect(svc.list(NET, { limit: 10, offset: 0 })).resolves.toMatchObject({
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 10, offset: 0 })).resolves.toMatchObject({
       exchanges: [{ exchangeId: 12, pair: "TRX:1000123" }],
       pagination: { offset: 0, limit: 10 },
     });

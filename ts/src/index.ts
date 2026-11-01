@@ -1,10 +1,3 @@
-import { main } from "./bootstrap/runner.js";
-import { reportFatal } from "./adapters/inbound/cli/output/fatal.js";
+import { runProcess } from "./bootstrap/runner.js";
 
-main(process.argv)
-  .then((code) => {
-    process.exitCode = code;
-  })
-  .catch((e) => {
-    process.exitCode = reportFatal(e);
-  });
+void runProcess(process.argv);

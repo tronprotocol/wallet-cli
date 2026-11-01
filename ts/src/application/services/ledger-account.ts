@@ -1,3 +1,4 @@
+import type { ExecutionDeadline } from "../contracts/deadline.js";
 import type { ChainFamily } from "../../domain/types/index.js";
 import type { PromptPort } from "../ports/prompt.js";
 import { Derivation } from "../../domain/derivation/index.js";
@@ -18,6 +19,7 @@ const BIP32_PATH = /^m(?:\/\d+'?){2,6}$/;
 const BIP44_HEAD = /^m\/44'\/(\d+)'\//;
 
 export async function resolveLedgerPath(
+  deadline: ExecutionDeadline,
   ledger: LedgerDevice,
   family: ChainFamily,
   locator: LedgerLocator,
@@ -46,7 +48,10 @@ export async function resolveLedgerPath(
     const wanted = canonicalAddress(locator.address);
     for (let index = 0; index < limit; index++) {
       const path = Derivation.ledgerPath(family, index);
-      const found = await ledger.getAddress(family, path, { display: false });
+      const found = await ledger.getAddress(family, path, {
+        display: false,
+        signal: deadline.signal,
+      });
       if (canonicalAddress(found) === wanted) return path;
     }
     throw new WalletError(
@@ -58,6 +63,7 @@ export async function resolveLedgerPath(
 }
 
 export async function selectLedgerPath(
+  deadline: ExecutionDeadline,
   ledger: LedgerDevice,
   family: ChainFamily,
   prompt: PromptPort,
@@ -70,7 +76,10 @@ export async function selectLedgerPath(
     const end = nextIndex + pageSize;
     for (; nextIndex < end; nextIndex++) {
       const path = Derivation.ledgerPath(family, nextIndex);
-      const address = await ledger.getAddress(family, path, { display: false });
+      const address = await ledger.getAddress(family, path, {
+        display: false,
+        signal: deadline.signal,
+      });
       // Show the derivation scheme so users can recognize accounts outside this template.
       choices.push({ value: path, label: `[${nextIndex}] ${address}  ${path}` });
     }

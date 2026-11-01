@@ -3,6 +3,13 @@ import { openSync, closeSync } from "node:fs";
 import { ReadStream, isatty } from "node:tty";
 import * as readline from "node:readline";
 import { ExecutionError } from "../../../../../domain/errors/index.js";
+import type {
+  DeadlinePause,
+  ExecutionDeadline,
+} from "../../../../../application/contracts/deadline.js";
+
+// The command deadline as the prompter sees it.
+export type PromptClock = DeadlinePause & Pick<ExecutionDeadline, "assertActive">;
 
 export type KeyEvent = { name?: string; ctrl?: boolean; sequence?: string };
 export interface Choice<T> {
@@ -27,7 +34,32 @@ export class Prompter {
   #renderedSelectLines = 0;
   #interactive = true;
 
-  constructor(private readonly be: PromptBackend) {}
+  // The clock stops only while waiting for the human's answer, not for validation or later work.
+  // No prompt opens once the deadline has expired.
+  constructor(
+    private readonly be: PromptBackend,
+    private readonly clock?: PromptClock,
+  ) {}
+
+  async #question(prompt: string, hidden: boolean): Promise<string> {
+    this.clock?.assertActive();
+    const resume = this.clock?.pause();
+    try {
+      return await this.be.question(prompt, hidden);
+    } finally {
+      resume?.();
+    }
+  }
+
+  async #readKey(): Promise<KeyEvent> {
+    this.clock?.assertActive();
+    const resume = this.clock?.pause();
+    try {
+      return await this.be.readKey();
+    } finally {
+      resume?.();
+    }
+  }
 
   // Disable isTTY for commands that must fail instead of prompting.
   setInteractive(allowed: boolean): void {
@@ -44,7 +76,7 @@ export class Prompter {
 
   async text(o: { label: string; validate?: (v: string) => string | null }): Promise<string> {
     for (;;) {
-      const v = (await this.be.question(`${color("cyan", "?")} ${o.label}: `, false)).trim();
+      const v = (await this.#question(`${color("cyan", "?")} ${o.label}: `, false)).trim();
       const err = o.validate?.(v);
       if (err) {
         this.be.write(`${color("red", "  x")} ${err}\n`);
@@ -61,14 +93,14 @@ export class Prompter {
     validate?: (v: string) => string | null;
   }): Promise<string> {
     for (;;) {
-      const v = await this.be.question(`${color("cyan", "?")} ${o.label}: `, true);
+      const v = await this.#question(`${color("cyan", "?")} ${o.label}: `, true);
       const err = o.validate?.(v);
       if (err) {
         this.be.write(`${color("red", "  x")} ${err}\n`);
         continue;
       }
       if (o.confirm) {
-        const again = await this.be.question(
+        const again = await this.#question(
           `${color("cyan", "?")} ${o.confirmLabel ?? "Confirm"}: `,
           true,
         );
@@ -83,7 +115,7 @@ export class Prompter {
 
   async confirm(o: { label: string; expect?: string }): Promise<boolean> {
     const suffix = o.expect === undefined ? " [y/N]" : "";
-    const v = await this.be.question(`${color("yellow", "?")} ${o.label}${suffix}: `, false);
+    const v = await this.#question(`${color("yellow", "?")} ${o.label}${suffix}: `, false);
     if (o.expect !== undefined) return v.trim() === o.expect;
     return /^y(es)?$/i.test(v.trim());
   }
@@ -100,7 +132,7 @@ export class Prompter {
       this.#renderedSelectLines = 0;
       this.#render(o.label, items, idx);
       for (;;) {
-        const k = await this.be.readKey();
+        const k = await this.#readKey();
         if (k.ctrl && k.name === "c") throw new ExecutionError("aborted", "cancelled");
         if (k.name === "up") idx = Math.max(0, idx - 1);
         else if (k.name === "down") {
@@ -310,6 +342,6 @@ export class TtyBackend implements PromptBackend {
   }
 }
 
-export function createPrompter(): Prompter {
-  return new Prompter(new TtyBackend());
+export function createPrompter(clock?: PromptClock): Prompter {
+  return new Prompter(new TtyBackend(), clock);
 }

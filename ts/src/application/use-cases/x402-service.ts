@@ -19,6 +19,12 @@ import {
   paymentBaseUnits,
   paymentRawAmount,
 } from "../../domain/x402/payment-terms.js";
+import type { ExecutionDeadline } from "../contracts/deadline.js";
+import {
+  assertSubmitAdmitted,
+  requestDispatchCheck,
+  submitDispatchCheck,
+} from "../services/command-deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { X402PaywallHost } from "../contracts/x402-paywall.js";
 import type { ProviderCatalogPort, ProviderListInput } from "../ports/provider-catalog.js";
@@ -32,7 +38,12 @@ import type {
   X402ResponseResult,
 } from "../ports/x402-payment.js";
 import type { X402Roundtrip, X402ServeInput } from "../ports/x402-server.js";
-import { Paywall, paywallTerms } from "./x402-paywall.js";
+import {
+  freshRequestDeadlines,
+  Paywall,
+  paywallTerms,
+  sharedRequestDeadline,
+} from "./x402-paywall.js";
 
 import type { NetworkRegistry } from "../ports/network-registry.js";
 
@@ -57,6 +68,8 @@ export type X402PayResult =
 export interface X402PaywallRuntime {
   readonly facilitator: X402FacilitatorPort;
   readonly host: X402PaywallHost;
+  // The resolved command duration; each request of a long-lived server gets this much (0 = no limit).
+  readonly requestTimeoutMs: number;
 }
 
 export class X402Service {
@@ -97,7 +110,12 @@ export class X402Service {
     } = input;
     const facts = this.payments.facts(network);
     const rawLimit = checkedLimits(input, facts);
-    const resource = await this.payments.request(scope, network, request);
+    const resource = await this.payments.request(
+      scope,
+      network,
+      request,
+      requestDispatchCheck(scope.deadline),
+    );
     if (resource.kind === "response") return resource.result;
     try {
       const limit = appliedLimit(resource.inspection, input, facts, rawLimit);
@@ -110,10 +128,12 @@ export class X402Service {
         // Only the Permit2 approval a payment needs may be signed as a transaction.
         ...(facts.permit2 ? { approveIntent: facts.permit2 } : {}),
       });
+      assertSubmitAdmitted(scope.deadline);
       return await resource.pay({
         payer,
         approver: this.#approver(scope, network, facts),
         guard: processBroadcastGuard,
+        submit: submitDispatchCheck(scope.deadline),
         limits: {
           ...(limit === undefined ? {} : { maxRawAmount: limit }),
           gasfreeFeeCapped: maxGasfreeFee !== undefined || maxGasfreeFeeRaw !== undefined,
@@ -152,29 +172,32 @@ export class X402Service {
     };
   }
 
-  providerList(input: ProviderListInput) {
+  providerList(deadline: ExecutionDeadline, input: ProviderListInput) {
     const network = input.network;
     // Explicit chain IDs need no configured RPC; resolve aliases through the network registry.
     const canonical =
       network && !/^(?:tron|eip155):(?:[0-9]+|0x[0-9a-f]+)$/i.test(network)
         ? this.networks.resolve(network).id
         : network;
-    return this.catalog.list({
-      ...input,
-      ...(canonical === undefined ? {} : { network: canonical }),
-    });
+    return this.catalog.list(
+      {
+        ...input,
+        ...(canonical === undefined ? {} : { network: canonical }),
+      },
+      requestDispatchCheck(deadline),
+    );
   }
 
-  providerShow(fqn: string) {
-    return this.catalog.show(fqn);
+  providerShow(deadline: ExecutionDeadline, fqn: string) {
+    return this.catalog.show(fqn, requestDispatchCheck(deadline));
   }
 
-  providerEndpoints(fqn: string) {
-    return this.catalog.endpoints(fqn);
+  providerEndpoints(deadline: ExecutionDeadline, fqn: string) {
+    return this.catalog.endpoints(fqn, requestDispatchCheck(deadline));
   }
 
-  providerUpdate() {
-    return this.catalog.update();
+  providerUpdate(deadline: ExecutionDeadline) {
+    return this.catalog.update(requestDispatchCheck(deadline));
   }
 
   validate(network: NetworkDescriptor, input: X402ServeInput): void {
@@ -182,15 +205,24 @@ export class X402Service {
     this.payments.validateConfiguration?.(network, input);
   }
 
-  async serve(network: NetworkDescriptor, input: X402ServeInput) {
-    const { facilitator, host } = this.#paywalls();
-    const paywall = new Paywall(facilitator, paywallTerms(network, input, facilitator));
-    const handle = await host.start(paywall, {
-      host: input.host,
-      port: input.port,
-      accessLog: input.accessLog ?? "json",
-      daemon: input.daemon ?? false,
-    });
+  async serve(deadline: ExecutionDeadline, network: NetworkDescriptor, input: X402ServeInput) {
+    const { facilitator, host, requestTimeoutMs } = this.#paywalls();
+    const paywall = new Paywall(
+      facilitator,
+      paywallTerms(network, input, facilitator),
+      freshRequestDeadlines(requestTimeoutMs),
+    );
+    const handle = await host.start(
+      paywall,
+      {
+        host: input.host,
+        port: input.port,
+        accessLog: input.accessLog ?? "json",
+        daemon: input.daemon ?? false,
+        persistent: true,
+      },
+      deadline,
+    );
     return handle.details;
   }
 
@@ -200,13 +232,22 @@ export class X402Service {
     input: X402ServeInput,
   ): Promise<X402Roundtrip> {
     const { facilitator, host } = this.#paywalls();
-    const paywall = new Paywall(facilitator, paywallTerms(network, input, facilitator));
-    const handle = await host.start(paywall, {
-      host: input.host,
-      port: input.port,
-      accessLog: "diagnostic",
-      daemon: false,
-    });
+    const paywall = new Paywall(
+      facilitator,
+      paywallTerms(network, input, facilitator),
+      sharedRequestDeadline(scope.deadline),
+    );
+    const handle = await host.start(
+      paywall,
+      {
+        host: input.host,
+        port: input.port,
+        accessLog: "diagnostic",
+        daemon: false,
+        persistent: false,
+      },
+      scope.deadline,
+    );
     try {
       const served = handle.details;
       const result = await this.#pay(scope, network, {

@@ -24,6 +24,7 @@ describe("wallet-cli --help lists every registered top-level command", () => {
       globals: { output: "text", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
+      monotonicStart: performance.now(),
     });
     let text = "";
     const stream = {

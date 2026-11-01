@@ -1,9 +1,15 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { SunPumpApiClient } from "@sun-protocol/sun-sdk-api";
 import { SunPumpMarketApi, type SunPumpApiClientFactory } from "./market-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const BODY = readFileSync(
   fileURLToPath(new URL("./__fixtures__/token-list-market-cap.json", import.meta.url)),
@@ -45,11 +51,15 @@ const lossyFactory: SunPumpApiClientFactory = (options) =>
   });
 
 const listTokens = (factory: SunPumpApiClientFactory) =>
-  new SunPumpMarketApi(5_000, { clientFactory: factory }).listTokens(MAINNET, {
-    sort: "marketCap:DESC",
-    pageNo: 1,
-    pageSize: 2,
-  });
+  new SunPumpMarketApi({ clientFactory: factory }).listTokens(
+    MAINNET,
+    {
+      sort: "marketCap:DESC",
+      pageNo: 1,
+      pageSize: 2,
+    },
+    NO_CHECK,
+  );
 
 describe("token precision, end to end through the SDK client", () => {
   it("keeps every digit the SunPump API sent", async () => {

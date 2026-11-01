@@ -6,7 +6,7 @@ Let an operator manage every Agent this account owns.
 
 ```
 wallet-cli 8004 add-operator <operator>
-                  [--wait [--wait-timeout <ms>] | --sign-only | --build-only | --dry-run]
+                  [--wait | --sign-only | --build-only | --dry-run]
                   [--fee-limit <sun>] [--permission-id <n>] [--expiration <ms>] [options]
 ```
 
@@ -28,7 +28,7 @@ Runs on networks with an ERC-8004 Identity Registry: `tron`, `nile`, `shasta`, `
 
 | Option | Description |
 |---|---|
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
 | `--build-only` | Build and estimate, output the **unsigned** hex without unlocking the wallet; excludes `--dry-run` / `--sign-only` |
 | `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |

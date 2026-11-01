@@ -1,3 +1,9 @@
+import {
+  endedByDeadline,
+  requestDispatchCheck,
+  unlessDeadline,
+} from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, followUp } from "../../../domain/errors/index.js";
 import {
@@ -44,8 +50,8 @@ export class TronProposalService {
     private readonly pipeline: TxPipeline,
   ) {}
 
-  async list(network: NetworkDescriptor, input: ProposalListInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async list(deadline: ExecutionDeadline, network: NetworkDescriptor, input: ProposalListInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const [proposals, witnesses] = await Promise.all([
       gateway.getProposals(),
       gateway.getWitnesses(27),
@@ -67,8 +73,8 @@ export class TronProposalService {
     };
   }
 
-  async show(network: NetworkDescriptor, id: number) {
-    const gateway = this.gateways.get(network, "tron");
+  async show(deadline: ExecutionDeadline, network: NetworkDescriptor, id: number) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const [proposal, witnesses] = await Promise.all([
       gateway.getProposal(id),
       gateway.getWitnesses(27),
@@ -85,7 +91,7 @@ export class TronProposalService {
   }
 
   async create(scope: TransactionScope, network: NetworkDescriptor, input: ProposalCreateInput) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input);
     const owner = scope.resolveAddress("tron");
     // Snapshot before submission to distinguish new proposals; lookup failure must not block writes.
@@ -93,7 +99,9 @@ export class TronProposalService {
     const [parameters, , before] = await Promise.all([
       gateway.getChainParameters(),
       assertWitness(gateway, owner),
-      wantsId ? proposalIdSnapshot(gateway).catch(() => undefined) : Promise.resolve(undefined),
+      wantsId
+        ? proposalIdSnapshot(gateway).catch(unlessDeadline(scope.deadline, () => undefined))
+        : Promise.resolve(undefined),
     ]);
     const changes = parseChainParameterAssignments(input.set, parameters);
     const outcome = await this.pipeline.runTron({
@@ -119,7 +127,17 @@ export class TronProposalService {
     const data = outcomeData(outcome);
     const proposalId =
       outcome.stage === "confirmed" && before !== undefined
-        ? await findCreatedProposal(gateway, owner, changes, before, scope).catch(() => undefined)
+        ? await findCreatedProposal(gateway, owner, changes, before, scope).catch(
+            (error: unknown) => {
+              // The proposal stands; only its id is unknown.
+              if (endedByDeadline(error, scope.deadline)) {
+                scope.warn(
+                  errorMessage`the created proposal's id was not read before the command's time limit. Find it with \`${followUp("proposal-list")}\` — the transaction itself succeeded`,
+                );
+              }
+              return undefined;
+            },
+          )
         : undefined;
     return {
       kind: "proposal-create" as const,
@@ -132,7 +150,7 @@ export class TronProposalService {
   }
 
   async approve(scope: TransactionScope, network: NetworkDescriptor, input: ProposalApproveInput) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input);
     const owner = scope.resolveAddress("tron");
     const [proposal, witnesses] = await Promise.all([
@@ -181,7 +199,7 @@ export class TronProposalService {
   }
 
   async delete(scope: TransactionScope, network: NetworkDescriptor, input: ProposalDeleteInput) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input);
     const owner = scope.resolveAddress("tron");
     const [proposal] = await Promise.all([

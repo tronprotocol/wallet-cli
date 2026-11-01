@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { SunApiClient } from "@sun-protocol/sun-sdk-api";
 import { parse as parseLosslessJson } from "lossless-json";
 import { isTronNetwork, type NetworkDescriptor } from "../../../domain/types/network.js";
@@ -64,16 +65,14 @@ export class RateLimited extends Error {
 }
 
 export class SunSwapMarketApi implements MarketDataPort {
-  constructor(
-    private readonly timeoutMs: number,
-    private readonly deps: MarketApiDeps = {},
-  ) {}
+  constructor(private readonly deps: MarketApiDeps = {}) {}
 
   async listPositions(
     network: NetworkDescriptor,
     query: ListPositionsQuery,
+    check: DispatchCheck,
   ): Promise<PositionPage> {
-    const payload = await this.request(network, (client) =>
+    const payload = await this.request(network, check, (client) =>
       client.getUserPositions({
         userAddress: query.owner,
         pageNo: query.pageNo,
@@ -89,27 +88,42 @@ export class SunSwapMarketApi implements MarketDataPort {
     };
   }
 
-  async listPools(network: NetworkDescriptor, query: ListPoolsQuery): Promise<PoolPage> {
-    return this.poolPage(network, (client) =>
-      client.getPools({
-        pageNo: query.pageNo,
-        pageSize: query.pageSize,
-        desc: query.desc,
-        filterBlackList: true,
-        ...(query.pool === undefined ? {} : { poolAddress: query.pool }),
-        ...(query.token === undefined ? {} : { tokenAddress: query.token }),
-        ...(query.protocol === undefined ? {} : { protocol: query.protocol }),
-        ...(query.sort === undefined ? {} : { sort: query.sort }),
-      }),
+  async listPools(
+    network: NetworkDescriptor,
+    query: ListPoolsQuery,
+    check: DispatchCheck,
+  ): Promise<PoolPage> {
+    return this.poolPage(
+      network,
+      (client) =>
+        client.getPools({
+          pageNo: query.pageNo,
+          pageSize: query.pageSize,
+          desc: query.desc,
+          filterBlackList: true,
+          ...(query.pool === undefined ? {} : { poolAddress: query.pool }),
+          ...(query.token === undefined ? {} : { tokenAddress: query.token }),
+          ...(query.protocol === undefined ? {} : { protocol: query.protocol }),
+          ...(query.sort === undefined ? {} : { sort: query.sort }),
+        }),
+      check,
     );
   }
 
-  async searchPools(network: NetworkDescriptor, query: SearchPoolsQuery): Promise<PoolPage> {
-    return this.poolPage(network, (client) => client.searchPools(searchParams(query)));
+  async searchPools(
+    network: NetworkDescriptor,
+    query: SearchPoolsQuery,
+    check: DispatchCheck,
+  ): Promise<PoolPage> {
+    return this.poolPage(network, (client) => client.searchPools(searchParams(query)), check);
   }
 
-  async countPools(network: NetworkDescriptor, query: SearchPoolsQuery): Promise<number | null> {
-    const payload = await this.request(network, (client) =>
+  async countPools(
+    network: NetworkDescriptor,
+    query: SearchPoolsQuery,
+    check: DispatchCheck,
+  ): Promise<number | null> {
+    const payload = await this.request(network, check, (client) =>
       client.searchCountPools(searchParams(query)),
     );
     const parsed = poolCountSchema.safeParse(payload);
@@ -121,53 +135,73 @@ export class SunSwapMarketApi implements MarketDataPort {
   private async poolPage(
     network: NetworkDescriptor,
     call: (client: SunApiClient) => Promise<unknown>,
+    check: DispatchCheck,
   ): Promise<PoolPage> {
-    const parsed = parse(poolsResponseSchema, await this.request(network, call));
+    const parsed = parse(poolsResponseSchema, await this.request(network, check, call));
     return {
       pools: parsed.list.map(mapPool),
       ...(parsed.meta?.hasMore === undefined ? {} : { hasMore: parsed.meta.hasMore }),
     };
   }
 
-  async listTokens(network: NetworkDescriptor, query: ListTokensQuery): Promise<TokenPage> {
-    return this.tokenPage(network, (client) =>
-      client.getTokens({
-        protocol: query.protocol,
-        pageNo: query.pageNo,
-        pageSize: query.pageSize,
-        filterBlackList: true,
-        ...(query.address === undefined ? {} : { tokenAddress: query.address }),
-        ...(query.sort === undefined ? {} : { sort: query.sort }),
-      }),
+  async listTokens(
+    network: NetworkDescriptor,
+    query: ListTokensQuery,
+    check: DispatchCheck,
+  ): Promise<TokenPage> {
+    return this.tokenPage(
+      network,
+      (client) =>
+        client.getTokens({
+          protocol: query.protocol,
+          pageNo: query.pageNo,
+          pageSize: query.pageSize,
+          filterBlackList: true,
+          ...(query.address === undefined ? {} : { tokenAddress: query.address }),
+          ...(query.sort === undefined ? {} : { sort: query.sort }),
+        }),
+      check,
     );
   }
 
-  async searchTokens(network: NetworkDescriptor, query: SearchTokensQuery): Promise<TokenPage> {
-    return this.tokenPage(network, (client) =>
-      client.searchTokens({
-        query: query.keyword,
-        protocol: query.protocol,
-        pageNo: query.pageNo,
-        pageSize: query.pageSize,
-        filterBlackList: true,
-      }),
+  async searchTokens(
+    network: NetworkDescriptor,
+    query: SearchTokensQuery,
+    check: DispatchCheck,
+  ): Promise<TokenPage> {
+    return this.tokenPage(
+      network,
+      (client) =>
+        client.searchTokens({
+          query: query.keyword,
+          protocol: query.protocol,
+          pageNo: query.pageNo,
+          pageSize: query.pageSize,
+          filterBlackList: true,
+        }),
+      check,
     );
   }
 
   private async tokenPage(
     network: NetworkDescriptor,
     call: (client: SunApiClient) => Promise<unknown>,
+    check: DispatchCheck,
   ): Promise<TokenPage> {
-    const parsed = parse(tokensResponseSchema, await this.request(network, call));
+    const parsed = parse(tokensResponseSchema, await this.request(network, check, call));
     return {
       tokens: parsed.list.map(mapToken),
       ...(parsed.meta?.hasMore === undefined ? {} : { hasMore: parsed.meta.hasMore }),
     };
   }
 
-  async prices(network: NetworkDescriptor, addresses: readonly string[]): Promise<PriceRecord[]> {
+  async prices(
+    network: NetworkDescriptor,
+    addresses: readonly string[],
+    check: DispatchCheck,
+  ): Promise<PriceRecord[]> {
     if (addresses.length === 0) return [];
-    const payload = await this.request(network, (client) =>
+    const payload = await this.request(network, check, (client) =>
       client.getPrice({ tokenAddress: addresses.join(",") }),
     );
     const parsed = parse(pricesResponseSchema, payload ?? {});
@@ -181,9 +215,10 @@ export class SunSwapMarketApi implements MarketDataPort {
   async symbols(
     network: NetworkDescriptor,
     addresses: readonly string[],
+    check: DispatchCheck,
   ): Promise<Map<string, string>> {
     if (addresses.length === 0) return new Map();
-    const payload = await this.request(network, (client) =>
+    const payload = await this.request(network, check, (client) =>
       client.getTokens({ tokenAddress: addresses.join(","), protocol: "ALL" }),
     );
     const parsed = parse(tokensResponseSchema, payload);
@@ -196,13 +231,14 @@ export class SunSwapMarketApi implements MarketDataPort {
 
   private async request(
     network: NetworkDescriptor,
+    check: DispatchCheck,
     call: (client: SunApiClient) => Promise<unknown>,
   ): Promise<unknown> {
     const client = (this.deps.clientFactory ?? defaultClientFactory)({
       baseUrl: marketApiBaseUrl(network),
       fetchImpl: rateLimitAware(
         createTimedFetch({
-          timeoutMs: this.timeoutMs,
+          check,
           ...(this.deps.fetchImpl === undefined ? {} : { fetchImpl: this.deps.fetchImpl }),
         }),
       ),

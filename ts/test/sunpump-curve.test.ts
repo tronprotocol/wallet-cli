@@ -79,7 +79,7 @@ describe("--quote excludes the flags that describe a transaction", () => {
     );
   });
 
-  it.each([["--wait"], ["--wait-timeout", "1000"]])("refuses %s alongside --quote", (...flag) => {
+  it("refuses --wait alongside --quote", () => {
     const r = run([
       "sunpump",
       "sell",
@@ -87,7 +87,7 @@ describe("--quote excludes the flags that describe a transaction", () => {
       "--amount",
       "1",
       "--quote",
-      ...flag,
+      "--wait",
       "--network",
       "tron",
       "-o",
@@ -96,8 +96,28 @@ describe("--quote excludes the flags that describe a transaction", () => {
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_option");
     expect(r.json.error.message).toBe(
-      `${flag[0]} cannot be used with --quote, which sends no transaction`,
+      "--wait cannot be used with --quote, which sends no transaction",
     );
+  });
+
+  it("rejects the removed --wait-timeout as an unknown option", () => {
+    const r = run([
+      "sunpump",
+      "sell",
+      TOKEN,
+      "--amount",
+      "1",
+      "--quote",
+      "--wait-timeout",
+      "1000",
+      "--network",
+      "tron",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toBe("unknown option(s): --wait-timeout");
   });
 });
 

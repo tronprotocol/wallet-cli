@@ -55,5 +55,4 @@ export interface Globals {
   timeoutMs?: number;
   verbose: boolean;
   wait?: boolean;
-  waitTimeoutMs?: number;
 }

@@ -1,3 +1,4 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
 import type {
   NetworkDescriptor,
   TronTransactionArtifact,
@@ -35,7 +36,7 @@ export class TronSigService implements TronHexSigner {
     options: TronSignOptions,
     out?: string,
   ): Promise<OfflineTxSignView> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const transaction = gateway.decodeTransactionHex(hex);
     const { signer, decoded, signedHex } = await this.#sign(
       scope,
@@ -64,7 +65,7 @@ export class TronSigService implements TronHexSigner {
     json: TronProtocolValue,
     options: TronSignOptions,
   ) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const { transaction, hex } = gateway.encodeTransactionJson(json);
     const original = gateway.decodeTransactionHex(hex);
     const { signer, signed } = await this.#sign(

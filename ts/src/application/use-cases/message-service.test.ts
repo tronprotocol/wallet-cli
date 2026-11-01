@@ -4,12 +4,16 @@ import { WalletError } from "../../domain/errors/index.js";
 import type { SignerResolver } from "../services/signer/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import { SigningService } from "../services/signing/signing-service.js";
+import { CommandDeadline } from "../services/command-deadline.js";
 
 const TRON = { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as never;
 const EVM = { id: "eip155:1", family: "evm", chainId: "1" } as never;
 const signing = new SigningService({} as never);
 
-const scope = { timeoutMs: 1000, emit: () => {} } as unknown as TransactionScope;
+const scope = {
+  deadline: new CommandDeadline(0),
+  emit: () => {},
+} as unknown as TransactionScope;
 
 function resolverStub(overrides: Partial<Record<"assertCanSign" | "resolve", unknown>> = {}) {
   return {

@@ -51,7 +51,7 @@ function network(endpoint: string, credentialed: boolean): NetworkDescriptor {
 describe("TronRpcClient does not leak an API key through a redirect", () => {
   it("refuses to follow a redirect on the tronweb path when a credential header is set", async () => {
     const { received, endpoint } = await redirectPair();
-    const client = new TronRpcClient(network(endpoint, true), 5_000);
+    const client = new TronRpcClient(network(endpoint, true));
 
     await expect(
       client.getAccountResources("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB"),
@@ -62,7 +62,7 @@ describe("TronRpcClient does not leak an API key through a redirect", () => {
 
   it("refuses to follow a redirect on the raw transport path too", async () => {
     const { received, endpoint } = await redirectPair();
-    const client = new TronRpcClient(network(endpoint, true), 5_000);
+    const client = new TronRpcClient(network(endpoint, true));
 
     await expect(client.getAccount("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB")).rejects.toBeTruthy();
 
@@ -71,7 +71,7 @@ describe("TronRpcClient does not leak an API key through a redirect", () => {
 
   it("still follows a redirect when no credential is configured", async () => {
     const { received, endpoint } = await redirectPair();
-    const client = new TronRpcClient(network(endpoint, false), 5_000);
+    const client = new TronRpcClient(network(endpoint, false));
 
     await client.getAccountResources("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB").catch(() => undefined);
 

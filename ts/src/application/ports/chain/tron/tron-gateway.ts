@@ -9,6 +9,7 @@ import type {
 } from "../../../../domain/types/index.js";
 import type { Sun } from "../../../../domain/amounts/index.js";
 import type { RpcResourceCode } from "../../../../domain/tron/resources/index.js";
+import type { DispatchCheck } from "../../../contracts/deadline.js";
 import type { Broadcaster } from "../broadcaster.js";
 
 export interface TronContractParameter {
@@ -342,7 +343,7 @@ export interface TronGateway extends Broadcaster {
   ): Promise<TronTransactionArtifact>;
   getSignWeight(transaction: TronTransactionArtifact): Promise<TronSignWeight>;
   getApprovedList(transaction: TronTransactionArtifact): Promise<string[]>;
-  broadcastHex(hex: string): Promise<BroadcastResult>;
+  broadcastHex(hex: string, check: DispatchCheck): Promise<BroadcastResult>;
   getUpdateAccountPermissionFee(): Promise<number>;
   getMultiSignFee(): Promise<number>;
   getNativeBalance(address: string): Promise<Sun>;
@@ -356,7 +357,7 @@ export interface TronGateway extends Broadcaster {
   // TAPOS: whether this node holds the block the transaction references; reads the head block.
   referenceBlockStatus(transaction: UnsignedTx): Promise<TronReferenceBlockStatus>;
   getTransactionById(txid: string): Promise<TronTx>;
-  getTransactionInfoById(txid: string, signal?: AbortSignal): Promise<TronTxInfo>;
+  getTransactionInfoById(txid: string): Promise<TronTxInfo>;
   // Net base units received, verified from transaction logs or internal native transfers.
   receivedAmount(txid: string, token: string, recipient: string): Promise<string | undefined>;
   // Values are proven safe integers.

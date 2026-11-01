@@ -121,7 +121,7 @@ export const ERROR_CODES = {
   no_matching_requirement: { exit: 1, retry: "never", meaning: "no offered x402 payment route matched the requested filters" },
   amount_exceeds_limit: { exit: 1, retry: "never", meaning: "the requested x402 payment exceeds its configured limit" },
   response_too_large: { exit: 1, retry: "changed", meaning: "the remote response exceeded the CLI safety limit" },
-  timeout: { exit: 1, retry: "same", meaning: "the node, service or device did not answer in time" },
+  timeout: { exit: 1, retry: "same", meaning: "the command ran out of time, or a node, service or device did not answer in time" },
   aborted: { exit: "either", retry: "never", meaning: "the operation was stopped before it finished" },
   cancelled: { exit: 1, retry: "never", meaning: "the operation was cancelled before it reached the device" },
   history_not_supported: { exit: 1, retry: "never", meaning: "the selected network exposes no transaction history endpoint" },

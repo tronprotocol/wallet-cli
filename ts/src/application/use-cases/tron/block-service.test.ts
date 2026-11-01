@@ -1,7 +1,10 @@
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, it, expect } from "vitest";
 import { TronBlockService } from "./block-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const net = {
   id: "tron:0x2b6653dc",
@@ -24,7 +27,7 @@ describe("TronBlockService.get", () => {
       timestampMs: 1722925264000,
       transactionCount: 2,
       raw: RAW,
-    })).get(net, "1");
+    })).get(NO_DEADLINE, net, "1");
     expect(out).toEqual({
       block: RAW,
       number: 1,
@@ -34,13 +37,15 @@ describe("TronBlockService.get", () => {
   });
 
   it("throws not_found (exit 1) when a specific height has no block", async () => {
-    await expect(service(async () => null).get(net, "999999999")).rejects.toMatchObject({
+    await expect(
+      service(async () => null).get(NO_DEADLINE, net, "999999999"),
+    ).rejects.toMatchObject({
       code: "not_found",
     });
   });
 
   it("throws invalid_node_response when the node holds no latest block", async () => {
-    await expect(service(async () => null).get(net)).rejects.toMatchObject({
+    await expect(service(async () => null).get(NO_DEADLINE, net)).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });

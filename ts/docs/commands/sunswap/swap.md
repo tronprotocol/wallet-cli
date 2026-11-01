@@ -6,7 +6,7 @@ Exchange one token for another.
 
 ```
 wallet-cli sunswap swap <tokenIn> <tokenOut> <amountIn>
-                        [--quote [--all] | --dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                        [--quote [--all] | --dry-run | --build-only | --wait]
                         [--slippage <decimal>] [--fee-limit <sun>] [options]
 ```
 
@@ -87,7 +87,7 @@ For a swap spending **TRX** it prices the swap itself. For a swap spending a **t
 | `--build-only` | Emit the unsigned transaction(s) without signing them |
 | `--slippage <decimal>` | Tolerance, e.g. `0.005` for 0.5%; default `0.005` |
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The dry run's estimate is a lower bound, so a limit set from it can fail |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--account <label\|accountId>` | Account to trade from; default the active account. `--quote` reads the same account's token book |
 | `--password-stdin` | Master password from stdin (fd 0); needed only by the modes that sign |
 

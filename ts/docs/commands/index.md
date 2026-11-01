@@ -238,12 +238,13 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
                            an address names one chain, so use accountId or label to cross families;
                            an address matching several accounts that are not interchangeable
                            signers for the family being acted on is `ambiguous_account`
---timeout <number>         per RPC/device call timeout, ms (default: config.timeoutMs, built-in 60000)
+--timeout <number>         deadline for the whole command, ms; 0 = no limit
+                           (default: config.timeoutMs, built-in 90000)
 -v, --verbose              extra diagnostic output
 -h, --help / -V, --version
 ```
 
-Commands whose schema allows post-broadcast polling take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000). The early-exit modes are command-specific too: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while a submit-only command such as `tx broadcast` neither rebuilds nor signs and therefore has no `--sign-only` / `--build-only`.
+Commands whose schema allows post-broadcast polling take `--wait`, which polls within the command's `--timeout` (see [time limit](../machine-interface.md#time-limit---timeout)). The early-exit modes are command-specific too: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while a submit-only command such as `tx broadcast` neither rebuilds nor signs and therefore has no `--sign-only` / `--build-only`.
 
 Fee and multi-sig flags are **family-scoped**, so they are not global:
 

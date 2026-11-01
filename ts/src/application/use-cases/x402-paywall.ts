@@ -1,5 +1,12 @@
+import {
+  assertSubmitAdmitted,
+  CommandDeadline,
+  requestDispatchCheck,
+  submitDispatchCheck,
+} from "../services/command-deadline.js";
+import type { DispatchCheck, ExecutionDeadline } from "../contracts/deadline.js";
 import { addressCodec, CHAIN_FAMILIES } from "../../domain/family/index.js";
-import { errorMessage, inputRef, UsageError } from "../../domain/errors/index.js";
+import { errorMessage, ExecutionError, inputRef, UsageError } from "../../domain/errors/index.js";
 import type { BaseUnits } from "../../domain/amounts/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import { supportsScheme } from "../../domain/x402/families.js";
@@ -157,14 +164,32 @@ function assertResourceUrl(value: string): void {
     );
 }
 
+// Gives each payment request its deadline; dispose() runs when the request ends.
+export type RequestDeadlines = () => { readonly deadline: ExecutionDeadline; dispose(): void };
+
+// A server that lives on: every request gets its own deadline of `limitMs` (0 = unbounded).
+export function freshRequestDeadlines(limitMs: number): RequestDeadlines {
+  return () => {
+    const deadline = new CommandDeadline(limitMs);
+    return { deadline, dispose: () => deadline.dispose() };
+  };
+}
+
+// A server inside one command: requests share the command's deadline.
+export function sharedRequestDeadline(deadline: ExecutionDeadline): RequestDeadlines {
+  return () => ({ deadline, dispose: () => {} });
+}
+
 export class Paywall implements X402Paywall {
   constructor(
     private readonly facilitator: Pick<X402FacilitatorPort, "offer">,
     readonly terms: PaywallTerms,
+    private readonly requests: RequestDeadlines,
   ) {}
 
-  async open(): Promise<X402OpenPaywall> {
-    return new OpenPaywall(await this.facilitator.offer(this.terms), this.terms);
+  async open(startup: ExecutionDeadline): Promise<X402OpenPaywall> {
+    const offer = await this.facilitator.offer(this.terms, requestDispatchCheck(startup));
+    return new OpenPaywall(offer, this.terms, this.requests);
   }
 }
 
@@ -174,6 +199,7 @@ class OpenPaywall implements X402OpenPaywall {
   constructor(
     private readonly offer: X402FacilitatorOffer,
     private readonly terms: PaywallTerms,
+    private readonly requests: RequestDeadlines,
   ) {}
 
   publish(payUrl: string): X402ServeDetails {
@@ -202,7 +228,10 @@ class OpenPaywall implements X402OpenPaywall {
     };
   }
 
-  async handlePaymentRequest(paymentSignature: string | undefined): Promise<X402PaywallResponse> {
+  async handlePaymentRequest(
+    paymentSignature: string | undefined,
+    clientGone: AbortSignal,
+  ): Promise<X402PaywallResponse> {
     if (paymentSignature === undefined) {
       const challenge: X402Challenge = { ...this.discovery(), error: "Payment required" };
       return {
@@ -211,20 +240,32 @@ class OpenPaywall implements X402OpenPaywall {
         challengeHeader: this.offer.encodeChallenge(challenge),
       };
     }
-    const verification = await this.offer.verify(paymentSignature);
-    if (!verification.accepted) return refused("verify", verification);
-    const settlement = await this.offer.settle(paymentSignature);
-    if (!settlement.accepted) return refused("settle", settlement);
-    return {
-      kind: "paid",
-      receiptHeader: settlement.receiptHeader,
-      body: {
-        success: true,
-        network: this.terms.network.id,
-        scheme: this.terms.scheme,
-        transaction: settlement.transaction,
-      },
-    };
+    const request = this.requests();
+    try {
+      const { deadline } = request;
+      const verification = await this.offer.verify(
+        paymentSignature,
+        verifyCheck(deadline, clientGone),
+      );
+      if (!verification.accepted) return refused("verify", verification);
+      const unsettled = settlementRefusal(deadline, clientGone);
+      if (unsettled) return unsettled;
+      // A disconnect does not abort a dispatched settlement: aborting cannot undo it.
+      const settlement = await this.offer.settle(paymentSignature, submitDispatchCheck(deadline));
+      if (!settlement.accepted) return refused("settle", settlement);
+      return {
+        kind: "paid",
+        receiptHeader: settlement.receiptHeader,
+        body: {
+          success: true,
+          network: this.terms.network.id,
+          scheme: this.terms.scheme,
+          transaction: settlement.transaction,
+        },
+      };
+    } finally {
+      request.dispose();
+    }
   }
 
   #resourceUrl(): string {
@@ -234,4 +275,47 @@ class OpenPaywall implements X402OpenPaywall {
 
 function refused(phase: "verify" | "settle", refusal: X402FacilitatorRefusal): X402PaywallResponse {
   return { kind: "refused", phase, rejected: refusal.rejected, error: refusal.error };
+}
+
+const NOT_SETTLED = { phase: "settle", paymentStatus: "not_sent", retryPayment: false } as const;
+
+function verifyCheck(deadline: ExecutionDeadline, clientGone: AbortSignal): DispatchCheck {
+  return {
+    signal: AbortSignal.any([deadline.signal, clientGone]),
+    assertDispatchable: () => {
+      deadline.assertActive();
+      if (clientGone.aborted) throw clientGoneError();
+    },
+  };
+}
+
+// Settlement starts only with the admission reserve left and the client still connected.
+function settlementRefusal(
+  deadline: ExecutionDeadline,
+  clientGone: AbortSignal,
+): X402PaywallResponse | undefined {
+  try {
+    assertSubmitAdmitted(deadline);
+  } catch {
+    return {
+      kind: "refused",
+      phase: "settle",
+      rejected: false,
+      error: new ExecutionError(
+        "timeout",
+        "the request's time limit ran out before settlement; nothing was settled",
+        NOT_SETTLED,
+      ),
+    };
+  }
+  if (!clientGone.aborted) return undefined;
+  return { kind: "refused", phase: "settle", rejected: false, error: clientGoneError() };
+}
+
+function clientGoneError(): ExecutionError {
+  return new ExecutionError(
+    "aborted",
+    "the client disconnected before settlement; nothing was settled",
+    NOT_SETTLED,
+  );
 }

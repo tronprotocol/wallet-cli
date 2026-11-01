@@ -1,3 +1,8 @@
+import type { ExecutionDeadline } from "../../../application/contracts/deadline.js";
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { AbiCoder, Interface, id, toBeHex, zeroPadValue } from "ethers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
@@ -6,6 +11,9 @@ import type { EvmGateway } from "../../../application/ports/chain/evm/evm-gatewa
 import type { TronGateway } from "../../../application/ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { SdkAgentRegistry } from "./sdk-registry.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const sdkConstructions = vi.hoisted(() => [] as string[]);
 
@@ -52,6 +60,7 @@ function harness(
   const contracts = {
     evm: {
       call: async (
+        _deadline: ExecutionDeadline,
         _network: NetworkDescriptor,
         contract: string,
         method: string,
@@ -63,6 +72,7 @@ function harness(
     },
     tron: {
       call: async (
+        _deadline: ExecutionDeadline,
         _network: NetworkDescriptor,
         contract: string,
         method: string,
@@ -135,7 +145,7 @@ describe("SdkAgentRegistry", () => {
     const network = evmNetwork("eip155:56");
     const params = [{ type: "address", value: "0x1111111111111111111111111111111111111111" }];
 
-    expect(await registry.read(network, "balanceOf(address)", params)).toBe(large);
+    expect(await registry.read(NO_DEADLINE, network, "balanceOf(address)", params)).toBe(large);
     expect(calls).toEqual([
       {
         family: "evm",
@@ -154,7 +164,7 @@ describe("SdkAgentRegistry", () => {
     const { registry } = harness({ tronResult: result });
 
     expect(
-      await registry.read(tronNetwork("tron:728126428"), "getApproved(uint256)", [
+      await registry.read(NO_DEADLINE, tronNetwork("tron:728126428"), "getApproved(uint256)", [
         { type: "uint256", value: "9" },
       ]),
     ).toBe("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
@@ -174,7 +184,7 @@ describe("SdkAgentRegistry", () => {
       evmReceipt: { success: true, raw: { logs: [{ address: registryAddress, ...event }] } },
     });
 
-    expect(await registry.registeredAgentId(evmNetwork("eip155:56"), "0xtx")).toBe(
+    expect(await registry.registeredAgentId(evmNetwork("eip155:56"), "0xtx", NO_CHECK)).toBe(
       agentId.toString(),
     );
   });
@@ -193,7 +203,9 @@ describe("SdkAgentRegistry", () => {
       },
     });
 
-    expect(await registry.registeredAgentId(evmNetwork("eip155:56"), "0xtx")).toBeUndefined();
+    expect(
+      await registry.registeredAgentId(evmNetwork("eip155:56"), "0xtx", NO_CHECK),
+    ).toBeUndefined();
   });
 
   it("extracts a TRON Registered id after filtering the emitting contract", async () => {
@@ -210,7 +222,7 @@ describe("SdkAgentRegistry", () => {
     };
     const { registry } = harness({ tronReceipt: { blockNumber: 100, log: [log] } });
 
-    expect(await registry.registeredAgentId(tronNetwork("tron:728126428"), "tx-id")).toBe(
+    expect(await registry.registeredAgentId(tronNetwork("tron:728126428"), "tx-id", NO_CHECK)).toBe(
       agentId.toString(),
     );
   });
@@ -218,7 +230,9 @@ describe("SdkAgentRegistry", () => {
   it.each([[evmNetwork("eip155:56")], [tronNetwork("tron:728126428")]])(
     "returns undefined when the gateway has no registration receipt on $id",
     async (network) => {
-      expect(await harness().registry.registeredAgentId(network, "missing")).toBeUndefined();
+      expect(
+        await harness().registry.registeredAgentId(network, "missing", NO_CHECK),
+      ).toBeUndefined();
     },
   );
 });
@@ -237,7 +251,7 @@ it.each(["evm", "tron"] as const)(
     );
     call.mockRejectedValueOnce({ details: { revertData: nonexistent } });
     await expect(
-      registry.read(network, "ownerOf(uint256)", [{ type: "uint256", value: "999" }]),
+      registry.read(NO_DEADLINE, network, "ownerOf(uint256)", [{ type: "uint256", value: "999" }]),
     ).rejects.toMatchObject({ code: "agent_not_found" });
     for (const error of [
       { code: "timeout", message: "timeout" },
@@ -245,7 +259,9 @@ it.each(["evm", "tron"] as const)(
     ]) {
       call.mockRejectedValueOnce(error);
       await expect(
-        registry.read(network, "ownerOf(uint256)", [{ type: "uint256", value: "999" }]),
+        registry.read(NO_DEADLINE, network, "ownerOf(uint256)", [
+          { type: "uint256", value: "999" },
+        ]),
       ).rejects.toBe(error);
     }
   },

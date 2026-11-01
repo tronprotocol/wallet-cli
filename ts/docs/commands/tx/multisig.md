@@ -32,7 +32,7 @@ There is no empty collection. The service derives the starting weight from the s
 
 Once the accumulated weight reaches the threshold the **service broadcasts the transaction itself**. The `--sign` receipt therefore points at confirmation first, and offers a manual broadcast only as a fallback. Broadcasting one that the node already holds fails with `rpc_error` and `error.details.txId` (node code `DUP_TRANSACTION_ERROR`) — harmless, but confirm with [`tx status`](status.md) rather than guess. A transaction with more than one signature also incurs a 1 TRX multi-sig fee.
 
-`--watch` receives only a count, never transaction content, so watching leaks nothing about what is queued. It runs until interrupted (Ctrl-C, SIGINT/SIGTERM), then reports how many notifications arrived.
+`--watch` receives only a count, never transaction content, so watching leaks nothing about what is queued. It runs until interrupted (Ctrl-C, SIGINT/SIGTERM), then reports how many notifications arrived. At the end of `--timeout` it fails with `timeout` (exit `1`) instead; pass `--timeout 0` to watch until interrupted.
 
 The credentials are per-environment (mainnet / testnet); set them with [`config`](../config.md). The service owns its data; this command keeps no local copy.
 

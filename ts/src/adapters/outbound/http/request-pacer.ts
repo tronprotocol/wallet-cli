@@ -1,4 +1,4 @@
-import { creditActiveDeadline, throwIfDeadlineExpired } from "./deadline.js";
+import { abortableDelay, abortReason, activeDispatch, dispatchNow } from "./dispatch-context.js";
 import type { HttpRequest, HttpTransport } from "./index.js";
 
 export interface RequestPacerOptions {
@@ -7,11 +7,17 @@ export interface RequestPacerOptions {
   maxInFlight: number;
 }
 
-// Queue time is credited after acquisition; pacing time is credited before waiting.
+interface Waiter {
+  readonly grant: () => void;
+}
+
+// Requests wait under the dispatch check of their call: an aborted wait leaves the queue and the
+// pacing schedule without a slot, and the check runs again after the wait, right before the
+// request starts.
 export class RequestPacer {
   readonly #minIntervalMs: number;
   readonly #maxInFlight: number;
-  readonly #queue: Array<() => void> = [];
+  readonly #queue: Waiter[] = [];
   #active = 0;
   #nextStartAt = 0;
 
@@ -21,44 +27,64 @@ export class RequestPacer {
   }
 
   async run<T>(fn: () => Promise<T>): Promise<T> {
-    const queuedFrom = Date.now();
-    await this.#acquire();
+    const context = activeDispatch();
+    const signal = context?.check.signal;
+    await this.#acquire(signal);
     try {
-      creditActiveDeadline(Date.now() - queuedFrom);
-      // Drop expired requests before claiming a start slot.
-      throwIfDeadlineExpired();
-      await this.#pace();
+      await this.#awaitStart(context);
       return await fn();
     } finally {
       this.#release();
     }
   }
 
-  #acquire(): Promise<void> {
+  #acquire(signal: AbortSignal | undefined): Promise<void> {
+    if (signal?.aborted) return Promise.reject(abortReason(signal));
     if (this.#active < this.#maxInFlight) {
       this.#active += 1;
       return Promise.resolve();
     }
-    return new Promise<void>((resolve) => this.#queue.push(resolve));
+    return new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        const index = this.#queue.indexOf(waiter);
+        if (index >= 0) this.#queue.splice(index, 1);
+        reject(abortReason(signal!));
+      };
+      const waiter: Waiter = {
+        grant: () => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve();
+        },
+      };
+      this.#queue.push(waiter);
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
   }
 
   // Transfer the permit directly so new callers cannot exceed the cap.
   #release(): void {
     const next = this.#queue.shift();
-    if (next) next();
+    if (next) next.grant();
     else this.#active -= 1;
   }
 
-  // Claim slots synchronously and credit pacing before waiting to avoid premature timeout.
-  #pace(): Promise<void> {
-    if (this.#minIntervalMs <= 0) return Promise.resolve();
-    const now = Date.now();
-    const startAt = Math.max(now, this.#nextStartAt);
-    this.#nextStartAt = startAt + this.#minIntervalMs;
-    const wait = startAt - now;
-    if (wait <= 0) return Promise.resolve();
-    creditActiveDeadline(wait);
-    return new Promise((resolve) => setTimeout(resolve, wait));
+  // A runner claims a start slot only when it is free, synchronously after waking, so concurrent
+  // runners never share one. The dispatch check runs before the claim, so an expired runner claims
+  // none even when its abort timer has not fired yet.
+  async #awaitStart(context: ReturnType<typeof activeDispatch>): Promise<void> {
+    if (this.#minIntervalMs <= 0) {
+      dispatchNow(context);
+      return;
+    }
+    for (;;) {
+      const now = Date.now();
+      if (now >= this.#nextStartAt) {
+        dispatchNow(context);
+        this.#nextStartAt = now + this.#minIntervalMs;
+        return;
+      }
+      await abortableDelay(this.#nextStartAt - now, context?.check.signal);
+    }
   }
 }
 

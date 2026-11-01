@@ -60,7 +60,7 @@ export const tokenBalanceEvmBinding = (svc: EvmTokenService): FamilyBinding => (
 
 export const tokenInfoEvmBinding = (svc: EvmTokenService): FamilyBinding => ({
   ...evmSelector,
-  run: async (_ctx, net, input) => svc.info(net, input),
+  run: async (ctx, net, input) => svc.info(ctx.deadline, net, input),
 });
 
 export const tokenAddEvmBinding = (svc: EvmTokenService): FamilyBinding => ({
@@ -96,7 +96,7 @@ export const tokenInfoSpec: ChainSpec = {
 
 export const tokenInfoTronBinding = (svc: TronTokenService): FamilyBinding => ({
   ...tronSelector,
-  run: async (_ctx, net, input) => svc.info(net, input),
+  run: async (ctx, net, input) => svc.info(ctx.deadline, net, input),
 });
 
 export const tokenAddSpec: ChainSpec = {

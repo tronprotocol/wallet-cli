@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
 import { txTronLinkMultisigBinding } from "./tx.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const A = "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP";
 const NETWORK = { family: "tron", nativeSymbol: "TRX", id: "tron:3448148188" } as never;
@@ -14,6 +17,7 @@ function harness() {
     watch: vi.fn(async () => ({ action: "watch" })),
   } as unknown as TronMultisigCollaborationService;
   const ctx = {
+    deadline: NO_DEADLINE,
     resolveAddress: () => A,
     streams: { event: vi.fn() },
   } as never;
@@ -42,7 +46,7 @@ describe("tx multisig binding", () => {
     const { service, ctx, run } = harness();
     await run(ctx, NETWORK, {} as never);
 
-    expect(service.list).toHaveBeenCalledWith(NETWORK, A);
+    expect(service.list).toHaveBeenCalledWith(NO_DEADLINE, NETWORK, A);
     expect(service.create).not.toHaveBeenCalled();
     expect(service.sign).not.toHaveBeenCalled();
   });

@@ -6,7 +6,7 @@ Sign a gas-free transfer and submit it to the GasFree provider.
 
 ```
 wallet-cli gasfree transfer --to <address|contact> --amount <n> [--token <symbol>]
-                            [--dry-run | --wait [--wait-timeout <ms>]] [options]
+                            [--dry-run | --wait] [options]
 ```
 
 ## Description
@@ -25,7 +25,7 @@ There is no `--sign-only` / `--build-only`: the signed payload is bound to the p
 | `--amount <n>` | **Required.** Amount in token units (e.g. `25` = 25 USDT); fees are charged on top |
 | `--token <symbol>` | Token to transfer; must be supported by the provider (see `gasfree info`) — default `USDT` |
 | `--dry-run` | Fee breakdown and balance check only; no signature, no submission, no password |
-| `--wait` / `--wait-timeout <ms>` | Poll the provider until the transfer succeeds/fails (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll the provider until the transfer succeeds/fails, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).

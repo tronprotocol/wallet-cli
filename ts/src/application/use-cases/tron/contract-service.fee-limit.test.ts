@@ -6,6 +6,9 @@ import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { TronContractService } from "./contract-service.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NETWORK = {
   id: "tron:3448148188",
@@ -20,6 +23,7 @@ describe("TronContractService.send fee-limit guidance", () => {
     async (price) => {
       const warn = vi.fn();
       const scope = {
+        deadline: NO_DEADLINE,
         activeAccount: {} as never,
         wait: false,
         waitTimeoutMs: 1_000,

@@ -7,6 +7,7 @@ import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/i
 import { TronWitnessService } from "./witness-service.js";
 import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -20,9 +21,9 @@ const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };

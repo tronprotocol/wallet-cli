@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { resolveTronAccount } from "../../services/tron/tron-account.js";
 import type { NetworkDescriptor, TxOutcome } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
@@ -150,7 +152,7 @@ export class SunSwapRemoveLiquidityService {
     input: RemoveLiquidityInput,
   ): Promise<Record<string, unknown>> {
     const owner = resolveTronAccount(scope);
-    const { plan } = await this.#planV2(network, owner, input);
+    const { plan } = await this.#planV2(scope.deadline, network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
@@ -213,6 +215,7 @@ export class SunSwapRemoveLiquidityService {
   }
 
   async #planV2(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: RemoveLiquidityInput,
@@ -239,20 +242,26 @@ export class SunSwapRemoveLiquidityService {
       );
     }
     const [token0, token1] = await Promise.all([
-      this.#facts(network, address0),
-      this.#facts(network, address1),
+      this.#facts(commandDeadline, network, address0),
+      this.#facts(commandDeadline, network, address1),
     ]);
     const pair = await this.liquidity.v2PairState(
       network,
       poolSideOf(this.liquidity.contracts(network), token0.address),
       poolSideOf(this.liquidity.contracts(network), token1.address),
+      requestDispatchCheck(commandDeadline),
     );
     if (!pair.exists || pair.totalSupply === "0") {
       throw new ChainError("pool_not_found", "no V2 pool exists for that pair");
     }
 
     const lpAmount = toBaseUnits(input.liquidity, pair.lpDecimals, "LP", inputRef("liquidity"));
-    const held = await this.liquidity.balanceOf(network, pair.pairAddress, owner);
+    const held = await this.liquidity.balanceOf(
+      network,
+      pair.pairAddress,
+      owner,
+      requestDispatchCheck(commandDeadline),
+    );
     if (BigInt(held) < BigInt(lpAmount)) {
       throw new ChainError(
         "insufficient_token_balance",
@@ -264,7 +273,7 @@ export class SunSwapRemoveLiquidityService {
     const amount1 = lpRedemption(lpAmount, pair.reserve1, pair.totalSupply);
 
     // The router burns LP tokens; approving the underlying pair tokens would not authorize it.
-    const approvals = await this.tx.planApprovals(network, owner, router, [
+    const approvals = await this.tx.planApprovals(commandDeadline, network, owner, router, [
       {
         facts: { address: pair.pairAddress, decimals: pair.lpDecimals, symbol: "LP" },
         amount: lpAmount,
@@ -337,6 +346,7 @@ export class SunSwapRemoveLiquidityService {
         txId,
         "remove",
         isNative(plan.token0.address),
+        requestDispatchCheck(scope.deadline),
       );
       if (!actual) return "the router result could not be read; amounts remain estimates";
       Object.assign(settled, {
@@ -351,6 +361,7 @@ export class SunSwapRemoveLiquidityService {
         network,
         poolSideOf(this.liquidity.contracts(network), plan.token0.address),
         poolSideOf(this.liquidity.contracts(network), plan.token1.address),
+        requestDispatchCheck(scope.deadline),
       );
       settled.reservesAfter = { token0: after.reserve0, token1: after.reserve1 };
       return undefined;
@@ -364,7 +375,7 @@ export class SunSwapRemoveLiquidityService {
     input: RemoveLiquidityInput,
   ): Promise<Record<string, unknown>> {
     const owner = resolveTronAccount(scope);
-    const { plan, position } = await this.#planV3(network, owner, input);
+    const { plan, position } = await this.#planV3(scope.deadline, network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
@@ -386,7 +397,7 @@ export class SunSwapRemoveLiquidityService {
     }
 
     // Ownership can change while the withdrawal is being prepared.
-    await this.#assertPositionOwned(network, position.tokenId, owner);
+    await this.#assertPositionOwned(scope.deadline, network, position.tokenId, owner);
     // Read fees before collection combines them with principal.
     const owed = await this.#owedFees(scope, network, position.tokenId, plan.recipient, owner);
 
@@ -415,6 +426,7 @@ export class SunSwapRemoveLiquidityService {
   }
 
   async #planV3(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: RemoveLiquidityInput,
@@ -429,7 +441,12 @@ export class SunSwapRemoveLiquidityService {
     if (input.positionId === undefined) {
       throw new UsageError("missing_option", errorMessage`V3 requires ${inputRef("positionId")}`);
     }
-    const position = await this.#assertPositionOwned(network, input.positionId, owner);
+    const position = await this.#assertPositionOwned(
+      commandDeadline,
+      network,
+      input.positionId,
+      owner,
+    );
 
     const burn = wholeNumber(input.liquidity, "liquidity");
     if (BigInt(burn) > BigInt(position.liquidity)) {
@@ -440,14 +457,15 @@ export class SunSwapRemoveLiquidityService {
     }
 
     const [token0, token1] = await Promise.all([
-      this.#facts(network, position.token0),
-      this.#facts(network, position.token1),
+      this.#facts(commandDeadline, network, position.token0),
+      this.#facts(commandDeadline, network, position.token1),
     ]);
     const pool = await this.liquidity.v3PoolState(
       network,
       position.token0,
       position.token1,
       position.fee,
+      requestDispatchCheck(commandDeadline),
     );
     const expected = this.liquidity.v3AmountsForLiquidity(
       pool,
@@ -501,7 +519,13 @@ export class SunSwapRemoveLiquidityService {
   ): Promise<{ amount0: string; amount1: string } | undefined> {
     let owed: { amount0: string; amount1: string } | undefined;
     await warnOnPostCheck(scope, "sunswap_owed_fees", async () => {
-      owed = await this.liquidity.v3OwedFees(network, tokenId, recipient, owner);
+      owed = await this.liquidity.v3OwedFees(
+        network,
+        tokenId,
+        recipient,
+        owner,
+        requestDispatchCheck(scope.deadline),
+      );
       return undefined;
     });
     return owed;
@@ -521,8 +545,17 @@ export class SunSwapRemoveLiquidityService {
     let settled: Record<string, unknown> = {};
     await warnOnPostCheck(scope, "sunswap_removal_postread", async () => {
       const [collected, after] = await Promise.all([
-        this.liquidity.v3CollectedAmounts(network, txId, plan.nftTokenId!),
-        this.liquidity.v3Position(network, plan.nftTokenId ?? "0"),
+        this.liquidity.v3CollectedAmounts(
+          network,
+          txId,
+          plan.nftTokenId!,
+          requestDispatchCheck(scope.deadline),
+        ),
+        this.liquidity.v3Position(
+          network,
+          plan.nftTokenId ?? "0",
+          requestDispatchCheck(scope.deadline),
+        ),
       ]);
       if (!collected) {
         return "the removal confirmed but its Collect event could not be read, so the receipt reports the expected amounts rather than the actual ones";
@@ -539,12 +572,13 @@ export class SunSwapRemoveLiquidityService {
   }
 
   async #assertPositionOwned(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     tokenId: string,
     owner: string,
   ): Promise<V3Position> {
     const position = await readPosition("V3", tokenId, network, () =>
-      this.liquidity.v3Position(network, tokenId),
+      this.liquidity.v3Position(network, tokenId, requestDispatchCheck(commandDeadline)),
     );
     if (position.owner !== owner) {
       throw new UsageError(
@@ -562,7 +596,7 @@ export class SunSwapRemoveLiquidityService {
     input: RemoveLiquidityInput,
   ): Promise<Record<string, unknown>> {
     const owner = resolveTronAccount(scope);
-    const { plan, request } = await this.#planV4(network, owner, input);
+    const { plan, request } = await this.#planV4(scope.deadline, network, owner, input);
     const mode = transactionMode(input);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
@@ -584,7 +618,7 @@ export class SunSwapRemoveLiquidityService {
     }
 
     // Ownership can change while the withdrawal is being prepared.
-    await this.#assertV4PositionOwned(network, request.tokenId, owner);
+    await this.#assertV4PositionOwned(scope.deadline, network, request.tokenId, owner);
     // Withdrawal pays accrued fees too; read them before the call clears them.
     const owed = await this.#owedFeesV4(scope, network, plan);
 
@@ -607,6 +641,7 @@ export class SunSwapRemoveLiquidityService {
   }
 
   async #planV4(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: RemoveLiquidityInput,
@@ -627,7 +662,12 @@ export class SunSwapRemoveLiquidityService {
       );
     }
 
-    const position = await this.#assertV4PositionOwned(network, input.positionId, owner);
+    const position = await this.#assertV4PositionOwned(
+      commandDeadline,
+      network,
+      input.positionId,
+      owner,
+    );
     this.#assertPairMatches(network, position, input.token0, input.token1);
     if (input.fee !== undefined && input.fee !== position.fee) {
       throw new UsageError(
@@ -644,7 +684,11 @@ export class SunSwapRemoveLiquidityService {
       );
     }
 
-    const pool = await this.liquidity.v4PoolState(network, position.poolId);
+    const pool = await this.liquidity.v4PoolState(
+      network,
+      position.poolId,
+      requestDispatchCheck(commandDeadline),
+    );
     if (!pool.exists) {
       throw new ChainError(
         "pool_not_found",
@@ -653,8 +697,8 @@ export class SunSwapRemoveLiquidityService {
     }
 
     const [token0, token1] = await Promise.all([
-      this.#facts(network, pool.currency0),
-      this.#facts(network, pool.currency1),
+      this.#facts(commandDeadline, network, pool.currency0),
+      this.#facts(commandDeadline, network, pool.currency1),
     ]);
     const range = { tickLower: position.tickLower, tickUpper: position.tickUpper };
     // Round withdrawals down so minimums do not exceed the expected receipts.
@@ -758,12 +802,16 @@ export class SunSwapRemoveLiquidityService {
     }
     let owed: { amount0: string; amount1: string } | undefined;
     await warnOnPostCheck(scope, "sunswap_v4_owed_fees_unavailable", async () => {
-      owed = await this.liquidity.v4OwedFees(network, {
-        tokenId: nftTokenId,
-        poolId,
-        tickLower,
-        tickUpper,
-      });
+      owed = await this.liquidity.v4OwedFees(
+        network,
+        {
+          tokenId: nftTokenId,
+          poolId,
+          tickLower,
+          tickUpper,
+        },
+        requestDispatchCheck(scope.deadline),
+      );
       return undefined;
     });
     return owed;
@@ -780,13 +828,18 @@ export class SunSwapRemoveLiquidityService {
     const txId = outcomeTxId(outcome);
     if (txId !== undefined) {
       await warnOnPostCheck(scope, "sunswap_removal_amounts", async () => {
-        const actual = await this.liquidity.v4LiquidityResult(network, txId, {
-          poolId: plan.poolId!,
-          tokenId: plan.nftTokenId!,
-          account: plan.recipient,
-          token0: plan.token0.address,
-          token1: plan.token1.address,
-        });
+        const actual = await this.liquidity.v4LiquidityResult(
+          network,
+          txId,
+          {
+            poolId: plan.poolId!,
+            tokenId: plan.nftTokenId!,
+            account: plan.recipient,
+            token0: plan.token0.address,
+            token1: plan.token1.address,
+          },
+          requestDispatchCheck(scope.deadline),
+        );
         if (!actual)
           return "the withdrawal confirmed but its actual amounts could not be read; amounts remain estimates";
         settled = {
@@ -809,7 +862,11 @@ export class SunSwapRemoveLiquidityService {
       });
     }
     await warnOnPostCheck(scope, "sunswap_removal_postread", async () => {
-      const after = await this.liquidity.v4Position(network, plan.nftTokenId ?? "0");
+      const after = await this.liquidity.v4Position(
+        network,
+        plan.nftTokenId ?? "0",
+        requestDispatchCheck(scope.deadline),
+      );
       settled = { ...settled, liquidityAfter: after.liquidity };
       return undefined;
     });
@@ -817,12 +874,13 @@ export class SunSwapRemoveLiquidityService {
   }
 
   async #assertV4PositionOwned(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     tokenId: string,
     owner: string,
   ): Promise<V4Position> {
     const position = await readPosition("V4", tokenId, network, () =>
-      this.liquidity.v4Position(network, tokenId),
+      this.liquidity.v4Position(network, tokenId, requestDispatchCheck(commandDeadline)),
     );
     if (position.owner !== owner) {
       throw new UsageError(
@@ -833,10 +891,14 @@ export class SunSwapRemoveLiquidityService {
     return position;
   }
 
-  async #facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
+  async #facts(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<TokenFacts> {
     if (isNative(address))
       return { address, decimals: FAMILIES.tron.nativeDecimals, symbol: "TRX" };
-    return this.liquidity.tokenFacts(network, address);
+    return this.liquidity.tokenFacts(network, address, requestDispatchCheck(deadline));
   }
 }
 

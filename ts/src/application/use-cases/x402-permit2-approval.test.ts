@@ -4,6 +4,7 @@ import type { TxPipeline, TronTxPipelineParams } from "../services/pipeline/inde
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
 import type { TxOutcome } from "../../domain/types/index.js";
 import { TransportError } from "../../domain/errors/index.js";
+import { CommandDeadline } from "../services/command-deadline.js";
 
 const PAYER = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
 const PERMIT2 = "TYQuuhGbEMxF7nZxUHV3uHJxAVVAegNU9h";
@@ -24,9 +25,8 @@ function harness(outcome: TxOutcome | Error, allowanceAfter = "1000000") {
   });
   const scope = {
     activeAccount: "payer",
-    timeoutMs: 1000,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 60_000,
     resolveAddress: () => PAYER,
     emit: vi.fn(),
     warn: vi.fn(),

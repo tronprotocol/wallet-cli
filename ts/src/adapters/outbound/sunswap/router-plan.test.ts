@@ -1,4 +1,10 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const planRouterPermit2Authorization = vi.fn();
 
@@ -52,7 +58,7 @@ describe("SunSwapRouterPlanner.planPermit typed data", () => {
       message: { details: { amount: 1000n }, spender: "TSpender", sigDeadline: 1n },
     });
 
-    const plan = await new SunSwapRouterPlanner(gateways).planPermit(NILE, INPUT);
+    const plan = await new SunSwapRouterPlanner(gateways).planPermit(NILE, INPUT, NO_CHECK);
 
     expect(plan?.typedData.primaryType).toBe("PermitSingle");
     expect(Object.keys(plan!.typedData.types)).toEqual(["PermitDetails", "PermitSingle"]);
@@ -65,7 +71,9 @@ describe("SunSwapRouterPlanner.planPermit typed data", () => {
   ])("reports %s from the planner as provider_error", async (_label, typedData) => {
     plannedWith(typedData);
 
-    await expect(new SunSwapRouterPlanner(gateways).planPermit(NILE, INPUT)).rejects.toMatchObject({
+    await expect(
+      new SunSwapRouterPlanner(gateways).planPermit(NILE, INPUT, NO_CHECK),
+    ).rejects.toMatchObject({
       code: "provider_error",
       message: expect.stringMatching(/^the Permit2 planner returned malformed typed data: /),
     });

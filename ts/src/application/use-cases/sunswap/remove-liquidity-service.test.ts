@@ -9,6 +9,9 @@ import type { TokenRepository } from "../../ports/token-repository.js";
 import { SunSwapRemoveLiquidityService } from "./remove-liquidity-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { baseUnitAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const MANAGER = "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R";
@@ -143,6 +146,7 @@ function makeHarness(
   } as unknown as TxPipeline;
   const warn = vi.fn();
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: {},
     wait: false,
     waitTimeoutMs: 1_000,
@@ -260,6 +264,7 @@ describe("remove-liquidity V2 — gross native receipts", () => {
         expect.any(String),
         "remove",
         side === "token0",
+        expect.anything(),
       );
       expect(result.amountsEstimated).toBe(false);
       expect(result[side]).toMatchObject({ amount: received });
@@ -419,6 +424,7 @@ describe("remove-liquidity V3 — the principal and fee split", () => {
       expect.any(String),
       expect.any(String),
       OWNER,
+      expect.anything(),
     );
     expect(result.token0).toMatchObject({ amount: "999999", feeAmount: "1200" });
     expect(result.token1).toMatchObject({ amount: "493088", feeAmount: "800" });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  commandPathOf,
   commandTokens,
   hasCommand,
   invalidGlobalError,
@@ -37,20 +38,23 @@ describe("parseGlobals", () => {
   });
 
   it("rejects an invalid --timeout as invalid (never falls back to the default)", () => {
-    for (const raw of ["abc", "-5", "0"]) {
+    for (const raw of ["abc", "-5", "1.5", "", "1e3", "0x10", " 5", "2147483648"]) {
       const { globals, invalid } = parseGlobals(["--timeout", raw]);
       expect(globals.timeoutMs).toBeUndefined();
-      expect(invalid).toEqual([{ flag: "--timeout", value: raw, reason: "must be a number >= 1" }]);
+      expect(invalid).toEqual([
+        { flag: "--timeout", value: raw, reason: "must be an integer from 0 to 2147483647" },
+      ]);
     }
-    const ok = parseGlobals(["--timeout", "2000"]);
-    expect(ok.globals.timeoutMs).toBe(2000);
-    expect(ok.invalid).toEqual([]);
-  });
-
-  it("accepts --wait-timeout 0 (poll cap of 0 = give up after one poll)", () => {
-    const { globals, invalid } = parseGlobals(["--wait-timeout", "0"]);
-    expect(globals.waitTimeoutMs).toBe(0);
-    expect(invalid).toEqual([]);
+    for (const [raw, value] of [
+      ["0", 0],
+      ["1", 1],
+      ["2000", 2000],
+      ["2147483647", 2147483647],
+    ] as const) {
+      const ok = parseGlobals(["--timeout", raw]);
+      expect(ok.globals.timeoutMs).toBe(value);
+      expect(ok.invalid).toEqual([]);
+    }
   });
 
   it("rejects an invalid --output instead of silently defaulting to 'text'", () => {
@@ -125,5 +129,32 @@ describe("invalidGlobalError", () => {
     const error = invalidGlobalError(parseGlobals(["--output", "xml", "--timeout", "0"]).invalid);
     expect(error?.code).toBe("invalid_value");
     expect(error?.message).toBe('invalid --output value "xml": must be one of: text, json');
+  });
+});
+
+describe("commandPathOf", () => {
+  const known = new Set(["tx", "tx.send", "x402.pay", "list"]);
+  const isCommand = (path: string[]) => known.has(path.join("."));
+
+  it("finds the longest registered path, skipping global flags and their values", () => {
+    expect(
+      commandPathOf(
+        ["--network", "nile", "--password-stdin", "tx", "send", "--to", "T"],
+        isCommand,
+      ),
+    ).toEqual(["tx", "send"]);
+    expect(commandPathOf(["-o=json", "x402", "pay", "https://x.test"], isCommand)).toEqual([
+      "x402",
+      "pay",
+    ]);
+  });
+
+  it("stops at the first command flag", () => {
+    expect(commandPathOf(["tx", "--to", "T", "send"], isCommand)).toEqual(["tx"]);
+  });
+
+  it("is undefined when argv names no command", () => {
+    expect(commandPathOf(["--password-stdin", "nope"], isCommand)).toBeUndefined();
+    expect(commandPathOf([], isCommand)).toBeUndefined();
   });
 });

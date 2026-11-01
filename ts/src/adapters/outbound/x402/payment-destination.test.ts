@@ -2,6 +2,7 @@ import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { expect, it, vi } from "vitest";
 import { X402PaymentClient } from "./payment-client.js";
 import { baseUnitAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 const address = "0x060f7fd9c9622bdcf9f2887c8171d6e6b4b4ba17";
 const network = { id: "eip155:56", family: "evm", chainId: "56" };
@@ -45,16 +46,20 @@ function fixture(
     {} as never,
   );
   const pay = (dryRun = false) =>
-    client.pay({ timeoutMs: 1000, emit: vi.fn() } as never, selectedNetwork as never, {
-      url: "https://example.com",
-      method: "POST",
-      headers: [],
-      expectedPayTo,
-      exactRawAmount: baseUnitAmount(oneToken),
-      maxAmount: "1",
-      token,
-      dryRun,
-    });
+    client.pay(
+      { deadline: new CommandDeadline(0), emit: vi.fn() } as never,
+      selectedNetwork as never,
+      {
+        url: "https://example.com",
+        method: "POST",
+        headers: [],
+        expectedPayTo,
+        exactRawAmount: baseUnitAmount(oneToken),
+        maxAmount: "1",
+        token,
+        dryRun,
+      },
+    );
   return { pay, resolve, fetcher };
 }
 it.each([

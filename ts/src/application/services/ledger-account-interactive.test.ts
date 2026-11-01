@@ -1,3 +1,4 @@
+import { CommandDeadline } from "./command-deadline.js";
 import { describe, it, expect, vi } from "vitest";
 import { selectLedgerPath } from "./ledger-account.js";
 import { Ledger } from "../../adapters/outbound/ledger/index.js";
@@ -6,6 +7,8 @@ import {
   type PromptBackend,
   type KeyEvent,
 } from "../../adapters/inbound/cli/input/prompt/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 class KeyBackend implements PromptBackend {
   constructor(private keys: KeyEvent[]) {}
@@ -31,7 +34,14 @@ describe("selectLedgerPath", () => {
     const prompter = new Prompter(
       new KeyBackend([{ name: "down" }, { name: "down" }, { name: "return" }]),
     );
-    const path = await selectLedgerPath(ledger, "tron", prompter, "Select tron account", 2);
+    const path = await selectLedgerPath(
+      NO_DEADLINE,
+      ledger,
+      "tron",
+      prompter,
+      "Select tron account",
+      2,
+    );
     expect(path).toContain("m/44'");
   });
 });

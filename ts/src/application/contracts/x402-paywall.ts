@@ -1,3 +1,4 @@
+import type { ExecutionDeadline } from "./deadline.js";
 import type { CliError } from "../../domain/errors/index.js";
 import type { X402Scheme } from "../../domain/x402/families.js";
 import type { X402Challenge, X402OfferedRequirement } from "../ports/x402-facilitator.js";
@@ -10,6 +11,8 @@ export interface X402ListenOptions {
   readonly accessLog: X402AccessLog;
   // Run in a detached process.
   readonly daemon: boolean;
+  // The process keeps serving after the command returns; false closes it within the command.
+  readonly persistent: boolean;
 }
 
 export interface X402Discovery {
@@ -52,15 +55,24 @@ export interface X402OpenPaywall {
   publish(payUrl: string): X402ServeDetails;
   discovery(): X402Discovery;
   // `paymentSignature` is the payment-signature header value; undefined when the request has none.
-  handlePaymentRequest(paymentSignature: string | undefined): Promise<X402PaywallResponse>;
+  // `clientGone` aborts when the client disconnects before the response is sent.
+  handlePaymentRequest(
+    paymentSignature: string | undefined,
+    clientGone: AbortSignal,
+  ): Promise<X402PaywallResponse>;
 }
 
 export interface X402Paywall {
   // Agrees the requirement with the facilitator.
-  open(): Promise<X402OpenPaywall>;
+  open(startup: ExecutionDeadline): Promise<X402OpenPaywall>;
 }
 
-// Accepts HTTP requests for a paywall until the handle is closed.
+// Accepts HTTP requests for a paywall until the handle is closed. `startup` limits the time until
+// the listener is ready; each request then runs under its own deadline.
 export interface X402PaywallHost {
-  start(paywall: X402Paywall, options: X402ListenOptions): Promise<X402ServerHandle>;
+  start(
+    paywall: X402Paywall,
+    options: X402ListenOptions,
+    startup: ExecutionDeadline,
+  ): Promise<X402ServerHandle>;
 }

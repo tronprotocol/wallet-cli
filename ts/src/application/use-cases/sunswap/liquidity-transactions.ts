@@ -1,3 +1,5 @@
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
+import { requestDispatchCheck } from "../../services/command-deadline.js";
 import { resolveTronAccount } from "../../services/tron/tron-account.js";
 import {
   sunAmount,
@@ -198,9 +200,8 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
             get activeAccount() {
               return scope.activeAccount;
             },
-            timeoutMs: scope.timeoutMs,
+            deadline: scope.deadline,
             wait: true,
-            waitTimeoutMs: scope.waitTimeoutMs,
             resolveAddress: (family) => scope.resolveAddress(family),
             emit: (event) => scope.emit(event),
             warn: (message) => scope.warn(message),
@@ -231,10 +232,10 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
         if (mode.mode === "broadcast" && outcome.stage !== "confirmed") {
           throw new ChainError(
             "timeout",
-            `the approval for ${approval.symbol} was not confirmed within ${scope.waitTimeoutMs}ms; the main transaction was not sent; the approval may still confirm on chain`,
+            `the approval for ${approval.symbol} was not confirmed before the command's time limit; the main transaction was not sent; the approval may still confirm on chain`,
           );
         }
-        await this.#assertAllowanceLanded(network, approval, owner);
+        await this.#assertAllowanceLanded(scope.deadline, network, approval, owner);
       }
     } catch (error) {
       throw approvalProgressError(error, txIds);
@@ -248,7 +249,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     payload: ContractCallPayload,
     options: { mode: ResolvedTransactionMode; estimable: boolean; feeLimit?: Sun },
   ): Promise<TxOutcome> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     return this.pipeline.runTron({
       ctx: scope,
       net: network,
@@ -277,6 +278,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
   }
 
   async planApprovals(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     spender: string,
@@ -284,7 +286,13 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
   ): Promise<ApprovalPlan[]> {
     const approvals: ApprovalPlan[] = [];
     for (const side of sides) {
-      const current = await this.liquidity.allowance(network, side.facts.address, owner, spender);
+      const current = await this.liquidity.allowance(
+        network,
+        side.facts.address,
+        owner,
+        spender,
+        requestDispatchCheck(deadline),
+      );
       if (BigInt(current) >= BigInt(side.amount)) continue;
       const amount = side.approvalAmount ?? baseUnitAmount(side.amount);
       approvals.push({
@@ -317,7 +325,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     estimable: boolean,
   ): () => Promise<FeeReport> {
     if (!estimable) return async () => FEE_NOT_YET_ESTIMABLE;
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     return async () =>
       gateway.estimateResources(
         resolveTronAccount(scope),
@@ -330,11 +338,18 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
 
   // A successful approval receipt does not guarantee the requested allowance was granted.
   async #assertAllowanceLanded(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     approval: ApprovalPlan,
     owner: string,
   ): Promise<void> {
-    const now = await this.liquidity.allowance(network, approval.token, owner, approval.spender);
+    const now = await this.liquidity.allowance(
+      network,
+      approval.token,
+      owner,
+      approval.spender,
+      requestDispatchCheck(deadline),
+    );
     if (BigInt(now) < BigInt(approval.amount)) {
       throw new ChainError(
         "execution_reverted",

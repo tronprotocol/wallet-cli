@@ -7,7 +7,7 @@ const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const TARGET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
 function client(): TronRpcClient {
-  const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid", 100));
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid"));
   tronweb.trx.getCurrentRefBlockParams = (async () => ({
     ref_block_bytes: "1234",
     ref_block_hash: "0011223344556677",

@@ -241,7 +241,7 @@ export const txApprovalsSpec: ChainSpec = {
 };
 
 export const txApprovalsTronBinding = (service: TronMultisigService): FamilyBinding => ({
-  run: async (_ctx, network, input) => service.approvals(network, hexInput(input)),
+  run: async (ctx, network, input) => service.approvals(ctx.deadline, network, hexInput(input)),
 });
 
 const tronSignFields = z.object({
@@ -409,7 +409,7 @@ export const txTronLinkMultisigBinding = (
     const address = ctx.resolveAddress("tron");
     if (input.create) return service.create(ctx, network, hexInput(input));
     if (input.sign) return service.sign(ctx, network, input.sign);
-    if (!input.watch) return service.list(network, address);
+    if (!input.watch) return service.list(ctx.deadline, network, address);
 
     const controller = new AbortController();
     const stop = () => controller.abort();
@@ -417,7 +417,7 @@ export const txTronLinkMultisigBinding = (
     process.once("SIGTERM", stop);
     ctx.streams.event(`Watching TronLink multi-sig service for ${network.id} … (Ctrl-C to stop)`);
     try {
-      return await service.watch(network, address, controller.signal, (count) => {
+      return await service.watch(ctx.deadline, network, address, controller.signal, (count) => {
         ctx.streams.event(
           `🔔 You have ${count} transaction(s) to sign — view them with: wallet-cli tx multisig`,
         );
@@ -446,7 +446,7 @@ export const txStatusSpec: ChainSpec = {
 };
 
 export const txStatusTronBinding = (svc: TronTransactionService): FamilyBinding => ({
-  run: async (_ctx, net, input) => svc.status(net, input.txid),
+  run: async (ctx, net, input) => svc.status(ctx.deadline, net, input.txid),
 });
 
 export const txStatusEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({
@@ -470,7 +470,7 @@ export const txInfoSpec: ChainSpec = {
 };
 
 export const txInfoTronBinding = (svc: TronTransactionService): FamilyBinding => ({
-  run: async (_ctx, net, input) => svc.info(net, input.txid),
+  run: async (ctx, net, input) => svc.info(ctx.deadline, net, input.txid),
 });
 
 export const txInfoEvmBinding = (svc: EvmTransactionService): FamilyBinding => ({

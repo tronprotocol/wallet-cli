@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { activeTronAccount, resolveTronAccount } from "../../services/tron/tron-account.js";
 import { tradeOutput } from "../../services/trade-output.js";
 import { NATIVE_TRX_ADDRESS } from "../../../domain/sunswap/tokens.js";
@@ -69,11 +71,16 @@ export class SunPumpCurveTradeService {
     input: CurveTradeInput,
   ): Promise<Record<string, unknown>> {
     if (!input.quote) resolveTronAccount(scope);
-    const facts = await this.#tradeableToken(network, input.token);
+    const facts = await this.#tradeableToken(scope.deadline, network, input.token);
     const trxSun = sunAmount(
       toBaseUnits(input.amount, FAMILIES.tron.nativeDecimals, "TRX", inputRef("trx")),
     );
-    const quoted = await this.launchpad.quoteBuy(network, facts.address, trxSun);
+    const quoted = await this.launchpad.quoteBuy(
+      network,
+      facts.address,
+      trxSun,
+      requestDispatchCheck(scope.deadline),
+    );
 
     // Quotes require no account and publish no unenforceable minimum output.
     if (input.quote) {
@@ -94,7 +101,7 @@ export class SunPumpCurveTradeService {
     };
 
     const owner = resolveTronAccount(scope);
-    await this.#assertNativeBalance(network, owner, trxSun);
+    await this.#assertNativeBalance(scope.deadline, network, owner, trxSun);
     const payload = this.launchpad.buyPayload(network, {
       token: facts.address,
       trxSun,
@@ -115,12 +122,12 @@ export class SunPumpCurveTradeService {
     input: CurveTradeInput,
   ): Promise<Record<string, unknown>> {
     if (!input.quote) resolveTronAccount(scope);
-    const facts = await this.#tradeableToken(network, input.token);
+    const facts = await this.#tradeableToken(scope.deadline, network, input.token);
     const tokensIn = baseUnitAmount(
       toBaseUnits(input.amount, facts.decimals, facts.symbol, inputRef("amount")),
     );
     // Sale proceeds are net; add the fee only to calculate the gross fee rate.
-    const quoted = await quoteCurveSale(this.launchpad, network, facts, tokensIn);
+    const quoted = await quoteCurveSale(scope.deadline, this.launchpad, network, facts, tokensIn);
     const netSun = quoted.trxOutSun;
     const grossSun = (BigInt(netSun) + BigInt(quoted.feeSun)).toString();
 
@@ -143,8 +150,13 @@ export class SunPumpCurveTradeService {
     };
 
     const owner = resolveTronAccount(scope);
-    await activeTronAccount(this.gateways, network, owner);
-    const held = await this.launchpad.balanceOf(network, facts.address, owner);
+    await activeTronAccount(scope.deadline, this.gateways, network, owner);
+    const held = await this.launchpad.balanceOf(
+      network,
+      facts.address,
+      owner,
+      requestDispatchCheck(scope.deadline),
+    );
     if (BigInt(held) < BigInt(tokensIn)) {
       throw new ChainError(
         "insufficient_token_balance",
@@ -153,7 +165,7 @@ export class SunPumpCurveTradeService {
     }
 
     const spender = this.launchpad.launchpadAddress(network);
-    const approvals = await this.tx.planApprovals(network, owner, spender, [
+    const approvals = await this.tx.planApprovals(scope.deadline, network, owner, spender, [
       // Sales request a standing unlimited allowance for the launchpad proxy.
       {
         facts: { address: facts.address, decimals: facts.decimals, symbol: facts.symbol },
@@ -175,10 +187,14 @@ export class SunPumpCurveTradeService {
   }
 
   // Read contract state before quoting; catalogue status may be stale.
-  async #tradeableToken(network: NetworkDescriptor, token: string): Promise<LaunchpadTokenFacts> {
-    const state = await this.launchpad.tokenState(network, token);
+  async #tradeableToken(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    token: string,
+  ): Promise<LaunchpadTokenFacts> {
+    const state = await this.launchpad.tokenState(network, token, requestDispatchCheck(deadline));
     assertTradeable(state, token);
-    return this.launchpad.tokenFacts(network, token);
+    return this.launchpad.tokenFacts(network, token, requestDispatchCheck(deadline));
   }
 
   #side(
@@ -211,11 +227,12 @@ export class SunPumpCurveTradeService {
 
   // Check the trade value only; chain fees are estimated separately.
   async #assertNativeBalance(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     trxSun: string,
   ): Promise<void> {
-    const account = await activeTronAccount(this.gateways, network, owner);
+    const account = await activeTronAccount(deadline, this.gateways, network, owner);
     const held = String(account.balance ?? "0");
     if (BigInt(held) < BigInt(trxSun)) {
       throw new ChainError(

@@ -6,7 +6,7 @@ State-changing contract call.
 
 ```
 wallet-cli contract send --contract <address> --method <sig> [--params <json>] [--value <n>]
-                         [--dry-run | --sign-only | --build-only | --wait [--wait-timeout <ms>]]
+                         [--dry-run | --sign-only | --build-only | --wait]
                          [--fee-limit <sun>] [--permission-id <n>] [--expiration <ms>]
                          [--gas-limit <n>] [--max-fee <gwei>] [--priority-fee <gwei>] [--nonce <n>]
                          [options]
@@ -37,7 +37,7 @@ Requires an account. The master password (via `--password-stdin`) is needed only
 | `--dry-run` | Estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--password-stdin` | Master password from stdin |
 
 TRON only:

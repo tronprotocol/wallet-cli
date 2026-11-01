@@ -1,11 +1,19 @@
-import { expect, it } from "vitest";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+import { expect, it, vi } from "vitest";
 import { createServer } from "node:net";
 import { request } from "node:http";
 import { X402PaywallHttpServer } from "./paywall-server.js";
 import { X402FacilitatorClient } from "../../../outbound/x402/facilitator-client.js";
-import { Paywall, paywallTerms } from "../../../../application/use-cases/x402-paywall.js";
+import {
+  Paywall,
+  paywallTerms,
+  sharedRequestDeadline,
+} from "../../../../application/use-cases/x402-paywall.js";
 import type { X402ServeInput } from "../../../../application/ports/x402-server.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
+const UNBOUNDED = sharedRequestDeadline(NO_DEADLINE);
 
 // The production stack: application paywall, outbound facilitator client, this HTTP host.
 async function startPaywall(
@@ -14,14 +22,19 @@ async function startPaywall(
   fetcher?: typeof fetch,
   log: (line: string) => void = () => {},
 ) {
-  const facilitator = new X402FacilitatorClient(fetcher, 1000);
-  const paywall = new Paywall(facilitator, paywallTerms(network, input, facilitator));
-  return new X402PaywallHttpServer(log, () => {}).start(paywall, {
-    host: input.host,
-    port: input.port,
-    accessLog: "json",
-    daemon: false,
-  });
+  const facilitator = new X402FacilitatorClient(fetcher);
+  const paywall = new Paywall(facilitator, paywallTerms(network, input, facilitator), UNBOUNDED);
+  return new X402PaywallHttpServer(log, () => {}).start(
+    paywall,
+    {
+      host: input.host,
+      port: input.port,
+      accessLog: "json",
+      daemon: false,
+      persistent: true,
+    },
+    NO_DEADLINE,
+  );
 }
 
 async function withServer(
@@ -310,7 +323,7 @@ it("answers a refused verification with 400 and a failed one with 502", async ()
 });
 
 it("logs text and diagnostic access lines through the supplied sinks", async () => {
-  const facilitator = new X402FacilitatorClient(undefined, 1000);
+  const facilitator = new X402FacilitatorClient(undefined);
   const net = { id: "eip155:84532", family: "evm", chainId: "84532" } as NetworkDescriptor;
   const input = {
     host: "127.0.0.1",
@@ -323,11 +336,21 @@ it("logs text and diagnostic access lines through the supplied sinks", async () 
   for (const accessLog of ["text", "diagnostic"] as const) {
     const lines: string[] = [];
     const debug: string[] = [];
-    const paywall = new Paywall(facilitator, paywallTerms(net, input, facilitator));
+    const paywall = new Paywall(facilitator, paywallTerms(net, input, facilitator), UNBOUNDED);
     const handle = await new X402PaywallHttpServer(
       (line) => lines.push(line),
       (line) => debug.push(line),
-    ).start(paywall, { host: "127.0.0.1", port: 0, accessLog, daemon: false });
+    ).start(
+      paywall,
+      {
+        host: "127.0.0.1",
+        port: 0,
+        accessLog,
+        daemon: false,
+        persistent: true,
+      },
+      NO_DEADLINE,
+    );
     try {
       await (await fetch(handle.details.payUrl)).arrayBuffer();
     } finally {
@@ -337,4 +360,140 @@ it("logs text and diagnostic access lines through the supplied sinks", async () 
     expect(written).toEqual([expect.stringMatching(/^Payment required: HTTP 402 \(\d+ ms\)$/)]);
     expect(accessLog === "text" ? debug : lines).toEqual([]);
   }
+});
+
+const TRON_NILE = {
+  id: "tron:3448148188",
+  family: "tron",
+  chainId: "3448148188",
+} as NetworkDescriptor;
+const NILE_INPUT: X402ServeInput = {
+  host: "127.0.0.1",
+  port: 0,
+  payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+  amount: "0.01",
+  token: "USDT",
+  scheme: "exact",
+  facilitatorUrl: "https://fake.invalid",
+};
+const SIGNATURE = Buffer.from(JSON.stringify({ x402Version: 2, payload: {} })).toString("base64");
+const SUPPORTED = { kinds: [{ x402Version: 2, scheme: "exact", network: "tron:0xcd8690dc" }] };
+const SETTLED = { success: true, transaction: "a".repeat(64), network: "tron:0xcd8690dc" };
+
+function hostWith(fetcher: typeof fetch, startup: CommandDeadline) {
+  const facilitator = new X402FacilitatorClient(fetcher);
+  const paywall = new Paywall(
+    facilitator,
+    paywallTerms(TRON_NILE, NILE_INPUT, facilitator),
+    UNBOUNDED,
+  );
+  return new X402PaywallHttpServer(
+    () => {},
+    () => {},
+  ).start(
+    paywall,
+    { host: "127.0.0.1", port: 0, accessLog: "json", daemon: false, persistent: true },
+    startup,
+  );
+}
+
+async function freePort(): Promise<number> {
+  const socket = createServer();
+  await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
+  const port = (socket.address() as { port: number }).port;
+  await new Promise<void>((resolve) => socket.close(() => resolve()));
+  return port;
+}
+
+it("closes the listener and fails with timeout when it is ready after the start-up deadline", async () => {
+  let now = 0;
+  const startup = new CommandDeadline(1000, 0, { now: () => now });
+  const port = await freePort();
+  const facilitator = new X402FacilitatorClient(async () => {
+    // The clock passes the limit before the timer fires.
+    now = 1001;
+    return Response.json(SUPPORTED);
+  });
+  const paywall = new Paywall(
+    facilitator,
+    paywallTerms(TRON_NILE, NILE_INPUT, facilitator),
+    UNBOUNDED,
+  );
+  await expect(
+    new X402PaywallHttpServer(
+      () => {},
+      () => {},
+    ).start(
+      paywall,
+      { host: "127.0.0.1", port, accessLog: "json", daemon: false, persistent: true },
+      startup,
+    ),
+  ).rejects.toMatchObject({ code: "timeout" });
+  startup.dispose();
+  await expect(fetch(`http://127.0.0.1:${port}/health`)).rejects.toThrow();
+});
+
+it("never listens when the start-up deadline has run out", async () => {
+  const startup = new CommandDeadline(1);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const fetcher = vi.fn(async () => Response.json(SUPPORTED));
+  await expect(hostWith(fetcher, startup)).rejects.toMatchObject({ code: "timeout" });
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("finishes a settlement whose client disconnected and keeps serving", async () => {
+  let release!: () => void;
+  const released = new Promise<void>((resolve) => (release = resolve));
+  let settled!: () => void;
+  const settledOnce = new Promise<void>((resolve) => (settled = resolve));
+  let settleSignal: AbortSignal | undefined;
+  const handle = await hostWith(async (url, init) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/supported") return Response.json(SUPPORTED);
+    if (path === "/verify") return Response.json({ isValid: true });
+    settleSignal = init?.signal ?? undefined;
+    settled();
+    await released;
+    return Response.json(SETTLED);
+  }, NO_DEADLINE);
+  try {
+    const client = new AbortController();
+    const paid = fetch(handle.details.payUrl, {
+      headers: { "payment-signature": SIGNATURE },
+      signal: client.signal,
+    });
+    await settledOnce;
+    client.abort();
+    await expect(paid).rejects.toThrow();
+    // Give the server a turn to see the closed socket.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(settleSignal?.aborted).toBe(false);
+    release();
+    expect((await fetch(handle.details.payUrl.replace(/\/pay$/, "/health"))).status).toBe(200);
+  } finally {
+    release();
+    await handle.close();
+  }
+});
+
+it("closes promptly with a request in flight and an idle keep-alive connection", async () => {
+  let verifying!: () => void;
+  const verifyStarted = new Promise<void>((resolve) => (verifying = resolve));
+  const handle = await hostWith(async (url, init) => {
+    const path = new URL(String(url)).pathname;
+    if (path === "/supported") return Response.json(SUPPORTED);
+    verifying();
+    // Answers only when its request is aborted.
+    return new Promise<Response>((_resolve, reject) =>
+      init?.signal?.addEventListener("abort", () => reject(init.signal!.reason)),
+    );
+  }, NO_DEADLINE);
+  const health = handle.details.payUrl.replace(/\/pay$/, "/health");
+  await (await fetch(health)).arrayBuffer();
+  const inFlight = fetch(handle.details.payUrl, { headers: { "payment-signature": SIGNATURE } });
+  await verifyStarted;
+  const started = performance.now();
+  await handle.close();
+  expect(performance.now() - started).toBeLessThan(1000);
+  await expect(inFlight).rejects.toThrow();
 });

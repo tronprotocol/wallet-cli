@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest";
+import { createServer } from "node:net";
 import { X402Service } from "../../../application/use-cases/x402-service.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { ProviderCatalogPort } from "../../../application/ports/provider-catalog.js";
@@ -8,6 +9,7 @@ import { X402PaywallHttpServer } from "../../inbound/http/x402/paywall-server.js
 import { baiPaymentResult } from "../../../application/services/bai-payment-result.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -63,6 +65,7 @@ it.each([
       {} as never,
       {
         facilitator: new X402FacilitatorClient(facilitator as typeof fetch),
+        requestTimeoutMs: 0,
         host: new X402PaywallHttpServer(
           () => {},
           () => {},
@@ -72,7 +75,7 @@ it.each([
       signing,
     );
     const result = await service.roundtrip(
-      { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn() } as never,
+      { activeAccount: "payer", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
       { id, chainId, family: "evm" } as never,
       {
         host: "127.0.0.1",
@@ -133,6 +136,7 @@ it.each([
     {} as never,
     {
       facilitator: new X402FacilitatorClient(facilitator),
+      requestTimeoutMs: 0,
       host: new X402PaywallHttpServer(
         () => {},
         () => {},
@@ -142,7 +146,12 @@ it.each([
     signing,
   );
   const pending = service.roundtrip(
-    { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn(), warn: vi.fn() } as never,
+    {
+      activeAccount: "payer",
+      deadline: new CommandDeadline(0),
+      emit: vi.fn(),
+      warn: vi.fn(),
+    } as never,
     { id: "eip155:97", chainId: "97", family: "evm" } as never,
     {
       host: "127.0.0.1",
@@ -188,6 +197,7 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
     {} as never,
     {
       facilitator: new X402FacilitatorClient(facilitator),
+      requestTimeoutMs: 0,
       host: new X402PaywallHttpServer(
         () => {},
         () => {},
@@ -198,7 +208,7 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
   );
   // The omitted asset uses the paywall's default token.
   const result = await service.roundtrip(
-    { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn() } as never,
+    { activeAccount: "payer", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
     { id: "eip155:56", chainId: "56", family: "evm" } as never,
     {
       host: "127.0.0.1",
@@ -219,4 +229,60 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
     },
   });
   expect(signTypedData).toHaveBeenCalledOnce();
+});
+
+it("ends a roundtrip whose settlement hangs at the deadline and closes its listener", async () => {
+  const socket = createServer();
+  await new Promise<void>((resolve) => socket.listen(0, "127.0.0.1", resolve));
+  const port = (socket.address() as { port: number }).port;
+  await new Promise<void>((resolve) => socket.close(() => resolve()));
+  const payer = "0x1111111111111111111111111111111111111111";
+  const signTypedData = vi.fn(async (payload) => ({
+    primaryType: payload.primaryType,
+    signature: "0x" + "a".repeat(130),
+  }));
+  // Settlement never answers, even when its request is aborted.
+  const facilitator: typeof fetch = async (url) =>
+    String(url).endsWith("/verify")
+      ? Response.json({ isValid: true, payer })
+      : new Promise<Response>(() => {});
+  const service = new X402Service(
+    new X402PaymentClient(),
+    {
+      assertCanSign: vi.fn(),
+      resolve: () => ({ address: payer, kind: "software", signTypedData }),
+    } as never,
+    {} as ProviderCatalogPort,
+    {} as never,
+    {
+      facilitator: new X402FacilitatorClient(facilitator),
+      host: new X402PaywallHttpServer(
+        () => {},
+        () => {},
+      ),
+      requestTimeoutMs: 0,
+    },
+    undefined,
+    signing,
+  );
+  const deadline = new CommandDeadline(2500);
+  const started = performance.now();
+  await expect(
+    service.roundtrip(
+      { activeAccount: "payer", deadline, emit: vi.fn(), warn: vi.fn() } as never,
+      { id: "eip155:56", chainId: "56", family: "evm" } as never,
+      {
+        host: "127.0.0.1",
+        port,
+        payTo: "0x2222222222222222222222222222222222222222",
+        amount: "0.01",
+        token: "USDT",
+        scheme: "exact",
+        facilitatorUrl: "https://facilitator.example",
+      },
+    ),
+  ).rejects.toMatchObject({ code: "timeout" });
+  expect(performance.now() - started).toBeLessThan(4000);
+  await expect(fetch(`http://127.0.0.1:${port}/health`)).rejects.toThrow();
+  deadline.dispose();
 });

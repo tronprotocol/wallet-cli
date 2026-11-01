@@ -7,6 +7,7 @@ import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/i
 import { TronTransactionService } from "./transaction-service.js";
 import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const OWNER = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 const RECEIVER = "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT";
@@ -22,9 +23,9 @@ function scope(): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
-    timeoutMs: 100,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 100,
+
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -128,7 +129,7 @@ describe("TronTransactionService TRC20 --wait", () => {
       { resolve: () => ({ address: RECEIVER }) } as never,
     );
 
-    await service.send({ ...scope(), wait: true, waitTimeoutMs: 0 }, NETWORK, {
+    await service.send({ ...scope(), wait: true, deadline: new CommandDeadline(10) }, NETWORK, {
       to: RECEIVER,
       contract: CONTRACT,
       rawAmount: "1",

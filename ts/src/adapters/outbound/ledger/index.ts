@@ -17,12 +17,12 @@ export interface AppConfig {
 }
 import { ChainError, CliError, ExecutionError, WalletError } from "../../../domain/errors/index.js";
 import { ChainFamily, FAMILIES } from "../../../domain/family/index.js";
-import { withTimeout } from "../../../domain/async/index.js";
 
 export interface GetAddressOpts {
   // Show the address on-device for confirmation; false derives silently.
   display?: boolean;
   onWait?: () => void;
+  signal: AbortSignal;
 }
 
 interface TrxApp {
@@ -222,10 +222,7 @@ export class Ledger {
     },
   };
 
-  constructor(
-    private readonly verifyTronTransaction: TronTransactionIntegrityCheck,
-    private readonly timeoutMs = 60_000,
-  ) {}
+  constructor(private readonly verifyTronTransaction: TronTransactionIntegrityCheck) {}
 
   private assertWired(family: ChainFamily): void {
     if (!FAMILIES[family].ledger) {
@@ -233,7 +230,8 @@ export class Ledger {
     }
   }
 
-  // Abort bypasses the transport's APDU wait; completed operations close normally.
+  // The signal closes the transport and ends the operation with its reason (the deadline's timeout),
+  // or "cancelled" for any other abort; completed operations close normally.
   #bound<A extends LedgerApp, T>(
     family: ChainFamily,
     fn: (app: A) => Promise<T>,
@@ -275,32 +273,36 @@ export class Ledger {
         await handle.close().catch(() => {});
       }
     })();
-    let rejectCancelled!: (error: ChainError) => void;
+    let rejectCancelled!: (error: CliError) => void;
     const cancellation = new Promise<never>((_resolve, reject) => {
       rejectCancelled = reject;
     });
     const onAbort = () => {
       closeTransport();
-      rejectCancelled(new ChainError("cancelled", "the Ledger operation was cancelled"));
+      const reason: unknown = signal?.reason;
+      rejectCancelled(
+        reason instanceof CliError
+          ? reason
+          : new ChainError("cancelled", "the Ledger operation was cancelled"),
+      );
     };
     if (signal) {
       if (signal.aborted) onAbort();
       else signal.addEventListener("abort", onAbort, { once: true });
     }
-    return withTimeout(Promise.race([run, cancellation]), this.timeoutMs, closeTransport).finally(
-      () => {
-        signal?.removeEventListener("abort", onAbort);
-      },
-    );
+    return Promise.race([run, cancellation]).finally(() => {
+      signal?.removeEventListener("abort", onAbort);
+    });
   }
 
-  async getAddress(family: ChainFamily, path: string, opts?: GetAddressOpts): Promise<string> {
-    opts?.onWait?.();
+  async getAddress(family: ChainFamily, path: string, opts: GetAddressOpts): Promise<string> {
+    opts.onWait?.();
     this.assertWired(family);
     try {
       return await this.#bound<TrxApp | EthApp, string>(
         family,
-        async (app) => (await app.getAddress(ledgerPath(path), opts?.display ?? false)).address,
+        async (app) => (await app.getAddress(ledgerPath(path), opts.display ?? false)).address,
+        opts.signal,
       );
     } catch (e) {
       throw classifyDeviceError(e);
@@ -531,13 +533,17 @@ export class Ledger {
     }
   }
 
-  async appConfig(family: ChainFamily): Promise<AppConfig> {
+  async appConfig(family: ChainFamily, signal: AbortSignal): Promise<AppConfig> {
     this.assertWired(family);
     try {
-      return await this.#bound<TrxApp | EthApp, AppConfig>(family, async (trx) => ({
-        version: (await trx.getAppConfiguration()).version,
-        ready: true,
-      }));
+      return await this.#bound<TrxApp | EthApp, AppConfig>(
+        family,
+        async (trx) => ({
+          version: (await trx.getAppConfiguration()).version,
+          ready: true,
+        }),
+        signal,
+      );
     } catch (e) {
       throw classifyDeviceError(e);
     }

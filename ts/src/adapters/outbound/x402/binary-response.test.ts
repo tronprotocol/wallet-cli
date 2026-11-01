@@ -8,13 +8,14 @@ import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import { CliError } from "../../../domain/errors/index.js";
 import { exitCodeOf } from "../../inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 const net = { id: "eip155:56", family: "evm", chainId: "56" } as NetworkDescriptor;
 const signer = {
   kind: "software",
   address: "0x1111111111111111111111111111111111111111",
 } as Signer;
-const scope = { activeAccount: "payer", timeoutMs: 1000, emit() {} } as never;
+const scope = { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never;
 const input = { url: "https://api.example/resource", method: "GET", headers: [] };
 const transaction = "0x" + "a".repeat(64);
 const receipt = { success: true, network: net.id, transaction };

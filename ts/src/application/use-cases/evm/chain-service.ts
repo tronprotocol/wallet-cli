@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { evmFeeMode } from "../../../domain/evm/evm-gas.js";
 import { NATIVE_TRANSFER_GAS, nativeTransferCostWei } from "../../../domain/evm/index.js";
@@ -24,8 +26,8 @@ async function optional<T>(read: () => Promise<T>): Promise<T | null> {
 export class EvmChainService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  async prices(network: NetworkDescriptor) {
-    const fee = await this.gateways.get(network, "evm").feeData();
+  async prices(deadline: ExecutionDeadline, network: NetworkDescriptor) {
+    const fee = await this.gateways.get(network, "evm", requestDispatchCheck(deadline)).feeData();
     const mode = evmFeeMode(fee.baseFeeWei, network.feeModel);
     const eip1559 = mode === "eip1559" && fee.baseFeeWei !== undefined;
     const priorityFeeWei = fee.suggestedPriorityWei ?? null;
@@ -45,8 +47,8 @@ export class EvmChainService {
   }
 
   // Optional node methods may be unsupported; retain the head when those reads fail.
-  async node(network: NetworkDescriptor) {
-    const gateway = this.gateways.get(network, "evm");
+  async node(deadline: ExecutionDeadline, network: NetworkDescriptor) {
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(deadline));
     const [version, syncing, peers, head, finalized, chainId] = await Promise.all([
       optional(() => gateway.clientVersion()),
       optional(() => gateway.syncing()),

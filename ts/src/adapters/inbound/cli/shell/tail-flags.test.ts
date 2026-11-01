@@ -60,6 +60,7 @@ describe("no command declares a field named after a yargs tail key", () => {
       globals: { output: "text", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
+      monotonicStart: performance.now(),
     });
     const offenders: string[] = [];
     for (const cmd of runtime.registry.all()) {

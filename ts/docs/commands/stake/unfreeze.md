@@ -6,7 +6,7 @@ Unstake TRX.
 
 ```
 wallet-cli stake unfreeze --amount-sun <n> [--resource energy|bandwidth]
-                          [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]] [--permission-id <n>] [options]
+                          [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait] [--permission-id <n>] [options]
 ```
 
 ## Description
@@ -28,7 +28,7 @@ Stake 2.0 allows at most **32 pending unstakes** per account at a time; check re
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).

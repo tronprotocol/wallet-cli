@@ -10,6 +10,7 @@ import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
 import { withTronWeb } from "../../../adapters/outbound/chain/tron/__test-support__/tronweb.js";
 import { SigningService } from "../../services/signing/signing-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -24,9 +25,9 @@ const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0" as never,
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
@@ -196,7 +197,7 @@ describe("--expiration means the same on governance as everywhere else", () => {
   async function realGatewayHarness() {
     const { TronRpcClient } = await import("../../../adapters/outbound/chain/tron/tron.js");
     const { client: rpc, tronweb: rpcTronweb } = withTronWeb(
-      () => new TronRpcClient("https://node.invalid", 1000),
+      () => new TronRpcClient("https://node.invalid"),
     );
     rpcTronweb.trx.getCurrentRefBlockParams = (async () => ({
       ref_block_bytes: "4b6b",

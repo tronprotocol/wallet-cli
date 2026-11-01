@@ -97,8 +97,7 @@ import type { FamilyPlugin } from "./types.js";
 export const evmFamily: FamilyPlugin<"evm"> = {
   meta: FAMILIES.evm,
   signStrategy: evmSignStrategy,
-  createGateway: (network, timeoutMs) =>
-    new EvmRpcClient(network, timeoutMs, undefined, processBroadcastGuard),
+  createGateway: (network) => new EvmRpcClient(network, undefined, processBroadcastGuard),
 };
 
 export interface EvmChainCommandDependencies {

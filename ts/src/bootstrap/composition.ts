@@ -1,6 +1,9 @@
 import { processBroadcastGuard } from "../application/services/broadcast-guard.js";
+import { CommandDeadline } from "../application/services/command-deadline.js";
 import { MessageSigner } from "../application/services/signing/message-signer.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
+import { daemonChildTimeoutMs } from "./x402-daemon.js";
+import { ProcessLifetime } from "./process-lifetime.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { DEFAULT_X402_FACILITATOR_URL } from "../application/services/x402/facilitator.js";
 import { BaiWalletBinding } from "../application/use-cases/bai-wallet-binding.js";
@@ -84,24 +87,28 @@ export interface BootstrapOptions {
   readonly globals: Globals;
   readonly secretPaths: SecretPaths;
   readonly startedAt: number;
+  // performance.now() when the command started; the deadline counts from here.
+  readonly monotonicStart: number;
 }
 
 export function composeCliRuntime(options: BootstrapOptions) {
   const config = ConfigLoader.load();
-  const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
+  const timeoutMs = daemonChildTimeoutMs() ?? options.globals.timeoutMs ?? config.timeoutMs;
+  const deadline = new CommandDeadline(timeoutMs, options.monotonicStart);
+  const lifetime = new ProcessLifetime(deadline);
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
   const streams = new StreamManager(output, options.globals.verbose);
   const credentials = configuredCredentials(config);
   const formatter = createOutputFormatter(output, streams, options.startedAt, credentials);
 
   const root = ConfigLoader.resolveRoot();
-  const store = new AtomicFileStore();
+  const store = new AtomicFileStore(deadline);
   const configService = new ConfigService(new YamlConfigDocument(ConfigLoader.configPath(), store));
   const networkRegistry = new NetworkRegistry(config);
-  const prompter = createPrompter();
+  const prompter = createPrompter(deadline);
   const secrets = new SecretResolver(streams, options.secretPaths, prompter);
   const keystore = new Keystore(root, store, () => secrets.masterPassword());
-  const ledger = new Ledger(assertTronTxIntegrity, timeoutMs);
+  const ledger = new Ledger(assertTronTxIntegrity);
   const walletService = new WalletService(
     keystore,
     ledger,
@@ -113,7 +120,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const recipientResolver = new RecipientResolver(contactBook);
   const priceProvider = createPriceProvider(
     config.price,
-    timeoutMs,
     // Only explicitly marked testnets receive testnet pricing.
     new Set(
       Object.values(config.networks)
@@ -121,12 +127,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
         .map((n) => n.id),
     ),
   );
-  const gatewayProvider = new ChainGatewayRegistry(
-    familyMap((plugin) => plugin.createGateway),
-    timeoutMs,
-  );
+  const gatewayProvider = new ChainGatewayRegistry(familyMap((plugin) => plugin.createGateway));
   const routerPlanner = new SunSwapRouterPlanner(gatewayProvider);
-  const x402Facilitator = new X402FacilitatorClient(undefined, timeoutMs);
+  const x402Facilitator = new X402FacilitatorClient();
   const capabilityRegistry = new CapabilityRegistry(config.aliases, {
     x402TokenRegistered: (network, symbol) =>
       x402Facilitator.assetBySymbol(network, "exact", symbol) !== undefined,
@@ -154,7 +157,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const x402Service = new X402Service(
     x402Payments,
     signerResolver,
-    new X402ProviderCatalog(undefined, undefined, timeoutMs),
+    new X402ProviderCatalog(),
     networkRegistry,
     {
       facilitator: x402Facilitator,
@@ -164,7 +167,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
           (line) => streams.diagnostic("debug", line),
         ),
         createX402DaemonLog,
+        lifetime,
+        timeoutMs,
       ),
+      requestTimeoutMs: timeoutMs,
     },
     new X402Permit2Approvals(gatewayProvider, txPipeline),
     signing,
@@ -172,15 +178,15 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerBaiCommands(
     registry,
     new BaiService(
-      new BaiClient(config, timeoutMs),
+      new BaiClient(config),
       () => new Date(),
       x402Service,
       new BaiWalletBinding(new MessageSigner(signerResolver, signing)),
-      new BaiRechargeClient(config, timeoutMs),
+      new BaiRechargeClient(config),
       { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
       {
         initialDelayMs: baiReportDelayMs(process.env.WALLET_CLI_BAI_REPORT_DELAY_MS),
-        wait: delay,
+        wait: (ms, signal) => delay(ms, undefined, { signal }),
       },
       gatewayProvider,
       keystore,
@@ -193,7 +199,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const agents = new AgentService(
     registryContracts(agentContracts),
     new SdkAgentRegistry(agentContracts, gatewayProvider),
-    new RegistrationLoader(timeoutMs),
+    new RegistrationLoader(),
   );
   registerX402Commands(registry, x402Service);
   const accountBalances = new AccountBalanceService(gatewayProvider);
@@ -207,15 +213,14 @@ export function composeCliRuntime(options: BootstrapOptions) {
     signing,
     transactions: txPipeline,
     accounts: keystore,
-    timeoutMs,
-    tronlink: new TronLinkClient(config, timeoutMs, processBroadcastGuard),
-    gasfree: new GasFreeClient(config, timeoutMs, processBroadcastGuard),
-    sunswapMarket: new SunSwapMarketApi(timeoutMs),
+    tronlink: new TronLinkClient(config, processBroadcastGuard),
+    gasfree: new GasFreeClient(config, processBroadcastGuard),
+    sunswapMarket: new SunSwapMarketApi(),
     sunswapLiquidity: new SunSwapLiquidityContracts(gatewayProvider),
     sunpumpLaunchpad: new SunPumpLaunchpadContracts(gatewayProvider),
-    sunpumpMarket: new SunPumpMarketApi(timeoutMs),
-    sunpumpLaunch: new SunPumpLaunchApi(timeoutMs, processBroadcastGuard),
-    sunswapRouter: new SunSwapRouterApi(timeoutMs),
+    sunpumpMarket: new SunPumpMarketApi(),
+    sunpumpLaunch: new SunPumpLaunchApi(processBroadcastGuard),
+    sunswapRouter: new SunSwapRouterApi(),
     sunswapRouterPlanner: routerPlanner,
     // Share the cached chain clock so router and permit deadlines agree.
     sunswapPermits: routerPlanner,
@@ -249,6 +254,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
 
   const deps = {
     config,
+    deadline,
     networkRegistry,
     streams,
     secrets,
@@ -259,6 +265,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const session: SessionRef = {};
 
   return {
+    deadline,
+    lifetime,
     migrations: new MigrationService(new FileDataMigrations(store, migrationSteps(root, store))),
     config,
     credentials,

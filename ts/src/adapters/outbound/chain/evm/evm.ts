@@ -12,6 +12,11 @@ import { classifyEvmRejection, isAlreadyKnown, isDefiniteSubmitRefusal } from ".
 import { evmChecksumAddress, isEvmAddress } from "../../../../domain/address/index.js";
 import { decodeErc20Transfer } from "../../../../domain/evm/index.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
+import {
+  DeadlineExpiredError,
+  type DispatchCheck,
+} from "../../../../application/contracts/deadline.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
 import type {
   DeployConstructorArgs,
   EvmBlockView,
@@ -60,7 +65,6 @@ export class EvmRpcClient implements EvmGateway {
 
   constructor(
     endpointOrNetwork: string | NetworkDescriptor | HttpEndpointConfig,
-    timeoutMs = 60_000,
     transport?: HttpTransport,
     guard: BroadcastGuard = UNWIRED_BROADCAST_GUARD,
   ) {
@@ -68,10 +72,10 @@ export class EvmRpcClient implements EvmGateway {
     try {
       config =
         typeof endpointOrNetwork === "string"
-          ? { endpoint: endpointOrNetwork, timeoutMs, headers: {} }
+          ? { endpoint: endpointOrNetwork, headers: {} }
           : "endpoint" in endpointOrNetwork
             ? endpointOrNetwork
-            : networkHttpConfig(endpointOrNetwork, timeoutMs);
+            : networkHttpConfig(endpointOrNetwork);
     } catch (error) {
       const failure =
         error instanceof HttpTransportError ? httpTransportFailure(error) : "invalid HTTP endpoint";
@@ -164,10 +168,13 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   // Accept only a 32-byte hash or an already-known response as successful submission.
-  async sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }> {
+  async sendRawTransaction(
+    raw: string,
+    check: DispatchCheck,
+  ): Promise<{ hash?: string; alreadyKnown?: boolean }> {
     this.#broadcastGuard.assertAllowed();
     const method = "eth_sendRawTransaction";
-    const body = await this.#request(method, [raw]);
+    const body = await withDispatchCheck(check, () => this.#request(method, [raw]));
     if (body.error !== undefined && body.error !== null) {
       if (
         typeof body.error !== "object" ||
@@ -209,8 +216,8 @@ export class EvmRpcClient implements EvmGateway {
 
   // Null means pending; a missing result is invalid.
   // A mined receipt can still indicate failure; feeWei is the actual gasUsed × effectiveGasPrice.
-  async getTransactionReceipt(hash: string, signal?: AbortSignal): Promise<EvmReceipt | null> {
-    const raw = await this.#call("eth_getTransactionReceipt", [hash], signal);
+  async getTransactionReceipt(hash: string): Promise<EvmReceipt | null> {
+    const raw = await this.#call("eth_getTransactionReceipt", [hash]);
     if (raw === null) return null;
     if (raw === undefined || typeof raw !== "object") {
       throw new ChainError(
@@ -245,11 +252,7 @@ export class EvmRpcClient implements EvmGateway {
   }
 
   // Return RPC errors in the envelope for method-specific classification.
-  async #request(
-    method: string,
-    params: unknown[],
-    signal?: AbortSignal,
-  ): Promise<JsonRpcResponse> {
+  async #request(method: string, params: unknown[]): Promise<JsonRpcResponse> {
     this.#id += 1;
     let text: string;
     try {
@@ -257,9 +260,9 @@ export class EvmRpcClient implements EvmGateway {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: this.#id, method, params }),
-        ...(signal ? { signal } : {}),
       });
     } catch (e) {
+      if (e instanceof DeadlineExpiredError) throw e;
       if (e instanceof HttpTransportError && e.kind === "timeout") {
         throw new ChainError("timeout", `${method} timed out`);
       }
@@ -295,7 +298,7 @@ export class EvmRpcClient implements EvmGateway {
     }
   }
 
-  async broadcast(signed: SignedTx): Promise<BroadcastResult> {
+  async broadcast(signed: SignedTx, check: DispatchCheck): Promise<BroadcastResult> {
     this.#broadcastGuard.assertAllowed();
     const raw = (signed as { raw?: unknown })?.raw;
     if (typeof raw !== "string" || raw === "") {
@@ -304,7 +307,7 @@ export class EvmRpcClient implements EvmGateway {
         "a signed EVM transaction must carry its raw serialisation",
       );
     }
-    return this.sendRawTransaction(raw);
+    return this.sendRawTransaction(raw, check);
   }
 
   // Encode the signed or unsigned transaction as hex for offline exchange.
@@ -481,8 +484,8 @@ export class EvmRpcClient implements EvmGateway {
     }
   }
 
-  async #call(method: string, params: unknown[], signal?: AbortSignal): Promise<unknown> {
-    const body = await this.#request(method, params, signal);
+  async #call(method: string, params: unknown[]): Promise<unknown> {
+    const body = await this.#request(method, params);
     if (body.error) {
       const message = body.error.message ?? "";
       const known = classifyEvmRejection(method, message);

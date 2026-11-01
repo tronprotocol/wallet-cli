@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { baiApiError, baiBusinessMessage } from "./api-error.js";
 import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import { z } from "zod";
@@ -10,7 +11,7 @@ import type {
   BaiCreateOrderInput,
   BaiReportTransactionInput,
   BaiReportResult,
-  BaiRawOrder,
+  BaiCreatedOrder,
 } from "../../../application/ports/bai-recharge.js";
 import { DEFAULT_BAI_BASE_URL } from "./client.js";
 import { sameAddress } from "../../../domain/family/index.js";
@@ -48,6 +49,11 @@ const bindInput = wallet.extend({
   signature: text,
   version: z.number().int().positive().optional(),
 });
+// B.AI order ids are numbers; a string id is kept as given.
+const orderId = z.union([
+  z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).transform(String),
+  z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+]);
 const orderInput = z.object({
   channel: z.literal("crypto"),
   chain: text,
@@ -74,31 +80,34 @@ const report = z.discriminatedUnion("success", [
 export class BaiRechargeClient implements BaiRechargeApi {
   constructor(
     private readonly config: Pick<Config, "baiApiKey">,
-    private readonly timeoutMs: number,
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly baseUrl = DEFAULT_BAI_BASE_URL,
   ) {}
 
-  async resolveTarget(identifier: string) {
+  async resolveTarget(identifier: string, check: DispatchCheck) {
     return this.decode(
       z.object({ type: z.literal("personal"), targetId: text, displayLabel: text }),
-      await this.call("order.resolveRechargeTarget", {
-        type: "personal",
-        identifier: this.input(text, identifier),
-      }),
+      await this.call(
+        "order.resolveRechargeTarget",
+        {
+          type: "personal",
+          identifier: this.input(text, identifier),
+        },
+        check,
+      ),
     );
   }
-  async isBound(input: BaiWalletBindingInput): Promise<boolean> {
+  async isBound(input: BaiWalletBindingInput, check: DispatchCheck): Promise<boolean> {
     return this.decode(
       z.boolean(),
-      await this.call("wallet.isRechargeBound", this.input(wallet, input), "GET"),
+      await this.call("wallet.isRechargeBound", this.input(wallet, input), check, "GET"),
     );
   }
-  async bind(input: BaiBindWalletInput) {
+  async bind(input: BaiBindWalletInput, check: DispatchCheck) {
     const checked = this.input(bindInput, input);
     const result = this.decode(
       binding,
-      await this.call("wallet.bindRechargeWallet", checked),
+      await this.call("wallet.bindRechargeWallet", checked, check),
     ).binding;
     const evm = ["bnb", "base", "eth"].includes(checked.chain);
     const matchingAddress = evm
@@ -123,18 +132,22 @@ export class BaiRechargeClient implements BaiRechargeApi {
       });
     return result;
   }
-  async createOrder(input: BaiCreateOrderInput): Promise<BaiRawOrder> {
+  async createOrder(input: BaiCreateOrderInput, check: DispatchCheck): Promise<BaiCreatedOrder> {
     const result = this.decode(
       object,
-      await this.call("order.createOrder", this.input(orderInput, input)),
+      await this.call("order.createOrder", this.input(orderInput, input), check),
     );
     if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
-    return result as unknown as BaiRawOrder;
+    const id = orderId.safeParse(result.id ?? result.orderId);
+    return id.success ? { orderId: id.data } : {};
   }
-  async reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult> {
+  async reportTxHash(
+    input: BaiReportTransactionInput,
+    check: DispatchCheck,
+  ): Promise<BaiReportResult> {
     const result = this.decode(
       report,
-      await this.call("order.reportTxHash", this.input(reportInput, input)),
+      await this.call("order.reportTxHash", this.input(reportInput, input), check),
     );
     return result.success
       ? (result as unknown as BaiReportResult)
@@ -164,6 +177,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
   private async call(
     procedure: string,
     input: unknown,
+    check: DispatchCheck,
     method: "GET" | "POST" = "POST",
   ): Promise<unknown> {
     const key = this.config.baiApiKey;
@@ -180,7 +194,8 @@ export class BaiRechargeClient implements BaiRechargeApi {
       );
     const payload = JSON.stringify({ json: input });
     if (method === "GET") url.searchParams.set("input", payload);
-    const signal = AbortSignal.timeout(this.timeoutMs);
+    const signal = check.signal;
+    check.assertDispatchable();
     let response: Response;
     let decoded: unknown;
     try {
@@ -235,7 +250,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
         throw apiError;
     } catch (error) {
       if (error instanceof TransportError) throw error;
-      if (error instanceof Error && /TimeoutError|AbortError/.test(error.name))
+      if (signal.aborted)
         throw new TransportError(
           "timeout",
           "B.AI recharge API timed out; mutation outcome may be unknown",

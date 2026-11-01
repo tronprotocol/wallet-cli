@@ -15,7 +15,8 @@ export interface LedgerDevice {
   getAddress(
     family: ChainFamily,
     path: string,
-    options?: { display?: boolean; onWait?: () => void },
+    // `signal` closes the device connection; the operation then fails with the signal's reason.
+    options: { display?: boolean; onWait?: () => void; signal: AbortSignal },
   ): Promise<string>;
   signTransaction(
     family: ChainFamily,
@@ -37,5 +38,5 @@ export interface LedgerDevice {
     payload: TypedDataPayload,
     signal?: AbortSignal,
   ): Promise<TypedDataSignature>;
-  appConfig(family: ChainFamily): Promise<LedgerAppState>;
+  appConfig(family: ChainFamily, signal: AbortSignal): Promise<LedgerAppState>;
 }

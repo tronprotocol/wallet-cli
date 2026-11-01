@@ -58,7 +58,7 @@ export const sunswapPositionInfoTronBinding = (
   service: SunSwapPositionInfoService,
 ): FamilyBinding => ({
   run: async (ctx, net, input) =>
-    service.positionInfo(ctx, net, {
+    service.positionInfo(ctx.deadline, ctx, net, {
       protocol: input.protocol,
       positionId: input.positionId,
     }),

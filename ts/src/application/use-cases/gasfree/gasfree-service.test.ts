@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../contracts/deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import type { GasFreeProvider } from "../../ports/gasfree-provider.js";
@@ -8,6 +9,8 @@ import type { NetworkDescriptor, SignedGasFreeAuthorization } from "../../../dom
 import { GasFreeService } from "./gasfree-service.js";
 import { SigningService } from "../../services/signing/signing-service.js";
 import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline, type MonotonicClock } from "../../services/command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
 
 const cliWarnings = (ctx: TransactionScope) =>
   vi
@@ -38,13 +41,13 @@ const NETWORK = {
   },
 } satisfies NetworkDescriptor;
 
-function scope(wait = false, waitTimeoutMs = 5000): TransactionScope {
+// The deadline follows the fixture's clock, which the fixture's sleep advances.
+function scope(wait = false, limitMs = 0, clock?: MonotonicClock): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
-    timeoutMs: 1000,
+    deadline: new CommandDeadline(limitMs, clock?.now(), clock),
     wait,
-    waitTimeoutMs,
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -178,6 +181,7 @@ function fixture(
     },
   );
   return {
+    clock: { now: () => now },
     service,
     provider,
     submitTransfer,
@@ -227,6 +231,7 @@ describe("GasFreeService", () => {
     expect(fixtureValue.submitTransfer).toHaveBeenCalledWith(
       NETWORK,
       expect.objectContaining({ receiver: RECEIVER }),
+      expect.anything(),
     );
   });
 
@@ -248,6 +253,7 @@ describe("GasFreeService", () => {
     expect(fixtureValue.submitTransfer).toHaveBeenCalledWith(
       NETWORK,
       expect.objectContaining({ sig: SIGNATURE.slice(2) }),
+      expect.anything(),
     );
   });
 
@@ -390,7 +396,7 @@ describe("GasFreeService", () => {
           return terminalRecord("SUCCEED");
         },
       });
-      const ctx = scope(true, 5000);
+      const ctx = scope(true, 5000, fixtureValue.clock);
 
       const result = await send(fixtureValue, ctx);
 
@@ -405,13 +411,13 @@ describe("GasFreeService", () => {
           throw new TransportError("provider_error", "GasFree service rate limit exceeded");
         },
       });
-      const ctx = scope(true, 3000);
+      const ctx = scope(true, 3000, fixtureValue.clock);
 
       const result = await send(fixtureValue, ctx);
 
       expect(result).toMatchObject({ stage: "submitted", state: "WAITING", traceId: "trace-1" });
       expect(cliWarnings(ctx)).toEqual([
-        "--wait: GasFree transfer trace-1 did not finish within 3000ms; returning submitted",
+        "--wait: GasFree transfer trace-1 did not finish before the command's time limit; returning submitted",
       ]);
     });
 
@@ -422,7 +428,7 @@ describe("GasFreeService", () => {
           throw new ChainError("gasfree_rejected", "GasFree service returned HTTP 404");
         },
       });
-      const ctx = scope(true, 5000);
+      const ctx = scope(true, 5000, fixtureValue.clock);
 
       const result = await send(fixtureValue, ctx);
 
@@ -433,22 +439,136 @@ describe("GasFreeService", () => {
       ]);
     });
 
-    it("bounds each trace by the remaining wait and sends none after the deadline", async () => {
-      const signals: Array<AbortSignal | undefined> = [];
+    it("passes the deadline check to each trace and sends none after expiry", async () => {
+      const checks: DispatchCheck[] = [];
       const fixtureValue = fixture({ active: true });
-      vi.mocked(fixtureValue.provider.trace).mockImplementation(async (_network, _id, signal) => {
-        signals.push(signal);
+      vi.mocked(fixtureValue.provider.trace).mockImplementation(async (_network, _id, check) => {
+        checks.push(check);
         throw new ChainError("timeout", "GasFree request exceeded the wait time");
       });
-      const ctx = scope(true, 1500);
+      const ctx = scope(true, 2500, fixtureValue.clock);
 
       const result = await send(fixtureValue, ctx);
 
-      // One trace after the first 1000 ms poll interval; the next interval reaches the deadline.
-      expect(signals).toHaveLength(1);
-      expect(signals[0]).toBeInstanceOf(AbortSignal);
+      // Traces after the 1000 ms and 2000 ms poll intervals; the next interval reaches the deadline.
+      expect(checks).toHaveLength(2);
+      expect(checks[0]!.signal).toBe(ctx.deadline.signal);
       expect(result).toMatchObject({ stage: "submitted", traceId: "trace-1" });
-      expect(cliWarnings(ctx)[0]).toContain("did not finish within 1500ms");
+      expect(cliWarnings(ctx)[0]).toContain("did not finish before the command's time limit");
     });
+  });
+});
+
+describe("GasFree submit under the command deadline", () => {
+  const send = (fixtureValue: ReturnType<typeof fixture>, ctx: TransactionScope) =>
+    fixtureValue.service.transfer(ctx, NETWORK, {
+      to: RECEIVER,
+      amount: "25",
+      token: "USDT",
+      dryRun: false,
+    });
+
+  it("refuses the submit below the admission reserve and sends nothing", async () => {
+    const fixtureValue = fixture({ active: true });
+    const ctx = scope(false, 1999, fixtureValue.clock);
+
+    await expect(send(fixtureValue, ctx)).rejects.toSatisfy(
+      (error) => error instanceof DeadlineExpiredError && !("details" in error && error.details),
+    );
+    expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
+  });
+
+  it("keeps the authorization evidence, but no signature, when the submit reply is lost", async () => {
+    const fixtureValue = fixture({ active: true });
+    fixtureValue.submitTransfer.mockRejectedValueOnce(
+      new ChainError("timeout", "GasFree request did not finish in time"),
+    );
+
+    const error = await send(fixtureValue, scope()).catch((caught: unknown) => caught);
+
+    expect(error).toMatchObject({
+      code: "timeout",
+      message: expect.stringContaining("no trace id is known"),
+      details: {
+        paymentStatus: "unknown",
+        retryPayment: false,
+        network: NETWORK.id,
+        serviceProvider: PROVIDER,
+        owner: OWNER,
+        from: GASFREE,
+        to: RECEIVER,
+        token: "USDT",
+        tokenAddress: TOKEN,
+        amount: "25000000",
+        authorizedMaxFee: "1500000",
+        nonce: "8",
+        deadline: expect.stringMatching(/^\d+$/),
+        permitDigest: DIGEST,
+      },
+    });
+    const details = (error as ChainError).details as Record<string, unknown>;
+    expect(details).not.toHaveProperty("traceId");
+    expect(JSON.stringify(details)).not.toContain(SIGNATURE.slice(2, 40));
+  });
+
+  it("reports an unreadable submit reply as an unknown provider outcome", async () => {
+    const fixtureValue = fixture({ active: true });
+    fixtureValue.submitTransfer.mockRejectedValueOnce(
+      new TransportError("provider_error", "GasFree service returned HTTP 502"),
+    );
+
+    await expect(send(fixtureValue, scope())).rejects.toMatchObject({
+      code: "provider_error",
+      details: { paymentStatus: "unknown", retryPayment: false, nonce: "8" },
+    });
+  });
+
+  it("keeps a stated provider refusal and a pre-dispatch refusal unchanged", async () => {
+    const rejected = new ChainError("gasfree_rejected", "GasFree service rejected the request");
+    const refused = new DeadlineExpiredError();
+    for (const failure of [rejected, refused]) {
+      const fixtureValue = fixture({ active: true });
+      fixtureValue.submitTransfer.mockRejectedValueOnce(failure);
+      await expect(send(fixtureValue, scope())).rejects.toBe(failure);
+    }
+  });
+
+  it("returns the submitted receipt with its trace id when the deadline ends the trace wait", async () => {
+    const fixtureValue = fixture({
+      active: true,
+      trace: async () => new Promise<never>(() => {}),
+    });
+    const service = new GasFreeService(
+      fixtureValue.provider,
+      {
+        get: () => ({
+          getTokenInfo: async () => ({ symbol: "USDT", decimals: 6 }),
+          getTrc20Balance: async () => "100000000",
+        }),
+      } as unknown as ChainGatewayProvider,
+      fixtureValue.signers,
+      new SigningService({} as never),
+      fixtureValue.recipients as never,
+      () => 1_700_000_000_000,
+    );
+    vi.mocked(fixtureValue.provider.trace).mockImplementation(
+      (_network, _id, check) =>
+        new Promise((_resolve, reject) =>
+          check.signal.addEventListener("abort", () => reject(new ChainError("timeout", "late"))),
+        ),
+    );
+    const ctx = scope(true, 2100);
+
+    const started = performance.now();
+    const result = await service.transfer(ctx, NETWORK, {
+      to: RECEIVER,
+      amount: "25",
+      token: "USDT",
+      dryRun: false,
+    });
+
+    expect(result).toMatchObject({ stage: "submitted", traceId: "trace-1" });
+    expect(performance.now() - started).toBeLessThan(2600);
+    expect(cliWarnings(ctx)[0]).toContain("did not finish before the command's time limit");
   });
 });

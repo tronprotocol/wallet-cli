@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { PassThrough, Readable } from "node:stream";
 import { StreamManager } from "./index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -116,5 +119,42 @@ describe("AtomicFileStore", () => {
     writeFileSync(`${p}.lock`, "999999999\n");
     const r = fs.withLock(p, () => "recovered", { timeoutMs: 2000 });
     expect(r).toBe("recovered");
+  });
+});
+
+describe("StreamManager stdin", () => {
+  const manager = (stdin: () => NodeJS.ReadableStream) =>
+    new StreamManager(
+      "json",
+      false,
+      () => {},
+      () => {},
+      stdin,
+    );
+
+  it("reads every chunk of stdin once, asynchronously", async () => {
+    const sm = manager(() => Readable.from([Buffer.from("ab"), Buffer.from("c")]));
+    await expect(sm.readStdinOnce(new AbortController().signal)).resolves.toBe("abc");
+    await expect(sm.readStdinOnce(new AbortController().signal)).rejects.toThrow(
+      "stdin already consumed",
+    );
+  });
+
+  it("stops a stalled read when the command deadline expires", async () => {
+    const stalled = new PassThrough();
+    const sm = manager(() => stalled);
+    const deadline = new CommandDeadline(20);
+    await expect(sm.readStdinOnce(deadline.signal)).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(stalled.listenerCount("data")).toBe(0);
+  });
+
+  it("does not open stdin after expiry", async () => {
+    const open = vi.fn(() => new PassThrough());
+    const controller = new AbortController();
+    controller.abort(new DeadlineExpiredError());
+    await expect(manager(open).readStdinOnce(controller.signal)).rejects.toBeInstanceOf(
+      DeadlineExpiredError,
+    );
+    expect(open).not.toHaveBeenCalled();
   });
 });

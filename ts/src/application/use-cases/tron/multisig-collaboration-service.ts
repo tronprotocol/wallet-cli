@@ -1,3 +1,10 @@
+import {
+  assertSubmitAdmitted,
+  requestDispatchCheck,
+  submitDispatchCheck,
+} from "../../services/command-deadline.js";
+import { localTxId } from "../../services/broadcast-identity.js";
+import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   TronLinkCollaborationPort,
   TronLinkRemoteRecord,
@@ -15,9 +22,12 @@ import type {
 } from "../../../domain/types/index.js";
 import {
   ChainError,
+  classifyError,
   CliError,
   errorMessage,
+  ExecutionError,
   inputRef,
+  TransportError,
   UsageError,
 } from "../../../domain/errors/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
@@ -44,13 +54,22 @@ export class TronMultisigCollaborationService {
     private readonly now: () => number = () => Date.now(),
   ) {}
 
-  async list(network: NetworkDescriptor, address: string): Promise<TronLinkMultisigListView> {
-    const page = await this.collaboration.list(network, address, {
-      state: "all",
-      start: 0,
-      limit: LIST_LIMIT,
-    });
-    const gateway = this.gateways.get(network, "tron");
+  async list(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<TronLinkMultisigListView> {
+    const page = await this.collaboration.list(
+      network,
+      address,
+      {
+        state: "all",
+        start: 0,
+        limit: LIST_LIMIT,
+      },
+      requestDispatchCheck(deadline),
+    );
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     // Skip undecodable rows when listing; signing still rejects them.
     const validated: ValidatedRemoteRecord[] = [];
     let unreadable = 0;
@@ -66,7 +85,7 @@ export class TronMultisigCollaborationService {
     // List chain disagreements as unverified; propagate other verification failures.
     await mapWithConcurrency(validated, 4, async (transaction) => {
       try {
-        await this.#verifyOnChain(network, address, transaction);
+        await this.#verifyOnChain(deadline, network, address, transaction);
       } catch (error) {
         if (!isChainDisagreement(error)) throw error;
         transaction.view.unverifiedReason = error.message;
@@ -84,7 +103,7 @@ export class TronMultisigCollaborationService {
 
   // TronLink requires an initial signature to open a collection.
   async create(scope: TransactionScope, network: NetworkDescriptor, unsignedHex: string) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const transaction = gateway.decodeTransactionHex(unsignedHex);
     if ((transaction.signature?.length ?? 0) !== 0) {
       throw new UsageError(
@@ -94,11 +113,7 @@ export class TronMultisigCollaborationService {
     }
 
     const signed = await this.multisig.signChecked(scope, network, unsignedHex);
-    await this.collaboration.submit(
-      network,
-      signed.signer,
-      visibleTransaction(gateway, signed.hex),
-    );
+    await this.#submit(scope, network, signed.signer, visibleTransaction(gateway, signed.hex));
     return {
       action: "create" as const,
       accepted: true as const,
@@ -111,7 +126,7 @@ export class TronMultisigCollaborationService {
 
   async sign(scope: TransactionScope, network: NetworkDescriptor, txId: string) {
     const address = scope.resolveAddress("tron");
-    const remote = await this.#find(network, address, normalizeTxId(txId));
+    const remote = await this.#find(scope.deadline, network, address, normalizeTxId(txId));
     if (remote.view.expired) throw new ChainError("tx_expired", "transaction has expired");
     if (remote.view.state !== "pending") {
       if (remote.view.signedByCurrentAccount) {
@@ -127,12 +142,8 @@ export class TronMultisigCollaborationService {
     }
 
     const signed = await this.multisig.signChecked(scope, network, remote.hex);
-    const gateway = this.gateways.get(network, "tron");
-    await this.collaboration.submit(
-      network,
-      signed.signer,
-      visibleTransaction(gateway, signed.hex),
-    );
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
+    await this.#submit(scope, network, signed.signer, visibleTransaction(gateway, signed.hex));
     return {
       action: "sign" as const,
       accepted: true as const,
@@ -143,43 +154,93 @@ export class TronMultisigCollaborationService {
     };
   }
 
+  // `stop` ends the watch normally; the deadline ends it with a timeout.
   async watch(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     address: string,
-    signal: AbortSignal,
+    stop: AbortSignal,
     onPending: (count: number) => void,
   ) {
     let notifications = 0;
-    await this.collaboration.watch(network, address, signal, (count) => {
-      if (count > 0) {
-        notifications += 1;
-        onPending(count);
-      }
-    });
+    await this.collaboration.watch(
+      network,
+      address,
+      stop,
+      requestDispatchCheck(deadline),
+      (count) => {
+        if (count > 0) {
+          notifications += 1;
+          onPending(count);
+        }
+      },
+    );
     return { action: "watch" as const, address, notifications };
   }
 
+  // A submit that may have reached TronLink fails with the transaction id, so the caller can inspect
+  // the existing collection instead of creating another.
+  async #submit(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    signer: string,
+    transaction: TronTransactionArtifact,
+  ): Promise<void> {
+    assertSubmitAdmitted(scope.deadline);
+    try {
+      await this.collaboration.submit(
+        network,
+        signer,
+        transaction,
+        submitDispatchCheck(scope.deadline),
+      );
+    } catch (error) {
+      const classified = classifyError(error);
+      const unknown =
+        !(error instanceof DeadlineExpiredError) &&
+        (error instanceof TransportError || classified.code === "timeout");
+      if (!unknown) throw error;
+      scope.warn(
+        `the TronLink submission for ${signer} on ${network.id} may have been recorded; ` +
+          "inspect the address's existing TronLink collection before submitting again",
+      );
+      throw new ExecutionError(classified.code, classified, {
+        ...classified.details,
+        ...(localTxId(transaction) === undefined ? {} : { txId: localTxId(transaction) }),
+        address: signer,
+        network: network.id,
+        outcome: "unknown",
+      });
+    }
+  }
+
   async #find(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     address: string,
     txId: string,
   ): Promise<ValidatedRemoteRecord> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     let start = 0;
     let total = Number.MAX_SAFE_INTEGER;
     while (start < total && start < MAX_LOOKUP_RECORDS) {
-      const page = await this.collaboration.list(network, address, {
-        state: "all",
-        start,
-        limit: LOOKUP_PAGE_SIZE,
-      });
+      const page = await this.collaboration.list(
+        network,
+        address,
+        {
+          state: "all",
+          start,
+          limit: LOOKUP_PAGE_SIZE,
+        },
+        requestDispatchCheck(deadline),
+      );
       total = page.total;
       for (const entry of page.entries) {
         // Filter by claimed hash, then validate it against the transaction bytes.
         if (entry.claimedTxId !== txId) continue;
         if (entry.kind === "malformed") throw entry.error;
         const validated = this.#validate(gateway, address, entry.record);
-        await this.#verifyOnChain(network, address, validated);
+        await this.#verifyOnChain(deadline, network, address, validated);
         return validated;
       }
       if (page.entries.length === 0) break;
@@ -305,13 +366,14 @@ export class TronMultisigCollaborationService {
   }
 
   async #verifyOnChain(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     currentAddress: string,
     remote: ValidatedRemoteRecord,
   ): Promise<void> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     // approvals checks the reference block, so no permission is read for another chain's record.
-    const approval = await this.multisig.approvals(network, remote.hex);
+    const approval = await this.multisig.approvals(deadline, network, remote.hex);
     const signWeight = await gateway.getSignWeight(gateway.decodeTransactionHex(remote.hex));
     const signedProgress = remote.view.signatureProgress
       .filter((entry) => entry.signed)

@@ -12,6 +12,7 @@ import type { TransactionScope } from "../../../application/contracts/execution-
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -33,7 +34,7 @@ const ONE_E18 = "1000000000000000000";
 
 const scope = {
   activeAccount: "payer",
-  timeoutMs: 2000,
+  deadline: new CommandDeadline(0),
   emit() {},
   warn() {},
 } as unknown as TransactionScope;

@@ -1,8 +1,11 @@
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, it, expect } from "vitest";
 import { EvmChainService } from "./chain-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const net = {
   id: "eip155:1",
@@ -42,7 +45,7 @@ function service(over: Partial<Record<string, unknown>> = {}) {
 
 describe("EvmChainService.node", () => {
   it("reports endpoint, version, head and peers", async () => {
-    const out = await service().node(net);
+    const out = await service().node(NO_DEADLINE, net);
 
     expect(out).toMatchObject({
       endpoint: "node.example",
@@ -57,18 +60,21 @@ describe("EvmChainService.node", () => {
       ...net,
       httpEndpoint: "https://eth.example/v2/SECRET-KEY?apikey=ALSO-SECRET",
     };
-    const out = await service().node(withKey as NetworkDescriptor);
+    const out = await service().node(NO_DEADLINE, withKey as NetworkDescriptor);
 
     expect(out.endpoint).toBe("eth.example");
     expect(JSON.stringify(out)).not.toContain("SECRET");
   });
 
   it("reports the chain id the node itself claims", async () => {
-    expect((await service({ chainId: "11155111" }).node(net)).chainId).toBe("11155111");
+    expect((await service({ chainId: "11155111" }).node(NO_DEADLINE, net)).chainId).toBe(
+      "11155111",
+    );
   });
 
   it("degrades the chain id to null rather than failing the command", async () => {
     const out = await service({ chainId: new ChainError("rpc_error", "method not found") }).node(
+      NO_DEADLINE,
       net,
     );
 
@@ -77,46 +83,49 @@ describe("EvmChainService.node", () => {
   });
 
   it("maps the finalized block to the solid block and derives the lag", async () => {
-    const out = await service().node(net);
+    const out = await service().node(NO_DEADLINE, net);
 
     expect(out.solidBlock).toEqual({ number: 1234432 });
     expect(out.lagBlocks).toBe(1234567 - 1234432);
   });
 
   it("reports the head block's time in milliseconds", async () => {
-    expect((await service().node(net)).headBlock).toEqual({
+    expect((await service().node(NO_DEADLINE, net)).headBlock).toEqual({
       number: 1234567,
       timestamp: 1722925264000,
     });
   });
 
   it("fails with invalid_node_response, not head 0, when the node reports no latest block", async () => {
-    await expect(service({ head: null }).node(net)).rejects.toMatchObject({
+    await expect(service({ head: null }).node(NO_DEADLINE, net)).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });
 
   it("reads sync state from eth_syncing rather than a timestamp heuristic", async () => {
-    expect((await service({ syncing: false }).node(net)).inSync).toBe(true);
-    expect((await service({ syncing: { currentBlock: "0x1" } }).node(net)).inSync).toBe(false);
+    expect((await service({ syncing: false }).node(NO_DEADLINE, net)).inSync).toBe(true);
+    expect(
+      (await service({ syncing: { currentBlock: "0x1" } }).node(NO_DEADLINE, net)).inSync,
+    ).toBe(false);
   });
 
   it("degrades peers to null when the endpoint refuses net_peerCount", async () => {
     const out = await service({
       peerCount: new ChainError("rpc_error", "method not supported"),
-    }).node(net);
+    }).node(NO_DEADLINE, net);
 
     expect(out.peers).toBeNull();
   });
 
   it("degrades peers to null when the count is outside the safe integer range", async () => {
-    const out = await service({ peerCount: "9007199254740993" }).node(net);
+    const out = await service({ peerCount: "9007199254740993" }).node(NO_DEADLINE, net);
 
     expect(out.peers).toBeNull();
   });
 
   it("degrades the solid block to null on a chain that does not serve finalized", async () => {
     const out = await service({ finalized: new ChainError("rpc_error", "unknown block") }).node(
+      NO_DEADLINE,
       net,
     );
 
@@ -128,7 +137,7 @@ describe("EvmChainService.node", () => {
     const out = await service({
       peerCount: new ChainError("rpc_error", "no"),
       finalized: new ChainError("rpc_error", "no"),
-    }).node(net);
+    }).node(NO_DEADLINE, net);
 
     expect(out.headBlock.number).toBe(1234567);
   });
@@ -138,7 +147,10 @@ describe("EvmChainService.prices", () => {
   function priced(fee: Record<string, unknown>, declared?: string) {
     const gateway = { feeData: async () => fee };
     const svc = new EvmChainService({ get: () => gateway } as unknown as ChainGatewayProvider);
-    return svc.prices({ ...net, ...(declared ? { feeModel: declared } : {}) } as NetworkDescriptor);
+    return svc.prices(NO_DEADLINE, {
+      ...net,
+      ...(declared ? { feeModel: declared } : {}),
+    } as NetworkDescriptor);
   }
 
   it("reports the 1559 fee fields, with the gas price as base + tip", async () => {

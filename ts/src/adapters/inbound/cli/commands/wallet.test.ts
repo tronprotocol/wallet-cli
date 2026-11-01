@@ -16,6 +16,7 @@ import { commandId } from "../command-id.js";
 import { isChainCommand } from "../contracts/index.js";
 import type { CommandDefinition, Globals } from "../contracts/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
 // Use a cheap KDF for test fixtures.
 vi.mock(
@@ -73,6 +74,7 @@ function buildTestDeps(opts: FakePromptOpts & { root?: string } = {}): {
   const formatter = createOutputFormatter("text", streams, Date.now());
   const deps: RuntimeDeps = {
     config,
+    deadline: new CommandDeadline(0),
     networkRegistry,
     streams,
     secrets,
@@ -352,6 +354,7 @@ describe("wallet delete", () => {
     const formatter = createOutputFormatter("text", streamsNT, Date.now());
     const depsNT: RuntimeDeps = {
       config,
+      deadline: new CommandDeadline(0),
       networkRegistry,
       streams: streamsNT,
       secrets: secretsNT,

@@ -5,6 +5,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -17,9 +18,9 @@ const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };

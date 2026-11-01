@@ -16,6 +16,9 @@ import { SunSwapSwapService } from "./swap-service.js";
 import { LiquidityTransactions } from "./liquidity-transactions.js";
 import { SigningService } from "../../services/signing/signing-service.js";
 import { baseUnitAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const UNIVERSAL_ROUTER = "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4";
 const PERMIT2 = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
@@ -204,6 +207,7 @@ function makeHarness(
     return owner;
   });
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: {},
     wait: false,
     waitTimeoutMs: 1_000,
@@ -289,6 +293,7 @@ function makeHarness(
     new SigningService({} as never),
   );
   return {
+    deadline: NO_DEADLINE,
     service,
     scope,
     pipeline,
@@ -652,7 +657,7 @@ describe("the router branch", () => {
   it("never asks a contract what native TRX is", async () => {
     const harness = launched();
     const result = await quoteUsdt(harness);
-    expect(harness.liquidity.tokenFacts).not.toHaveBeenCalledWith(NETWORK, TRX);
+    expect(harness.liquidity.tokenFacts).not.toHaveBeenCalledWith(NETWORK, TRX, expect.anything());
     expect(result.routes[0]!.amountIn).toBe("100000000");
   });
 
@@ -766,6 +771,7 @@ describe("sending a router swap", () => {
     expect(harness.permits.planPermit).toHaveBeenCalledWith(
       NETWORK,
       expect.objectContaining({ amount: "100000000", ttlSeconds: 3600 }),
+      expect.anything(),
     );
     // A fresh harness is required because the first swap leaves sufficient mock allowance.
     const approvals = (await sell(sending())).approvals as { spender: string; amount: string }[];
@@ -1007,6 +1013,7 @@ describe("when the grant already covers the trade", () => {
     expect(harness.permits.planPermit).toHaveBeenCalledWith(
       NETWORK,
       expect.objectContaining({ spender: UNIVERSAL_ROUTER, ttlSeconds: 3600 }),
+      expect.anything(),
     );
   });
 });
@@ -1167,5 +1174,108 @@ describe("symbols from the account's token book", () => {
       quote: true,
     });
     expect(result).not.toHaveProperty("fromTokenBook");
+  });
+});
+
+describe("a router swap's approvals under the command deadline", () => {
+  const APPROVAL_TX = `tx:built:${APPROVE}`;
+
+  // Approval results follow `approval`; allowance reads honour the dispatch check as adapters do.
+  function timed(
+    approval: "confirmed" | "pending-at-expiry" | "confirmed-at-expiry",
+    standing = false,
+  ) {
+    const harness = makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      SIGNING_OWNER,
+    );
+    let now = 0;
+    const deadline = new CommandDeadline(60_000, 0, { now: () => now });
+    Object.assign(harness.scope, { deadline });
+    if (standing) {
+      vi.mocked(harness.permits.planPermit).mockResolvedValue(undefined);
+      vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValue(
+        routerCall("0", SIGNING_OWNER_HEX) as never,
+      );
+    }
+    const read = vi.mocked(harness.liquidity.allowance).getMockImplementation()!;
+    vi.mocked(harness.liquidity.allowance).mockImplementation(async (...args) => {
+      args[4].assertDispatchable();
+      return read(...args);
+    });
+    vi.mocked(harness.pipeline.runTron).mockImplementation(async (p) => {
+      p.ctx.deadline.assertActive();
+      const tx = (await p.build(OWNER)) as { txID: string };
+      if (tx.txID !== `built:${APPROVE}`) {
+        return { stage: "confirmed", txId: `tx:${tx.txID}`, blockNumber: 2, fee: {} } as never;
+      }
+      if (approval !== "confirmed") now = 60_000;
+      return {
+        stage: approval === "pending-at-expiry" ? "submitted" : "confirmed",
+        txId: APPROVAL_TX,
+        blockNumber: 1,
+        fee: {},
+      } as never;
+    });
+    const sell = () =>
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "USDT",
+        tokenOut: "TRX",
+        amountIn: "100",
+      }) as Promise<Record<string, unknown>>;
+    return {
+      harness,
+      deadline,
+      sell,
+      reset: () => Object.assign(harness.scope, { deadline: NO_DEADLINE }),
+    };
+  }
+
+  describe.each([
+    ["a new Permit2 signature", false],
+    ["a standing Permit2 grant", true],
+  ])("with %s", (_name, standing) => {
+    it("returns the approval ids in order with the swap", async () => {
+      const { sell, deadline } = timed("confirmed", standing);
+      await expect(sell()).resolves.toMatchObject({
+        approvalTxIds: [APPROVAL_TX],
+        stage: "confirmed",
+      });
+      deadline.dispose();
+    });
+
+    it("ends with timeout and the approval id when the approval is still pending at expiry", async () => {
+      const { harness, sell, deadline } = timed("pending-at-expiry", standing);
+      await expect(sell()).rejects.toMatchObject({
+        code: "timeout",
+        details: { approvalTxIds: [APPROVAL_TX] },
+      });
+      expect(harness.pipeline.runTron).toHaveBeenCalledOnce();
+      expect(harness.signTypedData).not.toHaveBeenCalled();
+      deadline.dispose();
+    });
+
+    it("keeps the confirmed approval and sends nothing dependent once the time is spent", async () => {
+      const { harness, sell, deadline } = timed("confirmed-at-expiry", standing);
+      await expect(sell()).rejects.toMatchObject({
+        code: "timeout",
+        details: { approvalTxIds: [APPROVAL_TX] },
+      });
+      expect(harness.pipeline.runTron).toHaveBeenCalledOnce();
+      expect(harness.signTypedData).not.toHaveBeenCalled();
+      deadline.dispose();
+    });
+
+    it("skips the approval on a rerun once it is sufficient", async () => {
+      const { harness, sell, deadline, reset } = timed("confirmed-at-expiry", standing);
+      await expect(sell()).rejects.toMatchObject({ code: "timeout" });
+      reset();
+      const second = await sell();
+      expect(second.approvals).toEqual([]);
+      expect(second.approvalTxIds).toBeUndefined();
+      expect(harness.pipeline.runTron).toHaveBeenCalledTimes(2);
+      deadline.dispose();
+    });
   });
 });

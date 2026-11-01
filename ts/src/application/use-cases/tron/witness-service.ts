@@ -1,3 +1,4 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { percent, witnessUrl } from "../../../domain/tron/governance/limits.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
@@ -34,7 +35,7 @@ export class TronWitnessService {
 
   async create(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
     const url = witnessUrl(input.url);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     const [witness, account, parameters] = await Promise.all([
@@ -85,7 +86,7 @@ export class TronWitnessService {
 
   async update(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
     const url = witnessUrl(input.url);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);
@@ -111,7 +112,7 @@ export class TronWitnessService {
     input: WitnessBrokerageInput,
   ) {
     const brokerage = percent(input.percent, "brokerage");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);

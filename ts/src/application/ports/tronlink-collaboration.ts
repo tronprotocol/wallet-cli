@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../contracts/deadline.js";
 import type { CliError } from "../../domain/errors/index.js";
 import type {
   NetworkDescriptor,
@@ -46,18 +47,22 @@ export interface TronLinkCollaborationPort {
     network: NetworkDescriptor,
     address: string,
     filter: TronLinkListFilter,
+    check: DispatchCheck,
   ): Promise<TronLinkRemotePage>;
   // Creates a collection or accumulates signatures onto an existing one.
   submit(
     network: NetworkDescriptor,
     address: string,
     transaction: TronTransactionArtifact,
+    check: DispatchCheck,
   ): Promise<void>;
-  // Reports, per notification, how many open records the address has not signed.
+  // Reports, per notification, how many open records the address has not signed. `stop` ends the
+  // watch normally; when `check` refuses or its signal aborts, the watch fails with that error.
   watch(
     network: NetworkDescriptor,
     address: string,
-    signal: AbortSignal,
+    stop: AbortSignal,
+    check: DispatchCheck,
     onUnsignedCount: (count: number) => void,
   ): Promise<void>;
 }

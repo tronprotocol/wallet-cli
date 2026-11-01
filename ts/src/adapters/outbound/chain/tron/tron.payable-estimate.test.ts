@@ -5,7 +5,7 @@ import { sunAmount } from "../../../../domain/amounts/index.js";
 it.each([undefined, sunAmount("0"), sunAmount("8847971")])(
   "estimates payable calls with the supplied SUN amount: %s",
   async (value) => {
-    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 1000));
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
     const trigger = vi.fn(async () => ({ energy_used: 123 }));
     tronweb.transactionBuilder.triggerConstantContract = trigger as never;
     vi.spyOn(client, "getEnergyPrices").mockResolvedValue([
@@ -31,7 +31,7 @@ it.each([undefined, sunAmount("0"), sunAmount("8847971")])(
   },
 );
 it("rejects unsafe callValue before the SDK converts it", async () => {
-  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 1000));
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
   const trigger = vi.fn();
   tronweb.transactionBuilder.triggerConstantContract = trigger;
   await expect(

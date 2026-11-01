@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { facilitatorUrl } from "./facilitator-url.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { sameX402Network } from "../../../domain/x402/network-id.js";
@@ -12,7 +13,7 @@ export async function facilitatorNetwork(
   scheme: string,
   base: string,
   fetcher: typeof fetch,
-  timeoutMs: number,
+  check: DispatchCheck,
 ): Promise<string> {
   if (!X402_FAMILIES[network.family].peerSpellingVaries) return network.id;
   let response: Response;
@@ -25,7 +26,7 @@ export async function facilitatorNetwork(
         headers: { accept: "application/json" },
         redirect: "error",
       },
-      timeoutMs,
+      check,
       1024 * 1024,
     );
   } catch (error) {

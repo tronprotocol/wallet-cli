@@ -5,6 +5,7 @@ import { MAX_TRON_EXPIRATION_MS } from "../../../domain/transaction/index.js";
 import { addressCodec } from "../../../domain/family/index.js";
 import type { TronGateway, TronSignWeight } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerAuthorization } from "../../services/pipeline/index.js";
+import { DEVICE_REVIEW_MS } from "../../services/signing/signing-service.js";
 import { assertNotExpired, transactionContract } from "./transaction-artifact.js";
 
 function uniqueAddresses(addresses: readonly string[], field: string): Set<string> {
@@ -152,7 +153,7 @@ export function tronTransactionHooks(gateway: TronGateway) {
       transaction: TronTransactionArtifact,
       options: { permissionId: number; expiration?: number },
     ) => gateway.prepareTransaction(transaction, options),
-    prepareForSigning: (transaction: TronTransactionArtifact, timeoutMs: number) => {
+    prepareForSigning: (transaction: TronTransactionArtifact) => {
       const timestamp = transaction.raw_data.timestamp;
       if (!Number.isSafeInteger(timestamp)) {
         throw new ChainError(
@@ -163,12 +164,12 @@ export function tronTransactionHooks(gateway: TronGateway) {
       // Allow Ledger review plus broadcast time without shortening a longer TTL.
       const expiration = Math.max(
         transaction.raw_data.expiration ?? 0,
-        Date.now() + Math.max(600_000, timeoutMs + 60_000),
+        Date.now() + Math.max(600_000, DEVICE_REVIEW_MS + 60_000),
       );
       if (expiration - timestamp! > MAX_TRON_EXPIRATION_MS) {
         throw new ChainError(
           "tx_expired",
-          "the required signing window exceeds the TRON transaction lifetime; rebuild the transaction with a shorter device timeout",
+          "the required signing window exceeds the TRON transaction lifetime; rebuild the transaction and sign it again",
         );
       }
       return gateway.prepareTransaction(transaction, {

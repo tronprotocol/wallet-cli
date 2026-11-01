@@ -24,7 +24,7 @@ describe("TronRpcClient.getBlock", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid", 100));
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid"));
     tronweb.trx.getBlockByNumber = vi.fn(async () => ({
       blockID: "abc",
       transactions: [

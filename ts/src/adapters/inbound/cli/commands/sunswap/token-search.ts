@@ -39,8 +39,8 @@ export const sunswapTokenSearchSpec: ChainSpec = {
 export const sunswapTokenSearchTronBinding = (
   service: SunSwapMarketQueryService,
 ): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.tokenSearch(net, {
+  run: async (ctx, net, input) =>
+    service.tokenSearch(ctx.deadline, net, {
       keyword: input.keyword,
       protocol: input.protocol,
       limit: input.limit,

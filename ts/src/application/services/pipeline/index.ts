@@ -18,6 +18,7 @@ import type { SignOrigin, SigningService } from "../signing/signing-service.js";
 import { authoritativeTxId, localTxId as txIdOf, submitWithTxId } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 import type { TransactionExecutionMode } from "../transaction-mode.js";
+import { assertSubmitAdmitted, submitDispatchCheck } from "../command-deadline.js";
 
 export interface SignerAuthorization {
   // Sign-only may collect a partial signature; enforce the threshold only before broadcast.
@@ -48,7 +49,6 @@ export interface TronLifecycleSteps {
   /** Extend a newly built unsigned device transaction before signing. Never used for imports. */
   prepareForSigning: (
     tx: TronTransactionArtifact,
-    timeoutMs: number,
   ) => Promise<TronTransactionArtifact> | TronTransactionArtifact;
   /** Expiry guard, run again after the signer returns. */
   assertNotExpired: (tx: TronTransactionArtifact) => void;
@@ -74,7 +74,7 @@ export interface EvmTxPipelineParams extends TxPipelineRun<EvmUnsignedTx> {
 interface LifecycleSteps<T extends UnsignedTx> {
   prepare: (tx: T) => Promise<T> | T;
   // Runs only for a device signer.
-  prepareForSigning: (tx: T, timeoutMs: number) => Promise<T> | T;
+  prepareForSigning: (tx: T) => Promise<T> | T;
   assertNotExpired: (tx: T | SignedTxOf<T>) => void;
   preflight: (tx: T, signerAddress: string) => Promise<SignerAuthorization | undefined>;
 }
@@ -120,8 +120,7 @@ export class TxPipeline {
           ...(p.expiration === undefined ? {} : { expiration: p.expiration }),
         }),
       // A caller-set expiration is kept as requested.
-      prepareForSigning: (tx, timeoutMs) =>
-        p.expiration === undefined ? p.prepareForSigning(tx, timeoutMs) : tx,
+      prepareForSigning: (tx) => (p.expiration === undefined ? p.prepareForSigning(tx) : tx),
       assertNotExpired: (tx) => p.assertNotExpired(tx),
       preflight: async (tx, signerAddress) =>
         p.preflight ? p.preflight(tx, signerAddress) : undefined,
@@ -160,10 +159,13 @@ export class TxPipeline {
       );
     }
 
-    // Adapters bound RPC time; the signing entry separately bounds device interaction.
+    const deadline = p.ctx.deadline;
     const ownerAddress = p.ctx.resolveAddress(p.net.family);
+    deadline.assertActive();
     let tx = await steps.prepare(await p.build(ownerAddress));
+    deadline.assertActive();
     const fee = await p.estimate(tx);
+    deadline.assertActive();
     if (mode === "dry-run") return { stage: "plan", tx, fee };
     if (mode === "build-only") return { stage: "built", tx, hex: p.artifact(tx), fee };
 
@@ -175,7 +177,7 @@ export class TxPipeline {
         "resolved signer address changed during transaction construction",
       );
     }
-    if (signer.kind === "device") tx = await steps.prepareForSigning(tx, p.ctx.timeoutMs);
+    if (signer.kind === "device") tx = await steps.prepareForSigning(tx);
     steps.assertNotExpired(tx);
     const authorization = await steps.preflight(tx, signer.address);
     const signed = await this.signing.sign(p.ctx, {
@@ -198,8 +200,11 @@ export class TxPipeline {
       };
     }
     authorization?.assertBroadcastable();
+    assertSubmitAdmitted(deadline);
     const local = txIdOf(signed);
-    const result = await submitWithTxId(local, () => p.broadcaster.broadcast(signed));
+    const result = await submitWithTxId(local, () =>
+      p.broadcaster.broadcast(signed, submitDispatchCheck(deadline)),
+    );
     const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) =>
       p.ctx.warn(m),
     );
@@ -220,7 +225,7 @@ export class TxPipeline {
     }
     if (!confirmed) {
       p.ctx.warn(
-        errorMessage`${inputRef("wait")}: ${txId} not confirmed within ${p.ctx.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`,
+        errorMessage`${inputRef("wait")}: ${txId} not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)`,
       );
       return { stage: "submitted", ...result, txId };
     }

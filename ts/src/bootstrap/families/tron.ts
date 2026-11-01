@@ -271,8 +271,7 @@ import {
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
   signStrategy: tronSignStrategy,
-  createGateway: (network, timeoutMs) =>
-    new TronRpcClient(network, timeoutMs, undefined, processBroadcastGuard),
+  createGateway: (network) => new TronRpcClient(network, undefined, processBroadcastGuard),
 };
 
 export interface TronChainCommandDependencies {
@@ -284,7 +283,6 @@ export interface TronChainCommandDependencies {
   signing: SigningService;
   transactions: TxPipeline;
   accounts: AccountStore;
-  timeoutMs: number;
   tronlink: TronLinkCollaborationPort;
   gasfree: GasFreeProvider;
   sunswapMarket: MarketDataPort;
@@ -316,7 +314,7 @@ export function registerTronChainCommands(
 
   const account = new TronAccountService(
     deps.gateways,
-    new TronGridHistoryReader(deps.timeoutMs),
+    new TronGridHistoryReader(),
     deps.tokens,
     deps.prices,
     deps.transactions,

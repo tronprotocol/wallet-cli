@@ -1,8 +1,11 @@
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, it, expect } from "vitest";
 import { TronStakeService } from "./stake-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const net = {
   id: "tron:3448148188",
@@ -18,7 +21,7 @@ function svc(gateway: Record<string, unknown>) {
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   return new TronStakeService(gateways, {} as TxPipeline);
 }
-const scope = (addr: string) => ({ resolveAddress: () => addr }) as never;
+const scope = (addr: string) => ({ deadline: NO_DEADLINE, resolveAddress: () => addr }) as never;
 
 describe("TronStakeService.info", () => {
   it("passes through the adapter's stake totals, unfreezing entries and resources", async () => {
@@ -110,7 +113,7 @@ describe("TronStakeService.votingPower", () => {
     const gateway = {
       getAccountResources: async () => ({ votingPower: { total: 1500, used: 1000 } }),
     };
-    expect(await svc(gateway).votingPower(net, OWNER)).toEqual({
+    expect(await svc(gateway).votingPower(NO_DEADLINE, net, OWNER)).toEqual({
       total: 1500,
       used: 1000,
       available: 500,

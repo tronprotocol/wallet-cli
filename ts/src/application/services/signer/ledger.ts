@@ -19,11 +19,14 @@ export class LedgerSigner implements Signer {
     public readonly address: string,
   ) {}
 
-  async precheck(): Promise<void> {
-    const cfg = await this.ledger.appConfig(this.family);
+  async precheck(signal: AbortSignal): Promise<void> {
+    const cfg = await this.ledger.appConfig(this.family, signal);
     if (!cfg.ready) throw new ExecutionError("auth_required", "open the correct app on the Ledger");
     // The device seed/passphrase must still derive the cached address.
-    const onDevice = await this.ledger.getAddress(this.family, this.path, { display: false });
+    const onDevice = await this.ledger.getAddress(this.family, this.path, {
+      display: false,
+      signal,
+    });
     if (onDevice !== this.address) {
       throw new WalletError(
         "wrong_device_seed",

@@ -1,4 +1,5 @@
 // V4 currency0 can be native TRX; replacing it with WTRX selects a different pool.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import {
   buildV4CollectAction,
   buildV4DecreaseLiquidityAction,
@@ -59,9 +60,10 @@ export class SunSwapV4Contracts {
     network: NetworkDescriptor,
     txId: string,
     query: V4LiquidityReceiptQuery,
+    check: DispatchCheck,
   ): Promise<V4LiquidityResult | undefined> {
     const sdkNetwork = this.#network(network);
-    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    const info = await this.gateways.get(network, "tron", check).getTransactionInfoById(txId);
     return decodeV4LiquidityReceipt(
       info,
       query,
@@ -71,13 +73,25 @@ export class SunSwapV4Contracts {
   }
 
   // Uninitialised pools return a zero price rather than reverting.
-  async poolState(network: NetworkDescriptor, poolId: string): Promise<V4PoolState> {
+  async poolState(
+    network: NetworkDescriptor,
+    poolId: string,
+    check: DispatchCheck,
+  ): Promise<V4PoolState> {
     const id = `0x${normalisePoolId(poolId)}`;
     const sdkNetwork = this.#network(network);
     const [slot0, liquidity, key] = await Promise.all([
-      this.#read(network, buildV4PoolSlot0Read({ network: sdkNetwork, poolId: id } as never)),
-      this.#read(network, buildV4PoolLiquidityRead({ network: sdkNetwork, poolId: id } as never)),
-      this.#read(network, buildV4PoolKeyRead({ network: sdkNetwork, poolId: id } as never)),
+      this.#read(
+        network,
+        buildV4PoolSlot0Read({ network: sdkNetwork, poolId: id } as never),
+        check,
+      ),
+      this.#read(
+        network,
+        buildV4PoolLiquidityRead({ network: sdkNetwork, poolId: id } as never),
+        check,
+      ),
+      this.#read(network, buildV4PoolKeyRead({ network: sdkNetwork, poolId: id } as never), check),
     ]);
 
     const sqrtPriceX96 = word(slot0, 0);
@@ -94,19 +108,29 @@ export class SunSwapV4Contracts {
   }
 
   // Read the position manager's pool key; caller-supplied pool details may be wrong.
-  async position(network: NetworkDescriptor, tokenId: string): Promise<V4Position> {
+  async position(
+    network: NetworkDescriptor,
+    tokenId: string,
+    check: DispatchCheck,
+  ): Promise<V4Position> {
     const sdkNetwork = this.#network(network);
     const id = assertTokenId(tokenId);
     const [info, liquidity, owner] = await Promise.all([
       this.#read(
         network,
         buildV4PoolAndPositionInfoRead({ network: sdkNetwork, tokenId: id } as never),
+        check,
       ),
       this.#read(
         network,
         buildV4PositionLiquidityRead({ network: sdkNetwork, tokenId: id } as never),
+        check,
       ),
-      this.#read(network, buildV4PositionOwnerRead({ network: sdkNetwork, tokenId: id } as never)),
+      this.#read(
+        network,
+        buildV4PositionOwnerRead({ network: sdkNetwork, tokenId: id } as never),
+        check,
+      ),
     ]);
 
     // getPoolAndPositionInfo returns five key words followed by packed position info.
@@ -147,6 +171,7 @@ export class SunSwapV4Contracts {
   async owedFees(
     network: NetworkDescriptor,
     position: V4OwedFeesQuery,
+    check: DispatchCheck,
   ): Promise<V4OwedFees | undefined> {
     const words = await this.#read(
       network,
@@ -157,6 +182,7 @@ export class SunSwapV4Contracts {
         tickLower: position.tickLower,
         tickUpper: position.tickUpper,
       } as never),
+      check,
     );
     const data = hex(words);
     if (data.length < 2 * 64 || !/^[0-9a-f]+$/i.test(data.slice(0, 2 * 64))) return undefined;
@@ -349,8 +375,9 @@ export class SunSwapV4Contracts {
   async #read(
     network: NetworkDescriptor,
     spec: { target: string; functionSelector: string; parameters?: readonly unknown[] },
+    check: DispatchCheck,
   ): Promise<readonly string[]> {
-    const gateway: TronGateway = this.gateways.get(network, "tron");
+    const gateway: TronGateway = this.gateways.get(network, "tron", check);
     return gateway.triggerConstantContract(
       spec.target,
       spec.functionSelector,

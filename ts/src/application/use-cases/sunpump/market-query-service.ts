@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { SunPumpMarketDataPort, SunPumpTokenRecord } from "../../ports/sunpump/market-data.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
@@ -44,6 +46,7 @@ export class SunPumpMarketQueryService {
 
   // Endpoints cannot combine owner and contract filters; intersect them locally.
   async tokenList(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     query: SunPumpTokenListQuery,
   ): Promise<SunPumpTokenListView> {
@@ -53,12 +56,20 @@ export class SunPumpMarketQueryService {
     const contract = query.contract === undefined ? undefined : this.#validAddress(query.contract);
     const result =
       owner !== undefined && contract === undefined
-        ? await this.market.tokensByOwner(network, { owner, ...page })
-        : await this.market.listTokens(network, {
-            sort,
-            ...(contract === undefined ? {} : { contractAddress: contract }),
-            ...page,
-          });
+        ? await this.market.tokensByOwner(
+            network,
+            { owner, ...page },
+            requestDispatchCheck(deadline),
+          )
+        : await this.market.listTokens(
+            network,
+            {
+              sort,
+              ...(contract === undefined ? {} : { contractAddress: contract }),
+              ...page,
+            },
+            requestDispatchCheck(deadline),
+          );
     const tokens =
       owner !== undefined && contract !== undefined
         ? result.tokens.filter((token) => token.owner === owner)
@@ -71,19 +82,24 @@ export class SunPumpMarketQueryService {
   }
 
   async tokenSearch(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     query: SunPumpTokenSearchQuery,
   ): Promise<SunPumpTokenListView> {
     const page = offsetWindowToPage(query);
-    const result = await this.market.searchTokens(network, {
-      // An empty keyword would return the whole catalogue.
-      keyword: this.#searchKeyword(query.keyword),
-      sort: sunpumpSortParam(query.orderBy, query.sort),
-      ...(query.onSunSwap ? { onSunSwap: true } : {}),
-      ...(query.twitterLaunch ? { twitterLaunch: true } : {}),
-      ...(query.sunAgentLaunch ? { sunAgentLaunch: true } : {}),
-      ...page,
-    });
+    const result = await this.market.searchTokens(
+      network,
+      {
+        // An empty keyword would return the whole catalogue.
+        keyword: this.#searchKeyword(query.keyword),
+        sort: sunpumpSortParam(query.orderBy, query.sort),
+        ...(query.onSunSwap ? { onSunSwap: true } : {}),
+        ...(query.twitterLaunch ? { twitterLaunch: true } : {}),
+        ...(query.sunAgentLaunch ? { sunAgentLaunch: true } : {}),
+        ...page,
+      },
+      requestDispatchCheck(deadline),
+    );
     return {
       tokens: result.tokens,
       pagination: this.#window(query),
@@ -92,8 +108,16 @@ export class SunPumpMarketQueryService {
   }
 
   // An unknown token can return HTTP 200; absence determines not-found.
-  async tokenInfo(network: NetworkDescriptor, address: string): Promise<SunPumpTokenInfoView> {
-    const token = await this.market.getToken(network, this.#validAddress(address));
+  async tokenInfo(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<SunPumpTokenInfoView> {
+    const token = await this.market.getToken(
+      network,
+      this.#validAddress(address),
+      requestDispatchCheck(deadline),
+    );
     if (token === null) {
       throw new ChainError(
         "launchpad_token_not_found",

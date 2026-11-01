@@ -1,3 +1,5 @@
+import { requestDispatchCheck, unlessDeadline } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type {
   LaunchpadPort,
@@ -15,6 +17,7 @@ export interface CurveSaleQuote {
 }
 
 export async function quoteCurveSale(
+  deadline: ExecutionDeadline,
   launchpad: LaunchpadPort,
   network: NetworkDescriptor,
   facts: LaunchpadTokenFacts,
@@ -22,14 +25,26 @@ export async function quoteCurveSale(
 ): Promise<CurveSaleQuote> {
   let quoted: SellQuote;
   try {
-    quoted = await launchpad.quoteSell(network, facts.address, tokensIn);
+    quoted = await launchpad.quoteSell(
+      network,
+      facts.address,
+      tokensIn,
+      requestDispatchCheck(deadline),
+    );
   } catch (error) {
-    await refuseTooSmall(launchpad, network, facts, tokensIn, "the curve will not price it");
+    await refuseTooSmall(
+      deadline,
+      launchpad,
+      network,
+      facts,
+      tokensIn,
+      "the curve will not price it",
+    );
     throw error;
   }
   if (BigInt(quoted.trxAmountSun) <= 0n) {
     const because = "it would pay the seller nothing";
-    await refuseTooSmall(launchpad, network, facts, tokensIn, because);
+    await refuseTooSmall(deadline, launchpad, network, facts, tokensIn, because);
     // Reject zero proceeds even when the minimum sale amount is unavailable.
     throw new UsageError("invalid_amount", `this sale is too small: ${because}`);
   }
@@ -38,13 +53,16 @@ export async function quoteCurveSale(
 
 // Relabel the error only when the contract confirms the sale is below its minimum.
 async function refuseTooSmall(
+  deadline: ExecutionDeadline,
   launchpad: LaunchpadPort,
   network: NetworkDescriptor,
   facts: LaunchpadTokenFacts,
   tokensIn: string,
   because: string,
 ): Promise<void> {
-  const minimum = await launchpad.minimumSellAmount(network, facts.address).catch(() => undefined);
+  const minimum = await launchpad
+    .minimumSellAmount(network, facts.address, requestDispatchCheck(deadline))
+    .catch(unlessDeadline(deadline, () => undefined));
   if (minimum === undefined || BigInt(tokensIn) >= BigInt(minimum)) return;
   throw new UsageError(
     "invalid_amount",

@@ -1,4 +1,5 @@
 // Plan authorization separately so the grant uses the exact amount and requested TTL.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import {
   createProtocolsContext,
   materializeUniversalRouterAction,
@@ -18,7 +19,7 @@ import type {
 import type { ContractParameter } from "../../../application/contracts/tron/tron-contract-call.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, ExecutionError, UsageError } from "../../../domain/errors/index.js";
 import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import { readOnlySdkRuntime, sdkNetworkName } from "./sdk-runtime.js";
 import { FAMILIES } from "../../../domain/family/index.js";
@@ -26,20 +27,29 @@ import { FAMILIES } from "../../../domain/family/index.js";
 const MATERIALIZATION = "universal-router-swap";
 const SIGNATURE_ACTION = "wallet-cli-permit2-signature";
 
+// Contract address lookups build an SDK context but must not send a request.
+const ADDRESS_LOOKUP: DispatchCheck = {
+  signal: new AbortController().signal,
+  assertDispatchable() {
+    throw new ExecutionError("internal_error", "a SunSwap address lookup tried to send a request");
+  },
+};
+
 export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
   // Share one clock request so planning and validation use the same deadline.
   #transactionTimeMs?: Promise<number>;
 
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  async transactionTime(network: NetworkDescriptor): Promise<number> {
+  async transactionTime(network: NetworkDescriptor, check: DispatchCheck): Promise<number> {
     // Match the encoder: ceil(milliseconds / 1000).
-    return Math.ceil((await this.#chainTimeMs(network)) / 1000);
+    return Math.ceil((await this.#chainTimeMs(network, check)) / 1000);
   }
 
   routerAddress(network: NetworkDescriptor): string {
     // Read the router from the same config the encoder uses.
-    const address = this.#context(network, ZERO_READER).chain.contracts.universalRouter;
+    const address = this.#context(network, ZERO_READER, ADDRESS_LOOKUP).chain.contracts
+      .universalRouter;
     if (typeof address !== "string" || address.length === 0) {
       throw new UsageError(
         "unsupported_network",
@@ -59,8 +69,9 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
       readonly amount: string;
       readonly ttlSeconds: number;
     },
+    check: DispatchCheck,
   ): Promise<Permit2Plan | undefined> {
-    const context = this.#context(network, input.owner);
+    const context = this.#context(network, input.owner, check);
     let plan;
     try {
       plan = await planRouterPermit2Authorization(context, {
@@ -127,8 +138,9 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
       readonly feeLimitSun: string;
       readonly permit?: { readonly grant: unknown; readonly signature: string };
     },
+    check: DispatchCheck,
   ): Promise<RouterSwapCall> {
-    const context = this.#context(network, input.recipient);
+    const context = this.#context(network, input.recipient, check);
     const data: Record<string, unknown> = {
       network: sdkNetworkName(network),
       route: input.route,
@@ -172,31 +184,31 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
   }
 
   #permit2(network: NetworkDescriptor): string {
-    const address = this.#context(network, ZERO_READER).chain.contracts.permit2;
+    const address = this.#context(network, ZERO_READER, ADDRESS_LOOKUP).chain.contracts.permit2;
     if (typeof address !== "string" || address.length === 0) {
       throw new UsageError("unsupported_network", `network ${network.id} has no Permit2 contract`);
     }
     return address;
   }
 
-  #context(network: NetworkDescriptor, from: string): ProtocolsContext {
+  #context(network: NetworkDescriptor, from: string, check: DispatchCheck): ProtocolsContext {
     return createProtocolsContext({
       network: sdkNetworkName(network) as never,
-      runtime: readOnlySdkRuntime(this.gateways, network, from),
-      getTransactionTime: () => this.#chainTimeMs(network),
+      runtime: readOnlySdkRuntime(this.gateways, network, from, check),
+      getTransactionTime: () => this.#chainTimeMs(network, check),
     });
   }
 
-  #chainTimeMs(network: NetworkDescriptor): Promise<number> {
-    this.#transactionTimeMs ??= this.#readChainTimeMs(network);
+  #chainTimeMs(network: NetworkDescriptor, check: DispatchCheck): Promise<number> {
+    this.#transactionTimeMs ??= this.#readChainTimeMs(network, check);
     return this.#transactionTimeMs;
   }
 
-  async #readChainTimeMs(network: NetworkDescriptor): Promise<number> {
+  async #readChainTimeMs(network: NetworkDescriptor, check: DispatchCheck): Promise<number> {
     // Use the SDK default time source for the initial clock read.
     const context = createProtocolsContext({
       network: sdkNetworkName(network) as never,
-      runtime: readOnlySdkRuntime(this.gateways, network, ZERO_READER),
+      runtime: readOnlySdkRuntime(this.gateways, network, ZERO_READER, check),
     });
     try {
       return await context.getTransactionTime();

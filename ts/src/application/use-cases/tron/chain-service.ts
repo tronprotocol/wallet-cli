@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { chainParameterByName } from "../../../domain/tron/governance/chain-parameters.js";
@@ -17,8 +19,10 @@ function priceView(timeline: TronPricePoint[]) {
 export class TronChainService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  async params(network: NetworkDescriptor, key?: string) {
-    const params = (await this.gateways.get(network, "tron").getChainParameters()).map((param) => ({
+  async params(deadline: ExecutionDeadline, network: NetworkDescriptor, key?: string) {
+    const params = (
+      await this.gateways.get(network, "tron", requestDispatchCheck(deadline)).getChainParameters()
+    ).map((param) => ({
       ...param,
       unit: chainParameterByName(param.key)?.unit ?? "",
     }));
@@ -28,8 +32,8 @@ export class TronChainService {
     return { key: hit.key, value: hit.value, unit: hit.unit };
   }
 
-  async prices(network: NetworkDescriptor) {
-    const gateway = this.gateways.get(network, "tron");
+  async prices(deadline: ExecutionDeadline, network: NetworkDescriptor) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const [energy, bandwidth, params] = await Promise.all([
       gateway.getEnergyPrices(),
       gateway.getBandwidthPrices(),
@@ -46,8 +50,8 @@ export class TronChainService {
     };
   }
 
-  async node(network: NetworkDescriptor) {
-    const gateway = this.gateways.get(network, "tron");
+  async node(deadline: ExecutionDeadline, network: NetworkDescriptor) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const [info, head] = await Promise.all([gateway.getNodeInfo(), gateway.getHeadBlock()]);
     const solidNumber = info.solidBlockNumber ?? null;
     return {

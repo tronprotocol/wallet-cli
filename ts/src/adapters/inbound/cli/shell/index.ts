@@ -486,31 +486,17 @@ function assertKnownFlags(
       `${cmd.path.join(" ")} does not accept --account: ${cmd.rejectsAccount}`,
     );
   }
-  if (
-    cmd.rejectsWait !== undefined &&
-    (argv.wait !== undefined ||
-      argv.waitTimeout !== undefined ||
-      argv.waitTimeoutMs !== undefined ||
-      argv["wait-timeout"] !== undefined)
-  ) {
+  if (cmd.rejectsWait !== undefined && argv.wait !== undefined) {
     throw new UsageError(
       "invalid_option",
       `${cmd.path.join(" ")} does not accept --wait: ${cmd.rejectsWait}`,
     );
   }
   if (cmd.rejectsWaitWith !== undefined && argv[cmd.rejectsWaitWith] === true) {
-    const waitFlag =
-      argv.wait !== undefined
-        ? "--wait"
-        : argv.waitTimeout !== undefined ||
-            argv.waitTimeoutMs !== undefined ||
-            argv["wait-timeout"] !== undefined
-          ? "--wait-timeout"
-          : undefined;
-    if (waitFlag !== undefined) {
+    if (argv.wait !== undefined) {
       throw new UsageError(
         "invalid_option",
-        `${waitFlag} cannot be used with --${camelToKebab(cmd.rejectsWaitWith)}, which sends no transaction`,
+        `--wait cannot be used with --${camelToKebab(cmd.rejectsWaitWith)}, which sends no transaction`,
       );
     }
   }
@@ -525,16 +511,10 @@ function assertKnownFlags(
       );
     }
   }
-  if (
-    cmd.supportsWait === false &&
-    (argv.wait !== undefined ||
-      argv.waitTimeout !== undefined ||
-      argv.waitTimeoutMs !== undefined ||
-      argv["wait-timeout"] !== undefined)
-  ) {
+  if (cmd.supportsWait === false && argv.wait !== undefined) {
     throw new UsageError(
       "invalid_option",
-      "This command uses facilitator settlement and does not support --wait or --wait-timeout",
+      "This command uses facilitator settlement and does not support --wait",
     );
   }
   const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);

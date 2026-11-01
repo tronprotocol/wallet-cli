@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
 export type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
 import type { EvmFeeReport, NetworkDescriptor } from "../../../domain/types/index.js";
@@ -24,6 +26,7 @@ export class EvmContractService {
 
   // Return raw hex: a method signature supplies parameter types, not return types.
   async call(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     contract: string,
     method: string,
@@ -32,12 +35,14 @@ export class EvmContractService {
     return {
       contract,
       method,
-      result: await this.gateways.get(network, "evm").callFunction(contract, method, params),
+      result: await this.gateways
+        .get(network, "evm", requestDispatchCheck(deadline))
+        .callFunction(contract, method, params),
     };
   }
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     let nonce: string | undefined;
     const data = gateway.encodeFunctionCall(
       input.method!,
@@ -86,7 +91,7 @@ export class EvmContractService {
 
   // CREATE determines the address from sender and nonce before mining.
   async deploy(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const data = gateway.encodeDeploy(input.bytecode!, input.constructorArgs ?? { source: "none" });
     let contractAddress: string | undefined;
     let nonce: string | undefined;

@@ -1,3 +1,4 @@
+import type { ExecutionDeadline } from "../../../../application/contracts/deadline.js";
 import {
   paymentText,
   roundtripText,
@@ -233,11 +234,11 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     examples: [
       { cmd: "wallet-cli x402 serve --pay-to T... --amount 1 --token USDT --network tron" },
     ],
-    run: async (_ctx, network, input) => {
+    run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 serve requires a resolved network");
-      return service.serve(network, {
+      return service.serve(ctx.deadline, network, {
         ...input,
-        ...(_ctx.output === "text" ? { accessLog: "text" as const } : {}),
+        ...(ctx.output === "text" ? { accessLog: "text" as const } : {}),
       });
     },
   } satisfies CommandDefinition);
@@ -279,15 +280,20 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       { cmd: "wallet-cli x402 provider-list" },
       { cmd: "wallet-cli x402 provider-list --network tron:728126428" },
     ],
-    run: async (_ctx, _network, input) => providerResult(_ctx, service.providerList(input)),
+    run: async (ctx, _network, input) =>
+      providerResult(ctx, service.providerList(ctx.deadline, input)),
   } satisfies CommandDefinition);
 
   for (const [verb, summary, run] of [
-    ["provider-show", "Show one x402 provider", (name: string) => service.providerShow(name)],
+    [
+      "provider-show",
+      "Show one x402 provider",
+      (deadline: ExecutionDeadline, name: string) => service.providerShow(deadline, name),
+    ],
     [
       "endpoint-list",
       "List one x402 provider's endpoints",
-      (name: string) => service.providerEndpoints(name),
+      (deadline: ExecutionDeadline, name: string) => service.providerEndpoints(deadline, name),
     ],
   ] as const) {
     const fields = z.object({ provider: fqn });
@@ -302,7 +308,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       fields,
       input: fields,
       examples: [{ cmd: `wallet-cli x402 ${verb} defillama` }],
-      run: async (_ctx, _network, input) => providerResult(_ctx, run(input.provider)),
+      run: async (ctx, _network, input) => providerResult(ctx, run(ctx.deadline, input.provider)),
     } satisfies CommandDefinition);
   }
 
@@ -317,7 +323,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli x402 update-catalog" }],
-    run: async (ctx) => providerResult(ctx, service.providerUpdate()),
+    run: async (ctx) => providerResult(ctx, service.providerUpdate(ctx.deadline)),
   } satisfies CommandDefinition);
 }
 
@@ -345,7 +351,7 @@ async function requestBody(
         `--body-file - cannot share stdin with --${claimed.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}-stdin`,
       );
     }
-    return checkedBody(ctx.streams.readStdinBytesOnce(), "stdin");
+    return checkedBody(await ctx.streams.readStdinBytesOnce(ctx.deadline.signal), "stdin");
   }
   try {
     return checkedBody(await readFile(path), path);

@@ -17,21 +17,27 @@ describe("global --wait / --timeout wording holds for every command that shows t
     expect(text).toMatch(/without blocking/i);
   });
 
-  it("covers service calls too, not just node RPC and the device", () => {
+  it("describes one deadline for the whole command, with 0 as no limit", () => {
     const text = spec("timeout").description;
-    expect(text).toMatch(/service/i);
-    expect(text).toMatch(/device/i);
-    expect(text).toMatch(/node/i);
+    expect(text).toMatch(/whole command/i);
+    expect(text).toMatch(/0 = no limit/);
+  });
+
+  it("publishes the bounds its rule enforces", () => {
+    expect(spec("timeout").bounds).toEqual({ minimum: 0, maximum: 2_147_483_647 });
+    expect(GLOBAL_FLAG_SPECS.some((f) => f.name === "wait-timeout")).toBe(false);
   });
 });
 
 describe("timeout flags apply the config value rules", () => {
   it.each([
     ["timeoutMs", "0.5", false],
+    ["timeoutMs", "0", true],
     ["timeoutMs", "1", true],
-    ["waitTimeoutMs", "1.5", false],
-    ["waitTimeoutMs", "0", true],
-    ["waitTimeoutMs", "-1", false],
+    ["timeoutMs", "2147483647", true],
+    ["timeoutMs", "2147483648", false],
+    ["timeoutMs", "-1", false],
+    ["timeoutMs", "", false],
   ])("%s %s accepted: %s", (field, raw, ok) => {
     expect(coerceGlobalValue(field, raw).ok).toBe(ok);
   });

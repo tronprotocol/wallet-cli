@@ -17,6 +17,9 @@ import { SigningService } from "../../services/signing/signing-service.js";
 import { baseUnitAmount, sunAmount } from "../../../domain/amounts/index.js";
 import type { CliError } from "../../../domain/errors/index.js";
 import { errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -164,6 +167,7 @@ function makeHarness(
   } as unknown as TxPipeline;
   const warn = vi.fn();
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: {},
     wait: false,
     waitTimeoutMs: 1_000,
@@ -513,7 +517,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — symbols", () => {
       dryRun: true,
     })) as { token0: { address: string }; token1: { address: string } };
 
-    expect(port.tokenFacts).toHaveBeenCalledWith(NETWORK, USDT);
+    expect(port.tokenFacts).toHaveBeenCalledWith(NETWORK, USDT, expect.anything());
     expect(result.token0.address).toBe(USDT);
     expect(result.token1.address).toBe(WTRX);
   });
@@ -573,7 +577,7 @@ describe("SunSwapLiquidityService.addLiquidityV2 — native TRX", () => {
       dryRun: true,
     })) as Record<string, Record<string, string>>;
 
-    expect(port.v2PairState).toHaveBeenCalledWith(NETWORK, WTRX, USDT);
+    expect(port.v2PairState).toHaveBeenCalledWith(NETWORK, WTRX, USDT, expect.anything());
     expect(result.token0).toMatchObject({ address: TRX, symbol: "TRX" });
   });
 
@@ -874,7 +878,7 @@ describe("SunSwapLiquidityService.addLiquidity — V3 increase", () => {
       dryRun: true,
     })) as Record<string, unknown>;
 
-    expect(port.v3Position).toHaveBeenCalledWith(NETWORK, "1846");
+    expect(port.v3Position).toHaveBeenCalledWith(NETWORK, "1846", expect.anything());
     expect(result.feeTier).toBe(500);
     expect(result.tickLower).toBe(-8030);
     expect(result.tickUpper).toBe(-6030);
@@ -1843,6 +1847,12 @@ describe("SunSwapLiquidityService.addLiquidity — V4 mint", () => {
     await expect(result).rejects.toMatchObject({ code: "missing_option" });
     await expect(result).rejects.toThrow(field);
   });
+
+  describe("approvals under the command deadline", () => {
+    it.each(deadlineCases)("%s", async (_name, check) => {
+      await check((port) => v4Port(port), standingGrants, signers, BASE_V4);
+    });
+  });
 });
 
 describe("Ledger report regressions — V3 ordering and approval progress", () => {
@@ -1973,5 +1983,121 @@ describe("add-liquidity — symbols from the account's token book", () => {
       code: "unsupported_token",
       message: expect.stringContaining("with token0/token1, or add it with 'token-add'"),
     });
+  });
+});
+
+type DeadlineCheck = (
+  portFor: (overrides: Partial<LiquidityPort>) => LiquidityPort,
+  permits: unknown,
+  signers: unknown,
+  input: Record<string, unknown>,
+) => Promise<void>;
+
+// Each token's allowance becomes sufficient once its approval confirms; reads honour the dispatch
+// check as adapters do. `approval` decides how the first approval ends.
+function deadlineHarness(
+  portFor: (overrides: Partial<LiquidityPort>) => LiquidityPort,
+  permits: unknown,
+  signers: unknown,
+  approval: "confirmed" | "pending-at-expiry" | "confirmed-at-expiry",
+) {
+  const approved = new Set<string>();
+  const port = portFor({
+    allowance: vi.fn(async (_n, token: string, _o, _s, check) => {
+      check.assertDispatchable();
+      return baseUnitAmount(approved.has(token) ? (2n ** 256n - 1n).toString() : "0");
+    }) as never,
+  });
+  const h = makeHarness(port, permits, signers);
+  let now = 0;
+  const deadline = new CommandDeadline(60_000, 0, { now: () => now });
+  Object.assign(h.scope, { deadline });
+  const approvalIds: string[] = [];
+  vi.mocked(h.pipeline.runTron).mockImplementation(async (p) => {
+    p.ctx.deadline.assertActive();
+    const tx = (await p.build(OWNER)) as unknown as { txID: string; target: string };
+    if (tx.txID !== `built:${APPROVE}`) {
+      return { stage: "confirmed", txId: "deposit", fee: {} } as never;
+    }
+    const txId = `approve:${tx.target}`;
+    approvalIds.push(txId);
+    const first = approvalIds.length === 1;
+    if (first && approval !== "confirmed") now = 60_000;
+    const pending = first && approval === "pending-at-expiry";
+    if (!pending) approved.add(tx.target);
+    return { stage: pending ? "submitted" : "confirmed", txId, fee: {} } as never;
+  });
+  return {
+    ...h,
+    deadline,
+    approvalIds,
+    reset: () => Object.assign(h.scope, { deadline: NO_DEADLINE }),
+  };
+}
+
+const deadlineCases: [string, DeadlineCheck][] = [
+  [
+    "returns every approval id in order with the deposit",
+    async (portFor, permits, signers, input) => {
+      const h = deadlineHarness(portFor, permits, signers, "confirmed");
+      const result = await h.service.addLiquidity(h.scope, NETWORK, input as never);
+      expect(h.approvalIds).toHaveLength(2);
+      expect(result).toMatchObject({ approvalTxIds: h.approvalIds, txId: "deposit" });
+      h.deadline.dispose();
+    },
+  ],
+  [
+    "ends with timeout and the approval id when the approval is still pending at expiry",
+    async (portFor, permits, signers, input) => {
+      const h = deadlineHarness(portFor, permits, signers, "pending-at-expiry");
+      const error = await h.service
+        .addLiquidity(h.scope, NETWORK, input as never)
+        .catch((caught: unknown) => caught);
+      expect(error).toMatchObject({
+        code: "timeout",
+        details: { approvalTxIds: [h.approvalIds[0]] },
+      });
+      expect(h.pipeline.runTron).toHaveBeenCalledOnce();
+      h.deadline.dispose();
+    },
+  ],
+  [
+    "keeps the confirmed approval and sends nothing dependent once the time is spent",
+    async (portFor, permits, signers, input) => {
+      const h = deadlineHarness(portFor, permits, signers, "confirmed-at-expiry");
+      const error = await h.service
+        .addLiquidity(h.scope, NETWORK, input as never)
+        .catch((caught: unknown) => caught);
+      expect(error).toMatchObject({
+        code: "timeout",
+        details: { approvalTxIds: [h.approvalIds[0]] },
+      });
+      expect(h.pipeline.runTron).toHaveBeenCalledOnce();
+      h.deadline.dispose();
+    },
+  ],
+  [
+    "skips the sufficient approval on a rerun",
+    async (portFor, permits, signers, input) => {
+      const h = deadlineHarness(portFor, permits, signers, "confirmed-at-expiry");
+      await expect(h.service.addLiquidity(h.scope, NETWORK, input as never)).rejects.toMatchObject({
+        code: "timeout",
+      });
+      h.reset();
+      const result = await h.service.addLiquidity(h.scope, NETWORK, input as never);
+      expect(h.approvalIds).toHaveLength(2);
+      expect(new Set(h.approvalIds).size).toBe(2);
+      expect(result).toMatchObject({ approvalTxIds: [h.approvalIds[1]] });
+      h.deadline.dispose();
+    },
+  ],
+];
+
+describe.each([
+  ["V2", { protocol: "V2", token0: USDT, token1: WTRX, amount0: "1" }],
+  ["V3", { protocol: "V3", token0: USDT, token1: WTRX, fee: 500, amount0: "1" }],
+])("%s approvals under the command deadline", (_protocol, input) => {
+  it.each(deadlineCases)("%s", async (_name, check) => {
+    await check((overrides) => makePort(overrides), noV4Permits, noV4Signers, input);
   });
 });

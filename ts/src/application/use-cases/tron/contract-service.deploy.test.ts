@@ -6,6 +6,9 @@ import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET = {
   id: "tron:3448148188",
@@ -13,7 +16,7 @@ const NET = {
   nativeSymbol: "TRX",
   chainId: "nile",
 } as unknown as NetworkDescriptor;
-const SCOPE = {} as unknown as TransactionScope;
+const SCOPE = { deadline: NO_DEADLINE } as unknown as TransactionScope;
 const DEPLOY_INPUT = {
   abi: [],
   bytecode: "0x00",

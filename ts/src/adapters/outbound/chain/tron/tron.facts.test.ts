@@ -18,7 +18,7 @@ function node(responses: Record<string, string>) {
       return body;
     },
   };
-  return withTronWeb(() => new TronRpcClient("https://node.invalid", 1000, transport));
+  return withTronWeb(() => new TronRpcClient("https://node.invalid", transport));
 }
 
 describe("TronRpcClient.getAccountState", () => {

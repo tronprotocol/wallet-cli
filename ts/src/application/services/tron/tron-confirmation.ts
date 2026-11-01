@@ -8,7 +8,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TronGateway, TronTxInfo } from "../../ports/chain/tron/tron-gateway.js";
 import { errorMessage, inputRef } from "../../../domain/errors/index.js";
 import { authoritativeTxId, localTxId } from "../broadcast-identity.js";
-import { pollWithinWaitBudget } from "../wait-budget.js";
+import { pollUntilDeadline } from "../deadline-poll.js";
 
 function normalize(info: TronTxInfo): TxConfirmation {
   const result: Omit<TxConfirmation, "failed"> = {
@@ -46,12 +46,12 @@ function requiresExecutionResult(transaction: TronTransactionArtifact): boolean 
 
 export function tronConfirmation(
   gateway: TronGateway,
-  scope: TransactionScope,
+  scope: Pick<TransactionScope, "deadline">,
 ): (txId: string, transaction: TronTransactionArtifact) => Promise<TxConfirmation | undefined> {
   return async (txId, transaction) => {
     const needsResult = requiresExecutionResult(transaction);
-    return pollWithinWaitBudget(scope.waitTimeoutMs, async (signal) => {
-      const info = await gateway.getTransactionInfoById(txId, signal).catch(() => undefined);
+    return pollUntilDeadline(scope.deadline, async () => {
+      const info = await gateway.getTransactionInfoById(txId);
       return info?.blockNumber !== undefined && (!needsResult || info.execution !== "unknown")
         ? normalize(info)
         : undefined;
@@ -82,7 +82,7 @@ export async function stageTronBroadcast(
   );
   if (!confirmed) {
     scope.warn(
-      errorMessage`${inputRef("wait")}: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted (it may still confirm on-chain)`,
+      errorMessage`${inputRef("wait")}: ${txId} not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)`,
     );
     return { stage: "submitted", ...result, txId };
   }

@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
+import { expiredCheck } from "../../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
 
 function nodeReturns(body: string) {
   const calls: Array<{ url: string; body: unknown }> = [];
@@ -15,7 +18,7 @@ function nodeReturns(body: string) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-const client = () => new TronRpcClient("https://node.invalid", 1000);
+const client = () => new TronRpcClient("https://node.invalid");
 
 describe("transaction-info realised amounts survive as exact decimal strings", () => {
   it.each([
@@ -64,8 +67,8 @@ describe("transaction-info realised amounts survive as exact decimal strings", (
   });
 });
 
-describe("transaction-info polling honours the caller's signal", () => {
-  it("does not send the request once the signal has aborted", async () => {
+describe("transaction-info polling honours the call's deadline", () => {
+  it("does not send the request once the deadline has expired", async () => {
     const sent: unknown[] = [];
     vi.stubGlobal(
       "fetch",
@@ -76,9 +79,10 @@ describe("transaction-info polling honours the caller's signal", () => {
       }),
     );
 
-    await expect(client().getTransactionInfoById("abc", AbortSignal.abort())).rejects.toMatchObject(
-      { code: "timeout" },
-    );
+    const tron = client();
+    await expect(
+      withDispatchCheck(expiredCheck(), () => tron.getTransactionInfoById("abc")),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
     expect(sent).toEqual([]);
   });
 });

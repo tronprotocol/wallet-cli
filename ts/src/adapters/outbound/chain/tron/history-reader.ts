@@ -20,14 +20,18 @@ import {
   networkHttpConfig,
 } from "../../http/index.js";
 import { FAMILIES } from "../../../../domain/family/index.js";
+import {
+  DeadlineExpiredError,
+  type DispatchCheck,
+} from "../../../../application/contracts/deadline.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
 
 export class TronGridHistoryReader implements HistoryPort {
-  constructor(private readonly timeoutMs = 60_000) {}
-
   async get(
     network: NetworkDescriptor,
     address: string,
     query: TronHistoryQuery,
+    check: DispatchCheck,
   ): Promise<TronHistoryResult> {
     const endpoint = network.httpEndpoint;
     if (!endpoint) {
@@ -40,8 +44,8 @@ export class TronGridHistoryReader implements HistoryPort {
     const path = `/v1/accounts/${encodeURIComponent(address)}/${resource}?limit=${query.limit}&visible=true`;
     let text: string;
     try {
-      const transport = new FetchHttpTransport(networkHttpConfig(network, this.timeoutMs));
-      text = await transport.requestText({ method: "GET", path });
+      const transport = new FetchHttpTransport(networkHttpConfig(network));
+      text = await withDispatchCheck(check, () => transport.requestText({ method: "GET", path }));
     } catch (error) {
       throw historyTransportError(error);
     }
@@ -95,6 +99,7 @@ export class TronGridHistoryReader implements HistoryPort {
 
 // Only a missing endpoint is "not supported"; other failures keep their retryable codes.
 function historyTransportError(error: unknown): CliError {
+  if (error instanceof DeadlineExpiredError) return error;
   if (!(error instanceof HttpTransportError)) {
     return new TransportError("rpc_error", "TRON account history request failed");
   }

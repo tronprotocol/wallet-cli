@@ -8,7 +8,7 @@ Deploy contract bytecode.
 wallet-cli contract deploy (--artifact <path> | --code <hex> | --code-file <path>)
                            [--constructor-args <json> | --constructor-params <json>]
                            [--constructor-signature <sig>]
-                           [--dry-run | --sign-only | --build-only | --wait [--wait-timeout <ms>]]
+                           [--dry-run | --sign-only | --build-only | --wait]
                            [--abi <json>] [--fee-limit <sun>] [--permission-id <n>] [--expiration <ms>]
                            [--gas-limit <n>] [--max-fee <gwei>] [--priority-fee <gwei>] [--nonce <n>]
                            [options]
@@ -53,7 +53,7 @@ On TRON the Ledger app cannot sign `CreateSmartContract`: a Ledger account can d
 | `--dry-run` | Estimate only; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--password-stdin` | Master password from stdin |
 
 TRON only:

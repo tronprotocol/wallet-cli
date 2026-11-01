@@ -16,6 +16,10 @@ import {
 import { randomBytes } from "node:crypto";
 import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { ExecutionError } from "../../../../domain/errors/index.js";
+import {
+  DeadlineExpiredError,
+  type ExecutionDeadline,
+} from "../../../../application/contracts/deadline.js";
 
 function sleepMs(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -44,6 +48,9 @@ function isStaleLock(lock: string, staleMs: number): boolean {
 const DIR_FSYNC_SUPPORTED = process.platform !== "win32";
 
 export class AtomicFileStore {
+  // Bounds lock waits and refuses to start a locked write after expiry; a started write finishes.
+  constructor(private readonly deadline?: ExecutionDeadline) {}
+
   readJson<T>(path: string): T | null {
     if (!existsSync(path)) return null;
     const raw = readFileSync(path, "utf8");
@@ -326,7 +333,9 @@ export class AtomicFileStore {
   withLock<T>(path: string, fn: () => T, opts: { timeoutMs?: number; staleMs?: number } = {}): T {
     const lock = `${path}.lock`;
     mkdirSync(dirname(path), { recursive: true });
-    const deadline = Date.now() + (opts.timeoutMs ?? 5000);
+    const lockWaitMs = opts.timeoutMs ?? 5000;
+    const remainingMs = this.deadline?.remainingMs() ?? Number.POSITIVE_INFINITY;
+    const waitUntil = Date.now() + Math.min(lockWaitMs, remainingMs);
     const staleMs = opts.staleMs ?? 30000;
     let fd: number | undefined;
     while (fd === undefined) {
@@ -342,13 +351,15 @@ export class AtomicFileStore {
           }
           continue;
         }
-        if (Date.now() > deadline) {
+        if (Date.now() > waitUntil) {
+          if (remainingMs < lockWaitMs) throw new DeadlineExpiredError();
           throw new ExecutionError("execution_error", `timed out acquiring lock ${lock}`);
         }
         sleepMs(25);
       }
     }
     try {
+      this.deadline?.assertActive();
       writeSync(fd, `${process.pid}\n`); // Record the PID so dead owners can be detected.
       return fn();
     } finally {

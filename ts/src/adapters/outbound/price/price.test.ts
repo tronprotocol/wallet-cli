@@ -1,5 +1,11 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { NullPriceProvider, createPriceProvider } from "./index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -11,8 +17,10 @@ describe("NullPriceProvider", () => {
     vi.stubGlobal("fetch", fetchSpy);
     const p = new NullPriceProvider();
     expect(p.source).toBe("none");
-    expect(await p.nativeUsd("tron:728126428")).toBeNull();
-    expect(await p.tokenUsd("tron:728126428", ["TR7..."])).toEqual(new Map([["TR7...", null]]));
+    expect(await p.nativeUsd("tron:728126428", NO_CHECK)).toBeNull();
+    expect(await p.tokenUsd("tron:728126428", ["TR7..."], NO_CHECK)).toEqual(
+      new Map([["TR7...", null]]),
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
@@ -25,19 +33,19 @@ describe("createPriceProvider", () => {
   });
 
   describe("testnet valuation", () => {
-    const provider = createPriceProvider(undefined, undefined, new Set(["eip155:11155111"]));
+    const provider = createPriceProvider(undefined, new Set(["eip155:11155111"]));
 
     it("values a testnet coin at zero without asking anyone", async () => {
-      expect(await provider.nativeUsd("eip155:11155111")).toBe(0);
+      expect(await provider.nativeUsd("eip155:11155111", NO_CHECK)).toBe(0);
     });
 
     it("values testnet tokens at zero too", async () => {
-      const prices = await provider.tokenUsd("eip155:11155111", ["0xabc", "0xdef"]);
+      const prices = await provider.tokenUsd("eip155:11155111", ["0xabc", "0xdef"], NO_CHECK);
       expect([...prices.values()]).toEqual([0, 0]);
     });
 
     it("leaves an undeclared network to the real provider", async () => {
-      expect(await provider.nativeUsd("evm:424242")).toBeNull();
+      expect(await provider.nativeUsd("evm:424242", NO_CHECK)).toBeNull();
     });
   });
 });

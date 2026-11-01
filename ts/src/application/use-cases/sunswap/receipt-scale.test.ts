@@ -9,6 +9,9 @@ import { SunSwapLiquidityService } from "./liquidity-service.js";
 import { SunSwapRemoveLiquidityService } from "./remove-liquidity-service.js";
 import { SunSwapCollectFeesService } from "./collect-fees-service.js";
 import { SigningService } from "../../services/signing/signing-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const ROUTER = "TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy";
 const MANAGER = "TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R";
@@ -117,6 +120,7 @@ function services() {
   } as unknown as TxPipeline;
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: {},
     wait: false,
     waitTimeoutMs: 1_000,

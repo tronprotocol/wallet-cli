@@ -1,7 +1,14 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { BaiClient } from "./client.js";
 import { BaiService } from "../../../application/use-cases/bai-service.js";
 import { baiUsageText } from "../../inbound/cli/render/bai.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -26,8 +33,8 @@ describe("BaiClient", () => {
           : envelope === "tRPC"
             ? `[{"result":{"data":${summary}}}]`
             : `[{"result":{"data":{"json":${summary}}}}]`;
-      const client = new BaiClient({ baiApiKey: "test-key" }, 1000, async () => new Response(body));
-      const usage = await new BaiService(client).usage();
+      const client = new BaiClient({ baiApiKey: "test-key" }, async () => new Response(body));
+      const usage = await new BaiService(client).usage(NO_DEADLINE);
       expect(JSON.parse(JSON.stringify(usage))).toEqual({
         credits: expected,
         thisMonth: { month: "2026-09", credits: expected },
@@ -46,7 +53,7 @@ describe("BaiClient", () => {
         { result: { data: { json: { points_balance: 1, monthly_spent: 0, monthly_chart: [] } } } },
       ]),
     );
-    await new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher).status();
+    await new BaiClient({ baiApiKey: "test-key" }, fetcher).status(NO_CHECK);
     const [url, init] = fetcher.mock.calls[0]! as unknown as [string, RequestInit];
     expect(new URL(url).origin).toBe("https://chat.bankofai.io");
     expect(init.redirect).toBe("error");
@@ -56,9 +63,9 @@ describe("BaiClient", () => {
     const fetcher = vi.fn(async () =>
       response([{ result: { data: { json: { data: [], page: 1, pageSize: 5 } } } }]),
     );
-    const client = new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher);
-    await client.rechargeList({ page: 1, pageSize: 5, sortOrder: "desc" });
-    await client.usageList({ page: 1, pageSize: 5, sortOrder: "asc", cursor: "c1" });
+    const client = new BaiClient({ baiApiKey: "test-key" }, fetcher);
+    await client.rechargeList({ page: 1, pageSize: 5, sortOrder: "desc" }, NO_CHECK);
+    await client.usageList({ page: 1, pageSize: 5, sortOrder: "asc", cursor: "c1" }, NO_CHECK);
     const [orders] = fetcher.mock.calls[0]! as unknown as [string];
     expect(JSON.parse(new URL(orders).searchParams.get("input")!)).toEqual({
       0: { json: { page: 1, pageSize: 5, sortBy: "createdAt", order: "desc" } },
@@ -94,11 +101,14 @@ describe("BaiClient", () => {
         ],
       }),
     );
-    const { items } = await new BaiClient({ baiApiKey: "test-key" }, 1000, fetcher).usageList({
-      page: 1,
-      pageSize: 2,
-      sortOrder: "desc",
-    });
+    const { items } = await new BaiClient({ baiApiKey: "test-key" }, fetcher).usageList(
+      {
+        page: 1,
+        pageSize: 2,
+        sortOrder: "desc",
+      },
+      NO_CHECK,
+    );
     expect(items).toEqual([
       {
         id: "u1",
@@ -142,12 +152,11 @@ describe("BaiClient", () => {
     );
     const client = new BaiClient(
       { baiApiKey: "secret" },
-      1000,
       fetcher as typeof fetch,
       "https://bai.example",
     );
 
-    await expect(client.status()).resolves.toEqual({
+    await expect(client.status(NO_CHECK)).resolves.toEqual({
       pointsBalance: "123.5",
       monthlySpent: "20",
       monthlyChart: [{ month: "2026-09", points: "20" }],
@@ -182,19 +191,20 @@ describe("BaiClient", () => {
       );
     const client = new BaiClient(
       { baiApiKey: "secret" },
-      1000,
       fetcher as typeof fetch,
       "https://bai.example",
     );
 
-    await expect(client.usageList({ page: 2, pageSize: 10, sortOrder: "desc" })).resolves.toEqual({
+    await expect(
+      client.usageList({ page: 2, pageSize: 10, sortOrder: "desc" }, NO_CHECK),
+    ).resolves.toEqual({
       items: [expect.objectContaining({ id: "u1", totalTokens: "42" })],
       page: 2,
       pageSize: 10,
       total: 11,
     });
     await expect(
-      client.rechargeList({ page: 1, pageSize: 20, sortOrder: "desc" }),
+      client.rechargeList({ page: 1, pageSize: 20, sortOrder: "desc" }, NO_CHECK),
     ).resolves.toMatchObject({ items: [{ id: "o1", status: "paid" }], page: 1, pageSize: 20 });
   });
 
@@ -211,23 +221,23 @@ describe("BaiClient", () => {
   ])("classifies summary response %s at HTTP %s as %s", async (body, status, code) => {
     const client = new BaiClient(
       { baiApiKey: "test-key" },
-      1000,
       async () => new Response(body, { status }),
     );
-    await expect(client.status()).rejects.toMatchObject({ code });
+    await expect(client.status(NO_CHECK)).rejects.toMatchObject({ code });
   });
 
   it("classifies missing credentials and rejected credentials without exposing the key", async () => {
-    const missing = new BaiClient({}, 1000, vi.fn(), "https://bai.example");
-    await expect(missing.status()).rejects.toMatchObject({ code: "bai_credentials_missing" });
+    const missing = new BaiClient({}, vi.fn(), "https://bai.example");
+    await expect(missing.status(NO_CHECK)).rejects.toMatchObject({
+      code: "bai_credentials_missing",
+    });
 
     const rejected = new BaiClient(
       { baiApiKey: "top-secret" },
-      1000,
       vi.fn(async () => response({ error: "top-secret" }, 401)) as typeof fetch,
       "https://bai.example",
     );
-    await expect(rejected.status()).rejects.toMatchObject({
+    await expect(rejected.status(NO_CHECK)).rejects.toMatchObject({
       code: "bai_auth_failed",
       message: expect.not.stringContaining("top-secret"),
     });

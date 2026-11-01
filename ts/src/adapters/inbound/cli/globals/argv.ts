@@ -91,3 +91,31 @@ export function invalidGlobalError(invalid: InvalidGlobal[]): UsageError | undef
   if (bad === undefined) return undefined;
   return new UsageError("invalid_value", `invalid ${bad.flag} value "${bad.value}": ${bad.reason}`);
 }
+
+// The longest command path named by the leading words of argv, skipping global flags; undefined when
+// argv names no registered command. Command flags end the search.
+export function commandPathOf(
+  tokens: string[],
+  isCommand: (path: string[]) => boolean,
+): string[] | undefined {
+  const words: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (!token.startsWith("-")) {
+      words.push(token);
+      continue;
+    }
+    const flag = token.includes("=") ? token.slice(0, token.indexOf("=")) : token;
+    if (VALUE_FLAGS[flag]) {
+      if (!token.includes("=")) i++;
+      continue;
+    }
+    if (SECRET_STDIN_FLAGS[flag] || BOOLEAN_FLAGS[flag]) continue;
+    break;
+  }
+  for (let length = words.length; length > 0; length--) {
+    const path = words.slice(0, length);
+    if (isCommand(path)) return path;
+  }
+  return undefined;
+}

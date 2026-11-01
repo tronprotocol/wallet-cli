@@ -387,7 +387,7 @@ export interface SignerSignOpts {
 export interface Signer {
   kind: "software" | "device";
   address: string;
-  precheck?(): Promise<void>;
+  precheck?(signal: AbortSignal): Promise<void>;
   sign(tx: UnsignedTx, opts: SignerSignOpts): Promise<SignedTx>;
   signMessage(message: string, opts: SignerSignOpts): Promise<string>;
   // EIP-712/TIP-712; hashing depends on the chain family.

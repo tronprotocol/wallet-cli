@@ -72,8 +72,8 @@ export const sunpumpTokenListSpec: ChainSpec = {
 };
 
 export const sunpumpTokenListTronBinding = (service: SunPumpMarketQueryService): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.tokenList(net, {
+  run: async (ctx, net, input) =>
+    service.tokenList(ctx.deadline, net, {
       orderBy: input.orderBy,
       sort: input.sort,
       limit: input.limit,

@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
 import { createHmac } from "node:crypto";
 import {
@@ -33,14 +34,19 @@ type Fetch = typeof globalThis.fetch;
 export class GasFreeClient implements GasFreeProvider {
   constructor(
     private readonly config: Config,
-    private readonly timeoutMs: number,
     private readonly guard: BroadcastGuard,
     private readonly fetchImpl: Fetch = globalThis.fetch,
     private readonly clock: () => number = () => Date.now(),
   ) {}
 
-  async listTokens(network: NetworkDescriptor): Promise<GasFreeTokenConfig[]> {
-    const data = object(await this.#request(network, "GET", "/api/v1/config/token/all"), "data");
+  async listTokens(
+    network: NetworkDescriptor,
+    check: DispatchCheck,
+  ): Promise<GasFreeTokenConfig[]> {
+    const data = object(
+      await this.#request(network, "GET", "/api/v1/config/token/all", check),
+      "data",
+    );
     return array(data.tokens, "data.tokens").map((entry, index) => {
       const item = object(entry, `data.tokens[${index}]`);
       const symbol = optionalText(item.symbol, 32, `data.tokens[${index}].symbol`);
@@ -56,8 +62,14 @@ export class GasFreeClient implements GasFreeProvider {
     });
   }
 
-  async listProviders(network: NetworkDescriptor): Promise<GasFreeProviderConfig[]> {
-    const data = object(await this.#request(network, "GET", "/api/v1/config/provider/all"), "data");
+  async listProviders(
+    network: NetworkDescriptor,
+    check: DispatchCheck,
+  ): Promise<GasFreeProviderConfig[]> {
+    const data = object(
+      await this.#request(network, "GET", "/api/v1/config/provider/all", check),
+      "data",
+    );
     return array(data.providers, "data.providers").map((entry, index) => {
       const item = object(entry, `data.providers[${index}]`);
       const providerConfig = object(item.config, `data.providers[${index}].config`);
@@ -72,12 +84,21 @@ export class GasFreeClient implements GasFreeProvider {
     });
   }
 
-  async getAddress(network: NetworkDescriptor, ownerAddress: string): Promise<GasFreeAddressInfo> {
+  async getAddress(
+    network: NetworkDescriptor,
+    ownerAddress: string,
+    check: DispatchCheck,
+  ): Promise<GasFreeAddressInfo> {
     if (!ADDRESS.validate(ownerAddress)) {
       throw new UsageError("invalid_value", "ownerAddress must be a valid TRON address");
     }
     const data = object(
-      await this.#request(network, "GET", `/api/v1/address/${encodeURIComponent(ownerAddress)}`),
+      await this.#request(
+        network,
+        "GET",
+        `/api/v1/address/${encodeURIComponent(ownerAddress)}`,
+        check,
+      ),
       "data",
     );
     return {
@@ -100,6 +121,7 @@ export class GasFreeClient implements GasFreeProvider {
   async submitTransfer(
     network: NetworkDescriptor,
     authorization: SignedGasFreeAuthorization,
+    check: DispatchCheck,
   ): Promise<GasFreeTransferRecord> {
     this.guard.assertAllowed();
     const body = {
@@ -114,13 +136,15 @@ export class GasFreeClient implements GasFreeProvider {
       nonce: new LosslessNumber(authorization.nonce),
       sig: authorization.sig,
     };
-    return transferRecord(await this.#request(network, "POST", "/api/v1/gasfree/submit", body));
+    return transferRecord(
+      await this.#request(network, "POST", "/api/v1/gasfree/submit", check, body),
+    );
   }
 
   async trace(
     network: NetworkDescriptor,
     traceId: string,
-    signal?: AbortSignal,
+    check: DispatchCheck,
   ): Promise<GasFreeTransferRecord> {
     const normalized = traceIdentifier(traceId);
     return transferRecord(
@@ -128,8 +152,7 @@ export class GasFreeClient implements GasFreeProvider {
         network,
         "GET",
         `/api/v1/gasfree/${encodeURIComponent(normalized)}`,
-        undefined,
-        signal,
+        check,
       ),
     );
   }
@@ -138,8 +161,8 @@ export class GasFreeClient implements GasFreeProvider {
     network: NetworkDescriptor,
     method: "GET" | "POST",
     suffix: string,
+    check: DispatchCheck,
     body?: unknown,
-    callerSignal?: AbortSignal,
   ): Promise<unknown> {
     const metadata = endpoint(network);
     const credentials = this.#credentials();
@@ -152,11 +175,8 @@ export class GasFreeClient implements GasFreeProvider {
     if (encoded !== undefined && Buffer.byteLength(encoded, "utf8") > MAX_BYTES) {
       throw new UsageError("invalid_value", "GasFree request exceeds the 1 MiB limit");
     }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    const signal = callerSignal
-      ? AbortSignal.any([controller.signal, callerSignal])
-      : controller.signal;
+    const signal = check.signal;
+    check.assertDispatchable();
     try {
       const response = await this.fetchImpl(`${metadata.baseUrl}${path}`, {
         method,
@@ -187,15 +207,10 @@ export class GasFreeClient implements GasFreeProvider {
       return unwrap(decoded);
     } catch (error) {
       if (error instanceof CliError) throw error;
-      if (controller.signal.aborted) {
-        throw new ChainError("timeout", `GasFree request timed out after ${this.timeoutMs}ms`);
-      }
-      if (callerSignal?.aborted) {
-        throw new ChainError("timeout", "GasFree request exceeded the wait time");
+      if (signal.aborted) {
+        throw new ChainError("timeout", "GasFree request did not finish in time");
       }
       throw new TransportError("provider_error", "GasFree service request failed");
-    } finally {
-      clearTimeout(timeout);
     }
   }
 

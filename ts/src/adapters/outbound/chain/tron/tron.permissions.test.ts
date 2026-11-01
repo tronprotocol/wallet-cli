@@ -32,7 +32,7 @@ describe("TronRpcClient account permission boundary", () => {
         },
       }),
     );
-    const prepared = new TronRpcClient("https://node.invalid", 100).prepareTransaction(original, {
+    const prepared = new TronRpcClient("https://node.invalid").prepareTransaction(original, {
       permissionId: 2,
       expiration: 86_400_000,
     });
@@ -76,9 +76,7 @@ describe("TronRpcClient account permission boundary", () => {
       ),
     );
 
-    const permissions = await new TronRpcClient("https://node.invalid", 100).getAccountPermissions(
-      A,
-    );
+    const permissions = await new TronRpcClient("https://node.invalid").getAccountPermissions(A);
     expect(permissions).toMatchObject({
       address: A,
       owner: {
@@ -101,7 +99,7 @@ describe("TronRpcClient account permission boundary", () => {
   });
 
   it("materializes the omitted protobuf current_weight default as zero", async () => {
-    const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid", 100));
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid"));
     vi.spyOn(tronweb.trx, "getSignWeight").mockResolvedValue({
       result: { code: "NOT_ENOUGH_PERMISSION" },
       permission: {
@@ -153,7 +151,7 @@ describe("TronRpcClient account permission boundary", () => {
       vi.fn(async () => new Response("{}", { status: 200 })),
     );
     await expect(
-      new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A),
+      new TronRpcClient("https://node.invalid").getAccountPermissions(A),
     ).rejects.toMatchObject({ code: "not_found" });
   });
 
@@ -162,9 +160,7 @@ describe("TronRpcClient account permission boundary", () => {
       "fetch",
       vi.fn(async () => new Response(JSON.stringify({ address: A_HEX }), { status: 200 })),
     );
-    const permissions = await new TronRpcClient("https://node.invalid", 100).getAccountPermissions(
-      A,
-    );
+    const permissions = await new TronRpcClient("https://node.invalid").getAccountPermissions(A);
     expect(permissions).toMatchObject({
       owner: { id: 0, threshold: 1, keys: [{ address: A, weight: 1 }] },
       actives: [{ id: 2, name: "active", threshold: 1 }],
@@ -194,7 +190,7 @@ describe("TronRpcClient account permission boundary", () => {
       ),
     );
     await expect(
-      new TronRpcClient("https://node.invalid", 100).getAccountPermissions(A),
+      new TronRpcClient("https://node.invalid").getAccountPermissions(A),
     ).rejects.toMatchObject({ code: "provider_error" });
   });
 });

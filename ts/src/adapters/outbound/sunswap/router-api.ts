@@ -1,4 +1,5 @@
 // Use amountInRaw/amountOutRaw: response amountIn/amountOut are human decimals.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { RouterApiClient } from "@sun-protocol/sun-sdk-api";
 import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type {
@@ -32,20 +33,18 @@ export interface RouterApiDeps {
 }
 
 export class SunSwapRouterApi implements RouterPort {
-  constructor(
-    private readonly timeoutMs: number,
-    private readonly deps: RouterApiDeps = {},
-  ) {}
+  constructor(private readonly deps: RouterApiDeps = {}) {}
 
   async routes(
     network: NetworkDescriptor,
     request: { fromToken: string; toToken: string; amountInRaw: string },
+    check: DispatchCheck,
   ): Promise<readonly RouterRoute[]> {
     const baseUrl = routerBaseUrl(network);
     const client = new RouterApiClient({
       fetchImpl: rateLimitAware(
         createTimedFetch({
-          timeoutMs: this.timeoutMs,
+          check,
           ...(this.deps.fetchImpl === undefined ? {} : { fetchImpl: this.deps.fetchImpl }),
         }),
       ),

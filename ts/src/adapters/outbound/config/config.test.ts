@@ -20,7 +20,6 @@ describe("ConfigLoader defaults", () => {
       defaultNetwork: config.defaultNetwork,
       defaultOutput: config.defaultOutput,
       timeoutMs: config.timeoutMs,
-      waitTimeoutMs: config.waitTimeoutMs,
     }).toEqual(CONFIG_DEFAULTS);
   });
 });
@@ -43,15 +42,11 @@ describe("ConfigLoader defaultNetwork", () => {
   });
 });
 
-describe("ConfigLoader waitTimeoutMs validation", () => {
-  it("accepts a valid non-negative integer", () => {
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 5000\n")).waitTimeoutMs).toBe(5000);
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 0\n")).waitTimeoutMs).toBe(0);
-  });
-
-  it("ignores negative or fractional waitTimeoutMs and keeps the default", () => {
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: -1\n")).waitTimeoutMs).toBe(60000);
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 1.5\n")).waitTimeoutMs).toBe(60000);
+describe("ConfigLoader waitTimeoutMs", () => {
+  it("loads a file that still sets the removed key and ignores it", () => {
+    const config = ConfigLoader.load(envWithConfig("waitTimeoutMs: 5000\ntimeoutMs: 1500\n"));
+    expect(config.timeoutMs).toBe(1500);
+    expect(config).not.toHaveProperty("waitTimeoutMs");
   });
 });
 
@@ -670,15 +665,15 @@ describe("ConfigLoader permission check covers every credential key", () => {
 });
 
 describe("ConfigLoader applies the config set rules", () => {
-  it.each(["-1", "0", "0.5", ".inf", "'5000'"])(
+  it.each(["-1", "0.5", ".inf", "'5000'", "2147483648"])(
     "ignores timeoutMs %s and keeps the default",
     (v) => {
-      expect(ConfigLoader.load(envWithConfig(`timeoutMs: ${v}\n`)).timeoutMs).toBe(60000);
+      expect(ConfigLoader.load(envWithConfig(`timeoutMs: ${v}\n`)).timeoutMs).toBe(90000);
     },
   );
 
-  it("keeps a valid timeoutMs", () => {
-    expect(ConfigLoader.load(envWithConfig("timeoutMs: 1500\n")).timeoutMs).toBe(1500);
+  it.each([0, 1, 1500, 2147483647])("keeps a valid timeoutMs %s", (v) => {
+    expect(ConfigLoader.load(envWithConfig(`timeoutMs: ${v}\n`)).timeoutMs).toBe(v);
   });
 
   it.each([

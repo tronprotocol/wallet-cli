@@ -1,4 +1,5 @@
 import { classifyError, ExecutionError, UsageError } from "../../domain/errors/index.js";
+import { DeadlineExpiredError } from "../contracts/deadline.js";
 
 // Prefer the signed transaction’s ID; warn on mismatch without denying a completed broadcast.
 export function authoritativeTxId(
@@ -25,6 +26,7 @@ export function localTxId(signed: unknown): string | undefined {
 }
 
 // Catch only submission: pre-submit failures must not imply a transaction reached the node.
+// A DeadlineExpiredError means the adapter refused before dispatch.
 export async function submitWithTxId<T>(
   txId: string | undefined,
   submit: () => Promise<T>,
@@ -32,6 +34,7 @@ export async function submitWithTxId<T>(
   try {
     return await submit();
   } catch (error) {
+    if (error instanceof DeadlineExpiredError) throw error;
     const classified = classifyError(error);
     if (!txId || !["timeout", "rpc_error", "invalid_node_response"].includes(classified.code)) {
       throw error;

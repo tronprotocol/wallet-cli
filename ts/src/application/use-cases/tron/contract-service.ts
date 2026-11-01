@@ -1,6 +1,7 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { currentTronEnergyPrice } from "../../../domain/tron/tron-energy-price.js";
 import { percent } from "../../../domain/tron/governance/limits.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type {
@@ -11,7 +12,11 @@ import type {
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { computeTronCreate2Address } from "../../../domain/tron/governance/create2.js";
-import type { TronTransactionArtifact, UnsignedTx } from "../../../domain/types/index.js";
+import type {
+  NetworkDescriptor,
+  TronTransactionArtifact,
+  UnsignedTx,
+} from "../../../domain/types/index.js";
 import {
   governanceTransactionMode,
   transactionResource,
@@ -35,6 +40,7 @@ export class TronContractService {
   ) {}
 
   async call(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     contract: string,
     method: string,
@@ -44,7 +50,7 @@ export class TronContractService {
       contract,
       method,
       result: await this.gateways
-        .get(network, "tron")
+        .get(network, "tron", requestDispatchCheck(deadline))
         .triggerConstantContract(contract, method, parameters),
     };
   }
@@ -63,7 +69,7 @@ export class TronContractService {
     },
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     // Resolve approval details before the pipeline so dry runs include the allowance.
     const approval = await approveRows({
       method: input.method,
@@ -128,7 +134,7 @@ export class TronContractService {
     if (transactionRequiresSigner(input)) {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const hooks = tronTransactionHooks(gateway);
     let contractAddress: string | undefined;
     const outcome = await this.pipeline.runTron({
@@ -156,8 +162,10 @@ export class TronContractService {
     return { kind: "contract-deploy" as const, contractAddress, ...outcomeData(outcome) };
   }
 
-  async info(network: NetworkDescriptor, address: string) {
-    const metadata = await this.gateways.get(network, "tron").getContractMetadata(address);
+  async info(deadline: ExecutionDeadline, network: NetworkDescriptor, address: string) {
+    const metadata = await this.gateways
+      .get(network, "tron", requestDispatchCheck(deadline))
+      .getContractMetadata(address);
     return {
       address,
       name: metadata.name,
@@ -236,7 +244,7 @@ export class TronContractService {
     build: (gateway: TronGateway, owner: string) => Promise<TronTransactionArtifact>,
     fields: Record<string, unknown>,
   ) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     // Ledger cannot sign ClearABIContract, UpdateEnergyLimitContract, or UpdateSettingContract.
     const mode = governanceTransactionMode(this.pipeline, scope, input, { requireSoftware: true });
     const owner = scope.resolveAddress("tron");

@@ -1068,11 +1068,14 @@ it.each([
   ["x402", "roundtrip", "--pay-to", TRON1],
   ["bai", "recharge", "1"],
 ])("rejects unused wait flags before payment: %j", (...args) => {
-  for (const flag of [["--wait"], ["--wait-timeout", "100"]]) {
-    const result = run([...args, "--network", "tron", ...flag, "-o", "json"], { password: null });
-    expect(result.json?.error.code).toBe("invalid_option");
-    expect(result.json?.error.message).toContain("does not support --wait");
-  }
+  const wait = run([...args, "--network", "tron", "--wait", "-o", "json"], { password: null });
+  expect(wait.json?.error.code).toBe("invalid_option");
+  expect(wait.json?.error.message).toContain("does not support --wait");
+  const removed = run([...args, "--network", "tron", "--wait-timeout", "100", "-o", "json"], {
+    password: null,
+  });
+  expect(removed.json?.error.code).toBe("invalid_option");
+  expect(removed.json?.error.message).toBe("unknown option(s): --wait-timeout");
 });
 
 it("reads --body-file - from stdin instead of treating the dash as a positional", () => {

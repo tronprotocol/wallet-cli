@@ -8,6 +8,9 @@ import type { SignerResolver } from "../../services/signer/index.js";
 import { SigningService } from "../../services/signing/signing-service.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { TronPermissionService } from "./permission-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -44,9 +47,9 @@ function permissions(): AccountPermissionsView {
 function scope(): TransactionScope {
   return {
     activeAccount: "local" as never,
-    timeoutMs: 100,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 100,
+
     resolveAddress: () => A,
     emit: vi.fn(),
     warn: vi.fn(),
@@ -105,7 +108,7 @@ function setup(
 describe("TRON permission service", () => {
   it("annotates locally controlled keys on show", async () => {
     const { service } = setup();
-    const view = await service.show(NETWORK, A);
+    const view = await service.show(NO_DEADLINE, NETWORK, A);
     expect(view.owner.keys.map((key) => key.local)).toEqual(["main", null]);
   });
 

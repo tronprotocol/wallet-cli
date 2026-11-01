@@ -18,6 +18,7 @@ import type { BackupRecord } from "../../../../application/ports/backup-records.
 import { KeystoreV3 } from "../../../../domain/keystore/index.js";
 import { registerWalletCommands } from "./wallet.js";
 import type { SessionRef } from "../contracts/index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
 // Use a cheap KDF for test fixtures.
 vi.mock(
@@ -93,6 +94,7 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
     globals: { output: "json", verbose: false },
     deps: {
       config,
+      deadline: new CommandDeadline(0),
       networkRegistry,
       streams,
       secrets,

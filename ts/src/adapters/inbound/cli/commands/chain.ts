@@ -23,11 +23,11 @@ export const chainPricesSpec: ChainSpec = {
 };
 
 export const chainPricesTronBinding = (service: TronChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.prices(net),
+  run: async (ctx, net) => service.prices(ctx.deadline, net),
 });
 
 export const chainPricesEvmBinding = (service: EvmChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.prices(net),
+  run: async (ctx, net) => service.prices(ctx.deadline, net),
 });
 
 export const chainNodeSpec: ChainSpec = {
@@ -49,11 +49,11 @@ export const chainNodeSpec: ChainSpec = {
 };
 
 export const chainNodeTronBinding = (service: TronChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.node(net),
+  run: async (ctx, net) => service.node(ctx.deadline, net),
 });
 
 export const chainNodeEvmBinding = (service: EvmChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.node(net),
+  run: async (ctx, net) => service.node(ctx.deadline, net),
 });
 
 export function chainDefinitions(
@@ -80,7 +80,7 @@ export function chainDefinitions(
         ],
         formatText: TextFormatters.chainParams,
       },
-      binding: { run: async (_ctx, net, input) => service.params(net, input.key) },
+      binding: { run: async (ctx, net, input) => service.params(ctx.deadline, net, input.key) },
     },
   ];
 }

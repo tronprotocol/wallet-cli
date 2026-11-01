@@ -7,6 +7,7 @@ import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -74,7 +75,7 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
     );
     await expect(
       client.pay(
-        { activeAccount: "nile-test", timeoutMs: 1000, emit: vi.fn() } as never,
+        { activeAccount: "nile-test", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
         {
           id: "tron:3448148188",
           family: "tron",
@@ -178,7 +179,7 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
   );
   await expect(
     client.pay(
-      { activeAccount: "test", timeoutMs: 1000, emit: vi.fn(), warn } as never,
+      { activeAccount: "test", deadline: new CommandDeadline(0), emit: vi.fn(), warn } as never,
       {
         id: "tron:3448148188",
         family: "tron",

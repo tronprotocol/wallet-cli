@@ -47,7 +47,7 @@ export const sunswapPriceSpec: ChainSpec = {
 // Route warnings through ctx.warn so they reach envelope metadata.
 export const sunswapPriceTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
   run: async (ctx, net, input) => {
-    const view = await service.prices(net, {
+    const view = await service.prices(ctx.deadline, net, {
       ...(input.token === undefined ? {} : { token: input.token }),
       ...(input.address === undefined ? {} : { addresses: input.address.split(",") }),
     });

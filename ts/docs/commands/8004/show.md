@@ -12,7 +12,7 @@ wallet-cli 8004 show <id> [options]
 
 Reads the Agent's owner, URI, and per-Agent approved operator from the registry of the selected network, then loads the registration document the URI points to. No wallet or password is needed.
 
-The on-chain fields always come back. Loading the document is best-effort, and **only `https://` and `http://` URIs are fetched**. The response must be JSON (`application/json`, UTF-8), at most 1 MiB, and a JSON object; redirects and addresses on local or private networks are refused, and the request gives up after at most 10 seconds.
+The on-chain fields always come back. Loading the document is best-effort, and **only `https://` and `http://` URIs are fetched**. The response must be JSON (`application/json`, UTF-8), at most 1 MiB, and a JSON object; redirects and addresses on local or private networks are refused, and the request gives up after at most 10 seconds, also with `--timeout 0`. If the command's `--timeout` ends during the load, the command fails with `timeout`.
 
 Anything else becomes a warning instead of an error, and the document is left out. That includes `data:` and `ipfs://` URIs: [`8004 register`](register.md) and [`8004 update`](update.md) accept them, but `show` does not read them. The warning is in `meta.warnings` (text output prints it as `warning: …`).
 

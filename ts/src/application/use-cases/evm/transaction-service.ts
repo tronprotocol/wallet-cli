@@ -37,6 +37,13 @@ import type {
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
+import {
+  assertSubmitAdmitted,
+  requestDispatchCheck,
+  submitDispatchCheck,
+  unlessDeadline,
+} from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 import {
   outcomeData,
@@ -78,9 +85,15 @@ export class EvmTransactionService {
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: EvmSendInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "evm");
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const recipient = this.recipients.resolve("evm", input.to);
-    const transfer = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
+    const transfer = await this.resolveTransfer(
+      scope.deadline,
+      gateway,
+      network.id,
+      scope.activeAccount,
+      input,
+    );
     positiveBaseUnits(transfer.rawAmount, "amount");
 
     // Keep fee metadata outside the transaction echoed by dry-run/build-only.
@@ -126,6 +139,7 @@ export class EvmTransactionService {
 
   // Scale tokens by their own decimals; raw amounts are already in base units.
   private async resolveTransfer(
+    deadline: ExecutionDeadline,
     gateway: EvmGateway,
     networkId: string,
     account: AccountRef,
@@ -162,7 +176,9 @@ export class EvmTransactionService {
     }
     if (decimals === undefined) {
       // Query unlisted contracts for decimals; guessing could transfer the wrong amount.
-      const meta = await gateway.getErc20Metadata(contract).catch(() => ({}) as EvmTokenMetadata);
+      const meta = await gateway
+        .getErc20Metadata(contract)
+        .catch(unlessDeadline(deadline, () => ({}) as EvmTokenMetadata));
       decimals = meta.decimals;
       if (symbol === undefined) symbol = meta.symbol;
     }
@@ -182,13 +198,14 @@ export class EvmTransactionService {
 
   // Metadata failure preserves the transfer’s base-unit amount.
   async #erc20Parties(
+    deadline: ExecutionDeadline,
     gateway: EvmGateway,
     contract: string,
     transfer: { to: string; rawAmount: string },
   ) {
     const meta = await gateway
       .getErc20Metadata(contract)
-      .catch(() => ({}) as { symbol?: string; decimals?: number });
+      .catch(unlessDeadline(deadline, () => ({}) as { symbol?: string; decimals?: number }));
     return {
       to: transfer.to,
       contract,
@@ -239,7 +256,9 @@ export class EvmTransactionService {
     hex: string,
     out?: string,
   ): Promise<EvmSignResult> {
-    const parsed = this.gateways.get(network, "evm").decodeRawTransaction(hex);
+    const parsed = this.gateways
+      .get(network, "evm", requestDispatchCheck(scope.deadline))
+      .decodeRawTransaction(hex);
     // Check before the signed check: no node is consulted to catch a wrong-chain transaction.
     assertChainId(parsed, network);
     if (parsed.signed) {
@@ -269,7 +288,7 @@ export class EvmTransactionService {
     hex: string,
     dryRun = false,
   ) {
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const parsed = gateway.decodeRawTransaction(hex);
     if (!parsed.signed) {
       throw new ChainError("invalid_transaction", "this transaction carries no signature");
@@ -278,7 +297,10 @@ export class EvmTransactionService {
     assertChainId(parsed, network);
     const local = parsed.hash;
     const serialized = parsed.serialized!;
-    const result = await submitWithTxId(local, () => gateway.sendRawTransaction(serialized));
+    assertSubmitAdmitted(scope.deadline);
+    const result = await submitWithTxId(local, () =>
+      gateway.sendRawTransaction(serialized, submitDispatchCheck(scope.deadline)),
+    );
     const txId = authoritativeTxId(local, result.hash, (m) => scope.warn(m));
     const submitted = {
       stage: "submitted" as const,
@@ -290,7 +312,7 @@ export class EvmTransactionService {
     const confirmed = await evmConfirmation(gateway, scope)(txId).catch(() => undefined);
     if (!confirmed) {
       scope.warn(
-        errorMessage`${inputRef("wait")}: ${txId} not confirmed within ${scope.waitTimeoutMs}ms; returning submitted`,
+        errorMessage`${inputRef("wait")}: ${txId} not confirmed before the command's time limit; returning submitted`,
       );
       return submitted;
     }
@@ -336,12 +358,14 @@ export class EvmTransactionService {
             gateway.getTransactionCount(from, "latest"),
             gateway.getTransactionCount(from, "pending"),
             gateway.getNativeBalance(from),
-          ]).catch((e: unknown) => {
-            scope.warn(
-              errorMessage`${inputRef("dryRun")}: the node could not be reached, so nonce and balance were not checked (${(e as Error).message})`,
-            );
-            return undefined;
-          });
+          ]).catch(
+            unlessDeadline(scope.deadline, (e: unknown) => {
+              scope.warn(
+                errorMessage`${inputRef("dryRun")}: the node could not be reached, so nonce and balance were not checked (${(e as Error).message})`,
+              );
+              return undefined;
+            }),
+          );
 
     if (state === undefined) {
       checks.push({ name: "nonce", status: "skipped", detail: "the node was not reachable" });
@@ -405,12 +429,12 @@ export class EvmTransactionService {
     network: NetworkDescriptor,
     hash: string,
   ): Promise<TxStatusView> {
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const [transaction, receipt, head] = await Promise.all([
       gateway.getTransactionByHash(hash),
       gateway.getTransactionReceipt(hash),
       // Head height only enriches the result; failure must not hide transaction status.
-      gateway.getBlockNumber().catch(() => undefined),
+      gateway.getBlockNumber().catch(unlessDeadline(scope.deadline, () => undefined)),
     ]);
     const confirmed = receipt !== null;
     const failed = confirmed && receipt.success !== true;
@@ -443,11 +467,11 @@ export class EvmTransactionService {
     network: NetworkDescriptor,
     hash: string,
   ): Promise<TxInfoView> {
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const [transaction, receipt, head] = await Promise.all([
       gateway.getTransactionByHash(hash),
       gateway.getTransactionReceipt(hash),
-      gateway.getBlockNumber().catch(() => undefined),
+      gateway.getBlockNumber().catch(unlessDeadline(scope.deadline, () => undefined)),
     ]);
     if (!transaction) {
       throw new ChainError("not_found", `no transaction with hash ${hash} on ${network.id}`);
@@ -460,14 +484,14 @@ export class EvmTransactionService {
         : await gateway
             .getBlock(String(receipt.blockNumber))
             .then((block) => block?.timestamp)
-            .catch(() => undefined);
+            .catch(unlessDeadline(scope.deadline, () => undefined));
     return {
       txid: hash,
       type: transactionType(transaction),
       from: transaction.from,
       ...(transaction.nonce === undefined ? {} : { nonce: transaction.nonce }),
       ...(transfer && transaction.to !== undefined
-        ? await this.#erc20Parties(gateway, transaction.to, transfer)
+        ? await this.#erc20Parties(scope.deadline, gateway, transaction.to, transfer)
         : {
             ...(transaction.to === undefined ? {} : { to: transaction.to }),
             rawAmount: transaction.valueWei,

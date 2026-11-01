@@ -7,7 +7,9 @@ import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP, type LookupFunction } from "node:net";
 
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import type { AgentRegistrationMetadata } from "../../../application/ports/agent-sdk.js";
+import { abortReason } from "../http/dispatch-context.js";
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_JSON_DEPTH = 20;
@@ -78,40 +80,44 @@ for (const [network, prefix] of [
 
 // Untrusted metadata failures return sanitized warnings.
 export class RegistrationLoader {
-  readonly #timeoutMs: number;
+  // An adapter safety cap; the command deadline can end a load sooner, never later.
+  constructor(private readonly capMs = 10_000) {}
 
-  constructor(timeoutMs: number) {
-    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-      throw new RangeError("Registration metadata timeout must be positive");
-    }
-    this.#timeoutMs = Math.min(timeoutMs, 10_000);
-  }
-
-  async load(uri: string): Promise<RegistrationLoadResult> {
+  // Command-deadline expiry fails the load; other failures become a warning.
+  async load(uri: string, check: DispatchCheck): Promise<RegistrationLoadResult> {
+    check.assertDispatchable();
     try {
-      return await this.#loadRemote(uri);
+      return await this.#loadRemote(uri, check.signal);
     } catch (error) {
+      if (check.signal.aborted) throw abortReason(check.signal);
       return { warning: warningFor(error) };
     }
   }
 
-  async #loadRemote(initialTarget: string): Promise<RegistrationLoadResult> {
+  async #loadRemote(
+    initialTarget: string,
+    commandSignal: AbortSignal,
+  ): Promise<RegistrationLoadResult> {
     const controller = new AbortController();
+    const stop = () => controller.abort();
+    commandSignal.addEventListener("abort", stop, { once: true });
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const deadline = new Promise<never>((_resolve, reject) => {
-      timer = setTimeout(() => {
-        controller.abort();
-        reject(new LoaderFailure("timeout"));
-      }, this.#timeoutMs);
+    const capped = new Promise<never>((_resolve, reject) => {
+      const fail = () => reject(new LoaderFailure("timeout"));
+      controller.signal.addEventListener("abort", fail, { once: true });
+      timer = setTimeout(stop, this.capMs);
     });
+    // The final abort below also settles this promise after a successful load.
+    capped.catch(() => {});
 
     try {
-      return await Promise.race([fetchMetadata(initialTarget, controller.signal), deadline]);
+      return await Promise.race([fetchMetadata(initialTarget, controller.signal), capped]);
     } catch (error) {
       if (controller.signal.aborted) throw new LoaderFailure("timeout");
       throw error;
     } finally {
       if (timer !== undefined) clearTimeout(timer);
+      commandSignal.removeEventListener("abort", stop);
       controller.abort();
     }
   }

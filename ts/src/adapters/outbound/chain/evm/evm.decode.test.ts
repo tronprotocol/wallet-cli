@@ -4,6 +4,9 @@ import { decodeEvmRawTransaction, evmTransactionChainId } from "./evm.js";
 import { evmSignStrategy } from "./signing-strategy.js";
 import { SigningService } from "../../../../application/services/signing/signing-service.js";
 import { classifyError } from "../../../../domain/errors/index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 // Sepolia, nonce 0, 0.001 ETH to 0x…dEaD, no signature.
 const UNSIGNED =
@@ -118,7 +121,7 @@ describe("invalid fee fields", () => {
     } as never);
 
     const error = await signing
-      .sign({ timeoutMs: 1000, emit() {} } as never, {
+      .sign({ deadline: NO_DEADLINE, timeoutMs: 1000, emit() {} } as never, {
         network: { family: "evm", id: "eip155:1", chainId: "1" } as never,
         origin: "service",
         signer: signer as never,

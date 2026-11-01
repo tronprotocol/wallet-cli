@@ -1,3 +1,4 @@
+import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
@@ -15,7 +16,7 @@ export class EvmAccountService {
 
   async portfolio(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("evm");
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const tokens = this.tokens.effective(network.id, scope.activeAccount);
     const [nativeRaw, balances] = await Promise.all([
       gateway.getNativeBalance(address),
@@ -25,7 +26,10 @@ export class EvmAccountService {
             .getErc20Balance(token.id, address)
             .then((raw) => ({ raw }) as const)
             // Raw errors may expose endpoint credentials; report only a stable reason.
-            .catch(() => ({ unavailable: true }) as const),
+            .catch((error: unknown) => {
+              if (endedByDeadline(error, scope.deadline)) throw error;
+              return { unavailable: true } as const;
+            }),
         ),
       ),
     ]);
@@ -35,13 +39,15 @@ export class EvmAccountService {
     let tokenPrices = new Map<string, number | null>();
     try {
       [nativePrice, tokenPrices] = await Promise.all([
-        this.prices.nativeUsd(network.id),
+        this.prices.nativeUsd(network.id, requestDispatchCheck(scope.deadline)),
         this.prices.tokenUsd(
           network.id,
           tokens.map((token) => token.id),
+          requestDispatchCheck(scope.deadline),
         ),
       ]);
-    } catch {
+    } catch (error) {
+      if (endedByDeadline(error, scope.deadline)) throw error;
       priceUnavailable = true;
     }
 
@@ -76,7 +82,7 @@ export class EvmAccountService {
 
   async info(scope: AccountScope, network: NetworkDescriptor) {
     const address = scope.resolveAddress("evm");
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const [balance, nonce, code] = await Promise.all([
       gateway.getNativeBalance(address),
       gateway.getTransactionCount(address),

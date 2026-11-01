@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as fs from "node:fs";
+import { Readable } from "node:stream";
 import { createServer } from "node:http";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -9,25 +9,21 @@ import { registerX402Commands } from "./x402.js";
 import { X402Service } from "../../../../application/use-cases/x402-service.js";
 import { X402PaymentClient } from "../../../outbound/x402/payment-client.js";
 import { StreamManager } from "../stream/index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { SignerResolver } from "../../../../application/services/signer/index.js";
-
-// Mock stdin reads while exercising the real stream and command handling.
-vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof fs>();
-  return { ...actual, readFileSync: vi.fn(actual.readFileSync) };
-});
 
 const network = { id: "eip155:56", family: "evm", chainId: "56" } as NetworkDescriptor;
 afterEach(() => vi.restoreAllMocks());
 
+// Exercises the real stream and command handling over a substitute stdin.
+let stdinBytes = Buffer.alloc(0);
 async function stdin(bytes: Buffer<ArrayBuffer>) {
-  const actual = await vi.importActual<typeof fs>("node:fs");
-  vi.mocked(fs.readFileSync).mockImplementation((file, options) => {
-    if (file !== 0) return actual.readFileSync(file, options);
-    return options === "utf8" ? bytes.toString("utf8") : bytes;
-  });
+  stdinBytes = bytes;
 }
+const streamManager = () =>
+  new StreamManager("json", false, undefined, undefined, () => Readable.from([stdinBytes]));
+const UNLIMITED = new CommandDeadline(0);
 
 function command(service: X402Service) {
   const registry = new CommandRegistry();
@@ -37,10 +33,10 @@ function command(service: X402Service) {
 
 function context() {
   return {
-    timeoutMs: 1000,
+    deadline: UNLIMITED,
     emit: vi.fn(),
     secrets: { has: () => false },
-    streams: new StreamManager("json", false),
+    streams: streamManager(),
   };
 }
 
@@ -182,10 +178,14 @@ it.each(["text", "bytes"])(
   "consuming stdin as %s prevents either kind of second read",
   async (kind) => {
     await stdin(Buffer.from("0041fffe800d0a42", "hex"));
-    const streams = new StreamManager("json", false);
-    if (kind === "text") expect(streams.readStdinOnce()).toBe("\0A���\r\nB");
-    else expect(streams.readStdinBytesOnce().toString("hex")).toBe("0041fffe800d0a42");
-    expect(() => streams.readStdinOnce()).toThrow("stdin already consumed");
-    expect(() => streams.readStdinBytesOnce()).toThrow("stdin already consumed");
+    const streams = streamManager();
+    const signal = UNLIMITED.signal;
+    if (kind === "text") expect(await streams.readStdinOnce(signal)).toBe("\0A���\r\nB");
+    else
+      expect(Buffer.from(await streams.readStdinBytesOnce(signal)).toString("hex")).toBe(
+        "0041fffe800d0a42",
+      );
+    await expect(streams.readStdinOnce(signal)).rejects.toThrow("stdin already consumed");
+    await expect(streams.readStdinBytesOnce(signal)).rejects.toThrow("stdin already consumed");
   },
 );

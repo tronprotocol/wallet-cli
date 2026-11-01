@@ -1,5 +1,11 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { BaiClient } from "./client.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 const response = (data: unknown) => new Response(JSON.stringify(data));
 
 describe("documented BAI usage API", () => {
@@ -8,11 +14,14 @@ describe("documented BAI usage API", () => {
       response({ data: [], has_more: true, next_cursor: "next", page: 1, pageSize: 20 }),
     );
     await expect(
-      new BaiClient({ baiApiKey: "test" }, 1000, fetcher).usageList({
-        page: 1,
-        pageSize: 20,
-        sortOrder: "desc",
-      }),
+      new BaiClient({ baiApiKey: "test" }, fetcher).usageList(
+        {
+          page: 1,
+          pageSize: 20,
+          sortOrder: "desc",
+        },
+        NO_CHECK,
+      ),
     ).resolves.toMatchObject({ hasMore: true, nextCursor: "next" });
   });
   it("accepts the documented direct summary", async () => {
@@ -20,7 +29,7 @@ describe("documented BAI usage API", () => {
       response({ points_balance: 10, monthly_spent: 2, monthly_chart: [] }),
     );
     await expect(
-      new BaiClient({ baiApiKey: "test" }, 1000, fetcher).status(),
+      new BaiClient({ baiApiKey: "test" }, fetcher).status(NO_CHECK),
     ).resolves.toMatchObject({ pointsBalance: "10", monthlySpent: "2" });
   });
 });

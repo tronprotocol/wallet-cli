@@ -7,7 +7,7 @@ Send the native coin, or a token, with a human `--amount`.
 ```
 wallet-cli tx send --to <address|contact> (--amount <n> | --raw-amount <n>)
                    [--token <symbol> | --contract <address> | --asset-id <id>]
-                   [--dry-run | --sign-only | --build-only | --wait [--wait-timeout <ms>]]
+                   [--dry-run | --sign-only | --build-only | --wait]
                    [--fee-limit <sun>] [--permission-id <n>] [--expiration <ms>]
                    [--gas-limit <n>] [--max-fee <gwei>] [--priority-fee <gwei>] [--nonce <n>]
                    [options]
@@ -48,7 +48,7 @@ Requires an account — the active one, unless `--account <accountId|label>` ove
 | `--dry-run` | Build and estimate through the selected network; no signing or broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build, estimate, sign, and output the signed hex without broadcasting; excludes `--dry-run` / `--build-only` |
 | `--build-only` | Build and estimate, output the **unsigned** hex without unlocking; excludes `--dry-run` / `--sign-only` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default 60000; on cap returns the submitted receipt) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--password-stdin` | Master password from stdin |
 
 TRON only:

@@ -61,8 +61,8 @@ export const sunpumpTokenSearchSpec: ChainSpec = {
 export const sunpumpTokenSearchTronBinding = (
   service: SunPumpMarketQueryService,
 ): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.tokenSearch(net, {
+  run: async (ctx, net, input) =>
+    service.tokenSearch(ctx.deadline, net, {
       keyword: input.keyword,
       orderBy: input.orderBy,
       sort: input.sort,

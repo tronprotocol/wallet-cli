@@ -5,11 +5,16 @@ import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronTokenInfo } from "../../ports/chain/tron/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const net = { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as NetworkDescriptor;
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-const scope = { activeAccount: "wlt_test.0", resolveAddress: () => OWNER } as AccountScope;
+const scope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => OWNER,
+} as AccountScope;
 
 function service(info: TronTokenInfo) {
   const gateway = {

@@ -1,3 +1,4 @@
+import { requestDispatchCheck } from "../services/command-deadline.js";
 import type { NetworkDescriptor, TxOutcome } from "../../domain/types/index.js";
 import { ChainError } from "../../domain/errors/index.js";
 import { sunAmount } from "../../domain/amounts/index.js";
@@ -52,7 +53,7 @@ export class X402Permit2Approvals {
         "x402 requested an approve outside the Permit2 payment policy; nothing was signed or sent",
       );
     }
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = resolveTronAccount(scope);
     const parameters: TronContractParameter[] = [
       { type: "address", value: request.spender },
@@ -92,7 +93,7 @@ export class X402Permit2Approvals {
     if (outcome.stage !== "confirmed" || txId === undefined) {
       throw new ChainError(
         "timeout",
-        `the Permit2 approval was not confirmed within ${scope.waitTimeoutMs}ms; no payment was signed; the approval may still confirm on chain`,
+        `the Permit2 approval was not confirmed before the command's time limit; no payment was signed; the approval may still confirm on chain`,
         evidence,
       );
     }
@@ -127,9 +128,8 @@ function waitingScope(scope: TransactionScope): TransactionScope {
     get activeAccount() {
       return scope.activeAccount;
     },
-    timeoutMs: scope.timeoutMs,
+    deadline: scope.deadline,
     wait: true,
-    waitTimeoutMs: scope.waitTimeoutMs,
     resolveAddress: (family) => scope.resolveAddress(family),
     emit: (event) => scope.emit(event),
     warn: (message) => scope.warn(message),

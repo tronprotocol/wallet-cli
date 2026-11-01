@@ -5,6 +5,7 @@ import type {
   UnsignedTx,
 } from "../../../../domain/types/index.js";
 import type { Erc20Transfer } from "../../../../domain/evm/index.js";
+import type { DispatchCheck } from "../../../contracts/deadline.js";
 import type { Broadcaster } from "../broadcaster.js";
 import type { NativeBalanceReader } from "../native-balance-reader.js";
 import type { BaseUnits, Wei } from "../../../../domain/amounts/index.js";
@@ -43,11 +44,14 @@ export interface EvmGateway extends NativeBalanceReader<Wei>, Broadcaster {
   // Decimal chain id an unsigned transaction names; undefined when it names none.
   transactionChainId(tx: UnsignedTx): string | undefined;
   // alreadyKnown means the signed transaction is already in the mempool.
-  sendRawTransaction(raw: string): Promise<{ hash?: string; alreadyKnown?: boolean }>;
+  sendRawTransaction(
+    raw: string,
+    check: DispatchCheck,
+  ): Promise<{ hash?: string; alreadyKnown?: boolean }>;
   // Null when the node has no record of the hash.
   getTransactionByHash(hash: string): Promise<EvmTxView | null>;
   // Normalized mined receipt, or null while pending; success reflects execution status.
-  getTransactionReceipt(hash: string, signal?: AbortSignal): Promise<EvmReceipt | null>;
+  getTransactionReceipt(hash: string): Promise<EvmReceipt | null>;
   // Input and result are hex DATA.
   call(to: string, data: string): Promise<string>;
   // Returns raw hex DATA.

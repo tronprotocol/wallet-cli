@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import {
   checkedTokenDecimals,
   sunAmount,
@@ -47,12 +48,17 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
   // Read contract state directly; the HTTP status can be stale.
-  async tokenState(network: NetworkDescriptor, token: string): Promise<LaunchpadState> {
+  async tokenState(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<LaunchpadState> {
     const raw = await this.#read(
       network,
       this.launchpadAddress(network),
       SELECTOR_GET_TOKEN_STATE,
       [{ type: "address", value: token }],
+      check,
     );
     const state = Number(BigInt(`0x${raw.slice(0, 64)}`));
     if (!KNOWN_STATES.has(state)) {
@@ -64,10 +70,14 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     return state as LaunchpadState;
   }
 
-  async tokenFacts(network: NetworkDescriptor, token: string): Promise<LaunchpadTokenFacts> {
+  async tokenFacts(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<LaunchpadTokenFacts> {
     const [decimals, symbol] = await Promise.all([
-      this.#read(network, token, "decimals()", []),
-      this.#read(network, token, "symbol()", []),
+      this.#read(network, token, "decimals()", [], check),
+      this.#read(network, token, "symbol()", [], check),
     ]);
     return {
       address: token,
@@ -76,10 +86,19 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     };
   }
 
-  async balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<BaseUnits> {
-    const raw = await this.#read(network, token, SELECTOR_TRC20_BALANCE_OF, [
-      { type: "address", value: owner },
-    ]);
+  async balanceOf(
+    network: NetworkDescriptor,
+    token: string,
+    owner: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits> {
+    const raw = await this.#read(
+      network,
+      token,
+      SELECTOR_TRC20_BALANCE_OF,
+      [{ type: "address", value: owner }],
+      check,
+    );
     return baseUnitAmount(word(raw, 0));
   }
 
@@ -88,16 +107,28 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     token: string,
     owner: string,
     spender: string,
+    check: DispatchCheck,
   ): Promise<BaseUnits> {
-    const raw = await this.#read(network, token, SELECTOR_TRC20_ALLOWANCE, [
-      { type: "address", value: owner },
-      { type: "address", value: spender },
-    ]);
+    const raw = await this.#read(
+      network,
+      token,
+      SELECTOR_TRC20_ALLOWANCE,
+      [
+        { type: "address", value: owner },
+        { type: "address", value: spender },
+      ],
+      check,
+    );
     return baseUnitAmount(word(raw, 0));
   }
 
   // The fee is included in the requested TRX amount.
-  async quoteBuy(network: NetworkDescriptor, token: string, trxSun: Sun): Promise<BuyQuote> {
+  async quoteBuy(
+    network: NetworkDescriptor,
+    token: string,
+    trxSun: Sun,
+    check: DispatchCheck,
+  ): Promise<BuyQuote> {
     const raw = await this.#read(
       network,
       this.launchpadAddress(network),
@@ -106,6 +137,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
         { type: "address", value: token },
         { type: "uint256", value: trxSun },
       ],
+      check,
     );
     return { tokenAmount: baseUnitAmount(word(raw, 0)), feeSun: sunAmount(word(raw, 1)) };
   }
@@ -115,6 +147,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     network: NetworkDescriptor,
     token: string,
     tokenAmount: BaseUnits,
+    check: DispatchCheck,
   ): Promise<SellQuote> {
     const raw = await this.#read(
       network,
@@ -124,12 +157,17 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
         { type: "address", value: token },
         { type: "uint256", value: tokenAmount },
       ],
+      check,
     );
     return { trxAmountSun: sunAmount(word(raw, 0)), feeSun: sunAmount(word(raw, 1)) };
   }
 
   // Quote the token amount needed for one SUN of net proceeds.
-  async minimumSellAmount(network: NetworkDescriptor, token: string): Promise<BaseUnits> {
+  async minimumSellAmount(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits> {
     const inverse = await this.#read(
       network,
       this.launchpadAddress(network),
@@ -138,6 +176,7 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
         { type: "address", value: token },
         { type: "uint256", value: "1" },
       ],
+      check,
     );
     return baseUnitAmount(word(inverse, 0));
   }
@@ -198,8 +237,9 @@ export class SunPumpLaunchpadContracts implements LaunchpadPort {
     contract: string,
     method: string,
     parameters: { type: string; value: unknown }[],
+    check: DispatchCheck,
   ): Promise<string> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", check);
     const result = await gateway.triggerConstantContract(contract, method, parameters);
     const value = result[0];
     if (typeof value !== "string" || value === "") {

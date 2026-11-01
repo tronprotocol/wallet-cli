@@ -1,4 +1,6 @@
 // SunPump creates and pays for the token; no local transaction is signed.
+import { assertSubmitAdmitted, submitDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { SunPumpTokenRecord } from "../../ports/sunpump/market-data.js";
 import type {
@@ -59,10 +61,15 @@ export type SunPumpLaunchView = SunPumpLaunchResult | SunPumpLaunchPreview;
 export class SunPumpTokenLaunchService {
   constructor(private readonly launchpad: SunPumpTokenLaunchPort) {}
 
-  async launch(network: NetworkDescriptor, input: SunPumpLaunchInput): Promise<SunPumpLaunchView> {
+  async launch(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    input: SunPumpLaunchInput,
+  ): Promise<SunPumpLaunchView> {
     const request = buildRequest(input);
     if (input.dryRun) return preview(request, input.image);
-    const token = await this.launchpad.launchToken(network, request);
+    assertSubmitAdmitted(deadline);
+    const token = await this.launchpad.launchToken(network, request, submitDispatchCheck(deadline));
     return { kind: "sunpump-launch", token };
   }
 }

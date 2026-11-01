@@ -1,3 +1,5 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import { abortReason } from "../http/dispatch-context.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
 import { randomUUID } from "node:crypto";
 import WebSocket, { type ClientOptions, type RawData } from "ws";
@@ -52,7 +54,6 @@ type SocketFactory = (url: URL, options: SocketOptions) => SocketLike;
 export class TronLinkClient implements TronLinkCollaborationPort {
   constructor(
     private readonly config: Config,
-    private readonly timeoutMs: number,
     private readonly guard: BroadcastGuard,
     private readonly fetchImpl: Fetch = globalThis.fetch,
     private readonly clock: () => number = () => Date.now(),
@@ -64,6 +65,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
     network: NetworkDescriptor,
     address: string,
     filter: TronLinkListFilter,
+    check: DispatchCheck,
   ): Promise<TronLinkRemotePage> {
     const credentials = this.#credentials();
     const path = "/multi/list";
@@ -80,13 +82,14 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       ...auth,
       sign,
     };
-    return parsePage(await this.#request(network, path, parameters), filter.limit);
+    return parsePage(await this.#request(network, path, parameters, check), filter.limit);
   }
 
   async submit(
     network: NetworkDescriptor,
     address: string,
     transaction: TronTransactionArtifact,
+    check: DispatchCheck,
   ): Promise<void> {
     this.guard.assertAllowed();
     const credentials = this.#credentials();
@@ -94,13 +97,14 @@ export class TronLinkClient implements TronLinkCollaborationPort {
     const auth = tronLinkAuthParameters(credentials, this.clock, this.uuid);
     const signed = { ...auth, address };
     const sign = signTronLinkRequest("POST", path, signed, credentials.secretKey).signature;
-    await this.#request(network, path, { ...signed, sign }, { address, transaction });
+    await this.#request(network, path, { ...signed, sign }, check, { address, transaction });
   }
 
   async watch(
     network: NetworkDescriptor,
     address: string,
-    signal: AbortSignal,
+    stop: AbortSignal,
+    check: DispatchCheck,
     onUnsignedCount: (count: number) => void,
   ): Promise<void> {
     const credentials = this.#credentials();
@@ -112,31 +116,45 @@ export class TronLinkClient implements TronLinkCollaborationPort {
     socketUrl.protocol = "wss:";
     socketUrl.search = encodeTronLinkQuery({ ...signed, sign });
 
+    if (stop.aborted) return;
+    // No socket is built after the deadline; expiry fails, a stop ends the watch normally.
+    check.assertDispatchable();
+    const expiry = check.signal;
     await new Promise<void>((resolve, reject) => {
       let opened = false;
       let finished = false;
       const socket = this.socketFactory(socketUrl, {
-        handshakeTimeout: this.timeoutMs,
         maxPayload: MAX_RESPONSE_BYTES,
         perMessageDeflate: false,
         followRedirects: false,
       });
 
-      const finish = (error?: CliError) => {
+      const finish = (error?: Error) => {
         if (finished) return;
         finished = true;
-        signal.removeEventListener("abort", abort);
+        stop.removeEventListener("abort", abort);
+        expiry.removeEventListener("abort", expire);
         if (error) reject(error);
         else resolve();
       };
-      const abort = () => {
+      const close = () => {
         if (socket.readyState === WebSocket.OPEN) socket.close(1000, "client shutdown");
         else socket.terminate();
+      };
+      // Settle before closing: a socket may report its close synchronously.
+      const abort = () => {
         finish();
+        close();
+      };
+      const expire = () => {
+        finish(abortReason(expiry));
+        close();
       };
 
-      signal.addEventListener("abort", abort, { once: true });
-      if (signal.aborted) return abort();
+      stop.addEventListener("abort", abort, { once: true });
+      expiry.addEventListener("abort", expire, { once: true });
+      if (stop.aborted) return abort();
+      if (expiry.aborted) return expire();
 
       socket.once("open", () => {
         opened = true;
@@ -163,7 +181,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
         finish(new TransportError("provider_error", "TronLink WebSocket connection failed"));
       });
       socket.once("close", (code) => {
-        if (signal.aborted || code === 1000) return finish();
+        if (stop.aborted || code === 1000) return finish();
         finish(
           new TransportError(
             "provider_error",
@@ -195,6 +213,7 @@ export class TronLinkClient implements TronLinkCollaborationPort {
     network: NetworkDescriptor,
     path: string,
     parameters: Readonly<Record<string, string>>,
+    check: DispatchCheck,
     body?: unknown,
   ): Promise<unknown> {
     const endpoint = tronLinkEndpoint(network);
@@ -204,14 +223,14 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       throw new UsageError("invalid_value", "TronLink request body exceeds the 1 MiB limit");
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const signal = check.signal;
+    check.assertDispatchable();
     try {
       const response = await this.fetchImpl(url, {
         method: body === undefined ? "GET" : "POST",
         headers: body === undefined ? undefined : { "content-type": "application/json" },
         body: encodedBody,
-        signal: controller.signal,
+        signal,
         redirect: "error",
         referrerPolicy: "no-referrer",
         cache: "no-store",
@@ -238,12 +257,10 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       return unwrapBusinessResponse(root);
     } catch (error) {
       if (error instanceof CliError) throw error;
-      if (controller.signal.aborted) {
-        throw new ChainError("timeout", `TronLink request timed out after ${this.timeoutMs}ms`);
+      if (signal.aborted) {
+        throw new ChainError("timeout", "TronLink request did not finish in time");
       }
       throw new TransportError("provider_error", "TronLink collaboration service request failed");
-    } finally {
-      clearTimeout(timeout);
     }
   }
 }

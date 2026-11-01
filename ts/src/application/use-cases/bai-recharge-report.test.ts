@@ -1,6 +1,9 @@
+import { CommandDeadline } from "../services/command-deadline.js";
 import { expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import { TransportError } from "../../domain/errors/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 function fixture() {
   const api = {
     reportTxHash: vi.fn(async () => ({ success: true as const, order: { id: 1 } })),
@@ -20,19 +23,22 @@ const request = {
 };
 it("reports the original recipient without a wallet, preorder, target resolution or payment", async () => {
   const { api, payments, service } = fixture();
-  await expect(service.rechargeReport(request)).resolves.toMatchObject({
+  await expect(service.rechargeReport(NO_DEADLINE, request)).resolves.toMatchObject({
     creditStatus: "credited",
     retryPayment: false,
   });
-  expect(api.reportTxHash).toHaveBeenCalledExactlyOnceWith({
-    chain: "base",
-    txHash: request.txHash,
-    amount: "1",
-    rechargeTarget: {
-      input: { type: "personal", identifier: request.to },
-      confirmedTarget: { type: "personal", targetId: request.targetId },
+  expect(api.reportTxHash).toHaveBeenCalledExactlyOnceWith(
+    {
+      chain: "base",
+      txHash: request.txHash,
+      amount: "1",
+      rechargeTarget: {
+        input: { type: "personal", identifier: request.to },
+        confirmedTarget: { type: "personal", targetId: request.targetId },
+      },
     },
-  });
+    expect.anything(),
+  );
   expect(api.createOrder).not.toHaveBeenCalled();
   expect(api.resolveTarget).not.toHaveBeenCalled();
   expect(payments.roundtrip).not.toHaveBeenCalled();
@@ -47,7 +53,9 @@ it.each([
   { to: undefined },
 ])("rejects invalid recovery before an API mutation: %j", async (override) => {
   const { service, api } = fixture();
-  await expect(service.rechargeReport({ ...request, ...override } as never)).rejects.toMatchObject({
+  await expect(
+    service.rechargeReport(NO_DEADLINE, { ...request, ...override } as never),
+  ).rejects.toMatchObject({
     code: "amount" in override ? "invalid_amount" : "invalid_value",
   });
   expect(api.reportTxHash).not.toHaveBeenCalled();
@@ -55,7 +63,7 @@ it.each([
 it("retains the original recovery data and error code when reporting fails", async () => {
   const { service, api } = fixture();
   api.reportTxHash.mockRejectedValue(new TransportError("bai_auth_failed", "rejected"));
-  await expect(service.rechargeReport(request)).resolves.toMatchObject({
+  await expect(service.rechargeReport(NO_DEADLINE, request)).resolves.toMatchObject({
     txHash: request.txHash,
     chain: "base",
     amount: "1",

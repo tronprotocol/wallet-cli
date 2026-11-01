@@ -1,3 +1,9 @@
+import {
+  endedByDeadline,
+  requestDispatchCheck,
+  unlessDeadline,
+} from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   AccountRef,
   EffectiveTokenEntry,
@@ -55,7 +61,7 @@ export class TronTransactionService {
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: TronSendInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const recipient = this.recipients.resolve("tron", input.to);
     const resolved = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
     positiveBaseUnits(resolved.rawAmount, "amount");
@@ -118,18 +124,22 @@ export class TronTransactionService {
     };
   }
 
-  async status(network: NetworkDescriptor, txid: string): Promise<TxStatusView> {
-    const gateway = this.gateways.get(network, "tron");
+  async status(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    txid: string,
+  ): Promise<TxStatusView> {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     // Transaction info alone cannot distinguish pending from unknown transactions.
     const [exists, info, head] = await Promise.all([
       gateway.getTransactionById(txid).then(
         (tx) => tx.txId !== undefined,
         // Treat lookup rejection as absent; the separate info request can still fail.
-        () => false,
+        unlessDeadline(deadline, () => false),
       ),
       // Propagate info-request failures instead of reporting not_found.
       gateway.getTransactionInfoById(txid),
-      headBlockNumber(gateway),
+      headBlockNumber(deadline, gateway),
     ]);
     const confirmed = info.blockNumber !== undefined;
     const failed = confirmed && info.execution === "failed";
@@ -144,17 +154,21 @@ export class TronTransactionService {
     };
   }
 
-  async info(network: NetworkDescriptor, txid: string): Promise<TxInfoView> {
-    const gateway = this.gateways.get(network, "tron");
+  async info(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    txid: string,
+  ): Promise<TxInfoView> {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     // Info and head reads are optional enrichment; transaction lookup determines existence.
     const [transaction, info, head] = await Promise.all([
       gateway.getTransactionById(txid),
-      gateway.getTransactionInfoById(txid).catch(() => undefined),
-      headBlockNumber(gateway),
+      gateway.getTransactionInfoById(txid).catch(unlessDeadline(deadline, () => undefined)),
+      headBlockNumber(deadline, gateway),
     ]);
     return {
       txid,
-      ...(await this.enrichParties(gateway, transaction.parties)),
+      ...(await this.enrichParties(deadline, gateway, transaction.parties)),
       status: executionStatus(info, transaction.contractResult),
       blockNumber: info?.blockNumber,
       ...confirmationsOf(head, info?.blockNumber),
@@ -252,6 +266,7 @@ export class TronTransactionService {
   }
 
   private async enrichParties(
+    deadline: ExecutionDeadline,
     gateway: TronGateway,
     decoded: DecodedTronTransaction,
   ): Promise<TxParties> {
@@ -278,7 +293,8 @@ export class TronTransactionService {
           amount:
             decimals === undefined ? decoded.rawAmount : fromBaseUnits(decoded.rawAmount, decimals),
         };
-      } catch {
+      } catch (error) {
+        if (endedByDeadline(error, deadline)) throw error;
         return {
           from: decoded.from,
           to: decoded.to,
@@ -292,10 +308,14 @@ export class TronTransactionService {
 }
 
 // Head lookup is optional; failure omits confirmations.
-async function headBlockNumber(gateway: TronGateway): Promise<number | undefined> {
+async function headBlockNumber(
+  deadline: ExecutionDeadline,
+  gateway: TronGateway,
+): Promise<number | undefined> {
   try {
     return (await gateway.getHeadBlock()).number;
-  } catch {
+  } catch (error) {
+    if (endedByDeadline(error, deadline)) throw error;
     return undefined;
   }
 }

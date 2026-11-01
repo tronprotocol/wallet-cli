@@ -47,7 +47,7 @@ The service exposes only the first 1000 rows of any ordering, so a scan never re
 - **Any other order or direction** — the scan reads that order until the window is filled or the pools run out. Exact. If it reaches row 1000 first, the CLI reads the complete qualifying set by TVL instead and sorts it locally (exact decimal comparison, ties by `poolAddress`). Exact as long as that set fits in 1000 rows, which holds for any threshold above the TVL of the 1000th pool.
 - **More than 1000 pools qualify** and the requested order did not fill the window within its first 1000 rows: the complete set is unreachable. The pools that were found are returned, `hasMore` is `true`, and `meta.warnings` carries `{code: "sunswap_scan_truncated"}` (text mode prints it on stderr). Raise `--min-tvl` or use the default order for an exact answer.
 
-`meta.pagination.total` stays `null`. `hasMore` is always present with `--min-tvl`: `true` when a qualifying pool beyond the window was seen, or when the scan was truncated. A larger threshold or a sparser order means more pages, each bound by `--timeout`.
+`meta.pagination.total` stays `null`. `hasMore` is always present with `--min-tvl`: `true` when a qualifying pool beyond the window was seen, or when the scan was truncated. A larger threshold or a sparser order means more pages, all within the command's `--timeout`.
 
 ## Examples
 

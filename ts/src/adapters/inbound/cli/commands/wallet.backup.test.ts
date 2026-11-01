@@ -17,6 +17,7 @@ import { Prompter } from "../input/prompt/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import { registerWalletCommands } from "./wallet.js";
 import type { SessionRef } from "../contracts/index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
 // Use a cheap KDF for test fixtures.
 vi.mock(
@@ -66,6 +67,7 @@ function fixture(opts: { tty: boolean }) {
     globals: { output: "text", verbose: false },
     deps: {
       config,
+      deadline: new CommandDeadline(0),
       networkRegistry,
       streams,
       secrets,

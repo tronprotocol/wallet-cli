@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronAccount } from "../../ports/chain/tron/tron-gateway.js";
@@ -20,11 +22,14 @@ export function resolveTronAccount(scope: AccountScope): string {
 
 // Nodes return an empty record for an inactive account.
 export async function activeTronAccount(
+  deadline: ExecutionDeadline,
   gateways: ChainGatewayProvider,
   network: NetworkDescriptor,
   owner: string,
 ): Promise<TronAccount> {
-  const account = await gateways.get(network, "tron").getAccount(owner);
+  const account = await gateways
+    .get(network, "tron", requestDispatchCheck(deadline))
+    .getAccount(owner);
   if (!account.address) {
     throw new ChainError(
       "account_not_active",

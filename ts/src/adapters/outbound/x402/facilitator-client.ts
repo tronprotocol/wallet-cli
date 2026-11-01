@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { facilitatorUrl } from "./facilitator-url.js";
 import { facilitatorNetwork } from "./facilitator-network.js";
 import { sameAddress } from "../../../domain/family/index.js";
@@ -26,10 +27,7 @@ import { silenceX402SdkLogs } from "./sdk-logs.js";
 type Phase = "verify" | "settle";
 
 export class X402FacilitatorClient implements X402FacilitatorPort {
-  constructor(
-    private readonly fetcher: typeof fetch = globalThis.fetch,
-    private readonly timeoutMs = 60000,
-  ) {
+  constructor(private readonly fetcher: typeof fetch = globalThis.fetch) {
     silenceX402SdkLogs();
   }
 
@@ -54,13 +52,13 @@ export class X402FacilitatorClient implements X402FacilitatorPort {
     return entry && { symbol: entry[0], address: entry[1].address, decimals: entry[1].decimals };
   }
 
-  async offer(terms: X402PaywallTerms): Promise<X402FacilitatorOffer> {
+  async offer(terms: X402PaywallTerms, check: DispatchCheck): Promise<X402FacilitatorOffer> {
     const network = await facilitatorNetwork(
       terms.network,
       terms.scheme,
       terms.facilitatorUrl,
       this.fetcher,
-      this.timeoutMs,
+      check,
     );
     const requirement: X402OfferedRequirement = {
       scheme: terms.scheme,
@@ -71,26 +69,31 @@ export class X402FacilitatorClient implements X402FacilitatorPort {
       maxTimeoutSeconds: terms.validForSeconds,
       extra: this.#extra(terms),
     };
-    const call = (path: string, paymentSignature: string) =>
-      this.#facilitator(terms.facilitatorUrl, path, {
-        paymentPayload: decodePaymentSignatureHeader(paymentSignature),
-        paymentRequirements: requirement,
-      });
+    const call = (path: string, paymentSignature: string, requestCheck: DispatchCheck) =>
+      this.#facilitator(
+        terms.facilitatorUrl,
+        path,
+        {
+          paymentPayload: decodePaymentSignatureHeader(paymentSignature),
+          paymentRequirements: requirement,
+        },
+        requestCheck,
+      );
     return {
       requirement,
       encodeChallenge: (challenge) => encodePaymentRequiredHeader(challenge as never),
-      verify: async (paymentSignature) => {
+      verify: async (paymentSignature, requestCheck) => {
         try {
-          const verify = await call("/verify", paymentSignature);
+          const verify = await call("/verify", paymentSignature, requestCheck);
           if (verify.valid === true || verify.isValid === true) return { accepted: true };
           return refusal(true, verify.invalidReason ?? verify.errorReason, "verify");
         } catch (error) {
           return failure(error, "verify");
         }
       },
-      settle: async (paymentSignature) => {
+      settle: async (paymentSignature, requestCheck) => {
         try {
-          const settle = await call("/settle", paymentSignature);
+          const settle = await call("/settle", paymentSignature, requestCheck);
           if (!successfulSettlement(settle, network))
             return refusal(true, settle.errorReason, "settle", settle);
           return {
@@ -115,7 +118,12 @@ export class X402FacilitatorClient implements X402FacilitatorPort {
     return { name: registered.name, version: registered.version };
   }
 
-  async #facilitator(base: string, path: string, body: unknown): Promise<Record<string, unknown>> {
+  async #facilitator(
+    base: string,
+    path: string,
+    body: unknown,
+    check: DispatchCheck,
+  ): Promise<Record<string, unknown>> {
     const response = await fetchBounded(
       this.fetcher,
       facilitatorUrl(base, path),
@@ -125,7 +133,7 @@ export class X402FacilitatorClient implements X402FacilitatorPort {
         body: JSON.stringify(body),
         redirect: "error",
       },
-      this.timeoutMs,
+      check,
       1024 * 1024,
     );
     if (!response.ok)

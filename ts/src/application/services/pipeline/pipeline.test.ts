@@ -13,9 +13,8 @@ import { SigningService } from "../signing/signing-service.js";
 
 function scope(over: Partial<TransactionScope> = {}): TransactionScope {
   return {
-    timeoutMs: 20,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 60_000,
     activeAccount: "acct" as never,
     resolveAddress: () => "TSender",
     emit: () => {},
@@ -45,7 +44,7 @@ function params(signer: Signer, over: Partial<TronTxPipelineParams> = {}): TronT
 }
 
 describe("TxPipeline device-sign timeout", () => {
-  it("bounds a hung device signature by timeoutMs and aborts the signal", async () => {
+  it("bounds a hung device signature by the command deadline and aborts the signal", async () => {
     let captured: AbortSignal | undefined;
     const signer: Signer = {
       kind: "device",
@@ -61,10 +60,10 @@ describe("TxPipeline device-sign timeout", () => {
     const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
 
     await expect(
-      new TxPipeline(signers, new SigningService({} as never)).runTron(params(signer)),
-    ).rejects.toMatchObject({
-      code: "timeout",
-    });
+      new TxPipeline(signers, new SigningService({} as never)).runTron(
+        params(signer, { ctx: scope({ deadline: new CommandDeadline(250) }) }),
+      ),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
     expect(captured?.aborted).toBe(true);
   });
 
@@ -190,7 +189,7 @@ describe("TxPipeline build-only", () => {
         params(
           {} as Signer,
           {
-            ctx: scope({ resolveAddress: () => "TWatchOnly" }),
+            ctx: scope({ deadline: NO_DEADLINE, resolveAddress: () => "TWatchOnly" }),
             mode: "build-only",
             build,
             estimate,
@@ -267,7 +266,15 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
 
 import { tronTransactionHooks } from "../../use-cases/tron/multisig-authorization.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
-import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+import { CommandDeadline, SUBMIT_ADMISSION_RESERVE_MS } from "../command-deadline.js";
+import {
+  cliMessage,
+  errorEnvelope,
+  exitCodeOf,
+} from "../../../adapters/inbound/cli/output/errors.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 describe("TRON signing lifetime", () => {
   it.each([false, true])(
@@ -306,7 +313,7 @@ describe("TRON signing lifetime", () => {
           params(signer, {
             ...tronTransactionHooks(gateway),
             build: async () => tx,
-            ctx: scope({ timeoutMs: 300_000 }),
+            ctx: scope({ deadline: new CommandDeadline(0) }),
             ...(explicit ? { expiration: 90_000 } : {}),
           }),
         );
@@ -399,7 +406,7 @@ describe("TxPipeline submission outcome", () => {
       expect(error.textMessage).toBe(original.textMessage);
       expect(error.kind).toBe(original.kind);
       expect(exitCodeOf(error)).toBe(exitCodeOf(original));
-      expect(h.broadcast).toHaveBeenCalledWith({ txID: txId });
+      expect(h.broadcast).toHaveBeenCalledWith({ txID: txId }, expect.anything());
     },
   );
 
@@ -555,5 +562,82 @@ describe("TxPipeline TRON entry runs every lifecycle step for its mode", () => {
     const h = tracked("sign-only");
     await h.pipeline.runTron({ ...h.input, expiration: 90_000 });
     expect(h.calls).not.toContain("prepareForSigning");
+  });
+});
+
+describe("TxPipeline under the command deadline", () => {
+  const software = {
+    kind: "software",
+    address: "TSender",
+    sign: async (tx: unknown) => tx,
+  } as unknown as Signer;
+  const signers = { assertCanSign: () => {}, resolve: () => software } as unknown as SignerResolver;
+  const pipeline = () => new TxPipeline(signers, new SigningService({} as never));
+  const at = (remainingMs: number) => {
+    const clock = { now: () => 0 };
+    const deadline = new CommandDeadline(10_000, 0, clock);
+    deadline.dispose();
+    clock.now = () => 10_000 - remainingMs;
+    return { deadline, clock };
+  };
+
+  it.each([
+    [SUBMIT_ADMISSION_RESERVE_MS - 1, false],
+    [SUBMIT_ADMISSION_RESERVE_MS, true],
+  ])("with %s ms left admits the submit: %s", async (remaining, admitted) => {
+    const broadcast = vi.fn(async () => ({ txId: "tx" }));
+    const run = pipeline().runTron(
+      params(software, {
+        mode: "broadcast",
+        ctx: scope({ deadline: at(remaining).deadline }),
+        broadcaster: { broadcast } as never,
+      }),
+    );
+    if (admitted) {
+      await expect(run).resolves.toMatchObject({ stage: "submitted", txId: "tx" });
+    } else {
+      const error = await run.catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(DeadlineExpiredError);
+      expect((error as DeadlineExpiredError).details).toBeUndefined();
+    }
+    expect(broadcast).toHaveBeenCalledTimes(admitted ? 1 : 0);
+  });
+
+  it("builds nothing further once the deadline expired during build", async () => {
+    const { deadline, clock } = at(10_000);
+    const estimate = vi.fn(async () => ({}) as never);
+    await expect(
+      pipeline().runTron(
+        params(software, {
+          mode: "broadcast",
+          ctx: scope({ deadline }),
+          build: async () => {
+            clock.now = () => 10_000;
+            return {} as never;
+          },
+          estimate,
+        }),
+      ),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(estimate).not.toHaveBeenCalled();
+  });
+
+  it("returns the submitted receipt with a warning when the deadline ends the wait", async () => {
+    const warnings: string[] = [];
+    const out = await pipeline().runTron(
+      params(software, {
+        mode: "broadcast",
+        ctx: scope({
+          wait: true,
+          deadline: at(5_000).deadline,
+          warn: (m) => warnings.push(cliMessage(m as never).message),
+        }),
+        confirm: async () => undefined,
+      }),
+    );
+    expect(out).toMatchObject({ stage: "submitted", txId: "tx" });
+    expect(warnings).toEqual([
+      "--wait: tx not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
+    ]);
   });
 });

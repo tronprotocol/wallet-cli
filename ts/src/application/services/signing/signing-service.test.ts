@@ -1,13 +1,16 @@
 import { describe, it, expect, vi } from "vitest";
 import { SigningService, type SignRequest } from "./signing-service.js";
+import { CommandDeadline } from "../command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+import { ExecutionError } from "../../../domain/errors/index.js";
 import type { Signer, TypedDataPayload, UnsignedTx } from "../../../domain/types/index.js";
 
 const NILE = { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as never;
 const SEPOLIA = { id: "eip155:11155111", family: "evm", chainId: "11155111" } as never;
 const TX = { txID: "ab", raw_data: {}, raw_data_hex: "0a" } as unknown as UnsignedTx;
 
-const scope = () => ({
-  timeoutMs: 50,
+const scope = (limitMs = 50) => ({
+  deadline: new CommandDeadline(limitMs),
   emitted: [] as unknown[],
   emit(e: unknown) {
     this.emitted.push(e);
@@ -57,6 +60,33 @@ describe("SigningService device handling", () => {
     expect(s.emitted).toEqual([]);
   });
 
+  it.each(["transaction", "message"] as const)(
+    "does not run a software signer for a %s after the deadline has expired",
+    async (kind) => {
+      const clock = { now: () => 0 };
+      const s = { ...scope(), deadline: new CommandDeadline(10, 0, clock) };
+      clock.now = () => 10;
+      const signer = { ...softwareSigner(), signMessage: vi.fn() } as unknown as Signer & {
+        sign: ReturnType<typeof vi.fn>;
+        signMessage: ReturnType<typeof vi.fn>;
+      };
+      const request =
+        kind === "transaction"
+          ? transaction(signer)
+          : {
+              network: NILE,
+              origin: "imported" as const,
+              signer,
+              payload: { kind: "message" as const, message: "hi" },
+            };
+      await expect(serviceWith().sign(s, request as never)).rejects.toBeInstanceOf(
+        DeadlineExpiredError,
+      );
+      expect(signer.sign).not.toHaveBeenCalled();
+      expect(signer.signMessage).not.toHaveBeenCalled();
+    },
+  );
+
   it("prechecks and announces the device before a device signature", async () => {
     const precheck = vi.fn(async () => {});
     const device = { kind: "device", address: "T1", precheck, sign: async () => "sig" };
@@ -84,6 +114,38 @@ describe("SigningService device handling", () => {
       code: "timeout",
     });
     expect(aborted).toBe(true);
+  });
+
+  it("reports a device cancelled by the deadline as timeout, a user cancellation as cancelled", async () => {
+    const cancelling = (afterAbort: boolean) => ({
+      kind: "device",
+      address: "T1",
+      precheck: async () => {},
+      sign: (_tx: unknown, opts: { signal?: AbortSignal }) =>
+        new Promise((_res, rej) => {
+          const cancel = () => rej(new ExecutionError("cancelled", "rejected on the device"));
+          if (afterAbort) opts.signal?.addEventListener("abort", cancel);
+          else cancel();
+        }),
+    });
+    await expect(
+      serviceWith().sign(scope(), transaction(cancelling(true) as never)),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    await expect(
+      serviceWith().sign(scope(0), transaction(cancelling(false) as never)),
+    ).rejects.toMatchObject({ code: "cancelled" });
+  });
+
+  it("does not ask the device after the deadline has expired", async () => {
+    const sign = vi.fn();
+    const clock = { now: () => 0 };
+    const s = { ...scope(), deadline: new CommandDeadline(10, 0, clock) };
+    clock.now = () => 10;
+    const device = { kind: "device", address: "T1", precheck: async () => {}, sign };
+    await expect(serviceWith().sign(s, transaction(device as never))).rejects.toBeInstanceOf(
+      DeadlineExpiredError,
+    );
+    expect(sign).not.toHaveBeenCalled();
   });
 
   it("propagates a precheck failure without signing", async () => {

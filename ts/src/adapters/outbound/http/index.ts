@@ -1,8 +1,8 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { activeDispatch, dispatchNow } from "./dispatch-context.js";
 
 export interface HttpEndpointConfig {
   readonly endpoint: string;
-  readonly timeoutMs: number;
   readonly headers: Readonly<Record<string, string>>;
 }
 
@@ -11,10 +11,9 @@ export interface HttpRequest {
   readonly path?: string;
   readonly body?: string;
   readonly headers?: Readonly<Record<string, string>>;
-  // Caller deadline on top of the endpoint timeout; an aborted request is never sent.
-  readonly signal?: AbortSignal;
 }
 
+// A request runs under the dispatch check of the port call that makes it (dispatch-context.ts).
 export interface HttpTransport {
   requestText(request: HttpRequest): Promise<string>;
 }
@@ -43,16 +42,12 @@ export function httpTransportFailure(error: HttpTransportError): string {
 
 type FetchFunction = typeof globalThis.fetch;
 
-export function networkHttpConfig(
-  network: NetworkDescriptor,
-  timeoutMs: number,
-): HttpEndpointConfig {
+export function networkHttpConfig(network: NetworkDescriptor): HttpEndpointConfig {
   assertHttpEndpoint(network.httpEndpoint ?? "");
   const headers =
     network.apiKeyHeader && network.apiKey ? { [network.apiKeyHeader]: network.apiKey } : {};
   return {
     endpoint: network.httpEndpoint ?? "",
-    timeoutMs,
     headers,
   };
 }
@@ -78,26 +73,23 @@ export class FetchHttpTransport implements HttpTransport {
   async requestText(request: HttpRequest): Promise<string> {
     const headers = new Headers(request.headers);
     for (const [name, value] of Object.entries(this.config.headers)) headers.set(name, value);
+    const url = requestUrl(this.config.endpoint, request.path);
+    const context = activeDispatch();
+    const signal = context?.check.signal;
+    dispatchNow(context);
     try {
-      const response = await this.fetchFn(requestUrl(this.config.endpoint, request.path), {
+      const response = await this.fetchFn(url, {
         method: request.method,
         headers,
         body: request.body,
-        signal: request.signal
-          ? AbortSignal.any([AbortSignal.timeout(this.config.timeoutMs), request.signal])
-          : AbortSignal.timeout(this.config.timeoutMs),
+        ...(signal ? { signal } : {}),
         ...(Object.keys(this.config.headers).length === 0 ? {} : { redirect: "error" }),
       });
       if (!response.ok) throw new HttpTransportError("http_status", response.status);
       return await response.text();
     } catch (error) {
       if (error instanceof HttpTransportError) throw error;
-      if (
-        error instanceof Error &&
-        (error.name === "AbortError" || error.name === "TimeoutError")
-      ) {
-        throw new HttpTransportError("timeout");
-      }
+      if (signal?.aborted) throw new HttpTransportError("timeout");
       throw new HttpTransportError("network");
     }
   }

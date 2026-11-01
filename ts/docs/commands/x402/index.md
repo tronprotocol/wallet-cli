@@ -26,7 +26,7 @@ wallet-cli x402 COMMAND
 
 - **Routes follow `--network`.** `pay` only considers routes on the selected network, and a catalog service has a separate URL for each network — [`x402 endpoint-list`](endpoint-list.md) shows them. The catalog's services currently take payment on mainnets (`tron`, `bsc`, `base`); for trying things out on a testnet, run your own endpoint with [`x402 serve`](serve.md).
 - **Limits come before signing.** `--max-amount` refuses an over-priced route, and a route that matches none of your filters is refused, both before anything is signed — the error says `paymentStatus: "not_sent"`.
-- **The facilitator settles, so there is no `--wait`.** `pay` and `roundtrip` return once the facilitator has settled the payment; they do not take `--wait` / `--wait-timeout`.
+- **The facilitator settles, so there is no `--wait`.** `pay` and `roundtrip` return once the facilitator has settled the payment; they do not take `--wait`.
 - **Two schemes.** `exact` pays from the account's token balance; `exact_gasfree` pays from its [GasFree](../gasfree/index.md) account, with no fallback between them.
 - **A failed payment may still have gone through.** Read `paymentStatus` and `retryPayment` in `error.details` before paying again — see [x402 and B.AI payment details](../../machine-interface.md#x402-and-bai-payment-details).
 - **Catalog commands read the local cache first**, written by `update-catalog`, and download only what it lacks. They never refresh the cache themselves.

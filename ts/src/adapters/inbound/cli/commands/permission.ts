@@ -66,7 +66,7 @@ export const permissionUpdateSpec: ChainSpec = {
 };
 
 export const permissionShowTronBinding = (service: TronPermissionService): FamilyBinding => ({
-  run: async (ctx, network) => service.show(network, ctx.resolveAddress("tron")),
+  run: async (ctx, network) => service.show(ctx.deadline, network, ctx.resolveAddress("tron")),
 });
 
 export const permissionUpdateTronBinding = (service: TronPermissionService): FamilyBinding => ({

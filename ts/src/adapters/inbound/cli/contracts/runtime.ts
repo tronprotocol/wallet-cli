@@ -10,9 +10,10 @@ export interface StreamManager {
   errorLine(msg: string): void;
   // Progress on stderr; null is skipped.
   event(frame: string | null): void;
-  readStdinOnce(): string;
+  // Reads stdin to its end; the signal stops the read and rejects with its reason.
+  readStdinOnce(signal: AbortSignal): Promise<string>;
   // Shares the single-consumption guard with readStdinOnce.
-  readStdinBytesOnce(): Uint8Array;
+  readStdinBytesOnce(signal: AbortSignal): Promise<Uint8Array>;
   // Accumulated for meta.warnings in JSON output.
   warnings(): WarningItem[];
 }
@@ -27,6 +28,8 @@ export const SECRET_KINDS = [
 ] as const;
 export type SecretKind = (typeof SECRET_KINDS)[number];
 export interface SecretResolver {
+  // Reads a stdin secret before synchronous reads need it.
+  loadStdin(signal: AbortSignal): Promise<void>;
   masterPassword(): string;
   // Checks availability without consuming stdin.
   hasMasterPassword(): boolean;

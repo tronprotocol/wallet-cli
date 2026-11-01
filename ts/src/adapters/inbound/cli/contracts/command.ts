@@ -107,7 +107,7 @@ export interface ChainSpec<_I = any, O = any> {
   capability?: string;
   // Reason to reject --account; wallet: "none" alone does not reject it.
   rejectsAccount?: string;
-  // Reason to reject --wait and --wait-timeout.
+  // Reason to reject --wait.
   rejectsWait?: string;
   // Boolean mode field that disables waiting; schema refinements cannot see global flags.
   rejectsWaitWith?: string;

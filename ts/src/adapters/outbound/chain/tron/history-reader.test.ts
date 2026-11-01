@@ -1,7 +1,14 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../../application/services/command-deadline.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronGridHistoryReader } from "./history-reader.js";
+import { expiringCheck } from "../../http/__test-support__/dispatch.js";
 import { ERROR_CODES } from "../../../../domain/errors/codes.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const network = { httpEndpoint: "http://localhost:1" } as NetworkDescriptor;
 
@@ -14,7 +21,8 @@ function nodeAnswers(status: number, body = "{}") {
   );
 }
 
-const read = () => new TronGridHistoryReader(50).get(network, "TXaddr", { limit: 20 });
+const read = (check = NO_CHECK) =>
+  new TronGridHistoryReader().get(network, "TXaddr", { limit: 20 }, check);
 
 describe("TronGridHistoryReader failures", () => {
   it.each([
@@ -38,7 +46,7 @@ describe("TronGridHistoryReader failures", () => {
           );
         }),
     );
-    await expect(read()).rejects.toMatchObject({ code: "timeout" });
+    await expect(read(expiringCheck(20))).rejects.toMatchObject({ code: "timeout" });
   });
 
   it("reports a network failure as rpc_error", async () => {
@@ -61,7 +69,7 @@ describe("TronGridHistoryReader failures", () => {
 
   it("reports a network without an endpoint as history_not_supported", async () => {
     await expect(
-      new TronGridHistoryReader().get({} as NetworkDescriptor, "TXaddr", { limit: 20 }),
+      new TronGridHistoryReader().get({} as NetworkDescriptor, "TXaddr", { limit: 20 }, NO_CHECK),
     ).rejects.toMatchObject({ code: "history_not_supported" });
   });
 

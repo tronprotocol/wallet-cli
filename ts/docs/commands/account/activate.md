@@ -6,7 +6,7 @@ Activate a not-yet-existing account on-chain.
 
 ```
 wallet-cli account activate --address <T...>
-                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait]
                             [--permission-id <n>] [options]
 ```
 
@@ -30,7 +30,7 @@ The Ledger TRON app cannot sign `AccountCreateContract`. A Ledger account can st
 | `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command). `--account` selects the payer.

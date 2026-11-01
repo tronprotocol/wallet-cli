@@ -15,6 +15,10 @@ import {
 import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import type { TronMultisigService } from "./multisig-service.js";
 import { TronMultisigCollaborationService } from "./multisig-collaboration-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const A = "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -115,9 +119,9 @@ function scope(): TransactionScope {
   return {
     activeAccount: "local" as never,
     resolveAddress: () => A,
-    timeoutMs: 1_000,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 1_000,
+
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -145,7 +149,7 @@ function setup(...given: WireRecord[]) {
   const collaboration = {
     list: vi.fn(async () => ({ total: records.length, entries: records.map(parseTronLinkEntry) })),
     submit: vi.fn(async () => {}),
-    watch: vi.fn(async (_network, _address, _signal, onUnsignedCount) => {
+    watch: vi.fn(async (_network, _address, _signal, _check, onUnsignedCount) => {
       onUnsignedCount(
         unsignedOpenCount([
           { state: 0, is_sign: 0 },
@@ -161,7 +165,7 @@ function setup(...given: WireRecord[]) {
     signature: [SIG],
   });
   const local = {
-    approvals: vi.fn(async (_network, hex: string) => approval(hex)),
+    approvals: vi.fn(async (_deadline, _network, hex: string) => approval(hex)),
     signChecked: vi.fn(async () => ({
       kind: "tx-sign",
       signer: A,
@@ -190,7 +194,7 @@ function setup(...given: WireRecord[]) {
 
 describe("TronLink multi-sign collaboration workflow", () => {
   it("projects only byte- and node-validated remote transactions", async () => {
-    const result = await setup().service.list(NETWORK, A);
+    const result = await setup().service.list(NO_DEADLINE, NETWORK, A);
     expect(result).toMatchObject({
       total: 1,
       transactions: [
@@ -211,7 +215,7 @@ describe("TronLink multi-sign collaboration workflow", () => {
       ...decodeTransactionHex(unsignedHex()),
       signature: [SIG],
     });
-    const result = await setup(stale, remote(signedHex)).service.list(NETWORK, A);
+    const result = await setup(stale, remote(signedHex)).service.list(NO_DEADLINE, NETWORK, A);
 
     expect(result.transactions).toHaveLength(2);
     expect(result.transactions[0]).toMatchObject({ verified: false });
@@ -225,7 +229,7 @@ describe("TronLink multi-sign collaboration workflow", () => {
     vi.mocked(local.approvals).mockRejectedValueOnce(
       new ChainError("chain_id_mismatch", "this transaction's reference block is not on nile"),
     );
-    const result = await service.list(NETWORK, A);
+    const result = await service.list(NO_DEADLINE, NETWORK, A);
 
     expect(result.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
     expect(result.transactions[0]!.unverifiedReason).toMatch(/reference block/);
@@ -237,11 +241,13 @@ describe("TronLink multi-sign collaboration workflow", () => {
     vi.mocked(local.approvals).mockRejectedValueOnce(
       new TransportError("rpc_error", "the node has not yet seen this reference block"),
     );
-    await expect(service.list(NETWORK, A)).rejects.toMatchObject({ code: "rpc_error" });
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).rejects.toMatchObject({
+      code: "rpc_error",
+    });
   });
 
   it("omits an undecodable record and counts it instead of failing the whole page", async () => {
-    const result = await setup(undecodable(), remote()).service.list(NETWORK, A);
+    const result = await setup(undecodable(), remote()).service.list(NO_DEADLINE, NETWORK, A);
 
     expect(result.unreadable).toBe(1);
     expect(result.transactions).toHaveLength(1);
@@ -264,7 +270,7 @@ describe("TronLink multi-sign collaboration workflow", () => {
     await expect(
       service.sign(scope(), NETWORK, decodeTransactionHex(target).txID),
     ).resolves.toMatchObject({ action: "sign", accepted: true });
-    await expect(service.list(NETWORK, A)).rejects.toMatchObject({
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).rejects.toMatchObject({
       code: "provider_error",
       message: "TronLink returned unsupported transaction state 3",
     });
@@ -284,7 +290,7 @@ describe("TronLink multi-sign collaboration workflow", () => {
   it("propagates a node failure rather than reporting every record as unverified", async () => {
     const { service, local } = setup();
     vi.mocked(local.approvals).mockRejectedValue(new ChainError("timeout", "node timed out"));
-    await expect(service.list(NETWORK, A)).rejects.toMatchObject({ code: "timeout" });
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).rejects.toMatchObject({ code: "timeout" });
   });
 
   it("still refuses to co-sign a record that disagrees with the chain", async () => {
@@ -296,16 +302,17 @@ describe("TronLink multi-sign collaboration workflow", () => {
 
   it("rejects hash, owner, and progress metadata tampering", async () => {
     await expect(
-      setup(remote(unsignedHex(), { hash: "00".repeat(32) })).service.list(NETWORK, A),
+      setup(remote(unsignedHex(), { hash: "00".repeat(32) })).service.list(NO_DEADLINE, NETWORK, A),
     ).rejects.toMatchObject({ code: "provider_error" });
     await expect(
       setup(remote(unsignedHex(), { contract_data: { owner_address: B } })).service.list(
+        NO_DEADLINE,
         NETWORK,
         A,
       ),
     ).rejects.toMatchObject({ code: "provider_error" });
     await expect(
-      setup(remote(unsignedHex(), { current_weight: 1 })).service.list(NETWORK, A),
+      setup(remote(unsignedHex(), { current_weight: 1 })).service.list(NO_DEADLINE, NETWORK, A),
     ).rejects.toMatchObject({ code: "provider_error" });
   });
 
@@ -349,6 +356,52 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(collaboration.submit).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a submit whose reply was lost as an unknown outcome with the transaction id", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    vi.mocked(collaboration.submit).mockRejectedValueOnce(
+      new TransportError("timeout", "TronLink request timed out"),
+    );
+    const context = scope();
+    const error = await service.sign(context, NETWORK, txId).catch((e: unknown) => e);
+    expect(error).toMatchObject({
+      code: "timeout",
+      details: { txId, address: A, network: "tron:3448148188", outcome: "unknown" },
+    });
+    expect(context.warn).toHaveBeenCalledWith(expect.stringContaining("may have been recorded"));
+  });
+
+  it("reports a submit refused before dispatch without a transaction id", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    const refusal = new DeadlineExpiredError();
+    vi.mocked(collaboration.submit).mockRejectedValueOnce(refusal);
+    const context = scope();
+    await expect(service.sign(context, NETWORK, txId)).rejects.toBe(refusal);
+    expect(context.warn).not.toHaveBeenCalled();
+  });
+
+  it("refuses the submit below the admission reserve without a warning", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    const deadline = new CommandDeadline(1999);
+    const context = { ...scope(), deadline };
+    await expect(service.sign(context, NETWORK, txId)).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(collaboration.submit).not.toHaveBeenCalled();
+    expect(context.warn).not.toHaveBeenCalled();
+    deadline.dispose();
+  });
+
+  it("keeps a definite TronLink rejection as it is", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    const rejection = new ChainError("provider_error", "TronLink rejected the transaction");
+    vi.mocked(collaboration.submit).mockRejectedValueOnce(rejection);
+    const context = scope();
+    await expect(service.sign(context, NETWORK, txId)).rejects.toBe(rejection);
+    expect(context.warn).not.toHaveBeenCalled();
+  });
+
   it("reports an expired failed record as tx_expired before the generic state error", async () => {
     const expired = decodeTransactionHex(unsignedHex());
     const hex = encodeTransactionHex({
@@ -370,8 +423,12 @@ describe("TronLink multi-sign collaboration workflow", () => {
   it("counts only pending unsigned WebSocket records", async () => {
     const { service } = setup();
     const counts: number[] = [];
-    const result = await service.watch(NETWORK, A, new AbortController().signal, (count) =>
-      counts.push(count),
+    const result = await service.watch(
+      NO_DEADLINE,
+      NETWORK,
+      A,
+      new AbortController().signal,
+      (count) => counts.push(count),
     );
     expect(counts).toEqual([1]);
     expect(result).toMatchObject({ action: "watch", notifications: 1 });
@@ -393,14 +450,14 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
 
   it("never presents a fabricated signer entry as verified", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
-    const view = await service.list(NETWORK, A);
+    const view = await service.list(NO_DEADLINE, NETWORK, A);
     expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
     expect(view.transactions[0]!.unverifiedReason).toMatch(/not a key in the on-chain permission/);
   });
 
   it("refuses to act for an account the permission does not contain", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
-    const view = await service.list(NETWORK, C);
+    const view = await service.list(NO_DEADLINE, NETWORK, C);
     expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
     await expect(
       service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID),
@@ -409,12 +466,12 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
 
   it("renders on-chain weights, not the ones the provider reported", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 99)]);
-    const view = await service.list(NETWORK, A);
+    const view = await service.list(NO_DEADLINE, NETWORK, A);
     expect(view.transactions[0]!.signatureProgress.map((entry) => entry.weight)).toEqual([1, 1]);
   });
 
   it("accepts a roster that omits a key — every number shown is chain-derived anyway", async () => {
     const { service } = withProgress([unsigned(A, 1)]);
-    await expect(service.list(NETWORK, A)).resolves.toBeDefined();
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).resolves.toBeDefined();
   });
 });

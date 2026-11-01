@@ -3,8 +3,13 @@ import { AccountBalanceService } from "./account-balance-service.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
 import type { AccountScope } from "../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
+import { CommandDeadline } from "../services/command-deadline.js";
 
-const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xADDR" };
+const scope: AccountScope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => "0xADDR",
+};
 
 const gateways = (balance: string) =>
   ({

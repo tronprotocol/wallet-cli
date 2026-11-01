@@ -13,6 +13,9 @@ import type { TxPipeline } from "../../services/pipeline/index.js";
 import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";
 import { SunPumpCurveTradeService } from "./curve-trade-service.js";
 import { baseUnitAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const LAUNCHPAD = "TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw";
 const TOKEN = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
@@ -88,6 +91,7 @@ function makeHarness(
     return OWNER;
   });
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: {},
     wait: false,
     waitTimeoutMs: 1_000,
@@ -99,7 +103,7 @@ function makeHarness(
     { get: () => gateway } as unknown as ChainGatewayProvider,
     pipeline,
   );
-  return { service, scope, gateway, port, resolveAddress, pipeline };
+  return { deadline: NO_DEADLINE, service, scope, gateway, port, resolveAddress, pipeline };
 }
 
 describe("the curve state gate", () => {
@@ -301,7 +305,13 @@ describe("sell", () => {
       amount: "1000",
       dryRun: true,
     })) as { approvals: { spender: string; amount: string }[] };
-    expect(port.allowance).toHaveBeenCalledWith(NETWORK, TOKEN, OWNER, LAUNCHPAD);
+    expect(port.allowance).toHaveBeenCalledWith(
+      NETWORK,
+      TOKEN,
+      OWNER,
+      LAUNCHPAD,
+      expect.anything(),
+    );
     expect(result.approvals).toEqual([
       expect.objectContaining({ spender: LAUNCHPAD, amount: "unlimited", isUnlimited: true }),
     ]);
@@ -504,5 +514,84 @@ describe("confirmed output and early account validation", () => {
       message: expect.stringContaining("using account,"),
     });
     expect(h.port.tokenState).not.toHaveBeenCalled();
+  });
+});
+
+describe("a sale's approval under the command deadline", () => {
+  const APPROVAL_TX = `tx:built:${APPROVE}`;
+
+  // The allowance becomes sufficient once the approval confirms; reads honour the dispatch check.
+  function timed(approval: "confirmed" | "pending-at-expiry" | "confirmed-at-expiry") {
+    let approved = false;
+    const port = makePort({
+      allowance: vi.fn(async (_n, _t, _o, _s, check) => {
+        check.assertDispatchable();
+        return approved ? UNLIMITED : baseUnitAmount("0");
+      }) as never,
+    });
+    const harness = makeHarness(port);
+    let now = 0;
+    const deadline = new CommandDeadline(60_000, 0, { now: () => now });
+    Object.assign(harness.scope, { deadline });
+    vi.mocked(harness.pipeline.runTron).mockImplementation(async (p) => {
+      p.ctx.deadline.assertActive();
+      const tx = (await p.build(OWNER)) as { txID: string };
+      if (tx.txID !== `built:${APPROVE}`) {
+        return { stage: "confirmed", txId: "sale-tx", blockNumber: 2, fee: {} } as never;
+      }
+      if (approval !== "confirmed") now = 60_000;
+      const pending = approval === "pending-at-expiry";
+      approved = !pending;
+      return { stage: pending ? "submitted" : "confirmed", txId: APPROVAL_TX, fee: {} } as never;
+    });
+    const sell = () =>
+      harness.service.sell(harness.scope, NETWORK, { token: TOKEN, amount: "1000" }) as Promise<
+        Record<string, unknown>
+      >;
+    return {
+      ...harness,
+      deadline,
+      sell,
+      reset: () => Object.assign(harness.scope, { deadline: NO_DEADLINE }),
+    };
+  }
+
+  it("returns the approval id with the sale", async () => {
+    const h = timed("confirmed");
+    await expect(h.sell()).resolves.toMatchObject({
+      approvalTxIds: [APPROVAL_TX],
+      txId: "sale-tx",
+    });
+    h.deadline.dispose();
+  });
+
+  it("ends with timeout and the approval id when the approval is still pending at expiry", async () => {
+    const h = timed("pending-at-expiry");
+    await expect(h.sell()).rejects.toMatchObject({
+      code: "timeout",
+      details: { approvalTxIds: [APPROVAL_TX] },
+    });
+    expect(h.pipeline.runTron).toHaveBeenCalledOnce();
+    h.deadline.dispose();
+  });
+
+  it("keeps the confirmed approval and sends no sale once the time is spent", async () => {
+    const h = timed("confirmed-at-expiry");
+    await expect(h.sell()).rejects.toMatchObject({
+      code: "timeout",
+      details: { approvalTxIds: [APPROVAL_TX] },
+    });
+    expect(h.pipeline.runTron).toHaveBeenCalledOnce();
+    h.deadline.dispose();
+  });
+
+  it("skips the approval on a rerun once it is sufficient", async () => {
+    const h = timed("confirmed-at-expiry");
+    await expect(h.sell()).rejects.toMatchObject({ code: "timeout" });
+    h.reset();
+    const second = await h.sell();
+    expect(second).not.toHaveProperty("approvalTxIds");
+    expect(h.pipeline.runTron).toHaveBeenCalledTimes(2);
+    h.deadline.dispose();
   });
 });

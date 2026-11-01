@@ -158,6 +158,11 @@ the flow.
 is internal to the adapter and may reach through an SDK by any mechanism, provided a request whose time has run
 out is never sent. **type**, **test**.
 
+The command deadline reaches outbound as a `DispatchCheck` (`application/contracts/deadline.ts`) bound to the port
+at `gateways.get` or passed in the call. The adapter runs `assertDispatchable()` immediately before it sends each
+request, after any queue, pacing, or retry. A submit gets `submitDispatchCheck`, so the admission rule of
+`application` runs again at that point; outbound does not restate it. **test**.
+
 ## 4. Output
 
 4.1 Use cases return typed results. JSON and text output are projections of the same result; they differ only
@@ -207,9 +212,11 @@ origin. Call sites do not skip a step that applies to their mode.
 6.3 Errors keep the codes and retry classes of the published contract. A failed read, or a request known not to
 have acted, gets the matching retryable code. A write that may have been committed follows its documented
 outcome-unknown policy. A chain submit of a signed transaction whose outcome is unknown reports the id of that
-transaction in `error.details.txId`. "Not supported" comes only from a capability decision or a
-recognized unsupported response, never from an unclassified exception. **test** for the transaction id on
-submit failures, **review**.
+transaction in `error.details.txId`. A call stopped by the deadline before its request was sent fails with
+`DeadlineExpiredError` (`timeout`, nothing sent, no txId); one stopped after it was sent fails with a
+`TransportError` or `ChainError` (`timeout`, outcome unknown), and a submit adds the txId. "Not supported"
+comes only from a capability decision or a recognized unsupported response, never from an unclassified exception.
+**test** for the transaction id on submit failures, **review**.
 
 6.4 Signing has one entry: an `application` service that takes a closed sign request naming its network, its
 origin, and its payload. It refuses a payload whose embedded chain identity (EVM `chainId`, EIP-712

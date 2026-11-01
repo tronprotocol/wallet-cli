@@ -34,7 +34,7 @@ function stubNode(body: string) {
 describe("TronRpcClient.getProposals", () => {
   it("keeps the parameter changes the node sends as an array", async () => {
     stubNode(MAINNET_106);
-    const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
+    const [proposal] = await new TronRpcClient("https://node.invalid").getProposals();
 
     expect(proposal!.parameters).toEqual({ "94": "1" });
     expect(proposal!.id).toBe(106);
@@ -62,7 +62,7 @@ describe("TronRpcClient.getProposals", () => {
         ],
       }),
     );
-    const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
+    const [proposal] = await new TronRpcClient("https://node.invalid").getProposals();
     expect(proposal!.parameters).toEqual({ "3": "15", "2": "200000" });
   });
 
@@ -82,7 +82,7 @@ describe("TronRpcClient.getProposals", () => {
         ],
       }),
     );
-    const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
+    const [proposal] = await new TronRpcClient("https://node.invalid").getProposals();
     expect(proposal!.parameters).toEqual({ "3": "15" });
   });
 
@@ -99,7 +99,7 @@ describe("TronRpcClient.getProposals", () => {
         "state": "PENDING"
       }]
     }`);
-    const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
+    const [proposal] = await new TronRpcClient("https://node.invalid").getProposals();
     expect(proposal!.parameters["61"]).toBe("9007199254740993");
   });
 
@@ -118,7 +118,7 @@ describe("TronRpcClient.getProposals", () => {
         ],
       }),
     );
-    const [proposal] = await new TronRpcClient("https://node.invalid", 1000).getProposals();
+    const [proposal] = await new TronRpcClient("https://node.invalid").getProposals();
     expect(proposal!.parameters).toEqual({});
   });
 });

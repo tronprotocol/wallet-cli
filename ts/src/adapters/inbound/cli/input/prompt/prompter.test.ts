@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Prompter, type PromptBackend, type KeyEvent } from "./index.js";
+import { CommandDeadline } from "../../../../../application/services/command-deadline.js";
+import { DeadlineExpiredError } from "../../../../../application/contracts/deadline.js";
 
 class FakeBackend implements PromptBackend {
   out = "";
@@ -116,5 +118,99 @@ describe("Prompter.select", () => {
       ],
     });
     expect(v).toBe("x1");
+  });
+});
+
+describe("Prompter pauses the command clock", () => {
+  function counting() {
+    const log: string[] = [];
+    return {
+      log,
+      clock: {
+        assertActive: () => {},
+        pause: () => {
+          log.push("pause");
+          return () => log.push("resume");
+        },
+      },
+    };
+  }
+
+  it("only while the backend awaits an answer, and resumes after a failure", async () => {
+    const { log, clock } = counting();
+    const be = new FakeBackend(["", "ok"]);
+    const question = be.question.bind(be);
+    be.question = async (prompt, hidden) => {
+      log.push("ask");
+      return question(prompt, hidden);
+    };
+    const p = new Prompter(be, clock);
+    await p.text({
+      label: "name",
+      validate: (s) => {
+        log.push("validate");
+        return s ? null : "required";
+      },
+    });
+    expect(log).toEqual([
+      "pause",
+      "ask",
+      "resume",
+      "validate",
+      "pause",
+      "ask",
+      "resume",
+      "validate",
+    ]);
+
+    log.length = 0;
+    be.question = async () => {
+      throw new Error("closed");
+    };
+    await expect(p.text({ label: "name" })).rejects.toThrow("closed");
+    expect(log).toEqual(["pause", "resume"]);
+  });
+
+  it("around each key read of a select", async () => {
+    const { log, clock } = counting();
+    const p = new Prompter(new FakeBackend([], [{ name: "down" }, { name: "return" }]), clock);
+    await p.select({
+      label: "pick",
+      choices: [
+        { value: 1, label: "a" },
+        { value: 2, label: "b" },
+      ],
+    });
+    expect(log).toEqual(["pause", "resume", "pause", "resume"]);
+  });
+
+  it("opens no prompt once validation has used up the time", async () => {
+    let now = 0;
+    const deadline = new CommandDeadline(1_000, 0, { now: () => now });
+    const be = new FakeBackend(["bad", "good"]);
+    const p = new Prompter(be, deadline);
+    await expect(
+      p.text({
+        label: "name",
+        validate: (s) => {
+          now = 1_001;
+          return s === "good" ? null : "invalid";
+        },
+      }),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(be.out.split("name: ")).toHaveLength(2);
+    deadline.dispose();
+  });
+
+  it("opens no prompt or key read on an expired deadline", async () => {
+    const deadline = new CommandDeadline(10, 0, { now: () => 10 });
+    const be = new FakeBackend(["x"], [{ name: "return" }]);
+    const p = new Prompter(be, deadline);
+    await expect(p.hidden({ label: "password" })).rejects.toBeInstanceOf(DeadlineExpiredError);
+    await expect(
+      p.select({ label: "pick", choices: [{ value: 1, label: "a" }] }),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(be.out).not.toContain("password");
+    deadline.dispose();
   });
 });

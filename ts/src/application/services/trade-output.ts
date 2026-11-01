@@ -1,3 +1,4 @@
+import { requestDispatchCheck } from "./command-deadline.js";
 import type { NetworkDescriptor, TxOutcome } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
@@ -18,7 +19,7 @@ export async function tradeOutput(
     return fields;
   await warnOnPostCheck(scope, "trade_output", async () => {
     const amount = await gateways
-      .get(network, "tron")
+      .get(network, "tron", requestDispatchCheck(scope.deadline))
       .receivedAmount(outcome.txId as string, token, recipient);
     if (amount === undefined)
       return "the trade confirmed but its received amount could not be verified from the receipt; amounts remain estimates";

@@ -1,3 +1,9 @@
+import {
+  assertSubmitAdmitted,
+  endedByDeadline,
+  submitDispatchCheck,
+} from "../services/command-deadline.js";
+import { DeadlineExpiredError, type ExecutionDeadline } from "../contracts/deadline.js";
 import type {
   BaiCreateOrderInput,
   BaiReportDelay,
@@ -22,7 +28,7 @@ export class BaiRechargeFlow {
     private readonly progress: (message: string) => void = () => {},
   ) {}
 
-  async execute(input: BaiCreateOrderInput) {
+  async execute(deadline: ExecutionDeadline, input: BaiCreateOrderInput) {
     // Keep the credit target stable even if an adapter mutates its input while awaiting I/O.
     const request = structuredClone(input);
     if (
@@ -33,7 +39,13 @@ export class BaiRechargeFlow {
       throw new UsageError("invalid_value", "B.AI recharge requires a resolved recipient");
     }
     this.progress("Creating the B.AI recharge preorder…");
-    const order = await this.api.createOrder(structuredClone(request));
+    assertSubmitAdmitted(deadline);
+    const order = await this.api.createOrder(
+      structuredClone(request),
+      submitDispatchCheck(deadline),
+    );
+    // The preorder exists from here on; a failed payment still reports it.
+    const created = order.orderId === undefined ? {} : { orderId: order.orderId };
     let paid: Awaited<ReturnType<BaiRechargePayment["pay"]>>;
     try {
       paid = await this.payment.pay(order, structuredClone(request));
@@ -48,12 +60,13 @@ export class BaiRechargeFlow {
           chain: request.chain,
           amount: request.amount,
           ...(request.rechargeTarget ? { rechargeTarget: request.rechargeTarget } : {}),
+          ...created,
         });
       }
       throw new TransportError(
         "provider_error",
         "Recharge payment outcome is unknown; reconcile the transaction before paying again",
-        { paymentStatus: "unknown", retryPayment: false },
+        { paymentStatus: "unknown", retryPayment: false, ...created },
       );
     }
     if (!paid.txHash?.trim()) {
@@ -78,10 +91,22 @@ export class BaiRechargeFlow {
     }
     if (this.delay?.initialDelayMs) {
       this.progress("Waiting for the transaction to be indexed before reporting it to B.AI…");
-      await this.delay.wait(this.delay.initialDelayMs);
+      await this.delay.wait(this.delay.initialDelayMs, deadline.signal).catch((error: unknown) => {
+        if (!endedByDeadline(error, deadline)) throw error;
+      });
+    }
+    // The payment stands; only the report is skipped once the time limit has ended.
+    if (deadline.expired()) {
+      return {
+        ...reportInput,
+        creditStatus: "unconfirmed" as const,
+        retryPayment: false as const,
+        code: "timeout",
+        warning: reportLaterWarning(),
+      };
     }
     this.progress("Submitting the transaction hash to B.AI and checking credit confirmation…");
-    const reported = await this.report(reportInput);
+    const reported = await this.report(deadline, reportInput);
     // Treat a just-paid hash reported as missing as a possible indexing delay.
     return "code" in reported && reported.code === "TX_NOT_FOUND_OR_INVALID"
       ? {
@@ -92,20 +117,22 @@ export class BaiRechargeFlow {
   }
 
   // Reports an existing hash without creating an order or paying.
-  async report(input: BaiReportTransactionInput) {
-    return reportBaiTransaction(this.api, input);
+  async report(deadline: ExecutionDeadline, input: BaiReportTransactionInput) {
+    return reportBaiTransaction(deadline, this.api, input);
   }
 }
 
 // One report attempt; never invokes payment.
 export async function reportBaiTransaction(
+  deadline: ExecutionDeadline,
   api: Pick<BaiRechargeApi, "reportTxHash">,
   input: BaiReportTransactionInput,
 ) {
   const request = structuredClone(input);
   const base = { ...request, retryPayment: false as const };
   try {
-    const result = await api.reportTxHash(structuredClone(request));
+    assertSubmitAdmitted(deadline);
+    const result = await api.reportTxHash(structuredClone(request), submitDispatchCheck(deadline));
     if (!result.success)
       return {
         ...base,
@@ -116,6 +143,15 @@ export async function reportBaiTransaction(
     return { ...base, creditStatus: "credited" as const, order: result.order };
   } catch (error) {
     if (error instanceof UsageError) throw error;
+    // Refused before dispatch: B.AI never saw the report.
+    if (error instanceof DeadlineExpiredError) {
+      return {
+        ...base,
+        creditStatus: "unconfirmed" as const,
+        code: "timeout",
+        warning: reportLaterWarning(),
+      };
+    }
     return {
       ...base,
       creditStatus: "unconfirmed" as const,
@@ -133,4 +169,8 @@ export async function reportBaiTransaction(
         "Recharge reporting failed; retain the transaction hash and reconcile before retrying reporting. Do not pay again",
     };
   }
+}
+
+function reportLaterWarning() {
+  return errorMessage`The command's time limit ended before the payment was reported to B.AI; report it with \`${followUp("bai-report-recharge")}\`. Do not pay again`;
 }

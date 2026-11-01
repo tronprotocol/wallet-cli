@@ -1,4 +1,5 @@
 // SDK planning must not bypass TxPipeline signing and broadcast checks.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import {
   createRuntime,
   type Runtime,
@@ -33,9 +34,10 @@ export function readOnlySdkRuntime(
   gateways: ChainGatewayProvider,
   network: NetworkDescriptor,
   from: string,
+  check: DispatchCheck,
 ): Runtime {
   const sdkNetwork = sdkNetworkName(network);
-  const gateway = gateways.get(network, "tron");
+  const gateway = gateways.get(network, "tron", check);
 
   const client: TronClient = {
     kind: "custom",

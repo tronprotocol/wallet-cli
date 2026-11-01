@@ -1,3 +1,7 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../../application/services/command-deadline.js";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   barBroadcasts,
@@ -5,11 +9,16 @@ import {
 } from "../../../../application/services/broadcast-guard.js";
 import { Transaction } from "ethers";
 import { EvmRpcClient } from "./evm.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
+import { expiredCheck } from "../../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
 import { submitWithTxId } from "../../../../application/services/broadcast-identity.js";
 import { HttpTransportError, type HttpTransport } from "../../http/index.js";
 import { UsageError, type CliError } from "../../../../domain/errors/index.js";
 import { baseUnitAmount } from "../../../../domain/amounts/index.js";
 import { cliMessage, exitCodeOf } from "../../../inbound/cli/output/errors.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -42,7 +51,7 @@ describe("EvmRpcClient.getNativeBalance", () => {
       },
     };
 
-    await new EvmRpcClient("https://node.example", 5_000, transport).getNativeBalance(ADDR);
+    await new EvmRpcClient("https://node.example", transport).getNativeBalance(ADDR);
 
     expect(requests).toEqual([
       {
@@ -62,7 +71,6 @@ describe("EvmRpcClient.getNativeBalance", () => {
     const seen = stubRpc("0x0");
     await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getNativeBalance(ADDR);
@@ -82,7 +90,6 @@ describe("EvmRpcClient.getNativeBalance", () => {
     stubRpc(hex);
     const balance = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getNativeBalance(ADDR);
@@ -101,12 +108,9 @@ describe("EvmRpcClient.getNativeBalance", () => {
     );
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).getNativeBalance(ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getNativeBalance(
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
@@ -117,12 +121,9 @@ describe("EvmRpcClient.getNativeBalance", () => {
     );
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).getNativeBalance(ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getNativeBalance(
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
@@ -133,12 +134,9 @@ describe("EvmRpcClient.getNativeBalance", () => {
     );
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).getNativeBalance(ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getNativeBalance(
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
@@ -153,9 +151,7 @@ describe("EvmRpcClient.getNativeBalance", () => {
       ),
     );
 
-    await expect(
-      new EvmRpcClient("https://node.example", 20).getNativeBalance(ADDR),
-    ).rejects.toThrow();
+    await expect(new EvmRpcClient("https://node.example").getNativeBalance(ADDR)).rejects.toThrow();
   });
 });
 
@@ -164,7 +160,6 @@ describe("EvmRpcClient QUANTITY vs DATA", () => {
     const seen = stubRpc("0x2a");
     const nonce = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getTransactionCount(ADDR);
@@ -177,7 +172,6 @@ describe("EvmRpcClient QUANTITY vs DATA", () => {
     stubRpc("0x60806040");
     const code = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getCode(ADDR);
@@ -188,12 +182,9 @@ describe("EvmRpcClient QUANTITY vs DATA", () => {
   it("reports an account with no code as 0x, not as the number zero", async () => {
     stubRpc("0x");
     expect(
-      await new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).getCode(ADDR),
+      await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getCode(
+        ADDR,
+      ),
     ).toBe("0x");
   });
 
@@ -202,7 +193,6 @@ describe("EvmRpcClient QUANTITY vs DATA", () => {
     expect(
       await new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).getBlockNumber(),
@@ -222,36 +212,25 @@ const RPC_BLOCK = {
 describe("EvmRpcClient.getBlock", () => {
   it("asks for the latest block, without full transaction objects", async () => {
     const seen = stubRpc(RPC_BLOCK);
-    await new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).getBlock();
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock();
 
     expect(seen[0]).toMatchObject({ method: "eth_getBlockByNumber", params: ["latest", false] });
   });
 
   it("asks for a specific height as a QUANTITY, not a decimal string", async () => {
     const seen = stubRpc(RPC_BLOCK);
-    await new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).getBlock("1234567");
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
+      "1234567",
+    );
 
     expect(seen[0]).toMatchObject({ params: ["0x12d687", false] });
   });
 
   it("passes a block tag through unchanged", async () => {
     const seen = stubRpc(RPC_BLOCK);
-    await new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).getBlock("finalized");
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
+      "finalized",
+    );
 
     expect(seen[0]).toMatchObject({ params: ["finalized", false] });
   });
@@ -265,7 +244,6 @@ describe("EvmRpcClient.getBlock", () => {
     });
     const block = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getBlock();
@@ -292,7 +270,6 @@ describe("EvmRpcClient.getBlock", () => {
     stubRpc(RPC_BLOCK);
     const block = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getBlock();
@@ -309,19 +286,16 @@ describe("EvmRpcClient.getBlock", () => {
   ])("rejects a block with a missing or malformed %s instead of reporting 0", async (_f, raw) => {
     stubRpc(raw);
     await expect(
-      new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard).getBlock(),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(),
     ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 
   it("returns null for a height the chain does not have", async () => {
     stubRpc(null);
     expect(
-      await new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).getBlock("999999999"),
+      await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
+        "999999999",
+      ),
     ).toBeNull();
   });
 
@@ -329,7 +303,7 @@ describe("EvmRpcClient.getBlock", () => {
     // JSON.stringify omits undefined, producing a response with no result field.
     stubRpc(undefined);
     await expect(
-      new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard).getBlock(
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
         "999999999",
       ),
     ).rejects.toMatchObject({ code: "invalid_node_response" });
@@ -350,7 +324,7 @@ const ENC = {
 describe("EvmRpcClient.call", () => {
   it("sends eth_call against the latest block", async () => {
     const seen = stubRpc("0x");
-    await new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard).call(
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).call(
       TOKEN,
       "0xdeadbeef",
     );
@@ -367,7 +341,6 @@ describe("EvmRpcClient.getErc20Balance", () => {
     const seen = stubRpc(ENC.uint256_1e18);
     const balance = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getErc20Balance(TOKEN, ADDR);
@@ -382,12 +355,10 @@ describe("EvmRpcClient.getErc20Balance", () => {
   it("reports a non-token address as an unreadable balance rather than decoding 0x", async () => {
     stubRpc("0x");
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).getErc20Balance(TOKEN, ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getErc20Balance(
+        TOKEN,
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "token_metadata_unavailable" });
   });
 });
@@ -419,7 +390,6 @@ describe("EvmRpcClient.getErc20Metadata", () => {
     });
     const meta = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getErc20Metadata(TOKEN);
@@ -431,7 +401,6 @@ describe("EvmRpcClient.getErc20Metadata", () => {
     stubBySelector({ "0x95d89b41": ENC.bytes32MKR, "0x313ce567": ENC.uint8_6 });
     const meta = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getErc20Metadata(TOKEN);
@@ -443,7 +412,6 @@ describe("EvmRpcClient.getErc20Metadata", () => {
     stubBySelector({ "0x95d89b41": ENC.stringUSDT });
     const meta = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getErc20Metadata(TOKEN);
@@ -456,7 +424,6 @@ describe("EvmRpcClient.getErc20Metadata", () => {
     stubBySelector({});
     const meta = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getErc20Metadata(TOKEN);
@@ -469,12 +436,11 @@ describe("EvmRpcClient.getErc20Metadata", () => {
 describe("EvmRpcClient.callFunction", () => {
   it("encodes a signature and its typed parameters into calldata", async () => {
     const seen = stubRpc("0x");
-    await new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).callFunction(TOKEN, "balanceOf(address)", [{ type: "address", value: ADDR }]);
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+      TOKEN,
+      "balanceOf(address)",
+      [{ type: "address", value: ADDR }],
+    );
 
     expect((seen[0] as { params: [{ data: string }] }).params[0].data).toBe(
       `0x70a08231${"0".repeat(24)}${ADDR.slice(2).toLowerCase()}`,
@@ -483,12 +449,11 @@ describe("EvmRpcClient.callFunction", () => {
 
   it("encodes a no-argument call as the bare selector", async () => {
     const seen = stubRpc("0x");
-    await new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).callFunction(TOKEN, "decimals()", []);
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+      TOKEN,
+      "decimals()",
+      [],
+    );
 
     expect((seen[0] as { params: [{ data: string }] }).params[0].data).toBe("0x313ce567");
   });
@@ -498,12 +463,11 @@ describe("EvmRpcClient.callFunction", () => {
     stubRpc(raw);
 
     expect(
-      await new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).callFunction(TOKEN, "decimals()", []),
+      await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+        TOKEN,
+        "decimals()",
+        [],
+      ),
     ).toBe(raw);
   });
 
@@ -511,12 +475,11 @@ describe("EvmRpcClient.callFunction", () => {
     const seen = stubRpc("0x");
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).callFunction(TOKEN, "not a signature", []),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+        TOKEN,
+        "not a signature",
+        [],
+      ),
     ).rejects.toMatchObject({ code: "invalid_value" });
     expect(seen).toEqual([]);
   });
@@ -525,12 +488,11 @@ describe("EvmRpcClient.callFunction", () => {
     const seen = stubRpc("0x");
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).callFunction(TOKEN, "balanceOf(address)", [{ type: "address", value: "not-an-address" }]),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+        TOKEN,
+        "balanceOf(address)",
+        [{ type: "address", value: "not-an-address" }],
+      ),
     ).rejects.toMatchObject({ code: "invalid_value" });
     expect(seen).toEqual([]);
   });
@@ -562,7 +524,6 @@ describe("EvmRpcClient.feeData", () => {
     });
     const fee = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).feeData();
@@ -582,14 +543,8 @@ describe("EvmRpcClient.feeData", () => {
     });
 
     expect(
-      (
-        await new EvmRpcClient(
-          "https://node.example",
-          5_000,
-          undefined,
-          processBroadcastGuard,
-        ).feeData()
-      ).baseFeeWei,
+      (await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).feeData())
+        .baseFeeWei,
     ).toBe("0");
   });
 
@@ -597,7 +552,6 @@ describe("EvmRpcClient.feeData", () => {
     stubByMethod({ eth_getBlockByNumber: { number: "0x1" }, eth_gasPrice: "0x1" });
     const fee = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).feeData();
@@ -610,7 +564,6 @@ describe("EvmRpcClient.feeData", () => {
     stubByMethod({ eth_getBlockByNumber: { baseFeePerGas: "0x10" }, eth_gasPrice: "0x20" });
     const fee = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).feeData();
@@ -635,7 +588,7 @@ describe("EvmRpcClient.feeData", () => {
     );
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard).feeData(),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).feeData(),
     ).rejects.toMatchObject({
       code: "invalid_node_response",
     });
@@ -647,7 +600,6 @@ describe("EvmRpcClient.estimateGas", () => {
     const seen = stubRpc("0x5208");
     const gas = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).estimateGas({
@@ -662,12 +614,7 @@ describe("EvmRpcClient.estimateGas", () => {
 
   it("hex-encodes decimal quantities before they reach the node", async () => {
     const seen = stubRpc("0x5208");
-    await new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).estimateGas({
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).estimateGas({
       from: ADDR,
       to: TOKEN,
       value: "0",
@@ -688,12 +635,9 @@ describe("EvmRpcClient.estimateGas", () => {
 
   it("leaves a value that is already hex untouched", async () => {
     const seen = stubRpc("0x5208");
-    await new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).estimateGas({ value: "0x1c" });
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).estimateGas({
+      value: "0x1c",
+    });
 
     expect((seen[0] as any).params[0]).toEqual({ value: "0x1c" });
   });
@@ -702,16 +646,15 @@ describe("EvmRpcClient.estimateGas", () => {
     stubRpc("0x5208");
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard).estimateGas(
-        { value: "lots" },
-      ),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).estimateGas({
+        value: "lots",
+      }),
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 });
 
 describe("EvmRpcClient.getErc20Balance", () => {
-  const client = () =>
-    new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
   const OWNER = ADDR;
 
   function stubCall(body: unknown) {
@@ -761,8 +704,7 @@ describe("EvmRpcClient.getErc20Balance", () => {
 });
 
 describe("EvmRpcClient.getErc20Metadata", () => {
-  const client = () =>
-    new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
 
   it("returns the fields the contract answers", async () => {
     const str = (v: string) => {
@@ -835,10 +777,9 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     const seen = stubResponse({ result: HASH });
     const out = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
-    ).sendRawTransaction(RAW);
+    ).sendRawTransaction(RAW, NO_CHECK);
 
     expect(seen[0]).toMatchObject({ method: "eth_sendRawTransaction", params: [RAW] });
     expect(out).toEqual({ hash: HASH });
@@ -851,10 +792,9 @@ describe("EvmRpcClient.sendRawTransaction", () => {
       await expect(
         new EvmRpcClient(
           "https://node.example",
-          5_000,
           undefined,
           processBroadcastGuard,
-        ).sendRawTransaction(RAW),
+        ).sendRawTransaction(RAW, NO_CHECK),
       ).rejects.toMatchObject({ code: "dry_run_violation" });
     });
     expect(seen).toHaveLength(0);
@@ -864,7 +804,7 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     const seen = stubResponse({ result: HASH });
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example").sendRawTransaction(RAW, NO_CHECK),
     ).rejects.toMatchObject({ code: "internal_error" });
     expect(seen).toHaveLength(0);
   });
@@ -877,10 +817,9 @@ describe("EvmRpcClient.sendRawTransaction", () => {
       await expect(
         new EvmRpcClient(
           "https://node.example",
-          5_000,
           undefined,
           processBroadcastGuard,
-        ).sendRawTransaction(RAW),
+        ).sendRawTransaction(RAW, NO_CHECK),
       ).rejects.toMatchObject({ code: "invalid_node_response" });
     },
   );
@@ -889,12 +828,10 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     stubResponse({});
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 
@@ -905,10 +842,9 @@ describe("EvmRpcClient.sendRawTransaction", () => {
       await expect(
         new EvmRpcClient(
           "https://node.example",
-          5_000,
           undefined,
           processBroadcastGuard,
-        ).sendRawTransaction(RAW),
+        ).sendRawTransaction(RAW, NO_CHECK),
       ).rejects.toMatchObject({ code: "invalid_node_response" });
     },
   );
@@ -920,10 +856,9 @@ describe("EvmRpcClient.sendRawTransaction", () => {
       await expect(
         new EvmRpcClient(
           "https://node.example",
-          5_000,
           transport,
           processBroadcastGuard,
-        ).sendRawTransaction(RAW),
+        ).sendRawTransaction(RAW, NO_CHECK),
       ).rejects.toMatchObject({ code: "invalid_node_response" });
     },
   );
@@ -937,12 +872,10 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     stubResponse({ error: { code: -32000, message } });
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code });
   });
 
@@ -950,12 +883,10 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     stubResponse({ error: { code: -32003, message: "some new validator rule" } });
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "transaction_rejected" });
   });
 
@@ -971,12 +902,10 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     stubResponse({ error: { code, message } });
 
     const error = await submitWithTxId(HASH, () =>
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
     ).catch((e: unknown) => e as CliError);
     expect(error).toMatchObject({
       code: "transaction_rejected",
@@ -1002,10 +931,9 @@ describe("EvmRpcClient.sendRawTransaction", () => {
       submitWithTxId(HASH, () =>
         new EvmRpcClient(
           "https://node.example",
-          5_000,
           undefined,
           processBroadcastGuard,
-        ).sendRawTransaction(RAW),
+        ).sendRawTransaction(RAW, NO_CHECK),
       ),
     ).rejects.toMatchObject({ code: "rpc_error", details: { nodeMessage: message, txId: HASH } });
   });
@@ -1014,12 +942,10 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     stubResponse({ error: { code: -32603, message: "nonce too low" } });
 
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "nonce_too_low" });
   });
 
@@ -1029,10 +955,9 @@ describe("EvmRpcClient.sendRawTransaction", () => {
       stubResponse({ error: { code: -32000, message } });
       const out = await new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
-      ).sendRawTransaction(RAW);
+      ).sendRawTransaction(RAW, NO_CHECK);
 
       expect(out.alreadyKnown).toBe(true);
       expect(out.hash).toBeUndefined();
@@ -1041,7 +966,7 @@ describe("EvmRpcClient.sendRawTransaction", () => {
 });
 
 describe("EvmRpcClient.getTransactionReceipt", () => {
-  it("does not send the request once the caller's signal has aborted", async () => {
+  it("does not send the request once the call's deadline has expired", async () => {
     const sent: unknown[] = [];
     vi.stubGlobal(
       "fetch",
@@ -1052,14 +977,10 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
       }),
     );
 
+    const client = new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
     await expect(
-      new EvmRpcClient(
-        "https://node.example",
-        5_000,
-        undefined,
-        processBroadcastGuard,
-      ).getTransactionReceipt("0xabc", AbortSignal.abort()),
-    ).rejects.toMatchObject({ code: "timeout" });
+      withDispatchCheck(expiredCheck(), () => client.getTransactionReceipt("0xabc")),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
     expect(sent).toEqual([]);
   });
 
@@ -1068,7 +989,6 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
     expect(
       await new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).getTransactionReceipt("0xabc"),
@@ -1084,7 +1004,6 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
     });
     const r = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getTransactionReceipt("0xabc");
@@ -1101,7 +1020,6 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
     });
     const r = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getTransactionReceipt("0xabc");
@@ -1113,7 +1031,6 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
     stubRpc({ status: "0x1", gasUsed: "0x1", contractAddress: "0xdead", blockNumber: "0x1" });
     const r = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).getTransactionReceipt("0xabc");
@@ -1127,7 +1044,6 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
     await expect(
       new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).getTransactionReceipt("0xabc"),
@@ -1139,7 +1055,6 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
     await expect(
       new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).getTransactionReceipt("0xabc"),
@@ -1151,7 +1066,6 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
   it("encodes transfer(address,uint256) with the recipient and base-unit amount", () => {
     const data = new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
     ).encodeErc20Transfer(ADDR, baseUnitAmount("5000000"));
@@ -1168,7 +1082,6 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
     expect(() =>
       new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).encodeErc20Transfer("nope", baseUnitAmount("1")),
@@ -1180,7 +1093,6 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
     try {
       new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).encodeErc20Transfer("nope", baseUnitAmount("1"));
@@ -1198,13 +1110,15 @@ describe("EvmRpcClient.broadcast (Broadcaster port)", () => {
     const seen = stubRpc(HASH);
     const out = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
-    ).broadcast({
-      raw: "0x02f8b1",
-      hash: HASH,
-    });
+    ).broadcast(
+      {
+        raw: "0x02f8b1",
+        hash: HASH,
+      },
+      NO_CHECK,
+    );
 
     expect(seen[0]).toMatchObject({ method: "eth_sendRawTransaction", params: ["0x02f8b1"] });
     expect(out).toMatchObject({ hash: HASH });
@@ -1221,13 +1135,15 @@ describe("EvmRpcClient.broadcast (Broadcaster port)", () => {
     );
     const out = await new EvmRpcClient(
       "https://node.example",
-      5_000,
       undefined,
       processBroadcastGuard,
-    ).broadcast({
-      raw: "0x02f8b1",
-      hash: `0x${"11".repeat(32)}`,
-    });
+    ).broadcast(
+      {
+        raw: "0x02f8b1",
+        hash: `0x${"11".repeat(32)}`,
+      },
+      NO_CHECK,
+    );
 
     expect(out.alreadyKnown).toBe(true);
     expect(out.hash).toBeUndefined();
@@ -1235,16 +1151,16 @@ describe("EvmRpcClient.broadcast (Broadcaster port)", () => {
 
   it("refuses a signed transaction that carries no raw serialisation", async () => {
     await expect(
-      new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard).broadcast(
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).broadcast(
         "0x02f8b1" as never,
+        NO_CHECK,
       ),
     ).rejects.toMatchObject({ code: "invalid_transaction" });
   });
 });
 
 describe("EvmRpcClient.encodeTransactionHex", () => {
-  const client = () =>
-    new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
   const UNSIGNED_TX = {
     type: 2,
     chainId: 11155111,
@@ -1279,8 +1195,7 @@ describe("EvmRpcClient.encodeTransactionHex", () => {
 });
 
 describe("EvmRpcClient contract-write encoding", () => {
-  const client = () =>
-    new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
 
   it("encodes a call without sending it", () => {
     const data = client().encodeFunctionCall("transfer(address,uint256)", [
@@ -1418,12 +1333,9 @@ describe("EvmRpcClient.getTransactionByHash", () => {
     nonce: "0x7",
   };
   const fetchTx = () =>
-    new EvmRpcClient(
-      "https://node.example",
-      5_000,
-      undefined,
-      processBroadcastGuard,
-    ).getTransactionByHash("0xabc");
+    new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getTransactionByHash(
+      "0xabc",
+    );
 
   it("normalizes the node's transaction and keeps it verbatim", async () => {
     const seen = stubRpc(RPC_TX);
@@ -1478,7 +1390,6 @@ describe("EvmRpcClient.getTransactionByHash", () => {
     expect(
       await new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).getTransactionByHash("0xabc"),
@@ -1490,7 +1401,6 @@ describe("EvmRpcClient.getTransactionByHash", () => {
     await expect(
       new EvmRpcClient(
         "https://node.example",
-        5_000,
         undefined,
         processBroadcastGuard,
       ).getTransactionByHash("0xabc"),
@@ -1506,7 +1416,6 @@ describe("EvmRpcClient transport failure classification", () => {
   it("maps a transport timeout to ChainError(timeout)", async () => {
     const client = new EvmRpcClient(
       "http://node.invalid",
-      60_000,
       transportThrowing(new HttpTransportError("timeout")),
     );
     await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({
@@ -1519,7 +1428,6 @@ describe("EvmRpcClient transport failure classification", () => {
     for (const kind of ["network", "http_status", "redirect", "invalid_request"] as const) {
       const client = new EvmRpcClient(
         "http://node.invalid",
-        60_000,
         transportThrowing(new HttpTransportError(kind)),
       );
       await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
@@ -1527,18 +1435,13 @@ describe("EvmRpcClient transport failure classification", () => {
   });
 
   it("keeps a non-transport throw an rpc_error", async () => {
-    const client = new EvmRpcClient(
-      "http://node.invalid",
-      60_000,
-      transportThrowing(new Error("boom")),
-    );
+    const client = new EvmRpcClient("http://node.invalid", transportThrowing(new Error("boom")));
     await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
   });
 });
 
 describe("EvmRpcClient node-error classification", () => {
-  const client = () =>
-    new EvmRpcClient("https://node.example", 5_000, undefined, processBroadcastGuard);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
 
   function stubError(message: string) {
     vi.stubGlobal(
@@ -1570,7 +1473,7 @@ describe("EvmRpcClient node-error classification", () => {
   it("sendRawTransaction reports a stale nonce as nonce_too_low", async () => {
     stubError("nonce too low");
 
-    await expect(client().sendRawTransaction("0x02f8b1")).rejects.toMatchObject({
+    await expect(client().sendRawTransaction("0x02f8b1", NO_CHECK)).rejects.toMatchObject({
       code: "nonce_too_low",
     });
   });
@@ -1610,7 +1513,7 @@ describe("EvmRpcClient node-error classification", () => {
     });
 
     stubError("out of gas");
-    await expect(client().sendRawTransaction("0x02f8b1")).rejects.toMatchObject({
+    await expect(client().sendRawTransaction("0x02f8b1", NO_CHECK)).rejects.toMatchObject({
       code: "gas_too_low",
     });
   });

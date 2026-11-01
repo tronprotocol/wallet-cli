@@ -17,6 +17,7 @@ import { WalletService } from "../../../../application/use-cases/wallet-service.
 import { SecretResolver } from "../input/secret/index.js";
 import { Prompter } from "../input/prompt/index.js";
 import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
 describe("ChainCommandDefinition dispatch", () => {
   it("routes a positional through the selected family binding", async () => {
@@ -57,7 +58,16 @@ describe("ChainCommandDefinition dispatch", () => {
     registry.addChain(spec, "tron", { run });
 
     const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
-    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
+    const deps = {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts,
+      prompter,
+      formatter,
+    };
     const shellOpts: ShellOptions = {
       registry,
       globals,
@@ -117,7 +127,16 @@ describe("ChainCommandDefinition dispatch", () => {
     );
 
     const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
-    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
+    const deps = {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts,
+      prompter,
+      formatter,
+    };
     await buildCli({
       registry,
       globals,
@@ -189,7 +208,16 @@ describe("grouped chain leaf positionals", () => {
       shellOpts: {
         registry,
         globals: { output: "json" as const, verbose: false, network: "tron:728126428" },
-        deps: { config, networkRegistry, streams, secrets, accounts, prompter, formatter },
+        deps: {
+          config,
+          deadline: new CommandDeadline(0),
+          networkRegistry,
+          streams,
+          secrets,
+          accounts,
+          prompter,
+          formatter,
+        },
         targetResolver: new TargetResolver({ networkRegistry, keystore }),
         caps: new CapabilityRegistry(),
         streams,
@@ -282,7 +310,16 @@ describe("--dry-run bars broadcasting", () => {
       );
     }
     const globals = { output: "json" as const, verbose: false, network: "tron:728126428" };
-    const deps = { config, networkRegistry, streams, secrets, accounts, prompter, formatter };
+    const deps = {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts,
+      prompter,
+      formatter,
+    };
     return {
       out,
       shellOpts: {

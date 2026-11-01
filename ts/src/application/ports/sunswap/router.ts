@@ -1,4 +1,5 @@
 // Raw input/output amounts are base units; protocol names are uppercase.
+import type { DispatchCheck } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
 declare const routerWireRoute: unique symbol;
@@ -37,5 +38,6 @@ export interface RouterPort {
   routes(
     network: NetworkDescriptor,
     request: { fromToken: string; toToken: string; amountInRaw: string },
+    check: DispatchCheck,
   ): Promise<readonly RouterRoute[]>;
 }

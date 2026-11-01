@@ -1,3 +1,5 @@
+import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, NetworkId } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type {
@@ -133,39 +135,50 @@ export class SunSwapMarketQueryService {
     private readonly resolver: SunSwapTokenResolver = new SunSwapTokenResolver(tokens, aliases),
   ) {}
 
-  async prices(network: NetworkDescriptor, query: PriceQuery): Promise<PriceView> {
+  async prices(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    query: PriceQuery,
+  ): Promise<PriceView> {
     const addresses = this.#resolveAddresses(network, query);
-    const prices = await this.market.prices(network, addresses);
+    const prices = await this.market.prices(network, addresses, requestDispatchCheck(deadline));
     const quoted = prices.map((price) => price.address);
     // Missing symbols must not hide available prices.
     let symbols: ReadonlyMap<string, string> = new Map();
     const warnings: string[] = [];
     try {
-      symbols = await this.market.symbols(network, quoted);
-    } catch {
+      symbols = await this.market.symbols(network, quoted, requestDispatchCheck(deadline));
+    } catch (error) {
+      if (endedByDeadline(error, deadline)) throw error;
       warnings.push("token symbols are unavailable; the Symbol column is shown as —");
     }
     return { prices, symbols, warnings };
   }
 
   async positionList(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     query: PositionListQuery,
   ): Promise<PositionListView> {
     const page = offsetWindowToPage(query);
     refuseBeyondMarketWindow(query);
-    const result = await this.market.listPositions(network, {
-      owner: this.#validAddress(query.owner),
-      ...(query.pool === undefined ? {} : { pool: this.#resolvePool(query.pool) }),
-      ...(query.protocol === undefined
-        ? {}
-        : { protocol: normaliseProtocol(query.protocol, SUNSWAP_PROTOCOL_FILTERS) }),
-      ...page,
-    });
+    const result = await this.market.listPositions(
+      network,
+      {
+        owner: this.#validAddress(query.owner),
+        ...(query.pool === undefined ? {} : { pool: this.#resolvePool(query.pool) }),
+        ...(query.protocol === undefined
+          ? {}
+          : { protocol: normaliseProtocol(query.protocol, SUNSWAP_PROTOCOL_FILTERS) }),
+        ...page,
+      },
+      requestDispatchCheck(deadline),
+    );
     return { positions: result.positions, pagination: this.#window(query, result.hasMore) };
   }
 
   async poolList(
+    deadline: ExecutionDeadline,
     scope: WarnScope,
     network: NetworkDescriptor,
     query: PoolListQuery,
@@ -190,10 +203,20 @@ export class SunSwapMarketQueryService {
       ...(query.token === undefined ? {} : { view: { quoteSymbol: query.token } }),
     });
     if (minTvl === undefined || isNoThreshold(minTvl)) {
-      const result = await this.market.listPools(network, { sort, desc, ...filters, ...page });
+      const result = await this.market.listPools(
+        network,
+        { sort, desc, ...filters, ...page },
+        requestDispatchCheck(deadline),
+      );
       return shown(result.pools, result.hasMore);
     }
-    const found = await this.#qualifyingPools(network, { sort, desc, ...filters }, minTvl, query);
+    const found = await this.#qualifyingPools(
+      deadline,
+      network,
+      { sort, desc, ...filters },
+      minTvl,
+      query,
+    );
     const end = query.offset + query.limit;
     // A full window is exact even if later qualifying rows are unreachable.
     if (!found.complete && found.pools.length < end) {
@@ -207,6 +230,7 @@ export class SunSwapMarketQueryService {
 
   // The API caps each ordering at 1,000 rows; retry by TVL to recover a complete qualifying set.
   async #qualifyingPools(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     query: Omit<ListPoolsQuery, "pageNo" | "pageSize">,
     minTvl: string,
@@ -216,17 +240,17 @@ export class SunSwapMarketQueryService {
     const wanted = window.offset + window.limit + 1;
     const byTvl = { ...query, sort: poolSortField("tvl"), desc: true };
     if (query.sort === byTvl.sort && query.desc) {
-      const scan = await this.#scanPools(network, byTvl, minTvl, wanted, true);
+      const scan = await this.#scanPools(deadline, network, byTvl, minTvl, wanted, true);
       return {
         pools: scan.qualifying,
         complete: scan.complete || scan.qualifying.length >= wanted,
       };
     }
-    const first = await this.#scanPools(network, query, minTvl, wanted, false);
+    const first = await this.#scanPools(deadline, network, query, minTvl, wanted, false);
     if (first.complete || first.qualifying.length >= wanted) {
       return { pools: first.qualifying, complete: true };
     }
-    const all = await this.#scanPools(network, byTvl, minTvl, Infinity, true);
+    const all = await this.#scanPools(deadline, network, byTvl, minTvl, Infinity, true);
     if (!all.complete) return { pools: first.qualifying, complete: false };
     const value = POOL_SORT_VALUE[query.sort as PoolSortField];
     return { pools: sortPoolsBy(all.qualifying, value, query.desc), complete: true };
@@ -234,6 +258,7 @@ export class SunSwapMarketQueryService {
 
   // stopBelow is valid only for descending TVL order.
   async #scanPools(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     query: Omit<ListPoolsQuery, "pageNo" | "pageSize">,
     minTvl: string,
@@ -242,11 +267,15 @@ export class SunSwapMarketQueryService {
   ): Promise<PoolScan> {
     const qualifying: PoolRecord[] = [];
     for (let pageNo = 1; pageNo * SCAN_PAGE_SIZE <= SUNSWAP_MARKET_WINDOW; pageNo += 1) {
-      const result = await this.market.listPools(network, {
-        ...query,
-        pageNo,
-        pageSize: SCAN_PAGE_SIZE,
-      });
+      const result = await this.market.listPools(
+        network,
+        {
+          ...query,
+          pageNo,
+          pageSize: SCAN_PAGE_SIZE,
+        },
+        requestDispatchCheck(deadline),
+      );
       for (const pool of result.pools) {
         if (meetsMinTvl(pool.reserveUsd, minTvl)) {
           qualifying.push(pool);
@@ -263,7 +292,11 @@ export class SunSwapMarketQueryService {
   }
 
   // Count and page must use identical filters.
-  async poolSearch(network: NetworkDescriptor, query: PoolSearchQuery): Promise<PoolListView> {
+  async poolSearch(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    query: PoolSearchQuery,
+  ): Promise<PoolListView> {
     const keyword = this.#searchKeyword(query.keyword);
     const page = offsetWindowToPage(query);
     refuseBeyondMarketWindow(query);
@@ -275,8 +308,8 @@ export class SunSwapMarketQueryService {
       ...page,
     };
     const [result, total] = await Promise.all([
-      this.market.searchPools(network, filters),
-      this.market.countPools(network, filters),
+      this.market.searchPools(network, filters, requestDispatchCheck(deadline)),
+      this.market.countPools(network, filters, requestDispatchCheck(deadline)),
     ]);
     return {
       pools: result.pools.map((pool) => this.#poolView(pool)),
@@ -325,15 +358,23 @@ export class SunSwapMarketQueryService {
     return isPoolId(keyword) ? normalisePoolId(keyword) : keyword;
   }
 
-  async tokenList(network: NetworkDescriptor, query: TokenListQuery): Promise<TokenListView> {
+  async tokenList(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    query: TokenListQuery,
+  ): Promise<TokenListView> {
     const page = offsetWindowToPage(query);
     refuseBeyondMarketWindow(query);
-    const result = await this.market.listTokens(network, {
-      protocol: normaliseProtocol(query.protocol),
-      sort: tokenSortField(query.orderBy),
-      ...(query.address === undefined ? {} : { address: this.#validAddress(query.address) }),
-      ...page,
-    });
+    const result = await this.market.listTokens(
+      network,
+      {
+        protocol: normaliseProtocol(query.protocol),
+        sort: tokenSortField(query.orderBy),
+        ...(query.address === undefined ? {} : { address: this.#validAddress(query.address) }),
+        ...page,
+      },
+      requestDispatchCheck(deadline),
+    );
     return {
       tokens: result.tokens,
       pagination: this.#window(query, result.hasMore),
@@ -342,16 +383,24 @@ export class SunSwapMarketQueryService {
     };
   }
 
-  async tokenSearch(network: NetworkDescriptor, query: TokenSearchQuery): Promise<TokenListView> {
+  async tokenSearch(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    query: TokenSearchQuery,
+  ): Promise<TokenListView> {
     // An empty keyword would request the whole catalogue.
     const keyword = this.#searchKeyword(query.keyword);
     const page = offsetWindowToPage(query);
     refuseBeyondMarketWindow(query);
-    const result = await this.market.searchTokens(network, {
-      keyword,
-      protocol: normaliseProtocol(query.protocol),
-      ...page,
-    });
+    const result = await this.market.searchTokens(
+      network,
+      {
+        keyword,
+        protocol: normaliseProtocol(query.protocol),
+        ...page,
+      },
+      requestDispatchCheck(deadline),
+    );
     return { tokens: result.tokens, pagination: this.#window(query, result.hasMore) };
   }
 

@@ -1,9 +1,15 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { SunApiClient } from "@sun-protocol/sun-sdk-api";
 import { SunSwapMarketApi, type SunApiClientFactory } from "./market-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const BODY = readFileSync(
   fileURLToPath(new URL("./__fixtures__/positions-user-v4-88.json", import.meta.url)),
@@ -48,12 +54,16 @@ const lossyFactory: SunApiClientFactory = (options) =>
   });
 
 const listPositions = (factory: SunApiClientFactory) =>
-  new SunSwapMarketApi(5_000, { clientFactory: factory }).listPositions(MAINNET, {
-    owner: OWNER,
-    pool: POOL,
-    pageNo: 1,
-    pageSize: 10,
-  });
+  new SunSwapMarketApi({ clientFactory: factory }).listPositions(
+    MAINNET,
+    {
+      owner: OWNER,
+      pool: POOL,
+      pageNo: 1,
+      pageSize: 10,
+    },
+    NO_CHECK,
+  );
 
 describe("position precision, end to end through the SDK client", () => {
   it("keeps every digit the market API sent", async () => {

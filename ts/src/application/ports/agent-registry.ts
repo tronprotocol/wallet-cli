@@ -1,4 +1,5 @@
 import type { NetworkDescriptor, TxReceiptView } from "../../domain/types/index.js";
+import type { ExecutionDeadline } from "../contracts/deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type {
   EvmContractWriteInput,
@@ -10,6 +11,7 @@ import type { Sun } from "../../domain/amounts/index.js";
 
 export interface EvmContractPort {
   call(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     contract: string,
     method: string,
@@ -24,6 +26,7 @@ export interface EvmContractPort {
 
 export interface TronContractPort {
   call(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     contract: string,
     method: string,

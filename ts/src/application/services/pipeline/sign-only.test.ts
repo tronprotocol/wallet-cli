@@ -3,6 +3,7 @@ import { TxPipeline } from "./index.js";
 import type { SignerResolver } from "../signer/index.js";
 import type { Signer, UnsignedTx } from "../../../domain/types/index.js";
 import { SigningService } from "../signing/signing-service.js";
+import { CommandDeadline } from "../command-deadline.js";
 
 const TX = { txID: "abc", raw_data: {}, raw_data_hex: "0a02" } as unknown as UnsignedTx;
 
@@ -12,9 +13,8 @@ function pipelineWith(signer: Partial<Signer>, assertCanSign = () => {}) {
 }
 
 const scope = {
-  timeoutMs: 100,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 0,
   activeAccount: "main",
   resolveAddress: () => "T1",
   emit: () => {},

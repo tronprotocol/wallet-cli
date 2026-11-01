@@ -112,14 +112,14 @@ export const contractCallSpec: ChainSpec = {
 
 export const contractCallTronBinding = (svc: TronContractService): FamilyBinding => ({
   refine: addressFieldsFor("tron", "contract"),
-  run: async (_ctx, net, input) =>
-    svc.call(net, input.contract, input.method, typedParams(input.params)),
+  run: async (ctx, net, input) =>
+    svc.call(ctx.deadline, net, input.contract, input.method, typedParams(input.params)),
 });
 
 export const contractCallEvmBinding = (svc: EvmContractService): FamilyBinding => ({
   refine: addressFieldsFor("evm", "contract"),
-  run: async (_ctx, net, input) =>
-    svc.call(net, input.contract, input.method, typedParams(input.params)),
+  run: async (ctx, net, input) =>
+    svc.call(ctx.deadline, net, input.contract, input.method, typedParams(input.params)),
 });
 
 const sendFields = z.object({
@@ -557,7 +557,7 @@ export const contractInfoSpec: ChainSpec = {
 };
 
 export const contractInfoTronBinding = (svc: TronContractService): FamilyBinding => ({
-  run: async (_ctx, net, input) => svc.info(net, input.contract),
+  run: async (ctx, net, input) => svc.info(ctx.deadline, net, input.contract),
 });
 
 const contractGovernanceBase = {

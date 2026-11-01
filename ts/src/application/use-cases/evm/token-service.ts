@@ -1,3 +1,5 @@
+import { requestDispatchCheck, unlessDeadline } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, TokenEntry } from "../../../domain/types/index.js";
 import { ExecutionError } from "../../../domain/errors/index.js";
 import { canonicalTokenId } from "../../../domain/token/index.js";
@@ -17,17 +19,19 @@ export class EvmTokenService {
 
   async balance(scope: AccountScope, network: NetworkDescriptor, input: Erc20Selector) {
     const address = scope.resolveAddress("evm");
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const [balance, meta] = await Promise.all([
       gateway.getErc20Balance(input.contract, address),
       // Metadata failures must not hide a readable balance.
-      gateway.getErc20Metadata(input.contract).catch(() => ({})),
+      gateway.getErc20Metadata(input.contract).catch(unlessDeadline(scope.deadline, () => ({}))),
     ]);
     return { address, token: input.contract, balance, ...meta };
   }
 
-  async info(network: NetworkDescriptor, input: Erc20Selector) {
-    const meta = await this.gateways.get(network, "evm").getErc20Metadata(input.contract);
+  async info(deadline: ExecutionDeadline, network: NetworkDescriptor, input: Erc20Selector) {
+    const meta = await this.gateways
+      .get(network, "evm", requestDispatchCheck(deadline))
+      .getErc20Metadata(input.contract);
     if (meta.symbol === undefined && meta.decimals === undefined && meta.name === undefined) {
       throw new ExecutionError(
         "token_metadata_unavailable",
@@ -39,7 +43,9 @@ export class EvmTokenService {
 
   // Stored decimals scale future transfers; never substitute a guess.
   async add(scope: AccountScope, network: NetworkDescriptor, input: Erc20Selector) {
-    const meta = await this.gateways.get(network, "evm").getErc20Metadata(input.contract);
+    const meta = await this.gateways
+      .get(network, "evm", requestDispatchCheck(scope.deadline))
+      .getErc20Metadata(input.contract);
     if (meta.decimals === undefined || meta.symbol === undefined || meta.symbol === "") {
       throw new ExecutionError(
         "token_metadata_unavailable",

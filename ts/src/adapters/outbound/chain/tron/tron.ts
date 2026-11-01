@@ -52,7 +52,11 @@ import type {
 } from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
 import { redactErrorMessage } from "../../../../domain/errors/redact.js";
-import { withDeadline } from "../../http/deadline.js";
+import { activeDispatch, untilAborted, withDispatchCheck } from "../../http/dispatch-context.js";
+import {
+  DeadlineExpiredError,
+  type DispatchCheck,
+} from "../../../../application/contracts/deadline.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
@@ -95,9 +99,12 @@ export function hexToBase58(addr: unknown): string {
   return tronHexToBase58(addr);
 }
 
+interface AxiosSignalConfig {
+  signal?: AbortSignal;
+}
+
 export class TronRpcClient implements TronGateway, Broadcaster {
   #tw: InstanceType<typeof TronWeb>;
-  readonly #timeoutMs: number;
   readonly #transport: HttpTransport;
   readonly #broadcastGuard: BroadcastGuard;
   // Share one request budget across this client's raw HTTP and TronWeb providers.
@@ -105,7 +112,6 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   readonly #pacedProviders = new WeakSet<object>();
   constructor(
     fullHostOrConfig: string | NetworkDescriptor | HttpEndpointConfig,
-    timeoutMs = 60_000,
     transport?: HttpTransport,
     guard: BroadcastGuard = UNWIRED_BROADCAST_GUARD,
   ) {
@@ -113,25 +119,34 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     try {
       config =
         typeof fullHostOrConfig === "string"
-          ? { endpoint: fullHostOrConfig, timeoutMs, headers: {} }
+          ? { endpoint: fullHostOrConfig, headers: {} }
           : "endpoint" in fullHostOrConfig
             ? fullHostOrConfig
-            : networkHttpConfig(fullHostOrConfig, timeoutMs);
+            : networkHttpConfig(fullHostOrConfig);
     } catch (error) {
       const failure =
         error instanceof HttpTransportError ? httpTransportFailure(error) : "invalid HTTP endpoint";
       throw new TransportError("rpc_error", `TRON RPC configuration failed: ${failure}`);
     }
     const tronProvider = () => {
-      const provider = new providers.HttpProvider(config.endpoint, config.timeoutMs, "", "", {
+      // 0 = no Axios timer; the dispatch check's signal ends the request.
+      const provider = new providers.HttpProvider(config.endpoint, 0, "", "", {
         ...config.headers,
       });
+      // TronWeb's types omit the Axios defaults and interceptors exposed at runtime.
+      const axios = provider.instance as unknown as {
+        defaults: { maxRedirects: number };
+        interceptors: {
+          request: { use(fn: (request: AxiosSignalConfig) => AxiosSignalConfig): void };
+        };
+      };
+      axios.interceptors.request.use((request) => {
+        const signal = activeDispatch()?.check.signal;
+        if (signal) request.signal = signal;
+        return request;
+      });
       // Prevent redirects from forwarding configured credential headers.
-      if (Object.keys(config.headers).length > 0) {
-        // TronWeb's types omit the Axios defaults exposed at runtime.
-        const axios = provider.instance as unknown as { defaults: { maxRedirects: number } };
-        axios.defaults.maxRedirects = 0;
-      }
+      if (Object.keys(config.headers).length > 0) axios.defaults.maxRedirects = 0;
       return provider;
     };
     this.#tw = new TronWeb({
@@ -139,7 +154,6 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       solidityNode: tronProvider(),
       eventServer: tronProvider(),
     });
-    this.#timeoutMs = config.timeoutMs;
     this.#broadcastGuard = guard;
     this.#transport = new PacedHttpTransport(
       transport ?? new FetchHttpTransport(config),
@@ -190,16 +204,24 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     const account = await this.#account(address);
     return sunAmount(nodeQuantity(account.balance, "balance"));
   }
-  async broadcast(signed: SignedTx): Promise<BroadcastResult> {
+  async broadcast(signed: SignedTx, check: DispatchCheck): Promise<BroadcastResult> {
     this.#broadcastGuard.assertAllowed();
     let res: Types.BroadcastReturn<Types.SignedTransaction>;
     try {
-      // Credit pacing waits without extending the budget for stalled network requests.
-      res = await withDeadline(this.#timeoutMs, () =>
-        this.#tw.trx.sendRawTransaction(signed as unknown as Types.SignedTransaction),
+      res = await withDispatchCheck(check, () =>
+        untilAborted(
+          this.#tw.trx.sendRawTransaction(signed as unknown as Types.SignedTransaction),
+          "TRON broadcast",
+        ),
       );
     } catch (e) {
-      if (e instanceof ChainError) throw e;
+      // A deadline error means the transaction was not sent; a TransportError means it may have been.
+      if (
+        e instanceof ChainError ||
+        e instanceof TransportError ||
+        e instanceof DeadlineExpiredError
+      )
+        throw e;
       throw new TransportError(
         "rpc_error",
         `TRON broadcast failed: ${redactErrorMessage((e as Error).message ?? "")}`,
@@ -400,11 +422,13 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     });
   }
 
-  async broadcastHex(input: string): Promise<BroadcastResult> {
+  async broadcastHex(input: string, check: DispatchCheck): Promise<BroadcastResult> {
     this.#broadcastGuard.assertAllowed();
     const hex = normalizeTransactionHex(input);
     decodeTransactionHex(hex);
-    const response = await this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex));
+    const response = await withDispatchCheck(check, () =>
+      this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex)),
+    );
     return broadcastResult(response);
   }
 
@@ -496,15 +520,19 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     });
   }
 
-  // Pacing waits receive timeout credit; network stalls do not.
   #wrap<T>(label: string, fn: () => Promise<T>): Promise<T> {
-    return withDeadline(this.#timeoutMs, () => this.#guard(label, fn));
+    return untilAborted(this.#guard(label, fn), `TRON ${label}`);
   }
   async #guard<T>(label: string, fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (e) {
-      if (e instanceof ChainError || e instanceof UsageError || e instanceof TransportError)
+      if (
+        e instanceof ChainError ||
+        e instanceof UsageError ||
+        e instanceof TransportError ||
+        e instanceof DeadlineExpiredError
+      )
         throw e;
       if (e instanceof HttpTransportError) {
         if (e.kind === "timeout") {
@@ -520,13 +548,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   // Keep the raw response body for lossless numeric parsing.
-  async #post(path: string, body: unknown, signal?: AbortSignal): Promise<string> {
+  async #post(path: string, body: unknown): Promise<string> {
     return this.#transport.requestText({
       method: "POST",
       path,
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      ...(signal ? { signal } : {}),
     });
   }
 
@@ -631,14 +658,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     return decodeReceivedAmount(await this.getTransactionInfoById(txid), token, recipient);
   }
 
-  async getTransactionInfoById(txid: string, signal?: AbortSignal): Promise<TronTxInfo> {
+  async getTransactionInfoById(txid: string): Promise<TronTxInfo> {
     // Read full-node inclusion receipts without waiting for solidification.
     return this.#wrap("getTransactionInfo", async () =>
       parseTronTxInfo(
         normalizeTxInfoValue(
-          parseLosslessJson(
-            await this.#post("/wallet/gettransactioninfobyid", { value: txid }, signal),
-          ),
+          parseLosslessJson(await this.#post("/wallet/gettransactioninfobyid", { value: txid })),
         ),
       ),
     );

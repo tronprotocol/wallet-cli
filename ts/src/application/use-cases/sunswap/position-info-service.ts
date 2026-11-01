@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { LiquidityPort, TokenFacts } from "../../ports/sunswap/liquidity.js";
@@ -71,6 +73,7 @@ export class SunSwapPositionInfoService {
   ) {}
 
   async positionInfo(
+    deadline: ExecutionDeadline,
     scope: WarnScope,
     network: NetworkDescriptor,
     query: PositionInfoQuery,
@@ -90,23 +93,25 @@ export class SunSwapPositionInfoService {
     }
     const tokenId = query.positionId.trim();
     return protocol === "V4"
-      ? this.#v4(scope, network, tokenId)
-      : this.#v3(scope, network, tokenId);
+      ? this.#v4(deadline, scope, network, tokenId)
+      : this.#v3(deadline, scope, network, tokenId);
   }
 
   async #v3(
+    deadline: ExecutionDeadline,
     scope: WarnScope,
     network: NetworkDescriptor,
     tokenId: string,
   ): Promise<PositionInfoView> {
     const position = await readPosition("V3", tokenId, network, () =>
-      this.liquidity.v3Position(network, tokenId),
+      this.liquidity.v3Position(network, tokenId, requestDispatchCheck(deadline)),
     );
     const pool = await this.liquidity.v3PoolState(
       network,
       position.token0,
       position.token1,
       position.fee,
+      requestDispatchCheck(deadline),
     );
     if (!pool.exists) {
       throw new ChainError(
@@ -119,15 +124,21 @@ export class SunSwapPositionInfoService {
     const amounts = this.liquidity.v3AmountsForLiquidity(pool, range, position.liquidity);
     // Simulate collect as the owner to measure fees without moving them.
     const owed = await this.#owed(scope, tokenId, () =>
-      this.liquidity.v3OwedFees(network, tokenId, position.owner, position.owner),
+      this.liquidity.v3OwedFees(
+        network,
+        tokenId,
+        position.owner,
+        position.owner,
+        requestDispatchCheck(deadline),
+      ),
     );
     const [facts, nft] = await Promise.all([
-      this.#pair(network, position.token0, position.token1),
-      this.liquidity.positionNftFacts(network, "V3"),
+      this.#pair(deadline, network, position.token0, position.token1),
+      this.liquidity.positionNftFacts(network, "V3", requestDispatchCheck(deadline)),
     ]);
     const status = rangeStatus(pool.currentTick, position.tickLower, position.tickUpper);
 
-    return this.#view(scope, network, {
+    return this.#view(deadline, scope, network, {
       nftTokenId: tokenId,
       owner: position.owner,
       poolAddress: pool.poolAddress,
@@ -146,14 +157,19 @@ export class SunSwapPositionInfoService {
   }
 
   async #v4(
+    deadline: ExecutionDeadline,
     scope: WarnScope,
     network: NetworkDescriptor,
     tokenId: string,
   ): Promise<PositionInfoView> {
     const position = await readPosition("V4", tokenId, network, () =>
-      this.liquidity.v4Position(network, tokenId),
+      this.liquidity.v4Position(network, tokenId, requestDispatchCheck(deadline)),
     );
-    const pool = await this.liquidity.v4PoolState(network, position.poolId);
+    const pool = await this.liquidity.v4PoolState(
+      network,
+      position.poolId,
+      requestDispatchCheck(deadline),
+    );
     if (!pool.exists) {
       throw new ChainError(
         "pool_not_found",
@@ -164,21 +180,25 @@ export class SunSwapPositionInfoService {
     const range = { tickLower: position.tickLower, tickUpper: position.tickUpper };
     const amounts = this.liquidity.v4AmountsForLiquidity(pool, range, position.liquidity);
     const owed = await this.#owed(scope, tokenId, async () =>
-      this.liquidity.v4OwedFees(network, {
-        tokenId,
-        poolId: position.poolId,
-        tickLower: position.tickLower,
-        tickUpper: position.tickUpper,
-      }),
+      this.liquidity.v4OwedFees(
+        network,
+        {
+          tokenId,
+          poolId: position.poolId,
+          tickLower: position.tickLower,
+          tickUpper: position.tickUpper,
+        },
+        requestDispatchCheck(deadline),
+      ),
     );
     const [facts, nft] = await Promise.all([
-      this.#pair(network, pool.currency0, pool.currency1),
-      this.liquidity.positionNftFacts(network, "V4"),
+      this.#pair(deadline, network, pool.currency0, pool.currency1),
+      this.liquidity.positionNftFacts(network, "V4", requestDispatchCheck(deadline)),
     ]);
     const status = rangeStatus(pool.currentTick, position.tickLower, position.tickUpper);
     const derived = derivedAmounts(amounts.amount0, amounts.amount1, pool.sqrtPriceX96);
 
-    return this.#view(scope, network, {
+    return this.#view(deadline, scope, network, {
       nftTokenId: tokenId,
       owner: position.owner,
       poolAddress: pool.poolId,
@@ -211,6 +231,7 @@ export class SunSwapPositionInfoService {
 
   // Publish aggregate USD values only when both token prices are known.
   async #view(
+    deadline: ExecutionDeadline,
     scope: WarnScope,
     network: NetworkDescriptor,
     parts: {
@@ -231,7 +252,7 @@ export class SunSwapPositionInfoService {
     },
   ): Promise<PositionInfoView> {
     const [token0, token1] = parts.facts;
-    const prices = await this.#prices(scope, network, [token0!.address, token1!.address]);
+    const prices = await this.#prices(deadline, scope, network, [token0!.address, token1!.address]);
     const amounts = [parts.amounts.amount0, parts.amounts.amount1];
     const rewards = parts.owed === undefined ? undefined : [parts.owed.amount0, parts.owed.amount1];
 
@@ -282,14 +303,18 @@ export class SunSwapPositionInfoService {
   }
 
   async #pair(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     address0: string,
     address1: string,
   ): Promise<(TokenFacts & { name?: string })[]> {
-    return Promise.all([address0, address1].map((address) => this.#facts(network, address)));
+    return Promise.all(
+      [address0, address1].map((address) => this.#facts(commandDeadline, network, address)),
+    );
   }
 
   async #facts(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     address: string,
   ): Promise<TokenFacts & { name?: string }> {
@@ -297,14 +322,15 @@ export class SunSwapPositionInfoService {
       return { address, decimals: FAMILIES.tron.nativeDecimals, symbol: "TRX", name: "TRON" };
     }
     const [facts, name] = await Promise.all([
-      this.liquidity.tokenFacts(network, address),
-      this.liquidity.tokenName(network, address),
+      this.liquidity.tokenFacts(network, address, requestDispatchCheck(deadline)),
+      this.liquidity.tokenName(network, address, requestDispatchCheck(deadline)),
     ]);
     return { ...facts, ...(name === undefined ? {} : { name }) };
   }
 
   // Price failures must not hide the on-chain position or become zero valuations.
   async #prices(
+    deadline: ExecutionDeadline,
     scope: WarnScope,
     network: NetworkDescriptor,
     addresses: readonly string[],
@@ -318,7 +344,7 @@ export class SunSwapPositionInfoService {
       return empty;
     }
     try {
-      const quotes = await this.market.prices(network, addresses);
+      const quotes = await this.market.prices(network, addresses, requestDispatchCheck(deadline));
       for (const quote of quotes) {
         // The API uses zero for tokens it has not indexed.
         if (quote.priceUsd !== undefined && quote.priceUsd !== "" && Number(quote.priceUsd) > 0) {

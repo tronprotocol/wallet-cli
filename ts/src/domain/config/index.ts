@@ -7,16 +7,19 @@ export interface ValueRule<T> {
   description: string;
 }
 
+// The largest delay a Node timer accepts; 0 means no deadline.
+export const MAX_TIMEOUT_MS = 2_147_483_647;
+
 export const TIMEOUT_MS_RULE: ValueRule<number> = {
   accepts: (value): value is number =>
-    typeof value === "number" && Number.isFinite(value) && value >= 1,
-  description: "a number >= 1",
+    Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_TIMEOUT_MS,
+  description: `an integer from 0 to ${MAX_TIMEOUT_MS}`,
 };
 
-export const WAIT_TIMEOUT_MS_RULE: ValueRule<number> = {
-  accepts: (value): value is number => Number.isInteger(value) && (value as number) >= 0,
-  description: "a non-negative integer",
-};
+// Decimal digits only, so "", "1e3", and "0x10" do not pass as numbers; NaN fails the rule.
+export function timeoutMsFromText(text: string): number {
+  return /^\d+$/.test(text) ? Number(text) : Number.NaN;
+}
 
 export const OUTPUT_MODES = ["text", "json"] as const satisfies readonly OutputMode[];
 

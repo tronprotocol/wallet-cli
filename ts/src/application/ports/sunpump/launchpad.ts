@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../contracts/deadline.js";
 // Return unsigned payloads; the transaction pipeline owns signing and broadcasting.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type {
@@ -31,18 +32,45 @@ export interface LaunchpadPort extends ApprovalCapablePort {
   readonly approvalDomain: "sunpump-launchpad";
 
   // On-chain trading state; catalogue status can be stale.
-  tokenState(network: NetworkDescriptor, token: string): Promise<LaunchpadState>;
+  tokenState(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<LaunchpadState>;
 
-  tokenFacts(network: NetworkDescriptor, token: string): Promise<LaunchpadTokenFacts>;
+  tokenFacts(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<LaunchpadTokenFacts>;
 
-  balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<BaseUnits>;
+  balanceOf(
+    network: NetworkDescriptor,
+    token: string,
+    owner: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits>;
 
-  quoteBuy(network: NetworkDescriptor, token: string, trxSun: Sun): Promise<BuyQuote>;
+  quoteBuy(
+    network: NetworkDescriptor,
+    token: string,
+    trxSun: Sun,
+    check: DispatchCheck,
+  ): Promise<BuyQuote>;
 
-  quoteSell(network: NetworkDescriptor, token: string, tokenAmount: BaseUnits): Promise<SellQuote>;
+  quoteSell(
+    network: NetworkDescriptor,
+    token: string,
+    tokenAmount: BaseUnits,
+    check: DispatchCheck,
+  ): Promise<SellQuote>;
 
   // Token amount corresponding to one SUN net proceeds.
-  minimumSellAmount(network: NetworkDescriptor, token: string): Promise<BaseUnits>;
+  minimumSellAmount(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits>;
 
   // expected × (1 − slippage), using SDK integer arithmetic.
   applyFloor(expected: string, slippageBips: number): string;

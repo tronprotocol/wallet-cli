@@ -1,3 +1,5 @@
+import type { ExecutionDeadline } from "../contracts/deadline.js";
+import { CommandDeadline } from "../services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { AgentService } from "./agent-service.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
@@ -10,6 +12,8 @@ import type {
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import { tronAddressFromEvmHex } from "../../domain/family/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const owner = "0x1111111111111111111111111111111111111111";
 const operator = "0x2222222222222222222222222222222222222222";
@@ -29,12 +33,18 @@ function fixture(stage = "submitted") {
   } as AgentContractPorts;
   const reader = {
     registry: vi.fn(() => registryAddress),
-    read: vi.fn(async (_net: NetworkDescriptor, method: string): Promise<AgentRegistryValue> => {
-      if (method === "ownerOf(uint256)") return owner;
-      if (method === "tokenURI(uint256)") return "ipfs://old";
-      if (method === "getApproved(uint256)") return operator;
-      return true;
-    }),
+    read: vi.fn(
+      async (
+        _deadline: ExecutionDeadline,
+        _net: NetworkDescriptor,
+        method: string,
+      ): Promise<AgentRegistryValue> => {
+        if (method === "ownerOf(uint256)") return owner;
+        if (method === "tokenURI(uint256)") return "ipfs://old";
+        if (method === "getApproved(uint256)") return operator;
+        return true;
+      },
+    ),
     registeredAgentId: vi.fn(async () => "9007199254740993"),
   } satisfies AgentRegistryReader;
   const metadata = {
@@ -43,6 +53,7 @@ function fixture(stage = "submitted") {
     })),
   } satisfies AgentRegistrationLoader;
   const scope = {
+    deadline: NO_DEADLINE,
     wait: stage !== "submitted",
     warn: vi.fn(),
     resolveAddress: () => owner,
@@ -53,7 +64,7 @@ function fixture(stage = "submitted") {
 describe("AgentService beta integration", () => {
   it("shows authoritative on-chain fields and independently loaded metadata", async () => {
     const { service } = fixture();
-    expect(await service.show(evmNet, "56:42")).toEqual({
+    expect(await service.show(NO_DEADLINE, evmNet, "56:42")).toEqual({
       agentId: "42",
       owner,
       uri: "ipfs://old",
@@ -65,7 +76,7 @@ describe("AgentService beta integration", () => {
   it("keeps chain data when metadata cannot be loaded", async () => {
     const f = fixture();
     f.metadata.load.mockResolvedValue({ warning: "Metadata unavailable" } as never);
-    expect(await f.service.show(evmNet, "42")).toMatchObject({
+    expect(await f.service.show(NO_DEADLINE, evmNet, "42")).toMatchObject({
       owner,
       uri: "ipfs://old",
       warnings: ["Metadata unavailable"],
@@ -73,7 +84,7 @@ describe("AgentService beta integration", () => {
   });
   it("rejects cross-network IDs before any RPC", async () => {
     const f = fixture();
-    await expect(f.service.show(evmNet, "97:42")).rejects.toMatchObject({
+    await expect(f.service.show(NO_DEADLINE, evmNet, "97:42")).rejects.toMatchObject({
       code: "chain_id_mismatch",
     });
     expect(f.reader.read).not.toHaveBeenCalled();
@@ -225,10 +236,15 @@ it("includes operator identity and re-reads approval only after confirmation", a
   const { service, scope, reader } = fixture("confirmed");
   const result = await service.operatorAdd(scope, evmNet, { operator });
   expect(result.identity).toEqual({ operator, requestedApproval: true, approved: true });
-  expect(reader.read).toHaveBeenCalledWith(evmNet, "isApprovedForAll(address,address)", [
-    { type: "address", value: owner },
-    { type: "address", value: operator },
-  ]);
+  expect(reader.read).toHaveBeenCalledWith(
+    expect.anything(),
+    evmNet,
+    "isApprovedForAll(address,address)",
+    [
+      { type: "address", value: owner },
+      { type: "address", value: operator },
+    ],
+  );
 });
 
 describe("AgentService per-family behavior", () => {
@@ -250,7 +266,11 @@ describe("AgentService per-family behavior", () => {
       registeredAgentId: vi.fn(async () => undefined),
     } satisfies AgentRegistryReader;
     const loader = { load: vi.fn(async () => ({})) } satisfies AgentRegistrationLoader;
-    const scope = { wait: false, warn: vi.fn() } as unknown as TransactionScope;
+    const scope = {
+      deadline: NO_DEADLINE,
+      wait: false,
+      warn: vi.fn(),
+    } as unknown as TransactionScope;
     const service = new AgentService(contracts as unknown as AgentContractPorts, reader, loader);
     return { service, contracts, scope };
   }
@@ -291,8 +311,10 @@ describe("AgentService per-family behavior", () => {
 
   it("shows registry addresses in each family's canonical form", async () => {
     const f = familyFixture();
-    expect((await f.service.show(evmNet, "1")).owner).toBe(owner);
-    expect((await f.service.show(tronNet, "1")).owner).toBe(tronAddressFromEvmHex(owner));
+    expect((await f.service.show(NO_DEADLINE, evmNet, "1")).owner).toBe(owner);
+    expect((await f.service.show(NO_DEADLINE, tronNet, "1")).owner).toBe(
+      tronAddressFromEvmHex(owner),
+    );
     expect(tronAddressFromEvmHex(owner)).toMatch(/^T/);
   });
 });

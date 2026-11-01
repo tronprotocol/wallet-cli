@@ -35,7 +35,7 @@ The command was malformed — a flag is unknown, missing, conflicting, or has a 
 
 - Re-run with `--help` on the exact subcommand: `wallet-cli tx send --help`.
 - Common conflicts: `--amount` vs `--raw-amount`; `--token` vs `--contract` vs `--asset-id`; `--dry-run` vs `--sign-only`; `--constructor-args` vs `--constructor-params`; `--artifact` vs `--code` vs `--code-file` on `contract deploy`; two `*-stdin` flags in one run.
-- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks`, `aliases`, `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}`, and the credential keys `gasfreeApiKey`, `gasfreeApiSecret`, `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `baiApiKey`) and values (`defaultOutput` is `text` or `json`).
+- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `networks`, `aliases`, `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}`, and the credential keys `gasfreeApiKey`, `gasfreeApiSecret`, `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `baiApiKey`) and values (`defaultOutput` is `text` or `json`; `timeoutMs` is an integer from 0 to 2147483647).
 
 ## `family_mismatch` (exit 2)
 
@@ -76,12 +76,13 @@ A credential, secret, or signing-device approval was needed but none was availab
 
 ## `timeout` (exit 1)
 
-The node or the Ledger device didn't answer within `--timeout` (default 60000 ms).
+The command did not finish within `--timeout` (default 90000 ms), which covers the whole command, or a node, service or Ledger device did not answer in time.
 
 - Check basic connectivity to the network; if you are behind a proxy, verify the CLI's traffic actually goes through it.
-- Raise the bound: `--timeout 120000`.
+- Raise the limit: `--timeout 180000`. A `--timeout` below 2000 never submits a transaction or payment.
+- With `--wait`, a transaction that was accepted but not yet confirmed returns `stage: "submitted"` and a warning instead of `timeout`; check it with `tx status`.
 - Ledger: confirm the device is unlocked and the app the account was registered with (`--app tron` or `--app ethereum`) is open, then retry.
-- **If this happened on `tx send`**: the transaction may still have been submitted. Recover the txid if you have it and check `tx status` before resending.
+- **If `error.details.txId` is present**, the transaction may have been submitted. Check `tx status` with that id before resending.
 
 ## `rpc_error` (exit 1)
 

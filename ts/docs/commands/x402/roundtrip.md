@@ -17,6 +17,8 @@ Runs [`x402 serve`](serve.md) and [`x402 pay`](pay.md) in one step: it starts th
 
 **This is a real payment** of the price to `--pay-to`, and `pay` only accepts the route the server was started with, so nothing else can be paid.
 
+One `--timeout` covers the whole run: start-up, the payment, and the local server's verification and settlement. The server is then closed without waiting for open connections.
+
 The server always binds to `127.0.0.1`. The same validation as `x402 serve` applies to the price, token, scheme, port and facilitator options. Requires an account and the master password (via `--password-stdin`).
 
 ## Options
@@ -77,7 +79,7 @@ printf '%s' "$PW" | wallet-cli x402 roundtrip --pay-to TMSgJxtPw29AFEHMXsjGo4kWV
 
 ## Exit status
 
-`0` paid · `1` execution failure (the payment errors of [`x402 pay`](pay.md#exit-status); `auth_required` — no `--password-stdin`; `missing_wallet_address`; `port_in_use`) · `2` usage error (the usage errors of [`x402 serve`](serve.md#exit-status); `invalid_option` — two exclusive options (`--amount` / `--raw-amount`, `--token` / `--asset`, both GasFree fee caps), `--decimals` without `--asset`, or `--wait` / `--wait-timeout`, which this command does not take; `gasfree_credentials_missing`).
+`0` paid · `1` execution failure (the payment errors of [`x402 pay`](pay.md#exit-status); `auth_required` — no `--password-stdin`; `missing_wallet_address`; `port_in_use`) · `2` usage error (the usage errors of [`x402 serve`](serve.md#exit-status); `invalid_option` — two exclusive options (`--amount` / `--raw-amount`, `--token` / `--asset`, both GasFree fee caps), `--decimals` without `--asset`, or `--wait`, which this command does not take; `gasfree_credentials_missing`).
 
 ## See also
 

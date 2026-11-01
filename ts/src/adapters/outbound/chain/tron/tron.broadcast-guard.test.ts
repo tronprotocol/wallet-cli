@@ -1,3 +1,7 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../../application/services/command-deadline.js";
 import { describe, it, expect } from "vitest";
 import {
   barBroadcasts,
@@ -6,6 +10,8 @@ import {
 import { submitWithTxId } from "../../../../application/services/broadcast-identity.js";
 import { TronRpcClient } from "./tron.js";
 import { withTronWeb } from "./__test-support__/tronweb.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const SIGNED = { txID: "abc", signature: ["sig"] } as never;
 
@@ -25,27 +31,29 @@ const REJECT_NO_RESULT_FIELD = {
 describe("TronRpcClient broadcast guard — node rejection must never read as accepted", () => {
   it("broadcast throws when the node rejects without a `result` field", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendRawTransaction = (() => Promise.resolve(REJECT_NO_RESULT_FIELD)) as never;
 
-    await expect(client.broadcast(SIGNED)).rejects.toMatchObject({ code: "transaction_rejected" });
+    await expect(client.broadcast(SIGNED, NO_CHECK)).rejects.toMatchObject({
+      code: "transaction_rejected",
+    });
   });
 
   it("broadcastHex throws when the node rejects without a `result` field", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendHexTransaction = (() => Promise.resolve(REJECT_NO_RESULT_FIELD)) as never;
 
-    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+    await expect(client.broadcastHex(SIGNED_HEX, NO_CHECK)).rejects.toMatchObject({
       code: "transaction_rejected",
     });
   });
 
   it("broadcast accepts the captured {result:true, txid} response", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendRawTransaction = (() =>
       Promise.resolve({
@@ -53,14 +61,14 @@ describe("TronRpcClient broadcast guard — node rejection must never read as ac
         txid: "0d10b8f45a67f953034721ec7108721d17964a83a60a501c45db868816762431",
       })) as never;
 
-    await expect(client.broadcast(SIGNED)).resolves.toEqual({
+    await expect(client.broadcast(SIGNED, NO_CHECK)).resolves.toEqual({
       txId: "0d10b8f45a67f953034721ec7108721d17964a83a60a501c45db868816762431",
     });
   });
 
   it("broadcastHex accepts the captured {result:true, code:'SUCCESS', txid} response", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendHexTransaction = (() =>
       Promise.resolve({
@@ -70,7 +78,7 @@ describe("TronRpcClient broadcast guard — node rejection must never read as ac
         txid: "1ca0b2a5bb7f39546c696f04de6a4ebac9e14b45deca9d9244d3e0fdba9144b3",
       })) as never;
 
-    await expect(client.broadcastHex(SIGNED_HEX)).resolves.toEqual({
+    await expect(client.broadcastHex(SIGNED_HEX, NO_CHECK)).resolves.toEqual({
       txId: "1ca0b2a5bb7f39546c696f04de6a4ebac9e14b45deca9d9244d3e0fdba9144b3",
     });
   });
@@ -86,23 +94,23 @@ describe("TronRpcClient.broadcastHex classifies a recognised rejection", () => {
       ).toString("hex"),
     };
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendHexTransaction = (() => Promise.resolve(rejection)) as never;
 
-    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+    await expect(client.broadcastHex(SIGNED_HEX, NO_CHECK)).rejects.toMatchObject({
       code: "exchange_trading_disabled",
     });
   });
 
   it("still falls back to transaction_rejected for wording it does not know", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendHexTransaction = (() =>
       Promise.resolve({ result: false, code: "SIGERROR" })) as never;
 
-    await expect(client.broadcastHex(SIGNED_HEX)).rejects.toMatchObject({
+    await expect(client.broadcastHex(SIGNED_HEX, NO_CHECK)).rejects.toMatchObject({
       code: "transaction_rejected",
     });
   });
@@ -116,14 +124,14 @@ describe("TronRpcClient broadcast reports a node code that may follow acceptance
     async (code) => {
       const response = { result: false, code, message: Buffer.from("boom").toString("hex") };
       const { client, tronweb } = withTronWeb(
-        () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+        () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
       );
       tronweb.trx.sendRawTransaction = (() => Promise.resolve(response)) as never;
       tronweb.trx.sendHexTransaction = (() => Promise.resolve(response)) as never;
 
       for (const submit of [
-        () => client.broadcast(SIGNED),
-        () => client.broadcastHex(SIGNED_HEX),
+        () => client.broadcast(SIGNED, NO_CHECK),
+        () => client.broadcastHex(SIGNED_HEX, NO_CHECK),
       ]) {
         await expect(submitWithTxId(TX_ID, submit)).rejects.toMatchObject({
           code: "rpc_error",
@@ -137,13 +145,13 @@ describe("TronRpcClient broadcast reports a node code that may follow acceptance
     "keeps %s a definite rejection without a txId",
     async (code) => {
       const { client, tronweb } = withTronWeb(
-        () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+        () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
       );
       tronweb.trx.sendRawTransaction = (() => Promise.resolve({ result: false, code })) as never;
 
-      const error: unknown = await submitWithTxId(TX_ID, () => client.broadcast(SIGNED)).catch(
-        (e: unknown) => e,
-      );
+      const error: unknown = await submitWithTxId(TX_ID, () =>
+        client.broadcast(SIGNED, NO_CHECK),
+      ).catch((e: unknown) => e);
       expect(error).toMatchObject({ code: "transaction_rejected" });
       expect((error as { details?: object }).details).not.toHaveProperty("txId");
     },
@@ -156,7 +164,7 @@ describe("TronRpcClient broadcast keeps the node's own words in the message", ()
 
   it("folds the node's words into the message, not just details, for a recognised rejection", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendRawTransaction = (() =>
       Promise.resolve({
@@ -165,7 +173,7 @@ describe("TronRpcClient broadcast keeps the node's own words in the message", ()
         txid: "abc",
       })) as never;
 
-    await expect(client.broadcast(SIGNED)).rejects.toMatchObject({
+    await expect(client.broadcast(SIGNED, NO_CHECK)).rejects.toMatchObject({
       code: "slippage_exceeded",
       message: expect.stringContaining("token required must greater than expected"),
     });
@@ -173,7 +181,7 @@ describe("TronRpcClient broadcast keeps the node's own words in the message", ()
 
   it("keeps details.nodeMessage for machine readers", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendRawTransaction = (() =>
       Promise.resolve({
@@ -182,7 +190,7 @@ describe("TronRpcClient broadcast keeps the node's own words in the message", ()
         txid: "abc",
       })) as never;
 
-    await expect(client.broadcast(SIGNED)).rejects.toMatchObject({
+    await expect(client.broadcast(SIGNED, NO_CHECK)).rejects.toMatchObject({
       details: {
         nodeMessage: expect.stringContaining("token required must greater than expected"),
       },
@@ -191,7 +199,7 @@ describe("TronRpcClient broadcast keeps the node's own words in the message", ()
 
   it("still redacts the node's words before folding them into the message", async () => {
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
     );
     tronweb.trx.sendRawTransaction = (() =>
       Promise.resolve({
@@ -200,7 +208,7 @@ describe("TronRpcClient broadcast keeps the node's own words in the message", ()
         txid: "abc",
       })) as never;
 
-    const error = await client.broadcast(SIGNED).catch((e) => e);
+    const error = await client.broadcast(SIGNED, NO_CHECK).catch((e) => e);
     expect(error.message).not.toContain("/report");
     expect(error.message).not.toContain("SECRET123");
     expect(error.message).toContain("https://node.example.com");
@@ -213,7 +221,7 @@ describe("expired node responses", () => {
     "maps expiration on either broadcast entry point (hex=%s)",
     async (hex) => {
       const { client, tronweb } = withTronWeb(
-        () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+        () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
       );
       const rejected = {
         result: false,
@@ -223,7 +231,7 @@ describe("expired node responses", () => {
       tronweb.trx.sendRawTransaction = (() => Promise.resolve(rejected)) as never;
       tronweb.trx.sendHexTransaction = (() => Promise.resolve(rejected)) as never;
       await expect(
-        hex ? client.broadcastHex(SIGNED_HEX) : client.broadcast(SIGNED),
+        hex ? client.broadcastHex(SIGNED_HEX, NO_CHECK) : client.broadcast(SIGNED, NO_CHECK),
       ).rejects.toMatchObject({
         code: "tx_expired",
         details: { nodeCode: "TRANSACTION_EXPIRATION_ERROR" },
@@ -248,12 +256,14 @@ describe.each(["broadcast", "broadcastHex"] as const)(
       { message: {}, code: 42 },
     ])("reports %j as an unknown outcome", async (response) => {
       const { client, tronweb } = withTronWeb(
-        () => new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard),
+        () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
       );
       tronweb.trx.sendRawTransaction = (() => Promise.resolve(response)) as never;
       tronweb.trx.sendHexTransaction = (() => Promise.resolve(response)) as never;
       await expect(
-        method === "broadcast" ? client.broadcast(SIGNED) : client.broadcastHex(SIGNED_HEX),
+        method === "broadcast"
+          ? client.broadcast(SIGNED, NO_CHECK)
+          : client.broadcastHex(SIGNED_HEX, NO_CHECK),
       ).rejects.toMatchObject({ code: "invalid_node_response" });
     });
   },
@@ -264,8 +274,8 @@ describe.each(["broadcast", "broadcastHex"] as const)("TronRpcClient.%s guard", 
     const sent: unknown[] = [];
     const { client: rpc, tronweb: rpcTronweb } = withTronWeb(() =>
       wired
-        ? new TronRpcClient("http://localhost:1", 200, undefined, processBroadcastGuard)
-        : new TronRpcClient("http://localhost:1", 200),
+        ? new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard)
+        : new TronRpcClient("http://localhost:1"),
     );
     const accept = (tx: unknown) => {
       sent.push(tx);
@@ -274,7 +284,9 @@ describe.each(["broadcast", "broadcastHex"] as const)("TronRpcClient.%s guard", 
     rpcTronweb.trx.sendRawTransaction = accept as never;
     rpcTronweb.trx.sendHexTransaction = accept as never;
     const submit = () =>
-      method === "broadcast" ? rpc.broadcast(SIGNED) : rpc.broadcastHex(SIGNED_HEX);
+      method === "broadcast"
+        ? rpc.broadcast(SIGNED, NO_CHECK)
+        : rpc.broadcastHex(SIGNED_HEX, NO_CHECK);
     return { sent, submit };
   }
 

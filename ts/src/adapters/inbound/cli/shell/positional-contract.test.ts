@@ -27,6 +27,7 @@ describe("every registered positional command rejects its --<field> spelling", (
       globals: { output: "json", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
+      monotonicStart: performance.now(),
     });
     // Replace both prompter references to prevent real /dev/tty prompts on developer machines.
     const unreachable = (site: string) => () => {
@@ -202,16 +203,14 @@ describe("every registered positional command rejects its --<field> spelling", (
       .flatMap((c) => (isChainCommand(c) && c.spec.rejectsWait !== undefined ? [c.spec.path] : []));
     expect(paths.map((path) => path.join(" ")).sort()).toEqual(["sunpump launch"]);
     for (const path of paths) {
-      for (const flag of [["--wait"], ["--wait-timeout", "1000"]]) {
-        await expect(buildCli(shellOpts()).parseAsync([...path, ...flag])).rejects.toMatchObject({
-          code: "invalid_option",
-          message: new RegExp(`^${path.join(" ")} does not accept --wait: `),
-        });
-      }
+      await expect(buildCli(shellOpts()).parseAsync([...path, "--wait"])).rejects.toMatchObject({
+        code: "invalid_option",
+        message: new RegExp(`^${path.join(" ")} does not accept --wait: `),
+      });
     }
   });
 
-  it("refuses --wait and --wait-timeout with --quote on the commands that declare it", async () => {
+  it("refuses --wait with --quote on the commands that declare it", async () => {
     const commands = newRuntime()
       .registry.all()
       .flatMap((c) =>
@@ -225,14 +224,12 @@ describe("every registered positional command rejects its --<field> spelling", (
       "sunswap swap --quote",
     ]);
     for (const { path } of commands) {
-      for (const [flag, ...value] of [["--wait"], ["--wait-timeout", "1000"]]) {
-        await expect(
-          buildCli(shellOpts()).parseAsync([...path, "--quote", flag!, ...value]),
-        ).rejects.toMatchObject({
-          code: "invalid_option",
-          message: `${flag} cannot be used with --quote, which sends no transaction`,
-        });
-      }
+      await expect(
+        buildCli(shellOpts()).parseAsync([...path, "--quote", "--wait"]),
+      ).rejects.toMatchObject({
+        code: "invalid_option",
+        message: "--wait cannot be used with --quote, which sends no transaction",
+      });
     }
   });
 

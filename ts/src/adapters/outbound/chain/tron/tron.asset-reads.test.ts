@@ -18,7 +18,7 @@ function nodeReturns(body: string) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-const client = () => new TronRpcClient("https://node.invalid", 1000);
+const client = () => new TronRpcClient("https://node.invalid");
 
 const ASSET = `{
   "id": "1002438",

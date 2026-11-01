@@ -59,9 +59,8 @@ export interface Config {
   // Used when --network is omitted.
   defaultNetwork?: string;
   defaultOutput: OutputMode;
+  // Default command deadline; 0 means no deadline.
   timeoutMs: number;
-  // Default --wait polling cap; --wait-timeout overrides it.
-  waitTimeoutMs: number;
   networks: Record<NetworkId, NetworkDescriptor>;
   // Resolve to canonical ids at the --network boundary.
   aliases: Record<string, NetworkId>;

@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../contracts/deadline.js";
 import type { BaiRawOrder } from "./bai-recharge.js";
 
 export interface BaiStatusView {
@@ -36,7 +37,7 @@ export interface BaiPageView<T> {
 }
 
 export interface BaiApi {
-  status(): Promise<BaiStatusView>;
-  usageList(input: BaiPageInput): Promise<BaiPageView<BaiUsageRecord>>;
-  rechargeList(input: BaiPageInput): Promise<BaiPageView<BaiRawOrder>>;
+  status(check: DispatchCheck): Promise<BaiStatusView>;
+  usageList(input: BaiPageInput, check: DispatchCheck): Promise<BaiPageView<BaiUsageRecord>>;
+  rechargeList(input: BaiPageInput, check: DispatchCheck): Promise<BaiPageView<BaiRawOrder>>;
 }

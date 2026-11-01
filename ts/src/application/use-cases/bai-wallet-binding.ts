@@ -1,3 +1,4 @@
+import { assertSubmitAdmitted, submitDispatchCheck } from "../services/command-deadline.js";
 import { randomBytes } from "node:crypto";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { MessageSigner } from "../services/signing/message-signer.js";
@@ -41,6 +42,10 @@ export class BaiWalletBinding {
     });
     const signed = await this.messages.sign(scope, network, scope.activeAccount, message, "built");
     scope.emit({ type: "activity", message: "Binding the selected wallet to B.AI…" });
-    await api.bind({ chain, address, message, signature: signed.signature, version: 2 });
+    assertSubmitAdmitted(scope.deadline);
+    await api.bind(
+      { chain, address, message, signature: signed.signature, version: 2 },
+      submitDispatchCheck(scope.deadline),
+    );
   }
 }

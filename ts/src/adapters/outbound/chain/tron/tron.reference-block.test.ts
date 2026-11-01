@@ -29,7 +29,7 @@ function nodeAt(head: number) {
     return Response.json(block(height === "head" ? head : height));
   });
   vi.stubGlobal("fetch", fetch);
-  return { client: new TronRpcClient("https://node.invalid", 1000), requested };
+  return { client: new TronRpcClient("https://node.invalid"), requested };
 }
 
 const transaction = (ref: { bytes: string; hash: string }, timestamp = HEAD_TIME - 60_000) =>

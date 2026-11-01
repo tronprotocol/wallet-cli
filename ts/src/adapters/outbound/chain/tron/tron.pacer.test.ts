@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
+import { expiringCheck } from "../../http/__test-support__/dispatch.js";
 import type { HttpTransport } from "../../http/index.js";
 import { withTronWeb } from "./__test-support__/tronweb.js";
 
@@ -43,7 +45,7 @@ describe("TronRpcClient request pacing", () => {
         return "{}";
       },
     };
-    const client = new TronRpcClient("http://localhost:1", 30_000, transport);
+    const client = new TronRpcClient("http://localhost:1", transport);
     await settle(Promise.all(Array.from({ length: 3 }, () => client.getAccount(ADDRESS))));
     expect(t.starts).toHaveLength(3);
     expect(t.peak()).toBeLessThanOrEqual(2);
@@ -53,7 +55,7 @@ describe("TronRpcClient request pacing", () => {
   // Stub below the provider wrapper so pacing remains under test.
   it("paces tronweb-backed methods too", async () => {
     const t = tracker();
-    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 30_000));
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
     tronweb.fullNode.instance.request = (async () => {
       await t.enter();
       return { data: {} };
@@ -73,7 +75,7 @@ describe("TronRpcClient request pacing", () => {
       },
     };
     const { client, tronweb } = withTronWeb(
-      () => new TronRpcClient("http://localhost:1", 30_000, transport),
+      () => new TronRpcClient("http://localhost:1", transport),
     );
     tronweb.fullNode.instance.request = (async () => {
       await t.enter();
@@ -94,7 +96,7 @@ describe("TronRpcClient request pacing", () => {
 
   it("does not let pacing spend the caller's timeout budget", async () => {
     const transport: HttpTransport = { requestText: async () => "{}" };
-    const client = new TronRpcClient("http://localhost:1", 500, transport);
+    const client = new TronRpcClient("http://localhost:1", transport);
     const started = Date.now();
     await expect(
       settle(Promise.all(Array.from({ length: 4 }, () => client.getAccount(ADDRESS)))),
@@ -111,9 +113,11 @@ describe("TronRpcClient request pacing", () => {
         return "{}";
       },
     };
-    const client = new TronRpcClient("http://localhost:1", 500, transport);
+    const client = new TronRpcClient("http://localhost:1", transport);
     const results = await settle(
-      Promise.allSettled(Array.from({ length: 4 }, () => client.getAccount(ADDRESS))),
+      withDispatchCheck(expiringCheck(500), () =>
+        Promise.allSettled(Array.from({ length: 4 }, () => client.getAccount(ADDRESS))),
+      ),
     );
     expect(results.every((r) => r.status === "rejected")).toBe(true);
     // The two queued requests expire before obtaining permits.
@@ -122,7 +126,7 @@ describe("TronRpcClient request pacing", () => {
 
   it("keeps pacing after tronweb swaps its providers", async () => {
     const t = tracker();
-    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 30_000));
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
     tronweb.setHeader({ "TRON-PRO-API-KEY": "key" });
     tronweb.fullNode.instance.request = (async () => {
       await t.enter();

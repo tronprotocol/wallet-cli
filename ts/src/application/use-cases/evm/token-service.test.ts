@@ -4,8 +4,16 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor, TokenEntry } from "../../../domain/types/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
 
-const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xOWNER" };
+const NO_DEADLINE = new CommandDeadline(0);
+
+const scope: AccountScope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => "0xOWNER",
+};
 const net = { id: "eip155:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
 const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 
@@ -47,6 +55,21 @@ describe("EvmTokenService.balance", () => {
       symbol: "USDT",
       decimals: 6,
     });
+  });
+
+  it("fails the read when the deadline ends the metadata lookup", async () => {
+    const expired = new DeadlineExpiredError();
+    const gateway = {
+      getErc20Balance: async () => "5000000",
+      getErc20Metadata: async () => {
+        throw expired;
+      },
+    };
+    const timed = new EvmTokenService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as TokenRepository,
+    );
+    await expect(timed.balance(scope, net, { contract: USDT })).rejects.toBe(expired);
   });
 
   it("still reports the balance when metadata is unreadable", async () => {
@@ -111,7 +134,7 @@ describe("EvmTokenService.info", () => {
   it("reports the contract's metadata", async () => {
     const { svc } = service({ symbol: "USDT", decimals: 6, name: "Tether USD" });
 
-    await expect(svc.info(net, { contract: USDT })).resolves.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, net, { contract: USDT })).resolves.toMatchObject({
       contract: USDT,
       symbol: "USDT",
       decimals: 6,
@@ -122,13 +145,15 @@ describe("EvmTokenService.info", () => {
   it("still reports a token that answers only some of its metadata", async () => {
     const { svc } = service({ decimals: 6 });
 
-    await expect(svc.info(net, { contract: USDT })).resolves.toMatchObject({ decimals: 6 });
+    await expect(svc.info(NO_DEADLINE, net, { contract: USDT })).resolves.toMatchObject({
+      decimals: 6,
+    });
   });
 
   it("refuses an address that answers none of it, rather than echoing it back", async () => {
     const { svc } = service({});
 
-    await expect(svc.info(net, { contract: USDT })).rejects.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, net, { contract: USDT })).rejects.toMatchObject({
       code: "token_metadata_unavailable",
       message: expect.stringContaining("may not be a token contract"),
     });

@@ -6,7 +6,7 @@ Spend TRX to buy a token on its SunPump bonding curve.
 
 ```
 wallet-cli sunpump buy <address> --trx <amount>
-                       [--quote | --dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                       [--quote | --dry-run | --build-only | --wait]
                        [--slippage <decimal> | --min-out <base-units>] [--fee-limit <sun>] [options]
 ```
 
@@ -32,7 +32,7 @@ Before anything is built, the account is checked: one the chain has no record of
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000`. The estimate is a lower bound |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transaction |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--wait` | Poll after broadcast until confirmed/failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning |
 | `--account <label\|accountId>` | Account to buy with; default the active account. Not used by `--quote` |
 | `--password-stdin` | Master password from stdin; needed only when sending |
 

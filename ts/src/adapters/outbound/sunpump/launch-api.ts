@@ -1,5 +1,9 @@
 // Unknown outcomes must not be retried: the service may have already created the token.
 import type { BroadcastGuard } from "../../../application/contracts/broadcast-guard.js";
+import {
+  DeadlineExpiredError,
+  type DispatchCheck,
+} from "../../../application/contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/network.js";
 import type {
   SunPumpTokenLaunchPort,
@@ -13,7 +17,6 @@ import { parseSunPumpShape, sunpumpRequest, type SunPumpApiDeps } from "./api-tr
 
 export class SunPumpLaunchApi implements SunPumpTokenLaunchPort {
   constructor(
-    private readonly timeoutMs: number,
     private readonly guard: BroadcastGuard,
     private readonly deps: SunPumpApiDeps = {},
   ) {}
@@ -21,10 +24,11 @@ export class SunPumpLaunchApi implements SunPumpTokenLaunchPort {
   async launchToken(
     network: NetworkDescriptor,
     request: SunPumpTokenLaunchRequest,
+    check: DispatchCheck,
   ): Promise<SunPumpTokenRecord> {
     this.guard.assertAllowed();
     try {
-      const payload = await sunpumpRequest(network, this.timeoutMs, this.deps, (client) =>
+      const payload = await sunpumpRequest(network, check, this.deps, (client) =>
         client.agentTokenLaunch({
           name: request.name,
           symbol: request.symbol,
@@ -41,11 +45,13 @@ export class SunPumpLaunchApi implements SunPumpTokenLaunchPort {
       }
       return mapToken(inSeconds(parsed));
     } catch (error) {
+      // Refused by the dispatch check: the launch was not sent.
+      if (error instanceof DeadlineExpiredError) throw error;
       if (isRefusal(error)) throw error;
       if (error instanceof CliError && error.code === "launch_outcome_unknown") throw error;
       if (error instanceof CliError && error.code === "timeout") {
         throw outcomeUnknown(
-          `SunPump did not answer within ${this.timeoutMs} ms and may have created the token anyway`,
+          "SunPump did not answer in time and may have created the token anyway",
           request,
         );
       }

@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -6,8 +8,10 @@ export class EvmBlockService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
   // Null at a specific height means not found; null for latest is an invalid node response.
-  async get(network: NetworkDescriptor, number?: string) {
-    const block = await this.gateways.get(network, "evm").getBlock(number);
+  async get(deadline: ExecutionDeadline, network: NetworkDescriptor, number?: string) {
+    const block = await this.gateways
+      .get(network, "evm", requestDispatchCheck(deadline))
+      .getBlock(number);
     if (block === null) {
       throw number === undefined
         ? new ChainError(

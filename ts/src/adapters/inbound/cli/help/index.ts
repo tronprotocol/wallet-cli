@@ -9,6 +9,7 @@ import type {
   StreamManager,
 } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
+import { CONFIG_DEFAULTS } from "../../../../application/contracts/config-defaults.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import { introspectFields, type FieldInfo } from "../arity/index.js";
 import {
@@ -170,7 +171,10 @@ export class HelpService {
       ["-o, --output string", 'Output format ("text", "json") (default from config)'],
       ["--network string", 'Network id or alias, e.g. "tron", "ethereum", "sepolia"'],
       ["--account string", "Account label or address to act as (overrides active)"],
-      ["--timeout int", "Request timeout in milliseconds"],
+      [
+        "--timeout int",
+        `Deadline for the whole command in milliseconds; 0 = no limit (default from config timeoutMs, built-in ${CONFIG_DEFAULTS.timeoutMs})`,
+      ],
       ["-v, --verbose", "Verbose / debug logging"],
       ["-h, --help", "Show help"],
       ["-V, --version", "Print version information and quit"],
@@ -559,7 +563,7 @@ function globalFlagsForText(
     if (g.flag === "--account") return wallet !== "none";
     if (g.flag === "--network") return network !== "none";
     if (g.flag === "--password-stdin") return auth !== "none" && !secretsTtyOnly;
-    if (g.flag === "--wait" || g.flag === "--wait-timeout") return broadcasts;
+    if (g.flag === "--wait") return broadcasts;
     return true;
   });
 }

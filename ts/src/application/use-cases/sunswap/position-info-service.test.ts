@@ -1,9 +1,12 @@
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, it, expect, vi } from "vitest";
 import { SunSwapPositionInfoService } from "./position-info-service.js";
 import type { LiquidityPort } from "../../ports/sunswap/liquidity.js";
 import type { MarketDataPort, PriceRecord } from "../../ports/sunswap/market-data.js";
 import type { NetworkDescriptor, WarningView } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const TRON = {
   id: "tron:728126428",
@@ -111,7 +114,10 @@ describe("position-info — V4", () => {
   it("publishes every field it can read, and nothing it cannot", async () => {
     const { scope, warnings } = warnScope();
     const service = new SunSwapPositionInfoService(makeV4Port(), makeMarket());
-    const out = await service.positionInfo(scope, TRON, { protocol: "V4", positionId: "88" });
+    const out = await service.positionInfo(NO_DEADLINE, scope, TRON, {
+      protocol: "V4",
+      positionId: "88",
+    });
 
     expect(out).toEqual({
       position: {
@@ -167,7 +173,10 @@ describe("position-info — V4", () => {
   it("values the position exactly, past what a double could hold", async () => {
     const { scope } = warnScope();
     const service = new SunSwapPositionInfoService(makeV4Port(), makeMarket());
-    const out = await service.positionInfo(scope, TRON, { protocol: "V4", positionId: "88" });
+    const out = await service.positionInfo(NO_DEADLINE, scope, TRON, {
+      protocol: "V4",
+      positionId: "88",
+    });
     expect(out.position.lpBalanceUsd).toBe("1960167.780582466854511102");
     expect(out.position.extra.tokenRewardUsd).toBe("386.215279865955328950");
   });
@@ -190,6 +199,7 @@ describe("position-info — V4", () => {
       })),
     } as unknown as Partial<LiquidityPort>);
     const out = await new SunSwapPositionInfoService(hooked, makeMarket()).positionInfo(
+      NO_DEADLINE,
       scope,
       TRON,
       { protocol: "V4", positionId: "88" },
@@ -198,6 +208,7 @@ describe("position-info — V4", () => {
 
     const { scope: plain } = warnScope();
     const unhooked = await new SunSwapPositionInfoService(makeV4Port(), makeMarket()).positionInfo(
+      NO_DEADLINE,
       plain,
       TRON,
       { protocol: "V4", positionId: "88" },
@@ -210,7 +221,10 @@ describe("position-info — a USD figure is a claim", () => {
   it("omits every USD key on a network with no price source, and says so", async () => {
     const { scope, warnings } = warnScope();
     const service = new SunSwapPositionInfoService(makeV4Port(), makeMarket());
-    const out = await service.positionInfo(scope, NILE, { protocol: "V4", positionId: "88" });
+    const out = await service.positionInfo(NO_DEADLINE, scope, NILE, {
+      protocol: "V4",
+      positionId: "88",
+    });
 
     expect("lpBalanceUsd" in out.position).toBe(false);
     expect("tokenRewardUsd" in out.position.extra).toBe(false);
@@ -228,6 +242,7 @@ describe("position-info — a USD figure is a claim", () => {
       ),
     } as unknown as Partial<MarketDataPort>);
     const out = await new SunSwapPositionInfoService(makeV4Port(), market).positionInfo(
+      NO_DEADLINE,
       scope,
       TRON,
       { protocol: "V4", positionId: "88" },
@@ -242,6 +257,7 @@ describe("position-info — a USD figure is a claim", () => {
       prices: vi.fn(async () => [{ address: U, priceUsd: "0.999682975934", quotedAt: "" }]),
     } as unknown as Partial<MarketDataPort>);
     const out = await new SunSwapPositionInfoService(makeV4Port(), market).positionInfo(
+      NO_DEADLINE,
       scope,
       TRON,
       { protocol: "V4", positionId: "88" },
@@ -259,6 +275,7 @@ describe("position-info — a USD figure is a claim", () => {
       }),
     } as unknown as Partial<MarketDataPort>);
     const out = await new SunSwapPositionInfoService(makeV4Port(), market).positionInfo(
+      NO_DEADLINE,
       scope,
       TRON,
       { protocol: "V4", positionId: "88" },
@@ -272,10 +289,15 @@ describe("position-info — unclaimed fees", () => {
   it("publishes no amount at all when the fee read cannot answer, never a zero", async () => {
     const { scope, warnings } = warnScope();
     const port = makeV4Port({ v4OwedFees: vi.fn(async () => undefined) } as Partial<LiquidityPort>);
-    const out = await new SunSwapPositionInfoService(port, makeMarket()).positionInfo(scope, TRON, {
-      protocol: "V4",
-      positionId: "88",
-    });
+    const out = await new SunSwapPositionInfoService(port, makeMarket()).positionInfo(
+      NO_DEADLINE,
+      scope,
+      TRON,
+      {
+        protocol: "V4",
+        positionId: "88",
+      },
+    );
     for (const token of out.position.tokens) expect("rewardAmount" in token).toBe(false);
     expect("tokenRewardUsd" in out.position.extra).toBe(false);
     expect(warnings).toEqual([expect.objectContaining({ code: "sunswap_owed_fees_undecodable" })]);
@@ -286,10 +308,15 @@ describe("position-info — unclaimed fees", () => {
     const port = makeV4Port({
       v4OwedFees: vi.fn(async () => ({ amount0: "0", amount1: "0" })),
     } as unknown as Partial<LiquidityPort>);
-    const out = await new SunSwapPositionInfoService(port, makeMarket()).positionInfo(scope, TRON, {
-      protocol: "V4",
-      positionId: "88",
-    });
+    const out = await new SunSwapPositionInfoService(port, makeMarket()).positionInfo(
+      NO_DEADLINE,
+      scope,
+      TRON,
+      {
+        protocol: "V4",
+        positionId: "88",
+      },
+    );
     expect(out.position.tokens.map((token) => token.rewardAmount)).toEqual(["0", "0"]);
     expect(out.position.extra.tokenRewardUsd).toBe("0.000000000000000000");
   });
@@ -304,7 +331,7 @@ describe("position-info — refusals", () => {
       }),
     } as unknown as Partial<LiquidityPort>);
     await expect(
-      new SunSwapPositionInfoService(port, makeMarket()).positionInfo(scope, TRON, {
+      new SunSwapPositionInfoService(port, makeMarket()).positionInfo(NO_DEADLINE, scope, TRON, {
         protocol: "V4",
         positionId: "99999999",
       }),
@@ -319,7 +346,7 @@ describe("position-info — refusals", () => {
       }),
     } as unknown as Partial<LiquidityPort>);
     await expect(
-      new SunSwapPositionInfoService(port, makeMarket()).positionInfo(scope, TRON, {
+      new SunSwapPositionInfoService(port, makeMarket()).positionInfo(NO_DEADLINE, scope, TRON, {
         protocol: "V4",
         positionId: "88",
       }),
@@ -330,10 +357,10 @@ describe("position-info — refusals", () => {
     const { scope } = warnScope();
     const service = new SunSwapPositionInfoService(makeV4Port(), makeMarket());
     await expect(
-      service.positionInfo(scope, TRON, { protocol: "V2", positionId: "1" }),
+      service.positionInfo(NO_DEADLINE, scope, TRON, { protocol: "V2", positionId: "1" }),
     ).rejects.toMatchObject({ code: "invalid_value" });
     await expect(
-      service.positionInfo(scope, TRON, { protocol: "V4", positionId: "-1" }),
+      service.positionInfo(NO_DEADLINE, scope, TRON, { protocol: "V4", positionId: "-1" }),
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 });
@@ -377,6 +404,7 @@ describe("position-info — V3", () => {
   it("publishes the V3 shape, with a pool ADDRESS and none of V4's extra keys", async () => {
     const { scope } = warnScope();
     const out = await new SunSwapPositionInfoService(makeV3Port(), makeMarket()).positionInfo(
+      NO_DEADLINE,
       scope,
       TRON,
       { protocol: "V3", positionId: "1845" },
@@ -408,10 +436,15 @@ describe("position-info — V3", () => {
         liquidity: "284258342196",
       })),
     } as unknown as Partial<LiquidityPort>);
-    const out = await new SunSwapPositionInfoService(port, makeMarket()).positionInfo(scope, TRON, {
-      protocol: "V3",
-      positionId: "1845",
-    });
+    const out = await new SunSwapPositionInfoService(port, makeMarket()).positionInfo(
+      NO_DEADLINE,
+      scope,
+      TRON,
+      {
+        protocol: "V3",
+        positionId: "1845",
+      },
+    );
     expect(out.position.status).toBe("OUT_RANGE");
     expect(out.position.poolShare).toBe("0");
   });

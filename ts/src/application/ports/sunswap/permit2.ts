@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
 import type { BaseUnits } from "../../../domain/amounts/index.js";
 
@@ -35,5 +36,6 @@ export interface Permit2Port {
       readonly amount: BaseUnits;
       readonly ttlSeconds: number;
     },
+    check: DispatchCheck,
   ): Promise<Permit2Plan | undefined>;
 }

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Wallet, Interface } from "ethers";
 import { TronWeb, providers, utils } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
+import { X402FacilitatorClient } from "./facilitator-client.js";
+import { X402PaywallHttpServer } from "../../inbound/http/x402/paywall-server.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload, UnsignedTx } from "../../../domain/types/index.js";
 import { ChainError, TransportError } from "../../../domain/errors/index.js";
@@ -10,6 +12,7 @@ import type { Permit2ApproveRequest } from "../../../application/contracts/x402-
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
 import { exitCodeOf } from "../../inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -24,7 +27,11 @@ afterEach(() => vi.restoreAllMocks());
 const APPROVAL_TX = "cd".repeat(32);
 
 // Stands in for the application's TxPipeline approval; `granted` lets the RPC mock report the new allowance.
-function fakeApprovals(fail?: Error, failAfterConfirm?: Error) {
+function fakeApprovals(
+  fail?: Error,
+  failAfterConfirm?: Error,
+  afterConfirm?: (request: Permit2ApproveRequest) => Promise<unknown>,
+) {
   const requests: Permit2ApproveRequest[] = [];
   const state = { granted: false };
   const approvals = {
@@ -41,6 +48,7 @@ function fakeApprovals(fail?: Error, failAfterConfirm?: Error) {
         };
         request.onConfirmed(approval);
         if (failAfterConfirm) throw failAfterConfirm;
+        await afterConfirm?.(request);
         state.granted = true;
         return approval;
       },
@@ -49,9 +57,14 @@ function fakeApprovals(fail?: Error, failAfterConfirm?: Error) {
   return { requests, state, approvals };
 }
 
-it.each(["sufficient", "auto", "sponsored", "reverted", "recheck-fails"])(
+it.each(["sufficient", "auto", "sponsored", "reverted", "recheck-fails", "expires-after-confirm"])(
   "handles TRON allowance through the installed SDK: %s",
   async (mode) => {
+    let now = 0;
+    const deadline =
+      mode === "expires-after-confirm"
+        ? new CommandDeadline(60_000, 0, { now: () => now })
+        : new CommandDeadline(0);
     const fake = fakeApprovals(
       mode === "reverted"
         ? new ChainError("execution_reverted", "the Permit2 approval failed on chain", {
@@ -60,6 +73,13 @@ it.each(["sufficient", "auto", "sponsored", "reverted", "recheck-fails"])(
         : undefined,
       mode === "recheck-fails"
         ? new TransportError("timeout", "the allowance read timed out")
+        : undefined,
+      // The time runs out once the approval confirms; the allowance re-read is refused.
+      mode === "expires-after-confirm"
+        ? async (request) => {
+            now = 60_000;
+            return request.readAllowance();
+          }
         : undefined,
     );
     const key = Wallet.createRandom().privateKey;
@@ -183,7 +203,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted", "recheck-fails"])(
       signing,
     );
     const payment = client.pay(
-      { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
+      { activeAccount: "payer", deadline, emit() {}, warn() {} } as never,
       {
         id: "tron:3448148188",
         chainId: "3448148188",
@@ -200,7 +220,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted", "recheck-fails"])(
       });
       expect(signTypedData).not.toHaveBeenCalled();
       expect(fetcher).toHaveBeenCalledOnce();
-    } else if (mode === "recheck-fails") {
+    } else if (mode === "recheck-fails" || mode === "expires-after-confirm") {
       await expect(payment).rejects.toMatchObject({
         code: "timeout",
         details: {
@@ -233,6 +253,7 @@ it.each(["sufficient", "auto", "sponsored", "reverted", "recheck-fails"])(
     if (mode !== "sponsored") expect(fake.requests).toHaveLength(mode === "sufficient" ? 0 : 1);
     expect(calls).not.toContain("approve-broadcast");
     expect(rpc).toHaveBeenCalled();
+    deadline.dispose();
   },
 );
 
@@ -333,7 +354,7 @@ it.each([
   );
   const error = await client
     .pay(
-      { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
+      { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {}, warn() {} } as never,
       {
         id: "tron:3448148188",
         chainId: "3448148188",
@@ -471,7 +492,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
       .pay(
         {
           activeAccount: "payer",
-          timeoutMs: 1000,
+          deadline: new CommandDeadline(0),
           emit() {},
           warn: (m: string) => warnings.push(m),
         } as never,
@@ -540,7 +561,7 @@ describe("x402 TRON auto approve keeps its evidence", () => {
         signing,
       );
       const pending = client.pay(
-        { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
+        { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {}, warn() {} } as never,
         net,
         input,
       );
@@ -600,7 +621,11 @@ describe("x402 TRON auto approve keeps its evidence", () => {
       signing,
     );
     const error = await client
-      .pay({ activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never, net, input)
+      .pay(
+        { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {}, warn() {} } as never,
+        net,
+        input,
+      )
       .catch((e) => e);
     expect(broadcast).toHaveLength(0);
     expect(error).toMatchObject({
@@ -651,7 +676,7 @@ it("reports the SDK's default $1 ceiling as amount_exceeds_limit before anything
   );
   await expect(
     client.pay(
-      { activeAccount: "payer", timeoutMs: 1000, emit() {}, warn() {} } as never,
+      { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {}, warn() {} } as never,
       {
         id: "tron:3448148188",
         chainId: "3448148188",
@@ -668,4 +693,146 @@ it("reports the SDK's default $1 ceiling as amount_exceeds_limit before anything
   expect(signTypedData).not.toHaveBeenCalled();
   expect(rpc).not.toHaveBeenCalled();
   expect(fetcher).toHaveBeenCalledOnce();
+});
+
+it("keeps the confirmed approval and pays nothing when a TRON roundtrip runs out after the approval", async () => {
+  let now = 0;
+  const deadline = new CommandDeadline(60_000, 0, { now: () => now });
+  const fake = fakeApprovals(undefined, undefined, async (request) => {
+    now = 60_000;
+    return request.readAllowance();
+  });
+  const key = Wallet.createRandom().privateKey;
+  const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
+  const signTypedData = vi.fn(async (payload: TypedDataPayload) =>
+    tronSignStrategy.signTypedData(key, payload),
+  );
+  vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
+    if (path === "wallet/triggerconstantcontract")
+      return { result: { result: true }, constant_result: ["0".repeat(64)] };
+    throw new Error(`Unexpected RPC ${path}`);
+  });
+  const facilitatorCalls: string[] = [];
+  const facilitator = vi.fn<typeof fetch>(async (url) => {
+    const path = new URL(String(url)).pathname;
+    facilitatorCalls.push(path);
+    return Response.json({
+      kinds: [{ x402Version: 2, scheme: "exact", network: "tron:0xcd8690dc" }],
+    });
+  });
+  const service = new X402Service(
+    new X402PaymentClient(),
+    { assertCanSign() {}, resolve: () => ({ kind: "software", address, signTypedData }) } as never,
+    {} as never,
+    {} as never,
+    {
+      facilitator: new X402FacilitatorClient(facilitator),
+      host: new X402PaywallHttpServer(
+        () => {},
+        () => {},
+      ),
+      requestTimeoutMs: 0,
+    },
+    fake.approvals,
+    signing,
+  );
+  const roundtrip = service.roundtrip(
+    { activeAccount: "payer", deadline, emit() {}, warn() {} } as never,
+    {
+      id: "tron:3448148188",
+      chainId: "3448148188",
+      family: "tron",
+      httpEndpoint: "http://127.0.0.1:1",
+    } as never,
+    {
+      host: "127.0.0.1",
+      port: 0,
+      payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+      amount: "1",
+      token: "USDT",
+      scheme: "exact",
+      facilitatorUrl: "https://facilitator.example",
+    },
+  );
+  await expect(roundtrip).rejects.toMatchObject({
+    code: "timeout",
+    details: {
+      paymentStatus: "not_sent",
+      approval: { txId: APPROVAL_TX, allowance: "unlimited", status: "confirmed" },
+    },
+  });
+  expect(fake.requests).toHaveLength(1);
+  expect(signTypedData).not.toHaveBeenCalled();
+  expect(facilitatorCalls).toEqual(["/supported"]);
+  deadline.dispose();
+});
+
+it("ends a hung TRON SDK read at the command deadline and refuses every later SDK call", async () => {
+  const key = Wallet.createRandom().privateKey;
+  const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
+  const paths: string[] = [];
+  let release: (() => void) | undefined;
+  vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
+    paths.push(path);
+    await new Promise<void>((resolve) => (release = resolve));
+    return { result: { result: true }, constant_result: ["f".repeat(64)] };
+  });
+  const challenge = {
+    x402Version: 2,
+    resource: { url: "https://payment.example" },
+    accepts: [
+      {
+        network: "tron:0xcd8690dc",
+        scheme: "exact",
+        amount: "1000000",
+        asset: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+        payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+        maxTimeoutSeconds: 300,
+        extra: { assetTransferMethod: "permit2" },
+      },
+    ],
+  };
+  const fetcher = vi.fn<typeof fetch>(async () =>
+    Response.json(challenge, {
+      status: 402,
+      headers: { "payment-required": Buffer.from(JSON.stringify(challenge)).toString("base64") },
+    }),
+  );
+  const signTypedData = vi.fn(async (payload: TypedDataPayload) =>
+    tronSignStrategy.signTypedData(key, payload),
+  );
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    {
+      assertCanSign() {},
+      resolve: () => ({ kind: "software", address, sign: vi.fn(), signTypedData }),
+    } as never,
+    {} as never,
+    {} as never,
+    undefined,
+    fakeApprovals().approvals,
+    signing,
+  );
+  // Just above the submit reserve, so the payment starts and the read hangs past expiry.
+  const deadline = new CommandDeadline(2_100);
+  const payment = client.pay(
+    { activeAccount: "payer", deadline, emit() {}, warn() {} } as never,
+    {
+      id: "tron:3448148188",
+      chainId: "3448148188",
+      family: "tron",
+      httpEndpoint: "http://127.0.0.1:1",
+    } as never,
+    { url: "https://payment.example", method: "GET", headers: [], token: "USDT", maxAmount: "1" },
+  );
+  await expect(payment).rejects.toMatchObject({
+    code: "timeout",
+    details: { phase: "create_payment", paymentStatus: "not_sent" },
+  });
+  release?.();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(paths).toEqual(["wallet/triggerconstantcontract"]);
+  expect(signTypedData).not.toHaveBeenCalled();
+  expect(fetcher).toHaveBeenCalledOnce();
+  deadline.dispose();
 });

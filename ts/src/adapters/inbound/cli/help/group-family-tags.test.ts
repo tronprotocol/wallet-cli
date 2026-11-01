@@ -27,6 +27,7 @@ describe("group help family tags are derived from the registry", () => {
       globals: { output: "text", verbose: false },
       secretPaths: {},
       startedAt: Date.now(),
+      monotonicStart: performance.now(),
     });
     let text = "";
     const stream = {

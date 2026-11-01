@@ -246,7 +246,13 @@ export function exchangeDefinitions(
       binding: { run: (ctx, net, input) => svc.withdraw(ctx, net, input) },
     },
     { spec: exchangeTradeSpec, binding: { run: (ctx, net, input) => svc.trade(ctx, net, input) } },
-    { spec: exchangeShowSpec, binding: { run: (_ctx, net, input) => svc.show(net, input) } },
-    { spec: exchangeListSpec, binding: { run: (_ctx, net, input) => svc.list(net, input) } },
+    {
+      spec: exchangeShowSpec,
+      binding: { run: (ctx, net, input) => svc.show(ctx.deadline, net, input) },
+    },
+    {
+      spec: exchangeListSpec,
+      binding: { run: (ctx, net, input) => svc.list(ctx.deadline, net, input) },
+    },
   ];
 }

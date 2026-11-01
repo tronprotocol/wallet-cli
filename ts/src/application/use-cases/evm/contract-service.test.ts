@@ -34,7 +34,7 @@ describe("EvmContractService.call", () => {
   it("passes the contract, signature and typed parameters to the gateway", async () => {
     const { svc, seen } = service();
     const params = [{ type: "address", value: OWNER }];
-    await svc.call(net, TOKEN, "balanceOf(address)", params);
+    await svc.call(NO_DEADLINE, net, TOKEN, "balanceOf(address)", params);
 
     expect(seen[0]).toEqual([TOKEN, "balanceOf(address)", params]);
   });
@@ -43,7 +43,7 @@ describe("EvmContractService.call", () => {
     const raw = `0x${123n.toString(16).padStart(64, "0")}`;
     const { svc } = service(raw);
 
-    await expect(svc.call(net, TOKEN, "decimals()", [])).resolves.toEqual({
+    await expect(svc.call(NO_DEADLINE, net, TOKEN, "decimals()", [])).resolves.toEqual({
       contract: TOKEN,
       method: "decimals()",
       result: raw,
@@ -53,14 +53,17 @@ describe("EvmContractService.call", () => {
 
 import type { TxPipeline, EvmTxPipelineParams } from "../../services/pipeline/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 function scope(): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
-    timeoutMs: 100,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 100,
+
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -173,6 +176,7 @@ describe("EvmContractService.send — approve", () => {
   const SEPOLIA = { ...net, id: "eip155:11155111", chainId: "11155111" } as NetworkDescriptor;
   const scope = () =>
     ({
+      deadline: NO_DEADLINE,
       activeAccount: "wlt_test",
       resolveAddress: () => OWNER,
       timeoutMs: 100,

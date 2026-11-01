@@ -289,15 +289,16 @@ export function registerWalletCommands(
         input.index !== undefined || input.path !== undefined || input.address !== undefined;
       const path =
         hasLocator || !ctx.prompt.isTTY()
-          ? await resolveLedgerPath(services.ledger, family, input)
+          ? await resolveLedgerPath(ctx.deadline, services.ledger, family, input)
           : await selectLedgerPath(
+              ctx.deadline,
               services.ledger,
               family,
               ctx.prompt,
               `Select ${family} account (Ledger Live template; use --path for another scheme)`,
             );
       ctx.emit({ type: "deriving-address" });
-      return wallets.importLedger(family, path, input.label);
+      return wallets.importLedger(ctx.deadline, family, path, input.label);
     },
   } satisfies CommandDefinition);
 

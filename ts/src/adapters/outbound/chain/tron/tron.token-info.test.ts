@@ -19,7 +19,7 @@ const bytes32 = (text: string) => Buffer.from(text, "utf8").toString("hex").padE
 
 // A missing view can return result:true with empty constant_result.
 const stub = (responses: Record<string, string>) => {
-  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
   tronweb.transactionBuilder.triggerConstantContract = ((_contract: string, fn: string) => {
     const hex = responses[fn];
     if (hex === undefined) {
@@ -34,14 +34,14 @@ const stub = (responses: Record<string, string>) => {
 };
 
 const notAContract = () => {
-  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
   tronweb.transactionBuilder.triggerConstantContract = (() =>
     Promise.reject(new Error("Smart contract is not exist."))) as never;
   return client;
 };
 
 const unreachable = () => {
-  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+  const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
   tronweb.transactionBuilder.triggerConstantContract = (() =>
     Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:1"))) as never;
   return client;
@@ -108,7 +108,7 @@ describe("TronRpcClient.getTokenInfo", () => {
   });
 
   it("classifies a reverted view call the same way", async () => {
-    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1", 200));
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
     tronweb.transactionBuilder.triggerConstantContract = (() =>
       Promise.reject(new Error("REVERT opcode executed"))) as never;
 

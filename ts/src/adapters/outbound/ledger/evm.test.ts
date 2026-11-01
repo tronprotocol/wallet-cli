@@ -1,8 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { keccak256 } from "ethers";
 import { localTxId } from "../../../application/services/broadcast-identity.js";
 import { Ledger } from "./index.js";
-import { Transaction, TypedDataEncoder } from "ethers";
+import { keccak256, Transaction, TypedDataEncoder } from "ethers";
 
 // Mock both apps so selecting the wrong family remains observable.
 const { calls, highS, legacyV } = vi.hoisted(() => ({
@@ -47,13 +46,15 @@ vi.mock("@ledgerhq/hw-app-eth", () => ({
 
 const PATH = "m/44'/60'/0'/0/0";
 const tronIntegrityCheck = vi.fn();
-const ledger = () => new Ledger(tronIntegrityCheck, 5_000);
+const ledger = () => new Ledger(tronIntegrityCheck);
 
 describe("Ledger reaches the ethereum app for the evm family", () => {
   it("derives an address through hw-app-eth, not hw-app-trx", async () => {
     calls.length = 0;
 
-    const address = await ledger().getAddress("evm", PATH);
+    const address = await ledger().getAddress("evm", PATH, {
+      signal: new AbortController().signal,
+    });
 
     expect(address).toBe("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
     expect(calls.map((c) => c.app)).toEqual(["eth"]);
@@ -61,7 +62,7 @@ describe("Ledger reaches the ethereum app for the evm family", () => {
 
   it("strips the leading m/ before handing the path to the device", async () => {
     calls.length = 0;
-    await ledger().getAddress("evm", PATH);
+    await ledger().getAddress("evm", PATH, { signal: new AbortController().signal });
 
     expect(calls[0]!.args[0]).toBe("44'/60'/0'/0/0");
   });

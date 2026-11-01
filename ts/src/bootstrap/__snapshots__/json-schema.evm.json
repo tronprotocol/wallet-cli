@@ -26,8 +26,10 @@
     {
       "flag": "--timeout",
       "type": "number",
-      "description": "per node, service, or device call timeout, in milliseconds",
-      "defaultValue": "config.timeoutMs (built-in: 60000)"
+      "minimum": 0,
+      "maximum": 2147483647,
+      "description": "deadline for the whole command, in milliseconds; 0 = no limit",
+      "defaultValue": "config.timeoutMs (built-in: 90000)"
     },
     {
       "flag": "--verbose",
@@ -41,12 +43,6 @@
       "type": "boolean",
       "description": "after submitting, poll until the transaction is confirmed/failed before returning; default returns the submitted receipt without blocking",
       "defaultValue": false
-    },
-    {
-      "flag": "--wait-timeout",
-      "type": "number",
-      "description": "--wait polling cap, in milliseconds; on timeout return the submitted receipt",
-      "defaultValue": "config.waitTimeoutMs (built-in: 60000)"
     },
     {
       "flag": "--password-stdin",
@@ -533,7 +529,7 @@
     "timeout": {
       "exit": 1,
       "retry": "same",
-      "meaning": "the node, service or device did not answer in time"
+      "meaning": "the command ran out of time, or a node, service or device did not answer in time"
     },
     "aborted": {
       "exit": "either",

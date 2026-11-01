@@ -29,8 +29,7 @@ Known keys:
 |---|---|---|---|
 | `defaultNetwork` | network id | `tron:728126428` | Network used when `--network` is omitted |
 | `defaultOutput` | `text` \| `json` | `text` | Output format when `-o` is omitted |
-| `timeoutMs` | ms, any finite number ≥ 1 | `60000` | Default per node, service, or device call timeout (`--timeout` overrides). Unlike `waitTimeoutMs` it need not be an integer |
-| `waitTimeoutMs` | integer ms ≥ 0 | `60000` | Default `--wait` polling cap for broadcast commands |
+| `timeoutMs` | integer ms, 0–2147483647 | `90000` | Default deadline for the whole command; `0` = no limit (`--timeout` overrides). A value in `config.yaml` outside this range is ignored and the built-in default applies |
 | `gasfreeApiKey` | string | (unset) | GasFree API key ([`gasfree`](gasfree/index.md)). **Secret** — set only through `--api-key-stdin` |
 | `gasfreeApiSecret` | string | (unset) | GasFree API secret. **Secret** — set only through `--api-key-stdin` |
 | `tronlinkSecretId` | string | (unset) | TronLink multi-sig service secretId ([`tx multisig`](tx/multisig.md)). **Secret** — set only through `--api-key-stdin` |
@@ -46,7 +45,7 @@ Known keys:
 
 `networks` and `aliases` are read-only as a whole; the writable network settings are the three `networks.<id>.…` leaves. Any other sub-key is `invalid_value`, and the error names the ones that are supported.
 
-Precedence for a value that has both a flag and a config key (highest first): command-line flag > config value > built-in default — e.g. `--timeout` > config `timeoutMs` > built-in 60000.
+Precedence for a value that has both a flag and a config key (highest first): command-line flag > config value > built-in default — e.g. `--timeout` > config `timeoutMs` > built-in 90000.
 
 **Secrets are never rendered in clear text.** `tronlinkSecretId`, `tronlinkSecretKey`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` and `networks.<id>.apiKey` come back as `********` from every read, and setting one echoes `value` and `input` as `"********"` too. An error whose text from a node or service repeats one of them shows `********` in its place.
 
@@ -73,8 +72,7 @@ wallet-cli config
 ```console
 defaultNetwork     tron:728126428
 defaultOutput      text
-timeoutMs          60000
-waitTimeoutMs      60000
+timeoutMs          90000
 networks
   tron:728126428
     httpEndpoint  api.trongrid.io
@@ -123,7 +121,7 @@ wallet-cli config timeoutMs
 ```
 
 ```console
-timeoutMs  60000
+timeoutMs  90000
 ```
 
 ```bash
@@ -195,7 +193,7 @@ wallet-cli config networks.tron:3448148188 -o json
 
 | Mode | `data` fields |
 |---|---|
-| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` — each only when set, secrets masked |
+| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` — each only when set, secrets masked |
 | read (`<key>`) | `key`, `value`; only `key` when the key is unset |
 | set (`<key> <value>`) | `key`, `value`, `input` (the raw string as typed); both `"********"` when the key is a secret |
 

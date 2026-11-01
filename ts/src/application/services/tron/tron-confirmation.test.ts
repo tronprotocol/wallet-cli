@@ -5,6 +5,7 @@ import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
 import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
 import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline } from "../command-deadline.js";
 
 function scope(
   over: Partial<TransactionScope> = {},
@@ -15,8 +16,7 @@ function scope(
     warnings,
     cliWarnings,
     wait: true,
-    waitTimeoutMs: 10,
-    timeoutMs: 1000,
+    deadline: new CommandDeadline(10),
     activeAccount: {} as never,
     resolveAddress: () => "T",
     emit: () => {},
@@ -57,14 +57,14 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
   });
 
   it("wait requested but never confirms within the window → submitted + a warning", async () => {
-    const s = scope({ waitTimeoutMs: 0 });
+    const s = scope({ deadline: new CommandDeadline(10) });
     const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" }, NATIVE);
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toHaveLength(1);
     expect(s.warnings[0]).toContain("not confirmed");
     expect(s.warnings[0]).toContain("abc");
     expect(s.cliWarnings[0]).toBe(
-      "--wait: abc not confirmed within 0ms; returning submitted (it may still confirm on-chain)",
+      "--wait: abc not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
     );
   });
 
@@ -200,7 +200,7 @@ describe("tronConfirmation requires an execution result for contract execution",
     it(`${type} mined without a result is not confirmed`, async () => {
       const confirm = tronConfirmation(
         gateway({ blockNumber: 42, receipt: {} }),
-        scope({ waitTimeoutMs: 0 }),
+        scope({ deadline: new CommandDeadline(10) }),
       );
       expect(await confirm("abc", transaction(type))).toBeUndefined();
     });
@@ -209,13 +209,13 @@ describe("tronConfirmation requires an execution result for contract execution",
   it("a contract call confirms once its result is known", async () => {
     const confirm = tronConfirmation(
       gateway({ blockNumber: 42, receipt: { result: "REVERT" } }),
-      scope({ waitTimeoutMs: 0 }),
+      scope({ deadline: new CommandDeadline(10) }),
     );
     expect(await confirm("abc", CONTRACT_CALL)).toMatchObject({ failed: true, result: "REVERT" });
   });
 
   it("tx broadcast of a contract call stays submitted while its result is unknown", async () => {
-    const s = scope({ waitTimeoutMs: 0 });
+    const s = scope({ deadline: new CommandDeadline(10) });
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, receipt: {} }),
       s,
@@ -227,20 +227,19 @@ describe("tronConfirmation requires an execution result for contract execution",
   });
 });
 
-describe("tronConfirmation bounds each poll by the wait budget", () => {
-  it("passes the remaining budget to the node call and ends the wait when it aborts", async () => {
-    const signals: Array<AbortSignal | undefined> = [];
+describe("tronConfirmation bounds each poll by the command deadline", () => {
+  it("ends the wait at the deadline even when the node call never settles", async () => {
+    let calls = 0;
     const g = {
-      getTransactionInfoById: (_id: string, signal?: AbortSignal) => {
-        signals.push(signal);
-        return new Promise((_resolve, reject) =>
-          signal?.addEventListener("abort", () => reject(new Error("aborted"))),
-        );
+      getTransactionInfoById: () => {
+        calls += 1;
+        return new Promise(() => {});
       },
     } as unknown as TronGateway;
 
-    expect(await tronConfirmation(g, scope({ waitTimeoutMs: 30 }))("abc", NATIVE)).toBeUndefined();
-    expect(signals).toHaveLength(1);
-    expect(signals[0]?.aborted).toBe(true);
+    expect(
+      await tronConfirmation(g, scope({ deadline: new CommandDeadline(30) }))("abc", NATIVE),
+    ).toBeUndefined();
+    expect(calls).toBe(1);
   });
 });

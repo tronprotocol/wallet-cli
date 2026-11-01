@@ -6,6 +6,9 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { WalletError } from "../../../domain/errors/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -21,9 +24,9 @@ const SR2 = "TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
@@ -115,7 +118,7 @@ describe("TronVoteService.list/status", () => {
       ],
       getBrokerage: async () => 20,
     });
-    await expect(svc.list(NET, { limit: 2 })).rejects.toMatchObject({
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 2 })).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });
@@ -128,7 +131,7 @@ describe("TronVoteService.list/status", () => {
       ],
       getBrokerage: async () => 20,
     });
-    const { witnesses } = await svc.list(NET, { limit: 2 });
+    const { witnesses } = await svc.list(NO_DEADLINE, NET, { limit: 2 });
     expect(witnesses.map((witness) => witness.address)).toEqual([SR2, SR1]);
   });
 
@@ -140,7 +143,7 @@ describe("TronVoteService.list/status", () => {
       ],
       getBrokerage: async (address) => (address === SR2 ? 100 : 20),
     });
-    await expect(svc.list(NET, { limit: 2 })).resolves.toEqual({
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 2 })).resolves.toEqual({
       witnesses: [
         {
           rank: 1,

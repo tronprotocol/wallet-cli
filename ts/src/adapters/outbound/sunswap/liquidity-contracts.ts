@@ -1,4 +1,5 @@
 // Read token decimals on chain; keep monetary values as decimal strings or BigInt.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import {
   checkedTokenDecimals,
   baseUnitAmount,
@@ -89,23 +90,33 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     network: NetworkDescriptor,
     txId: string,
     query: V4LiquidityReceiptQuery,
+    check: DispatchCheck,
   ): Promise<V4LiquidityResult | undefined> {
-    return this.#v4.liquidityResult(network, txId, query);
+    return this.#v4.liquidityResult(network, txId, query, check);
   }
 
-  async v4PoolState(network: NetworkDescriptor, poolId: string): Promise<V4PoolState> {
-    return this.#v4.poolState(network, poolId);
+  async v4PoolState(
+    network: NetworkDescriptor,
+    poolId: string,
+    check: DispatchCheck,
+  ): Promise<V4PoolState> {
+    return this.#v4.poolState(network, poolId, check);
   }
 
-  async v4Position(network: NetworkDescriptor, tokenId: string): Promise<V4Position> {
-    return this.#v4.position(network, tokenId);
+  async v4Position(
+    network: NetworkDescriptor,
+    tokenId: string,
+    check: DispatchCheck,
+  ): Promise<V4Position> {
+    return this.#v4.position(network, tokenId, check);
   }
 
   async v4OwedFees(
     network: NetworkDescriptor,
     position: V4OwedFeesQuery,
+    check: DispatchCheck,
   ): Promise<V4OwedFees | undefined> {
-    return this.#v4.owedFees(network, position);
+    return this.#v4.owedFees(network, position, check);
   }
 
   v4DepositPayload(network: NetworkDescriptor, request: V4DepositRequest): ContractCallPayload {
@@ -171,10 +182,14 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     return TickMath.getTickAtSqrtRatio(jsbiOf(sqrtPriceX96));
   }
 
-  async tokenFacts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
+  async tokenFacts(
+    network: NetworkDescriptor,
+    address: string,
+    check: DispatchCheck,
+  ): Promise<TokenFacts> {
     const [decimals, symbol] = await Promise.all([
-      this.#read(network, address, "decimals()", []),
-      this.#read(network, address, "symbol()", []),
+      this.#read(check, network, address, "decimals()", []),
+      this.#read(check, network, address, "symbol()", []),
     ]);
     return {
       address,
@@ -184,9 +199,13 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   }
 
   // TRC-20 name is optional; a failed display-only read returns undefined.
-  async tokenName(network: NetworkDescriptor, address: string): Promise<string | undefined> {
+  async tokenName(
+    network: NetworkDescriptor,
+    address: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined> {
     try {
-      return decodeString(await this.#read(network, address, "name()", [])) || undefined;
+      return decodeString(await this.#read(check, network, address, "name()", [])) || undefined;
     } catch {
       return undefined;
     }
@@ -195,12 +214,13 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   async positionNftFacts(
     network: NetworkDescriptor,
     protocol: "V3" | "V4",
+    check: DispatchCheck,
   ): Promise<{ name: string; symbol: string }> {
     const manager =
       protocol === "V4" ? this.v4PositionManager(network) : this.#positionManager(network);
     const [name, symbol] = await Promise.all([
-      this.#read(network, manager, "name()", []),
-      this.#read(network, manager, "symbol()", []),
+      this.#read(check, network, manager, "name()", []),
+      this.#read(check, network, manager, "symbol()", []),
     ]);
     return { name: decodeString(name), symbol: decodeString(symbol) };
   }
@@ -209,9 +229,11 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     network: NetworkDescriptor,
     token0: string,
     token1: string,
+    check: DispatchCheck,
   ): Promise<V2PairState> {
-    const factory = await this.#read(network, this.#router(network), "factory()", []);
+    const factory = await this.#read(check, network, this.#router(network), "factory()", []);
     const pairHex = await this.#read(
+      check,
       network,
       addressFromWord(factory),
       "getPair(address,address)",
@@ -232,11 +254,11 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     }
     const pairAddress = addressFromWord(pairHex);
     const [reserves, supply, pairToken0, lpDecimals] = await Promise.all([
-      this.#read(network, pairAddress, "getReserves()", []),
-      this.#read(network, pairAddress, "totalSupply()", []),
-      this.#read(network, pairAddress, "token0()", []),
+      this.#read(check, network, pairAddress, "getReserves()", []),
+      this.#read(check, network, pairAddress, "totalSupply()", []),
+      this.#read(check, network, pairAddress, "token0()", []),
       // Read LP decimals on chain instead of assuming 18.
-      this.#read(network, pairAddress, "decimals()", []),
+      this.#read(check, network, pairAddress, "decimals()", []),
     ]);
     // Return reserves in the caller's token order, not the pair's sorted order.
     const [reserveA, reserveB] = [word(reserves, 0), word(reserves, 1)];
@@ -251,15 +273,24 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     };
   }
 
-  async balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<BaseUnits> {
-    const raw = await this.#read(network, token, "balanceOf(address)", [
+  async balanceOf(
+    network: NetworkDescriptor,
+    token: string,
+    owner: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits> {
+    const raw = await this.#read(check, network, token, "balanceOf(address)", [
       { type: "address", value: owner },
     ]);
     return baseUnitAmount(BigInt(`0x${raw}`));
   }
 
-  async nativeBalance(network: NetworkDescriptor, owner: string): Promise<Sun> {
-    const account = await this.gateways.get(network, "tron").getAccount(owner);
+  async nativeBalance(
+    network: NetworkDescriptor,
+    owner: string,
+    check: DispatchCheck,
+  ): Promise<Sun> {
+    const account = await this.gateways.get(network, "tron", check).getAccount(owner);
     return sunAmount(String(account.balance ?? "0"));
   }
 
@@ -268,8 +299,9 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     token: string,
     owner: string,
     spender: string,
+    check: DispatchCheck,
   ): Promise<BaseUnits> {
-    const raw = await this.#read(network, token, "allowance(address,address)", [
+    const raw = await this.#read(check, network, token, "allowance(address,address)", [
       { type: "address", value: owner },
       { type: "address", value: spender },
     ]);
@@ -338,10 +370,12 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     token0: string,
     token1: string,
     fee: number,
+    check: DispatchCheck,
   ): Promise<V3PoolState> {
     const manager = this.#positionManager(network);
-    const factory = await this.#read(network, manager, "factory()", []);
+    const factory = await this.#read(check, network, manager, "factory()", []);
     const poolHex = await this.#read(
+      check,
       network,
       addressFromWord(factory),
       "getPool(address,address,uint24)",
@@ -364,9 +398,9 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     }
     const poolAddress = addressFromWord(poolHex);
     const [slot0, poolToken0, liquidity] = await Promise.all([
-      this.#read(network, poolAddress, "slot0()", []),
-      this.#read(network, poolAddress, "token0()", []),
-      this.#read(network, poolAddress, "liquidity()", []),
+      this.#read(check, network, poolAddress, "slot0()", []),
+      this.#read(check, network, poolAddress, "token0()", []),
+      this.#read(check, network, poolAddress, "liquidity()", []),
     ]);
     return {
       poolAddress,
@@ -379,11 +413,19 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     };
   }
 
-  async v3Position(network: NetworkDescriptor, tokenId: string): Promise<V3Position> {
+  async v3Position(
+    network: NetworkDescriptor,
+    tokenId: string,
+    check: DispatchCheck,
+  ): Promise<V3Position> {
     const manager = this.#positionManager(network);
     const [positions, owner] = await Promise.all([
-      this.#read(network, manager, "positions(uint256)", [{ type: "uint256", value: tokenId }]),
-      this.#read(network, manager, "ownerOf(uint256)", [{ type: "uint256", value: tokenId }]),
+      this.#read(check, network, manager, "positions(uint256)", [
+        { type: "uint256", value: tokenId },
+      ]),
+      this.#read(check, network, manager, "ownerOf(uint256)", [
+        { type: "uint256", value: tokenId },
+      ]),
     ]);
     // positions returns (nonce, operator, token0, token1, fee, ticks, liquidity, ...).
     assertWords(positions, 8, manager, "positions(uint256)");
@@ -595,8 +637,10 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     tokenId: string,
     recipient: string,
     owner: string,
+    check: DispatchCheck,
   ): Promise<{ amount0: BaseUnits; amount1: BaseUnits }> {
     const raw = await this.#read(
+      check,
       network,
       this.#positionManager(network),
       "collect((uint256,address,uint128,uint128))",
@@ -616,8 +660,9 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     txId: string,
     operation: "add" | "remove",
     nativeFirst: boolean,
+    check: DispatchCheck,
   ): Promise<{ amount0: BaseUnits; amount1: BaseUnits; lpAmount?: BaseUnits } | undefined> {
-    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    const info = await this.gateways.get(network, "tron", check).getTransactionInfoById(txId);
     if (info.execution !== "success") return undefined;
     const results = info.contractResult;
     if (!Array.isArray(results) || results.length !== 1 || typeof results[0] !== "string") {
@@ -633,9 +678,14 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     };
   }
 
-  async v3DepositedAmounts(network: NetworkDescriptor, txId: string, tokenId?: string) {
+  async v3DepositedAmounts(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+    tokenId?: string,
+  ) {
     const manager = this.#positionManager(network);
-    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    const info = await this.gateways.get(network, "tron", check).getTransactionInfoById(txId);
     if (info.execution !== "success" || !Array.isArray(info.log)) return undefined;
     const topic = eventTopic("IncreaseLiquidity(uint256,uint128,uint256,uint256)");
     const matches = (info.log as TronLogEntry[]).filter((entry) => {
@@ -664,9 +714,10 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     network: NetworkDescriptor,
     txId: string,
     tokenId: string,
+    check: DispatchCheck,
   ): Promise<{ amount0: BaseUnits; amount1: BaseUnits } | undefined> {
     const manager = this.#positionManager(network);
-    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    const info = await this.gateways.get(network, "tron", check).getTransactionInfoById(txId);
     if (info.execution !== "success" || !Array.isArray(info.log)) return undefined;
     const logs = info.log as TronLogEntry[];
     const topic = COLLECT_TOPIC.toLowerCase();
@@ -688,20 +739,29 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   }
 
   // Use transaction logs to identify the mint; current holdings may have changed.
-  async v3MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {
-    return this.#mintedPositionId(network, txId, this.#positionManager(network));
+  async v3MintedPositionId(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined> {
+    return this.#mintedPositionId(network, txId, this.#positionManager(network), check);
   }
 
-  async v4MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {
-    return this.#mintedPositionId(network, txId, this.#v4.positionManager(network));
+  async v4MintedPositionId(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined> {
+    return this.#mintedPositionId(network, txId, this.#v4.positionManager(network), check);
   }
 
   async #mintedPositionId(
     network: NetworkDescriptor,
     txId: string,
     manager: string,
+    check: DispatchCheck,
   ): Promise<string | undefined> {
-    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    const info = await this.gateways.get(network, "tron", check).getTransactionInfoById(txId);
     const logs = Array.isArray(info.log) ? (info.log as TronLogEntry[]) : [];
     for (const entry of logs) {
       const topics = entry.topics ?? [];
@@ -739,13 +799,14 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   }
 
   async #read(
+    check: DispatchCheck,
     network: NetworkDescriptor,
     contract: string,
     method: string,
     parameters: { type: string; value: unknown }[],
     from?: string,
   ): Promise<string> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", check);
     const result = await gateway.triggerConstantContract(contract, method, parameters, from);
     const value = result[0];
     if (typeof value !== "string" || value === "") {

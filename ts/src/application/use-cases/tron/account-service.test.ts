@@ -9,6 +9,7 @@ import type { TronHistoryReader } from "../../ports/chain/tron/tron-history-read
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
 import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const net: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -17,7 +18,11 @@ const net: NetworkDescriptor = {
   chainId: "nile",
   capabilities: [],
 };
-const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "TXaddress" };
+const scope: AccountScope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => "TXaddress",
+};
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const TARGET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
@@ -153,9 +158,9 @@ describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => 
 function transactionScope(wait = false): TransactionScope {
   return {
     activeAccount: "wlt_test.0",
-    timeoutMs: 100,
+    deadline: new CommandDeadline(0),
     wait,
-    waitTimeoutMs: 100,
+
     resolveAddress: () => OWNER,
     emit: vi.fn(),
     warn: vi.fn(),

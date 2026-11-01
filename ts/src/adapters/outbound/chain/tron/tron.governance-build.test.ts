@@ -7,7 +7,7 @@ const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 
 function client() {
   const { client: c, tronweb: cTronweb } = withTronWeb(
-    () => new TronRpcClient("https://node.invalid", 1000),
+    () => new TronRpcClient("https://node.invalid"),
   );
   cTronweb.trx.getCurrentRefBlockParams = vi.fn(async () => ({
     ref_block_bytes: "4b6b",

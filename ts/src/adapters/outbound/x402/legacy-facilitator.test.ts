@@ -9,6 +9,7 @@ import { X402PaywallHttpServer } from "../../inbound/http/x402/paywall-server.js
 import type { TypedDataPayload } from "../../../domain/types/index.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -87,7 +88,8 @@ it.each(
       {} as never,
       {} as never,
       {
-        facilitator: new X402FacilitatorClient(facilitator, 2000),
+        facilitator: new X402FacilitatorClient(facilitator),
+        requestTimeoutMs: 0,
         host: new X402PaywallHttpServer(
           () => {},
           () => {},
@@ -97,7 +99,12 @@ it.each(
       signing,
     );
     const pending = service.roundtrip(
-      { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn(), warn: vi.fn() } as never,
+      {
+        activeAccount: "payer",
+        deadline: new CommandDeadline(0),
+        emit: vi.fn(),
+        warn: vi.fn(),
+      } as never,
       {
         id: "tron:3448148188",
         family: "tron",

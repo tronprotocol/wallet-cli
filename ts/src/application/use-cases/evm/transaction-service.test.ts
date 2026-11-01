@@ -13,6 +13,8 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TxPipeline, EvmTxPipelineParams } from "../../services/pipeline/index.js";
 import { decodeEvmRawTransaction } from "../../../adapters/outbound/chain/evm/evm.js";
 import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const OWNER = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 const RECEIVER = "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB";
@@ -30,9 +32,9 @@ function scope(): TransactionScope {
   return {
     activeAccount: "wlt_test",
     resolveAddress: () => OWNER,
-    timeoutMs: 100,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 100,
+
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -605,9 +607,23 @@ describe("EvmTransactionService.broadcast", () => {
       expect(error.textMessage).toBe(original.textMessage);
       expect(error.kind).toBe(original.kind);
       expect(exitCodeOf(error)).toBe(exitCodeOf(original));
-      expect(gateway.sendRawTransaction).toHaveBeenCalledWith(SIGNED);
+      expect(gateway.sendRawTransaction).toHaveBeenCalledWith(SIGNED, expect.anything());
     },
   );
+
+  it("refuses an imported broadcast before submitting when too little time is left", async () => {
+    const { service, gateway } = bcHarness();
+    const clock = { now: () => 0 };
+    const deadline = new CommandDeadline(10_000, 0, clock);
+    deadline.dispose();
+    clock.now = () => 8_001;
+    const error = await service
+      .broadcast({ ...scope(), deadline }, SEPOLIA, SIGNED)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DeadlineExpiredError);
+    expect((error as DeadlineExpiredError).details).toBeUndefined();
+    expect(gateway.sendRawTransaction).not.toHaveBeenCalled();
+  });
 
   it("preserves a definite rejection without an ID", async () => {
     const { service, gateway } = bcHarness();

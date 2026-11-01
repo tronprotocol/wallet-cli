@@ -10,16 +10,21 @@ import type {
   UnsignedTx,
   WarningView,
 } from "../../../domain/types/index.js";
-import { withTimeout } from "../../../domain/async/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import {
   assertEvmTransactionChain,
   assertTronReferenceBlock,
   assertTypedDataChain,
 } from "./chain-identity.js";
+import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
+import { endedByDeadline, requestDispatchCheck, untilDeadline } from "../command-deadline.js";
+
+// How long a newly built TRON transaction stays valid for review on a device; independent of the
+// command deadline so that --timeout 0 still yields a finite, protocol-valid expiration.
+export const DEVICE_REVIEW_MS = 90_000;
 
 export interface SigningScope {
-  readonly timeoutMs: number;
+  readonly deadline: ExecutionDeadline;
   emit(event: { type: "awaiting_device"; reason: "sign" }): void;
   warn?(message: string | WarningView): void;
 }
@@ -90,7 +95,9 @@ export class SigningService {
     if (payload.kind === "typed-data") return assertTypedDataChain(payload.typedData, network);
     if (payload.kind !== "transaction") return;
     if (network.family === "evm") {
-      const chainId = this.gateways.get(network, "evm").transactionChainId(payload.transaction);
+      const chainId = this.gateways
+        .get(network, "evm", requestDispatchCheck(scope.deadline))
+        .transactionChainId(payload.transaction);
       return assertEvmTransactionChain(chainId, network);
     }
     // A transaction this app built came from the named network's node.
@@ -103,29 +110,38 @@ export class SigningService {
       return;
     }
     await assertTronReferenceBlock(
-      this.gateways.get(network, "tron"),
+      this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline)),
       network,
       payload.transaction,
     );
   }
 }
 
-// Check device identity before signing; abort a timed-out signature to cancel the device prompt.
+// No signer starts after expiry. Check device identity before signing; the deadline signal cancels
+// the device prompt, and any failure after expiry is the deadline's timeout, not a user cancellation.
 async function deviceBounded<T>(
   signer: Signer,
   scope: SigningScope,
   produce: (opts: SignerSignOpts) => Promise<T>,
 ): Promise<T> {
-  if (signer.kind !== "device") return produce({});
-  await signer.precheck?.();
+  const { deadline } = scope;
+  if (signer.kind !== "device") {
+    deadline.assertActive();
+    return produce({});
+  }
+  await signer.precheck?.(deadline.signal);
+  deadline.assertActive();
   scope.emit({ type: "awaiting_device", reason: "sign" });
-  const ac = new AbortController();
-  return withTimeout(
-    produce({
-      signal: ac.signal,
-      ...(scope.warn ? { onWarning: (message: string) => scope.warn!(message) } : {}),
-    }),
-    scope.timeoutMs,
-    () => ac.abort(),
-  );
+  try {
+    return await untilDeadline(
+      produce({
+        signal: deadline.signal,
+        ...(scope.warn ? { onWarning: (message: string) => scope.warn!(message) } : {}),
+      }),
+      deadline,
+    );
+  } catch (error) {
+    if (endedByDeadline(error, deadline)) throw new DeadlineExpiredError();
+    throw error;
+  }
 }

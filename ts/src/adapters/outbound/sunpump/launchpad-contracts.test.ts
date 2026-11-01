@@ -1,3 +1,7 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import {
   createLaunchpadBuyAction,
@@ -10,6 +14,8 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";
 import { SunPumpLaunchpadContracts } from "./launchpad-contracts.js";
 import { sunAmount, baseUnitAmount, type BaseUnits } from "../../../domain/amounts/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const LAUNCHPAD = "TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw";
 const TOKEN = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
@@ -55,14 +61,14 @@ describe("tokenState", () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({ "getTokenState(address)": uint(raw) }),
     );
-    await expect(port.tokenState(NETWORK, TOKEN)).resolves.toBe(expected);
+    await expect(port.tokenState(NETWORK, TOKEN, NO_CHECK)).resolves.toBe(expected);
   });
 
   it("refuses a state this release does not know rather than assuming it can trade", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({ "getTokenState(address)": uint(4) }),
     );
-    await expect(port.tokenState(NETWORK, TOKEN)).rejects.toMatchObject({
+    await expect(port.tokenState(NETWORK, TOKEN, NO_CHECK)).rejects.toMatchObject({
       code: "provider_error",
       message: expect.stringContaining("state 4"),
     });
@@ -76,7 +82,7 @@ describe("quotes", () => {
         "getTokenAmountByPurchaseWithFee(address,uint256)": `${uint(25125337148664452174594n)}${uint(10000n)}`,
       }),
     );
-    await expect(port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"))).resolves.toEqual({
+    await expect(port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"), NO_CHECK)).resolves.toEqual({
       tokenAmount: "25125337148664452174594",
       feeSun: "10000",
     });
@@ -88,10 +94,12 @@ describe("quotes", () => {
         "getTrxAmountBySaleWithFee(address,uint256)": `${uint(22728n)}${uint(10000n)}`,
       }),
     );
-    await expect(port.quoteSell(NETWORK, TOKEN, baseUnitAmount("1000"))).resolves.toEqual({
-      trxAmountSun: "22728",
-      feeSun: "10000",
-    });
+    await expect(port.quoteSell(NETWORK, TOKEN, baseUnitAmount("1000"), NO_CHECK)).resolves.toEqual(
+      {
+        trxAmountSun: "22728",
+        feeSun: "10000",
+      },
+    );
   });
 
   it("finds the minimum sale from the inverse quote for one SUN of proceeds", async () => {
@@ -107,7 +115,9 @@ describe("quotes", () => {
     const port = new SunPumpLaunchpadContracts({
       get: () => ({ triggerConstantContract }),
     } as unknown as ChainGatewayProvider);
-    await expect(port.minimumSellAmount(NETWORK, TOKEN)).resolves.toBe("292065903216294733861");
+    await expect(port.minimumSellAmount(NETWORK, TOKEN, NO_CHECK)).resolves.toBe(
+      "292065903216294733861",
+    );
     expect(triggerConstantContract).toHaveBeenCalledTimes(1);
   });
 
@@ -117,7 +127,7 @@ describe("quotes", () => {
         "getTokenAmountByPurchaseWithFee(address,uint256)": `${uint(25125337148664452174594n)}${uint(0n)}`,
       }),
     );
-    const quote = await port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"));
+    const quote = await port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"), NO_CHECK);
     expect(quote.tokenAmount).toBe("25125337148664452174594");
     expect(Number(quote.tokenAmount).toString()).not.toBe(quote.tokenAmount);
   });
@@ -237,7 +247,7 @@ it.each([78, 255, 9999999999])("rejects unsupported token decimals %i", async (d
   const port = new SunPumpLaunchpadContracts(
     gatewayAnswering({ "decimals()": uint(decimals), "symbol()": uint(32) + uint(0) }),
   );
-  await expect(port.tokenFacts(NETWORK, TOKEN)).rejects.toMatchObject({
+  await expect(port.tokenFacts(NETWORK, TOKEN, NO_CHECK)).rejects.toMatchObject({
     code: "invalid_node_response",
   });
 });

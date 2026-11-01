@@ -1,3 +1,4 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { decimalToBigInt } from "../../../domain/numbers/index.js";
@@ -25,8 +26,11 @@ export class TronRewardService {
     private readonly now: () => number = () => Date.now(),
   ) {}
 
-  async balance(scope: Pick<TransactionScope, "resolveAddress">, network: NetworkDescriptor) {
-    const gateway = this.gateways.get(network, "tron");
+  async balance(
+    scope: Pick<TransactionScope, "resolveAddress" | "deadline">,
+    network: NetworkDescriptor,
+  ) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([
       gateway.getReward(address),
@@ -41,7 +45,7 @@ export class TronRewardService {
 
   async withdraw(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([
       gateway.getReward(address),

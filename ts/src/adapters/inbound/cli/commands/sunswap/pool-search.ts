@@ -41,8 +41,8 @@ export const sunswapPoolSearchSpec: ChainSpec = {
 export const sunswapPoolSearchTronBinding = (
   service: SunSwapMarketQueryService,
 ): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.poolSearch(net, {
+  run: async (ctx, net, input) =>
+    service.poolSearch(ctx.deadline, net, {
       keyword: input.keyword,
       limit: input.limit,
       offset: input.offset,

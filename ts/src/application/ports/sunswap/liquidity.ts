@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../contracts/deadline.js";
 // Amounts are exact base-unit decimal strings; signing and broadcasting belong to the pipeline.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
@@ -66,18 +67,32 @@ export interface LiquidityPort {
   // Throws unsupported_network when SDK addresses are unavailable.
   contracts(network: NetworkDescriptor): LiquidityContractAddresses;
 
-  tokenFacts(network: NetworkDescriptor, address: string): Promise<TokenFacts>;
+  tokenFacts(
+    network: NetworkDescriptor,
+    address: string,
+    check: DispatchCheck,
+  ): Promise<TokenFacts>;
 
   // Optional getter; missing names must not block liquidity operations.
-  tokenName(network: NetworkDescriptor, address: string): Promise<string | undefined>;
+  tokenName(
+    network: NetworkDescriptor,
+    address: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined>;
 
   // Name and symbol from the NFT contract, not the market catalogue.
   positionNftFacts(
     network: NetworkDescriptor,
     protocol: "V3" | "V4",
+    check: DispatchCheck,
   ): Promise<{ readonly name: string; readonly symbol: string }>;
 
-  v2PairState(network: NetworkDescriptor, token0: string, token1: string): Promise<V2PairState>;
+  v2PairState(
+    network: NetworkDescriptor,
+    token0: string,
+    token1: string,
+    check: DispatchCheck,
+  ): Promise<V2PairState>;
 
   // Transaction return amounts in caller token order; nativeFirst restores TRX to the first side.
   v2LiquidityResult(
@@ -85,17 +100,24 @@ export interface LiquidityPort {
     txId: string,
     operation: "add" | "remove",
     nativeFirst: boolean,
+    check: DispatchCheck,
   ): Promise<{ amount0: BaseUnits; amount1: BaseUnits; lpAmount?: BaseUnits } | undefined>;
 
-  balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<BaseUnits>;
+  balanceOf(
+    network: NetworkDescriptor,
+    token: string,
+    owner: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits>;
 
-  nativeBalance(network: NetworkDescriptor, owner: string): Promise<Sun>;
+  nativeBalance(network: NetworkDescriptor, owner: string, check: DispatchCheck): Promise<Sun>;
 
   allowance(
     network: NetworkDescriptor,
     token: string,
     owner: string,
     spender: string,
+    check: DispatchCheck,
   ): Promise<BaseUnits>;
 
   // May be unlimited on V4.
@@ -122,26 +144,41 @@ export interface LiquidityPort {
     token0: string,
     token1: string,
     fee: number,
+    check: DispatchCheck,
   ): Promise<V3PoolState>;
 
   v4LiquidityResult(
     network: NetworkDescriptor,
     txId: string,
     query: V4LiquidityReceiptQuery,
+    check: DispatchCheck,
   ): Promise<V4LiquidityResult | undefined>;
 
-  v3Position(network: NetworkDescriptor, tokenId: string): Promise<V3Position>;
+  v3Position(
+    network: NetworkDescriptor,
+    tokenId: string,
+    check: DispatchCheck,
+  ): Promise<V3Position>;
 
   // 32-byte pool ID and its key.
-  v4PoolState(network: NetworkDescriptor, poolId: string): Promise<V4PoolState>;
+  v4PoolState(
+    network: NetworkDescriptor,
+    poolId: string,
+    check: DispatchCheck,
+  ): Promise<V4PoolState>;
 
   // Cross-check the packed position pool ID against its returned key.
-  v4Position(network: NetworkDescriptor, tokenId: string): Promise<V4Position>;
+  v4Position(
+    network: NetworkDescriptor,
+    tokenId: string,
+    check: DispatchCheck,
+  ): Promise<V4Position>;
 
   // Read fees before collection; undefined means unavailable, not zero fees.
   v4OwedFees(
     network: NetworkDescriptor,
     position: V4OwedFeesQuery,
+    check: DispatchCheck,
   ): Promise<V4OwedFees | undefined>;
 
   v3Amounts(
@@ -248,12 +285,14 @@ export interface LiquidityPort {
     tokenId: string,
     recipient: string,
     owner: string,
+    check: DispatchCheck,
   ): Promise<{ amount0: BaseUnits; amount1: BaseUnits }>;
 
   // From this transaction's IncreaseLiquidity event.
   v3DepositedAmounts(
     network: NetworkDescriptor,
     txId: string,
+    check: DispatchCheck,
     tokenId?: string,
   ): Promise<
     { tokenId: string; liquidity: string; amount0: BaseUnits; amount1: BaseUnits } | undefined
@@ -264,13 +303,22 @@ export interface LiquidityPort {
     network: NetworkDescriptor,
     txId: string,
     tokenId: string,
+    check: DispatchCheck,
   ): Promise<{ amount0: BaseUnits; amount1: BaseUnits } | undefined>;
 
   // From the mint transaction log; unavailable before execution.
-  v3MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
+  v3MintedPositionId(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined>;
 
   // From the mint transaction's ERC721 Transfer log.
-  v4MintedPositionId(network: NetworkDescriptor, txId: string): Promise<string | undefined>;
+  v4MintedPositionId(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined>;
 }
 
 export interface V3PoolState {

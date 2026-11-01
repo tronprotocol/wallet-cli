@@ -43,7 +43,7 @@ The token starts in status `CREATED`, on the curve. It moves to SunSwap only onc
 
 A logo is optional; without one the token is created without one, and the dry run says so. An option left out is omitted from the request, not sent empty.
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`, `--wait` or `--wait-timeout`: nothing is signed locally and no transaction comes back to wait for, so they are refused with `invalid_option`.
+Plus the [global options](../index.md#global-options-every-command). No `--account` or `--wait`: nothing is signed locally and no transaction comes back to wait for, so they are refused with `invalid_option`.
 
 ## Examples
 

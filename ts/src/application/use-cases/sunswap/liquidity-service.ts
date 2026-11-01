@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { initialPrice } from "../../../domain/sunswap/initial-price.js";
 import { resolveTronAccount } from "../../services/tron/tron-account.js";
 import type { NetworkDescriptor, TxOutcome } from "../../../domain/types/index.js";
@@ -264,19 +266,23 @@ export class SunSwapLiquidityService {
     const owner = resolveTronAccount(scope);
     if (transactionRequiresSigner(input)) this.tx.assertCanSign(scope);
 
-    const planned = await this.#planV4(network, owner, input);
+    const planned = await this.#planV4(scope.deadline, network, owner, input);
     const { plan: internal, pool, call } = planned;
     let permitsNeeded = planned.permitsNeeded;
     if (mode.mode === "dry-run" || mode.mode === "build-only") {
       const needed = [];
       for (const side of permitsNeeded) {
-        const permit = await this.permits.planPermit(network, {
-          owner,
-          token: side.token,
-          spender: this.#v4Manager(network),
-          amount: baseUnitAmount(side.amount),
-          ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
-        });
+        const permit = await this.permits.planPermit(
+          network,
+          {
+            owner,
+            token: side.token,
+            spender: this.#v4Manager(network),
+            amount: baseUnitAmount(side.amount),
+            ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
+          },
+          requestDispatchCheck(scope.deadline),
+        );
         if (permit !== undefined) needed.push(side);
       }
       permitsNeeded = needed;
@@ -369,10 +375,16 @@ export class SunSwapLiquidityService {
 
         // Ownership can change during approval confirmation and signing.
         if (call.kind === "increase") {
-          await this.#assertV4PositionOwned(network, call.request.tokenId, owner);
+          await this.#assertV4PositionOwned(scope.deadline, network, call.request.tokenId, owner);
         } else if (
           call.request.initialSqrtPriceX96 !== undefined &&
-          (await this.liquidity.v4PoolState(network, pool.poolId)).exists
+          (
+            await this.liquidity.v4PoolState(
+              network,
+              pool.poolId,
+              requestDispatchCheck(scope.deadline),
+            )
+          ).exists
         ) {
           // initializePool tolerates an existing pool; recheck to avoid using a stale creation price.
           throw new ChainError(
@@ -400,14 +412,19 @@ export class SunSwapLiquidityService {
         const txId = outcomeTxId(main);
         if (main.stage === "confirmed" && txId !== undefined) {
           await warnOnPostCheck(scope, "sunswap_deposit_amounts", async () => {
-            const actual = await this.liquidity.v4LiquidityResult(network, txId, {
-              poolId: plan.poolId!,
-              account: owner,
-              ...(call.kind === "increase" ? { tokenId: call.request.tokenId } : {}),
-              token0: plan.token0.address,
-              token1: plan.token1.address,
-              nativeValueSent: payload.callValueSun ?? "0",
-            });
+            const actual = await this.liquidity.v4LiquidityResult(
+              network,
+              txId,
+              {
+                poolId: plan.poolId!,
+                account: owner,
+                ...(call.kind === "increase" ? { tokenId: call.request.tokenId } : {}),
+                token0: plan.token0.address,
+                token1: plan.token1.address,
+                nativeValueSent: payload.callValueSun ?? "0",
+              },
+              requestDispatchCheck(scope.deadline),
+            );
             if (!actual)
               return "the deposit confirmed but its actual amounts could not be read; amounts remain estimates";
             Object.assign(settled, {
@@ -438,7 +455,7 @@ export class SunSwapLiquidityService {
     input: AddLiquidityV2Input,
   ): Promise<Record<string, unknown>> {
     const owner = resolveTronAccount(scope);
-    const { plan } = await this.#planV2(network, owner, input);
+    const { plan } = await this.#planV2(scope.deadline, network, owner, input);
     const mode = transactionMode(input);
 
     // Watch-only dry runs and unsigned builds must not require a signer.
@@ -505,17 +522,19 @@ export class SunSwapLiquidityService {
   }
 
   async #planV4(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityInput,
   ): Promise<PlannedV4> {
     return input.positionId === undefined
-      ? this.#planV4Mint(network, owner, input)
-      : this.#planV4Increase(network, owner, input, input.positionId);
+      ? this.#planV4Mint(deadline, network, owner, input)
+      : this.#planV4Increase(deadline, network, owner, input, input.positionId);
   }
 
   // Pool creation uses the supplied price; an uninitialized pool's on-chain price is zero.
   async #planV4Mint(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityInput,
@@ -537,10 +556,14 @@ export class SunSwapLiquidityService {
     const poolId = this.liquidity.v4PoolIdOf(network, target);
     const pool =
       target.kind === "existing"
-        ? await this.liquidity.v4PoolState(network, poolId)
+        ? await this.liquidity.v4PoolState(network, poolId, requestDispatchCheck(commandDeadline))
         : this.#createdPool(target, poolId);
     // An existing pool must be sized at its current price, not the requested creation price.
-    if (target.kind === "create" && (await this.liquidity.v4PoolState(network, poolId)).exists) {
+    if (
+      target.kind === "create" &&
+      (await this.liquidity.v4PoolState(network, poolId, requestDispatchCheck(commandDeadline)))
+        .exists
+    ) {
       throw new ChainError(
         "pool_already_exists",
         errorMessage`a V4 pool already exists with currency0 ${target.token0}, currency1 ${target.token1}, fee ${target.fee}, tick spacing ${target.tickSpacing} and hooks ${describeHooks(target.hooks)} (pool id ${poolId}). Deposit into it without ${inputRef("createPool")} and ${inputRef("sqrtPrice")}`,
@@ -558,7 +581,7 @@ export class SunSwapLiquidityService {
       ? defaultTickRange(pool.currentTick, pool.tickSpacing)
       : this.#v4Range(input, pool.tickSpacing);
 
-    const sized = await this.#sizeV4(network, owner, input, pool, range);
+    const sized = await this.#sizeV4(commandDeadline, network, owner, input, pool, range);
     const recipient = input.recipient ?? owner;
     const deadline = resolveDeadline(input.deadline, Date.now());
 
@@ -598,6 +621,7 @@ export class SunSwapLiquidityService {
   }
 
   async #planV4Increase(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityInput,
@@ -628,7 +652,7 @@ export class SunSwapLiquidityService {
       );
     }
 
-    const position = await this.#assertV4PositionOwned(network, positionId, owner);
+    const position = await this.#assertV4PositionOwned(commandDeadline, network, positionId, owner);
     this.#assertV4PairMatches(network, position, input.token0, input.token1);
     if (input.fee !== undefined && input.fee !== position.fee) {
       throw new UsageError(
@@ -637,7 +661,11 @@ export class SunSwapLiquidityService {
       );
     }
 
-    const pool = await this.liquidity.v4PoolState(network, position.poolId);
+    const pool = await this.liquidity.v4PoolState(
+      network,
+      position.poolId,
+      requestDispatchCheck(commandDeadline),
+    );
     if (!pool.exists) {
       throw new ChainError(
         "pool_not_found",
@@ -646,7 +674,7 @@ export class SunSwapLiquidityService {
     }
 
     const range = { tickLower: position.tickLower, tickUpper: position.tickUpper };
-    const sized = await this.#sizeV4(network, owner, input, pool, range);
+    const sized = await this.#sizeV4(commandDeadline, network, owner, input, pool, range);
     const deadline = resolveDeadline(input.deadline, Date.now());
 
     return {
@@ -680,6 +708,7 @@ export class SunSwapLiquidityService {
   }
 
   async #sizeV4(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityInput,
@@ -687,8 +716,8 @@ export class SunSwapLiquidityService {
     range: { tickLower: number; tickUpper: number },
   ): Promise<V4Sizing> {
     const [facts0, facts1] = await Promise.all([
-      this.#v4Facts(network, pool.currency0),
-      this.#v4Facts(network, pool.currency1),
+      this.#v4Facts(deadline, network, pool.currency0),
+      this.#v4Facts(deadline, network, pool.currency1),
     ]);
 
     const given = this.#humanAmounts(input, facts0, facts1);
@@ -706,10 +735,11 @@ export class SunSwapLiquidityService {
       // Native TRX travels as call value and needs no allowance or permit.
     ].filter((side) => !isNative(side.token) && BigInt(side.amount) > 0n);
     // Check ceiling balances before spending on approvals or signing permits.
-    await this.#assertBalances(network, owner, permitsNeeded);
+    await this.#assertBalances(deadline, network, owner, permitsNeeded);
 
     const permit2 = await this.liquidity.permit2Address(network);
     const approvals = await this.tx.planApprovals(
+      deadline,
       network,
       owner,
       permit2,
@@ -725,7 +755,7 @@ export class SunSwapLiquidityService {
     const nativeDeposit = isNative(pool.currency0) ? plan.amount0 : plan.amount1;
     if (nativeIn) {
       // The full native ceiling is sent as call value; unused value is refunded.
-      await this.#assertNativeCovers(network, owner, nativeCeiling);
+      await this.#assertNativeCovers(deadline, network, owner, nativeCeiling);
     }
 
     return {
@@ -816,12 +846,13 @@ export class SunSwapLiquidityService {
   }
 
   async #assertV4PositionOwned(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     tokenId: string,
     owner: string,
   ): Promise<V4Position> {
     const position = await readPosition("V4", tokenId, network, () =>
-      this.liquidity.v4Position(network, tokenId),
+      this.liquidity.v4Position(network, tokenId, requestDispatchCheck(commandDeadline)),
     );
     if (position.owner !== owner) {
       throw new UsageError(
@@ -868,10 +899,14 @@ export class SunSwapLiquidityService {
     return { tickLower: input.tickLower!, tickUpper: input.tickUpper! };
   }
 
-  async #v4Facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
+  async #v4Facts(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<TokenFacts> {
     if (address === NATIVE_TRX_ADDRESS)
       return { address, symbol: "TRX", decimals: FAMILIES.tron.nativeDecimals };
-    return this.#facts(network, address);
+    return this.#facts(deadline, network, address);
   }
 
   // Validate permit terms before signing and recover the owner afterward.
@@ -887,13 +922,17 @@ export class SunSwapLiquidityService {
     const signer = this.signers.resolve(scope.activeAccount, "tron");
     const signed: { grant: unknown; signature: string }[] = [];
     for (const side of needed) {
-      const permit = await this.permits.planPermit(network, {
-        owner,
-        token: side.token,
-        spender,
-        amount: baseUnitAmount(side.amount),
-        ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
-      });
+      const permit = await this.permits.planPermit(
+        network,
+        {
+          owner,
+          token: side.token,
+          spender,
+          amount: baseUnitAmount(side.amount),
+          ttlSeconds: PERMIT2_GRANT_TTL_SECONDS,
+        },
+        requestDispatchCheck(scope.deadline),
+      );
       if (permit === undefined) continue;
       const now = Math.floor(Date.now() / 1000);
       assertPermitAuthorizes(permit.typedData, {
@@ -937,7 +976,11 @@ export class SunSwapLiquidityService {
     if (outcome.stage !== "confirmed") return {};
     let settled: Record<string, unknown> = {};
     await warnOnPostCheck(scope, "sunswap_position_liquidity", async () => {
-      const after = await this.liquidity.v4Position(network, tokenId);
+      const after = await this.liquidity.v4Position(
+        network,
+        tokenId,
+        requestDispatchCheck(scope.deadline),
+      );
       settled = {
         liquidity: (BigInt(after.liquidity) - BigInt(liquidityBefore)).toString(),
         liquidityAfter: after.liquidity,
@@ -949,11 +992,12 @@ export class SunSwapLiquidityService {
 
   // Require the native ceiling; energy can come from resources, so do not add a fee estimate.
   async #assertNativeCovers(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     ceiling: string,
   ): Promise<void> {
-    const held = await this.liquidity.nativeBalance(network, owner);
+    const held = await this.liquidity.nativeBalance(network, owner, requestDispatchCheck(deadline));
     if (BigInt(held) < BigInt(ceiling)) {
       throw new ChainError(
         "insufficient_balance",
@@ -978,6 +1022,7 @@ export class SunSwapLiquidityService {
         txId,
         "add",
         isNative(plan.token0.address),
+        requestDispatchCheck(scope.deadline),
       );
       if (!actual) return "the router result could not be read; amounts remain estimates";
       Object.assign(settled, {
@@ -993,6 +1038,7 @@ export class SunSwapLiquidityService {
         network,
         poolSideOf(this.liquidity.contracts(network), plan.token0.address),
         poolSideOf(this.liquidity.contracts(network), plan.token1.address),
+        requestDispatchCheck(scope.deadline),
       );
       Object.assign(settled, {
         lpDecimals: after.lpDecimals,
@@ -1010,7 +1056,12 @@ export class SunSwapLiquidityService {
     input: AddLiquidityInput,
   ): Promise<Record<string, unknown>> {
     const owner = resolveTronAccount(scope);
-    const { plan, liquidityBefore, poolOrder } = await this.#planV3(network, owner, input);
+    const { plan, liquidityBefore, poolOrder } = await this.#planV3(
+      scope.deadline,
+      network,
+      owner,
+      input,
+    );
     // Payloads retain input order; position views use pool order for later amount0/amount1 inputs.
     const view = poolOrder ? plan : { ...plan, token0: plan.token1, token1: plan.token0 };
     const mode = transactionMode(input);
@@ -1051,7 +1102,7 @@ export class SunSwapLiquidityService {
       async (approvalTxIds) => {
         // Ownership can change while approvals confirm.
         if (plan.nftTokenId !== undefined && !plan.newPosition) {
-          await this.#assertPositionOwned(network, plan.nftTokenId, owner);
+          await this.#assertPositionOwned(scope.deadline, network, plan.nftTokenId, owner);
         }
 
         const main = await this.tx.run(scope, network, this.#depositPayload(network, plan), {
@@ -1076,6 +1127,7 @@ export class SunSwapLiquidityService {
             const actual = await this.liquidity.v3DepositedAmounts(
               network,
               txId,
+              requestDispatchCheck(scope.deadline),
               plan.nftTokenId ?? minted,
             );
             if (!actual)
@@ -1134,7 +1186,11 @@ export class SunSwapLiquidityService {
     if (outcome.stage !== "confirmed" || tokenId === undefined) return {};
     let settled: Record<string, unknown> = {};
     await warnOnPostCheck(scope, "sunswap_position_liquidity", async () => {
-      const after = await this.liquidity.v3Position(network, tokenId);
+      const after = await this.liquidity.v3Position(
+        network,
+        tokenId,
+        requestDispatchCheck(scope.deadline),
+      );
       settled = {
         liquidity: (BigInt(after.liquidity) - BigInt(liquidityBefore)).toString(),
         liquidityAfter: after.liquidity,
@@ -1155,7 +1211,11 @@ export class SunSwapLiquidityService {
     if (txId === undefined) return {};
     let minted: string | undefined;
     await warnOnPostCheck(scope, "sunswap_position_id", async () => {
-      minted = await this.liquidity.v4MintedPositionId(network, txId);
+      minted = await this.liquidity.v4MintedPositionId(
+        network,
+        txId,
+        requestDispatchCheck(scope.deadline),
+      );
       return minted === undefined
         ? "the mint confirmed but its position id could not be read from the transaction log"
         : undefined;
@@ -1174,7 +1234,11 @@ export class SunSwapLiquidityService {
     if (txId === undefined) return undefined;
     let minted: string | undefined;
     await warnOnPostCheck(scope, "sunswap_position_id", async () => {
-      minted = await this.liquidity.v3MintedPositionId(network, txId);
+      minted = await this.liquidity.v3MintedPositionId(
+        network,
+        txId,
+        requestDispatchCheck(scope.deadline),
+      );
       return minted === undefined
         ? "the mint confirmed but its position id could not be read from the transaction log"
         : undefined;
@@ -1183,13 +1247,14 @@ export class SunSwapLiquidityService {
   }
 
   async #planV3(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityInput,
   ): Promise<{ plan: LiquidityPlanView; liquidityBefore: string; poolOrder: boolean }> {
     const manager = this.liquidity.contracts(network).v3PositionManager;
     const deadline = resolveDeadline(input.deadline, Date.now());
-    const scenario = await this.#v3Scenario(network, owner, input);
+    const scenario = await this.#v3Scenario(commandDeadline, network, owner, input);
     const { pool, tickLower, tickUpper } = scenario;
 
     if (!pool.exists) {
@@ -1240,8 +1305,9 @@ export class SunSwapLiquidityService {
       { facts: scenario.token0, amount: amount0 },
       { facts: scenario.token1, amount: amount1 },
     ];
-    await this.#assertBalances(network, owner, sides);
+    await this.#assertBalances(commandDeadline, network, owner, sides);
     const approvals = await this.tx.planApprovals(
+      commandDeadline,
       network,
       owner,
       manager,
@@ -1283,6 +1349,7 @@ export class SunSwapLiquidityService {
   }
 
   async #v3Scenario(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityInput,
@@ -1302,16 +1369,17 @@ export class SunSwapLiquidityService {
     liquidityBefore?: string;
   }> {
     if (input.positionId !== undefined) {
-      const position = await this.#assertPositionOwned(network, input.positionId, owner);
+      const position = await this.#assertPositionOwned(deadline, network, input.positionId, owner);
       const [token0, token1] = await Promise.all([
-        this.#facts(network, position.token0),
-        this.#facts(network, position.token1),
+        this.#facts(deadline, network, position.token0),
+        this.#facts(deadline, network, position.token1),
       ]);
       const pool = await this.liquidity.v3PoolState(
         network,
         position.token0,
         position.token1,
         position.fee,
+        requestDispatchCheck(deadline),
       );
       const amounts = this.#humanAmounts(input, token0, token1);
       return {
@@ -1350,12 +1418,18 @@ export class SunSwapLiquidityService {
       );
     }
     const [token0, token1] = await Promise.all([
-      this.#facts(network, address0),
-      this.#facts(network, address1),
+      this.#facts(deadline, network, address0),
+      this.#facts(deadline, network, address1),
     ]);
     const fee = input.fee ?? DEFAULT_V3_FEE_TIER;
     const spacing = tickSpacing(fee);
-    const pool = await this.liquidity.v3PoolState(network, address0, address1, fee);
+    const pool = await this.liquidity.v3PoolState(
+      network,
+      address0,
+      address1,
+      fee,
+      requestDispatchCheck(deadline),
+    );
     const range = this.#v3Range(input, pool, spacing);
     return {
       token0,
@@ -1415,12 +1489,13 @@ export class SunSwapLiquidityService {
 
   // V3 permits funding another owner's position; reject mistyped ids locally.
   async #assertPositionOwned(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     tokenId: string,
     owner: string,
   ): Promise<V3Position> {
     const position = await readPosition("V3", tokenId, network, () =>
-      this.liquidity.v3Position(network, tokenId),
+      this.liquidity.v3Position(network, tokenId, requestDispatchCheck(commandDeadline)),
     );
     if (position.owner !== owner) {
       throw new UsageError(
@@ -1489,6 +1564,7 @@ export class SunSwapLiquidityService {
   }
 
   async #planV2(
+    commandDeadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     input: AddLiquidityV2Input,
@@ -1504,14 +1580,15 @@ export class SunSwapLiquidityService {
       );
     }
     const [token0, token1] = await Promise.all([
-      this.#facts(network, address0),
-      this.#facts(network, address1),
+      this.#facts(commandDeadline, network, address0),
+      this.#facts(commandDeadline, network, address1),
     ]);
     // The router wraps native TRX; lookup uses WTRX while receipts retain TRX.
     const pair = await this.liquidity.v2PairState(
       network,
       poolSideOf(this.liquidity.contracts(network), token0.address),
       poolSideOf(this.liquidity.contracts(network), token1.address),
+      requestDispatchCheck(commandDeadline),
     );
     const amounts = this.#resolveAmounts(input, token0, token1, pair);
     const recipient = input.recipient ?? owner;
@@ -1521,9 +1598,10 @@ export class SunSwapLiquidityService {
       { facts: token0, amount: amounts.amount0 },
       { facts: token1, amount: amounts.amount1 },
     ];
-    await this.#assertBalances(network, owner, sides);
+    await this.#assertBalances(commandDeadline, network, owner, sides);
     // Native TRX travels as call value and needs no token allowance.
     const approvals = await this.tx.planApprovals(
+      commandDeadline,
       network,
       owner,
       router,
@@ -1606,21 +1684,31 @@ export class SunSwapLiquidityService {
     return base(explicit, facts, "min");
   }
 
-  async #facts(network: NetworkDescriptor, address: string): Promise<TokenFacts> {
+  async #facts(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<TokenFacts> {
     if (isNative(address))
       return { address, decimals: FAMILIES.tron.nativeDecimals, symbol: "TRX" };
-    return this.liquidity.tokenFacts(network, address);
+    return this.liquidity.tokenFacts(network, address, requestDispatchCheck(deadline));
   }
 
   async #assertBalances(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     owner: string,
     sides: { facts: TokenFacts; amount: string }[],
   ): Promise<void> {
     for (const side of sides) {
       const held = isNative(side.facts.address)
-        ? await this.liquidity.nativeBalance(network, owner)
-        : await this.liquidity.balanceOf(network, side.facts.address, owner);
+        ? await this.liquidity.nativeBalance(network, owner, requestDispatchCheck(deadline))
+        : await this.liquidity.balanceOf(
+            network,
+            side.facts.address,
+            owner,
+            requestDispatchCheck(deadline),
+          );
       if (BigInt(held) < BigInt(side.amount)) {
         throw new ChainError(
           "insufficient_token_balance",

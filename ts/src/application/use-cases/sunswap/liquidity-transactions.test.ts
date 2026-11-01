@@ -6,6 +6,7 @@ import type { AccountRef, NetworkDescriptor, TxOutcome } from "../../../domain/t
 import type { TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { baseUnitAmount } from "../../../domain/amounts/index.js";
 import { errorEnvelope, normalizeCliError } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const approval = {
   token: "token",
@@ -18,8 +19,7 @@ const approval = {
 };
 // Exercise forwarding of prototype methods and a private-state account getter.
 class TestScope implements TransactionScope {
-  readonly timeoutMs = 500;
-  readonly waitTimeoutMs = 1000;
+  readonly deadline = new CommandDeadline(0);
   #account = "owner" as AccountRef;
   #events: unknown[] = [];
   constructor(readonly wait = false) {}
@@ -76,8 +76,7 @@ describe("approval confirmation before the main transaction", () => {
       expect(caller.wait).toBe(wait);
       expect(p.account).toBe(caller.activeAccount);
       expect(p.ctx.resolveAddress("tron")).toBe("owner");
-      expect(p.ctx.timeoutMs).toBe(caller.timeoutMs);
-      expect(p.ctx.waitTimeoutMs).toBe(caller.waitTimeoutMs);
+      expect(p.ctx.deadline).toBe(caller.deadline);
       if (++calls === 3) {
         expect(p.ctx).toBe(caller);
         order.push("main");
@@ -147,7 +146,7 @@ describe("approval confirmation before the main transaction", () => {
     ).rejects.toMatchObject({
       code: "timeout",
       message: expect.stringMatching(
-        /not confirmed.*1000ms.*main transaction was not sent.*may still confirm/,
+        /not confirmed before the command's time limit.*main transaction was not sent.*may still confirm/,
       ),
       details: { approvalTxIds: ["approval-1", "approval-2"] },
     });

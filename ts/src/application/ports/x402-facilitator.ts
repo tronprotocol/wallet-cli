@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../contracts/deadline.js";
 import type { BaseUnits } from "../../domain/amounts/index.js";
 import type { CliError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
@@ -75,8 +76,8 @@ export interface X402FacilitatorOffer {
   // Wire value of the payment-required header.
   encodeChallenge(challenge: X402Challenge): string;
   // `paymentSignature` is the payment-signature header value as received.
-  verify(paymentSignature: string): Promise<X402Verification>;
-  settle(paymentSignature: string): Promise<X402SettlementOutcome>;
+  verify(paymentSignature: string, check: DispatchCheck): Promise<X402Verification>;
+  settle(paymentSignature: string, check: DispatchCheck): Promise<X402SettlementOutcome>;
 }
 
 export interface X402FacilitatorPort {
@@ -92,5 +93,5 @@ export interface X402FacilitatorPort {
     address: string,
   ): X402RegisteredAsset | undefined;
   // Fails when the facilitator does not support the network and scheme.
-  offer(terms: X402PaywallTerms): Promise<X402FacilitatorOffer>;
+  offer(terms: X402PaywallTerms, check: DispatchCheck): Promise<X402FacilitatorOffer>;
 }

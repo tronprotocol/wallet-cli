@@ -21,9 +21,9 @@ function flagOf(kind: SecretKind): string {
 }
 
 export class SecretResolver implements ISecretResolver {
-  #byPath = new Map<string, string>();
   #stdinUsedBy?: SecretKind;
   #primed = new Map<SecretKind, string>();
+  #stdin?: string;
 
   constructor(
     private readonly streams: StreamManager,
@@ -34,8 +34,19 @@ export class SecretResolver implements ISecretResolver {
   // Releases references; immutable JavaScript strings cannot be securely wiped.
   clearPrimed(): void {
     this.#primed.clear();
-    this.#byPath.clear();
     this.#stdinUsedBy = undefined;
+    this.#stdin = undefined;
+  }
+
+  // Reads stdin once, before any secret is needed, when a secret is configured to come from it.
+  async loadStdin(signal: AbortSignal): Promise<void> {
+    if (this.#stdin !== undefined || !Object.values(this.paths).includes("-")) return;
+    if (this.paths.apiKey === "-" && isatty(0))
+      this.streams.diagnostic(
+        "info",
+        "Reading API key from stdin; finish input with Ctrl-D. Use a pipe for non-interactive input.",
+      );
+    this.#stdin = (await this.streams.readStdinOnce(signal)).replace(/\r?\n$/, "");
   }
 
   // Checks availability without consuming the source.
@@ -171,14 +182,9 @@ export class SecretResolver implements ISecretResolver {
       );
     }
     this.#stdinUsedBy = kind;
-    if (!this.#byPath.has("-")) {
-      if (kind === "apiKey" && isatty(0))
-        this.streams.diagnostic(
-          "info",
-          "Reading API key from stdin; finish input with Ctrl-D. Use a pipe for non-interactive input.",
-        );
-      this.#byPath.set("-", this.streams.readStdinOnce().replace(/\r?\n$/, ""));
+    if (this.#stdin === undefined) {
+      throw new ExecutionError("secret_source_error", "no data available on stdin");
     }
-    return this.#byPath.get("-")!;
+    return this.#stdin;
   }
 }

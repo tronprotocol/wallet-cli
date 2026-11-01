@@ -1,3 +1,5 @@
+import { requestDispatchCheck, unlessDeadline } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { decimalToBigInt } from "../../../domain/numbers/index.js";
@@ -35,6 +37,7 @@ export interface VoteListInput {
 
 interface VoteReadScope {
   readonly activeAccount: TransactionScope["activeAccount"];
+  readonly deadline: TransactionScope["deadline"];
   resolveAddress(family: "tron"): string;
   warn(message: string): void;
 }
@@ -69,7 +72,7 @@ export class TronVoteService {
 
   async cast(scope: TransactionScope, network: NetworkDescriptor, input: VoteCastInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const votes = parseVoteInputs(input.for);
     const totalVotes = votes.reduce((sum, vote) => sum + BigInt(vote.count), 0n);
     if (totalVotes > BigInt(Number.MAX_SAFE_INTEGER)) {
@@ -110,25 +113,27 @@ export class TronVoteService {
     };
   }
 
-  async list(network: NetworkDescriptor, input: VoteListInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async list(deadline: ExecutionDeadline, network: NetworkDescriptor, input: VoteListInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const limit = Math.min(input.limit, input.candidates ? MAX_REWARDED_RANK : ELECTED_SR_COUNT);
     const witnesses = byVotesDescending(await gateway.getWitnesses(limit)).slice(0, limit);
     const cache: BrokerageCache = new Map();
     return {
       witnesses: await mapWithLimit(witnesses, BROKERAGE_CONCURRENCY, (witness, index) =>
-        this.witnessView(gateway, witness, index + 1, cache),
+        this.witnessView(deadline, gateway, witness, index + 1, cache),
       ),
     };
   }
 
   async status(scope: VoteReadScope, network: NetworkDescriptor) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const address = scope.resolveAddress("tron");
     const [account, claimableRewardSun, witnesses, votingPower] = await Promise.all([
       gateway.getAccountState(address),
       gateway.getReward(address),
-      gateway.getWitnesses(MAX_REWARDED_RANK).catch((): TronWitness[] => []),
+      gateway
+        .getWitnesses(MAX_REWARDED_RANK)
+        .catch(unlessDeadline(scope.deadline, (): TronWitness[] => [])),
       readVotingPower(gateway, address),
     ]);
     const witnessMap = new Map(
@@ -140,7 +145,7 @@ export class TronVoteService {
       BROKERAGE_CONCURRENCY,
       async (vote): Promise<CurrentVoteView> => {
         const known = witnessMap.get(vote.witness);
-        const brokeragePct = await brokerageOf(gateway, vote.witness, cache);
+        const brokeragePct = await brokerageOf(scope.deadline, gateway, vote.witness, cache);
         return {
           witness: vote.witness,
           name: known ? witnessName(known.witness) : vote.witness,
@@ -163,12 +168,13 @@ export class TronVoteService {
   }
 
   private async witnessView(
+    deadline: ExecutionDeadline,
     gateway: TronGateway,
     witness: TronWitness,
     rank: number,
     cache: BrokerageCache,
   ): Promise<WitnessView> {
-    const brokeragePct = await brokerageOf(gateway, witness.address, cache);
+    const brokeragePct = await brokerageOf(deadline, gateway, witness.address, cache);
     return {
       rank,
       name: witnessName(witness),
@@ -227,13 +233,14 @@ function zeroRatioWarning(vote: CurrentVoteView): string {
 }
 
 function brokerageOf(
+  deadline: ExecutionDeadline,
   gateway: TronGateway,
   address: string,
   cache: BrokerageCache,
 ): Promise<number | null> {
   let pending = cache.get(address);
   if (!pending) {
-    pending = gateway.getBrokerage(address).catch(() => null);
+    pending = gateway.getBrokerage(address).catch(unlessDeadline(deadline, () => null));
     cache.set(address, pending);
   }
   return pending;

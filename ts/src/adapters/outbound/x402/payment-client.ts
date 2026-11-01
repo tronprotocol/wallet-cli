@@ -1,5 +1,5 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { gasfreeRelayClient } from "./gasfree-relay.js";
-import type { Config } from "../../../domain/types/index.js";
 import { X402_TOKENS, GASFREE_TOKENS, tokensForScheme } from "./tokens.js";
 import {
   unsentPaymentError,
@@ -9,6 +9,8 @@ import {
 } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
+import { abortReason, untilAborted, withDispatchCheck } from "../http/dispatch-context.js";
+import { evmRpcCapabilities } from "./evm-rpc.js";
 import {
   x402Client,
   wrapFetchWithPayment,
@@ -42,18 +44,13 @@ import type {
   X402Settlement,
 } from "../../../application/ports/x402-payment.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import {
   ExecutionError,
   TransportError,
   UsageError,
   type CliError,
 } from "../../../domain/errors/index.js";
-import type {
-  Permit2Approver,
-  SignedApproval,
-  X402PaymentFacts,
-} from "../../../application/contracts/x402-payer.js";
 import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import {
   signEvmPaymentTransaction,
@@ -62,7 +59,12 @@ import {
   type X402WalletOptions,
 } from "./signer-bridge.js";
 import { silenceX402SdkLogs } from "./sdk-logs.js";
-import type { PayerSigner } from "../../../application/contracts/x402-payer.js";
+import type {
+  PayerSigner,
+  Permit2Approver,
+  SignedApproval,
+  X402PaymentFacts,
+} from "../../../application/contracts/x402-payer.js";
 import {
   toX402Network,
   sameX402Network,
@@ -93,7 +95,7 @@ export class X402PaymentClient implements X402PaymentPort {
     network: NetworkDescriptor,
     input: Pick<X402PaymentRequest, "gasfreeRelay">,
   ): void {
-    gasfreeRelayClient(network, input.gasfreeRelay, this.config, 60000, this.fetcher);
+    gasfreeRelayClient(network, input.gasfreeRelay, this.config, undefined, this.fetcher);
   }
 
   facts(network: NetworkDescriptor): X402PaymentFacts {
@@ -104,14 +106,9 @@ export class X402PaymentClient implements X402PaymentPort {
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: X402PaymentRequest,
+    check: DispatchCheck,
   ): Promise<X402Resource> {
-    const relay = gasfreeRelayClient(
-      network,
-      input.gasfreeRelay,
-      this.config,
-      scope.timeoutMs,
-      this.fetcher,
-    );
+    const relay = gasfreeRelayClient(network, input.gasfreeRelay, this.config, check, this.fetcher);
     const headers = requestHeaders(input.headers);
     const requestInit: RequestInit = {
       method: input.method,
@@ -131,7 +128,7 @@ export class X402PaymentClient implements X402PaymentPort {
     try {
       // Reserve --out before payment so an existing file cannot prevent delivery after settlement.
       if (input.out !== undefined) out = await reserveOutput(input.out);
-      const boundedFetch = this.boundedFetch(scope, network);
+      const boundedFetch = this.boundedFetch(check, network);
       const initial = await boundedFetch(input.url, requestInit);
       if (initial.status !== 402)
         return {
@@ -156,7 +153,7 @@ export class X402PaymentClient implements X402PaymentPort {
         close: async () => {
           await out?.release();
         },
-        pay: async ({ payer: signer, approver, guard, limits }) => {
+        pay: async ({ payer: signer, approver, guard, submit, limits }) => {
           guard.assertAllowed();
           phase = "create_payment";
           try {
@@ -176,6 +173,8 @@ export class X402PaymentClient implements X402PaymentPort {
                 initial,
                 relay,
                 authorization,
+                check,
+                submit,
               );
             }
             phase = "payment_request";
@@ -184,7 +183,7 @@ export class X402PaymentClient implements X402PaymentPort {
             let bounded: Response;
             try {
               bounded = this.paidFetchFactory
-                ? await boundedResponse(response, MAX_RESPONSE_BYTES)
+                ? await boundedResponse(response, MAX_RESPONSE_BYTES, check.signal)
                 : response;
             } catch (error) {
               throw settlementError(error, response, toX402Network(network), signer);
@@ -377,6 +376,8 @@ export class X402PaymentClient implements X402PaymentPort {
     initial: Response,
     relay: ReturnType<typeof gasfreeRelayClient>,
     authorization: PaymentAuthorization,
+    check: DispatchCheck,
+    submit: DispatchCheck,
   ): Promise<typeof fetch> {
     const recordApproval = (
       approval: SignedApproval,
@@ -400,6 +401,7 @@ export class X402PaymentClient implements X402PaymentPort {
       async signTypedData(payload: unknown) {
         scope.emit({ type: "activity", message: "Signing payment authorization…" });
         try {
+          check.assertDispatchable();
           const signed = await wallet.signTypedData(normalizeTypedData(payload));
           authorization.signed = true;
           scope.emit({
@@ -414,9 +416,14 @@ export class X402PaymentClient implements X402PaymentPort {
       },
       async signTransaction(tx: unknown): Promise<string | Record<string, unknown>> {
         scope.emit({ type: "activity", message: "Signing the payment transaction…" });
-        const signed = await wallet.signTransaction(tx).catch((error: unknown) => {
-          throw sdkPaymentError(error, "sign");
-        });
+        const signed = await Promise.resolve()
+          .then(() => {
+            check.assertDispatchable();
+            return wallet.signTransaction(tx);
+          })
+          .catch((error: unknown) => {
+            throw sdkPaymentError(error, "sign");
+          });
         // A signed approval is not a payment authorization.
         if (family.transactionIsPayment) authorization.signed = true;
         scope.emit({
@@ -443,6 +450,7 @@ export class X402PaymentClient implements X402PaymentPort {
     );
     await family.registerSchemes(client, {
       network,
+      check,
       bridge,
       payer: signer,
       approver,
@@ -458,20 +466,23 @@ export class X402PaymentClient implements X402PaymentPort {
     client.onAfterPaymentCreation(async ({ selectedRequirements }) => {
       authorization.requirement = selectedRequirements;
     });
-    const boundedFetch = this.boundedFetch(scope, network, signer);
+    // Every request after the initial challenge carries the payment.
+    const boundedFetch = this.boundedFetch(submit, network, signer);
     let first: Response | undefined = initial;
+    let paymentSent = false;
     const fetchWithInitial: typeof fetch = (request, init) => {
       if (first) {
         const response = first;
         first = undefined;
         return Promise.resolve(response);
       }
+      paymentSent = true;
       return boundedFetch(request, init);
     };
     const paidFetch = wrapFetchWithPayment(fetchWithInitial, client);
     return async (request, init) => {
       try {
-        return await paidFetch(request, init);
+        return await untilPaymentSent(paidFetch(request, init), check, () => paymentSent);
       } catch (error) {
         throw creationError ?? error;
       }
@@ -479,7 +490,7 @@ export class X402PaymentClient implements X402PaymentPort {
   }
 
   private boundedFetch(
-    scope: TransactionScope,
+    check: DispatchCheck,
     network: NetworkDescriptor,
     signer?: Pick<PayerSigner, "address">,
   ): typeof fetch {
@@ -490,12 +501,53 @@ export class X402PaymentClient implements X402PaymentPort {
         return response;
       };
       try {
-        return await fetchBounded(fetcher, request, init, scope.timeoutMs);
+        return await fetchBounded(fetcher, request, init, check);
       } catch (error) {
         throw settlementError(error, response, toX402Network(network), signer);
       }
     };
   }
+}
+
+// Refuses an SDK call once `check` fails and ends it when the check's signal aborts; the late
+// result is dropped and any later call of the SDK is refused by the same check.
+async function sdkLeaf<T>(check: DispatchCheck, label: string, call: () => Promise<T>): Promise<T> {
+  return withDispatchCheck(check, () => {
+    check.assertDispatchable();
+    return untilAborted(call(), label);
+  });
+}
+
+// Ends payment creation inside the SDK when the signal aborts. After the paid request is sent, its
+// own fetch ends it with the settlement evidence.
+function untilPaymentSent<T>(
+  work: Promise<T>,
+  check: DispatchCheck,
+  sent: () => boolean,
+): Promise<T> {
+  const signal = check.signal;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      if (sent()) return;
+      work.catch(() => {});
+      reject(sdkPaymentError(abortReason(signal), "create_payment"));
+    };
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
 }
 
 function isBinaryContentType(contentType: string): boolean {
@@ -512,6 +564,8 @@ const evmAddress = new EvmAddress();
 // What the SDK's scheme clients need from one payment.
 interface SchemeContext {
   readonly network: NetworkDescriptor;
+  // Every SDK read and wallet callback runs this check before it starts.
+  readonly check: DispatchCheck;
   // Wallet signer in the shape the SDK calls.
   readonly bridge: Parameters<typeof createClientTronSigner>[0];
   readonly payer: PayerSigner;
@@ -532,11 +586,12 @@ interface FamilyIntegration {
 
 const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
   evm: {
-    async registerSchemes(client, { network, bridge }) {
+    async registerSchemes(client, { network, check, bridge }) {
+      // No rpcUrl: the SDK's own RPC client would not see the command deadline.
+      const reads = network.httpEndpoint ? evmRpcCapabilities(network.httpEndpoint, check) : {};
       registerExactEvmScheme(client, {
-        signer: bridge as unknown as ClientEvmSigner,
+        signer: { ...bridge, ...reads } as unknown as ClientEvmSigner,
         networks: [network.id as Network],
-        schemeOptions: network.httpEndpoint ? { rpcUrl: network.httpEndpoint } : undefined,
       });
     },
     permit2: (_network, tokens) => ({
@@ -547,7 +602,10 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
     signTransaction: signEvmPaymentTransaction,
   },
   tron: {
-    async registerSchemes(client, { network, bridge, payer, approver, relay, recordApproval }) {
+    async registerSchemes(
+      client,
+      { network, check, bridge, payer, approver, relay, recordApproval },
+    ) {
       const x402Network = toX402Network(network);
       // SDK metadata is keyed by symbol: use an internal alias to retain exact's USDD entry.
       for (const [symbol, token] of Object.entries(GASFREE_TOKENS[network.id] ?? {})) {
@@ -559,9 +617,20 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
         ...(network.apiKey ? { apiKey: network.apiKey } : {}),
         allowanceMode: "skip",
       });
+      // TronWeb inside the SDK takes no signal: each call is refused or ended by the deadline.
+      const readContract: ClientTronSigner["readContract"] = (args) =>
+        sdkLeaf(check, "x402 TRON contract read", () => sdkSigner.readContract(args));
+      const signPermit2Approval = sdkSigner.signPermit2Approval;
       // The SDK must never broadcast: a missing allowance is approved through the application.
       const tronSigner: ClientTronSigner = {
         ...sdkSigner,
+        readContract,
+        ...(signPermit2Approval
+          ? {
+              signPermit2Approval: (args) =>
+                sdkLeaf(check, "x402 TRON approval build", () => signPermit2Approval(args)),
+            }
+          : {}),
         ensureAllowance: async ({ token, amount }) => {
           const spender = PERMIT2_ADDRESSES[x402Network];
           if (!spender) {
@@ -569,7 +638,7 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
           }
           const readAllowance = async () =>
             String(
-              await sdkSigner.readContract(
+              await readContract(
                 getPermit2AllowanceReadParams({
                   network: x402Network,
                   tokenAddress: token,

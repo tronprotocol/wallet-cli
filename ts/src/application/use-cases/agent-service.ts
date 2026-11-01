@@ -1,3 +1,5 @@
+import type { ExecutionDeadline } from "../contracts/deadline.js";
+import { requestDispatchCheck } from "../services/command-deadline.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor, TxReceiptView } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
@@ -57,15 +59,21 @@ export class AgentService {
     private readonly registration: AgentRegistrationLoader,
   ) {}
 
-  async show(network: NetworkDescriptor, id: string) {
+  async show(deadline: ExecutionDeadline, network: NetworkDescriptor, id: string) {
     const agentId = resolveAgentId(id, network).toString();
     const registry = this.registry.registry(network);
     const [owner, uri, approved] = await Promise.all([
-      this.read(network, registry, "ownerOf(uint256)", [{ type: "uint256", value: agentId }]),
-      this.read(network, registry, "tokenURI(uint256)", [{ type: "uint256", value: agentId }]),
-      this.read(network, registry, "getApproved(uint256)", [{ type: "uint256", value: agentId }]),
+      this.read(deadline, network, registry, "ownerOf(uint256)", [
+        { type: "uint256", value: agentId },
+      ]),
+      this.read(deadline, network, registry, "tokenURI(uint256)", [
+        { type: "uint256", value: agentId },
+      ]),
+      this.read(deadline, network, registry, "getApproved(uint256)", [
+        { type: "uint256", value: agentId },
+      ]),
     ]);
-    const loaded = await this.registration.load(String(uri));
+    const loaded = await this.registration.load(String(uri), requestDispatchCheck(deadline));
     return {
       agentId,
       owner: this.address(network, String(owner)),
@@ -91,7 +99,9 @@ export class AgentService {
     if (result.stage !== "confirmed") return result;
     const txId = String(result.txId ?? result.hash ?? "");
     try {
-      const agentId = txId ? await this.registry.registeredAgentId(network, txId) : undefined;
+      const agentId = txId
+        ? await this.registry.registeredAgentId(network, txId, requestDispatchCheck(scope.deadline))
+        : undefined;
       if (agentId !== undefined) return { ...result, identity: { ...result.identity, agentId } };
     } catch {
       // Preserve the confirmed transaction when receipt enrichment fails.
@@ -109,9 +119,13 @@ export class AgentService {
   ) {
     const id = resolveAgentId(input.id, network).toString();
     const oldURI = String(
-      await this.read(network, this.registry.registry(network), "tokenURI(uint256)", [
-        { type: "uint256", value: id },
-      ]),
+      await this.read(
+        scope.deadline,
+        network,
+        this.registry.registry(network),
+        "tokenURI(uint256)",
+        [{ type: "uint256", value: id }],
+      ),
     );
     const result = await this.write(scope, network, input, "setAgentURI(uint256,string)", [
       { type: "uint256", value: id },
@@ -121,9 +135,13 @@ export class AgentService {
     if (result.stage !== "confirmed") return view;
     try {
       const newURI = String(
-        await this.read(network, this.registry.registry(network), "tokenURI(uint256)", [
-          { type: "uint256", value: id },
-        ]),
+        await this.read(
+          scope.deadline,
+          network,
+          this.registry.registry(network),
+          "tokenURI(uint256)",
+          [{ type: "uint256", value: id }],
+        ),
       );
       return { ...view, identity: { ...view.identity, newURI } };
     } catch {
@@ -143,7 +161,9 @@ export class AgentService {
     const id = resolveAgentId(input.id, network).toString();
     const registry = this.registry.registry(network);
     const owner = String(
-      await this.read(network, registry, "ownerOf(uint256)", [{ type: "uint256", value: id }]),
+      await this.read(scope.deadline, network, registry, "ownerOf(uint256)", [
+        { type: "uint256", value: id },
+      ]),
     );
     const result = await this.write(
       scope,
@@ -167,7 +187,9 @@ export class AgentService {
     if (result.stage !== "confirmed") return view;
     try {
       const newOwner = String(
-        await this.read(network, registry, "ownerOf(uint256)", [{ type: "uint256", value: id }]),
+        await this.read(scope.deadline, network, registry, "ownerOf(uint256)", [
+          { type: "uint256", value: id },
+        ]),
       );
       return { ...view, identity: { ...view.identity, newOwner: this.address(network, newOwner) } };
     } catch {
@@ -204,12 +226,23 @@ export class AgentService {
     return this.setOperator(scope, network, input, false);
   }
 
-  async operatorCheck(network: NetworkDescriptor, owner: string, operator: string) {
+  async operatorCheck(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    owner: string,
+    operator: string,
+  ) {
     const registry = this.registry.registry(network);
-    const approved = await this.read(network, registry, "isApprovedForAll(address,address)", [
-      { type: "address", value: owner },
-      { type: "address", value: operator },
-    ]);
+    const approved = await this.read(
+      deadline,
+      network,
+      registry,
+      "isApprovedForAll(address,address)",
+      [
+        { type: "address", value: owner },
+        { type: "address", value: operator },
+      ],
+    );
     return { owner, operator, approved: Boolean(approved), registry };
   }
 
@@ -227,6 +260,7 @@ export class AgentService {
     if (result.stage !== "confirmed") return view;
     try {
       const current = await this.operatorCheck(
+        scope.deadline,
         network,
         scope.resolveAddress(network.family),
         input.operator,
@@ -241,12 +275,13 @@ export class AgentService {
   }
 
   private async read(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     _registry: string,
     method: string,
     params: Array<{ type: string; value: unknown }>,
   ): Promise<AgentRegistryValue> {
-    return this.registry.read(network, method, params);
+    return this.registry.read(deadline, network, method, params);
   }
 
   private write(

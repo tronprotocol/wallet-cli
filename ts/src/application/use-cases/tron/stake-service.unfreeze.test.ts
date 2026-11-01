@@ -3,6 +3,9 @@ import { TronStakeService } from "./stake-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const net = {
   id: "tron:3448148188",
@@ -13,7 +16,7 @@ const net = {
   capabilities: [],
 } as NetworkDescriptor;
 const OWNER = "TQkDWJimyBEhkFcqEfCWNbb6tMDwmH1234";
-const scope = { activeAccount: {}, resolveAddress: () => OWNER } as never;
+const scope = { deadline: NO_DEADLINE, activeAccount: {}, resolveAddress: () => OWNER } as never;
 
 function stubPipeline() {
   return {

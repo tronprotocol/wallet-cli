@@ -10,6 +10,7 @@ import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -163,7 +164,7 @@ it.each([true, false])(
       signing,
     );
     const payment = client.pay(
-      { activeAccount: "payer", timeoutMs: 1000, emit: vi.fn() } as never,
+      { activeAccount: "payer", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
       {
         id: "tron:3448148188",
         family: "tron",

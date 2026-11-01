@@ -1,3 +1,10 @@
+import {
+  assertSubmitAdmitted,
+  requestDispatchCheck,
+  submitDispatchCheck,
+} from "../../services/command-deadline.js";
+import { sleepWithin } from "../../services/deadline-poll.js";
+import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
 import { gasfreeService } from "../../services/capability/predicates.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import type { GasFreeProvider } from "../../ports/gasfree-provider.js";
@@ -57,16 +64,18 @@ export class GasFreeService {
     private readonly signing: SigningService,
     private readonly recipients: RecipientResolver,
     private readonly clock: () => number = () => Date.now(),
-    private readonly sleep: (milliseconds: number) => Promise<void> = (milliseconds) =>
-      new Promise((resolve) => setTimeout(resolve, milliseconds)),
+    private readonly sleep: (
+      milliseconds: number,
+      deadline: ExecutionDeadline,
+    ) => Promise<unknown> = (milliseconds, deadline) => sleepWithin(deadline, milliseconds),
   ) {}
 
   async info(scope: TransactionScope, network: NetworkDescriptor): Promise<GasFreeInfoView> {
     const owner = scope.resolveAddress("tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const [addressInfo, tokens] = await Promise.all([
-      this.provider.getAddress(network, owner),
-      this.#tokens(network),
+      this.provider.getAddress(network, owner, requestDispatchCheck(scope.deadline)),
+      this.#tokens(scope.deadline, network),
     ]);
     if (addressInfo.ownerAddress !== owner) {
       throw new ChainError(
@@ -128,9 +137,9 @@ export class GasFreeService {
     const owner = scope.resolveAddress("tron");
     const recipient = this.recipients.resolve("tron", input.to);
     const [addressInfo, tokens, providers] = await Promise.all([
-      this.provider.getAddress(network, owner),
-      this.#tokens(network),
-      this.provider.listProviders(network),
+      this.provider.getAddress(network, owner, requestDispatchCheck(scope.deadline)),
+      this.#tokens(scope.deadline, network),
+      this.provider.listProviders(network, requestDispatchCheck(scope.deadline)),
     ]);
     if (addressInfo.ownerAddress !== owner) {
       throw new ChainError(
@@ -154,7 +163,7 @@ export class GasFreeService {
     // Authorize activation plus transfer fees even when activation is already paid.
     const authorizedMaxFee = add(asset.activateFee, asset.transferFee);
     const totalDeducted = add(value, activateFee, asset.transferFee);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const balance = await gateway.getTrc20Balance(token.tokenAddress, addressInfo.gasFreeAddress);
     if (BigInt(balance) < BigInt(totalDeducted)) {
       throw new ChainError(
@@ -230,10 +239,17 @@ export class GasFreeService {
       );
     }
 
-    const submitted = await this.provider.submitTransfer(network, {
-      ...authorization,
-      sig: signature,
-    });
+    assertSubmitAdmitted(scope.deadline);
+    let submitted: GasFreeTransferRecord;
+    try {
+      submitted = await this.provider.submitTransfer(
+        network,
+        { ...authorization, sig: signature },
+        submitDispatchCheck(scope.deadline),
+      );
+    } catch (error) {
+      throw uncertainSubmit(error, network, authorization, token, addressInfo, expectedDigest);
+    }
     assertAccepted(submitted, authorization, addressInfo.gasFreeAddress, { traceId: submitted.id });
     const accepted: GasFreeTransferView = {
       ...base,
@@ -267,10 +283,14 @@ export class GasFreeService {
     };
   }
 
-  async trace(network: NetworkDescriptor, traceId: string): Promise<GasFreeTraceView> {
-    const record = await this.provider.trace(network, traceId);
+  async trace(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    traceId: string,
+  ): Promise<GasFreeTraceView> {
+    const record = await this.provider.trace(network, traceId, requestDispatchCheck(deadline));
     assertFeeIntegrity(record, record.maxFee);
-    const token = (await this.#tokens(network)).find(
+    const token = (await this.#tokens(deadline, network)).find(
       (item) => item.tokenAddress === record.tokenAddress,
     );
     if (!token) {
@@ -303,9 +323,12 @@ export class GasFreeService {
     };
   }
 
-  async #tokens(network: NetworkDescriptor): Promise<ResolvedGasFreeToken[]> {
-    const gateway = this.gateways.get(network, "tron");
-    const tokens = await this.provider.listTokens(network);
+  async #tokens(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+  ): Promise<ResolvedGasFreeToken[]> {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
+    const tokens = await this.provider.listTokens(network, requestDispatchCheck(deadline));
     return Promise.all(
       tokens.map(async (token) => {
         const info = await gateway.getTokenInfo(token.tokenAddress);
@@ -345,24 +368,23 @@ export class GasFreeService {
     authorization: GasFreeAuthorization,
     gasFreeAddress: string,
   ): Promise<GasFreeTransferRecord | undefined> {
-    const deadline = this.clock() + Math.max(0, scope.waitTimeoutMs);
+    const { deadline } = scope;
     const traceContext = { traceId: initial.id };
     let previous = initial.state;
     if (previous === "SUCCEED" || previous === "FAILED") return initial;
     for (;;) {
-      const beforeSleep = deadline - this.clock();
-      if (beforeSleep > 0) await this.sleep(Math.min(POLL_MS, beforeSleep));
-      // No trace is sent once the wait budget is spent.
-      const remaining = deadline - this.clock();
-      if (remaining <= 0) {
+      const beforeSleep = deadline.remainingMs();
+      if (beforeSleep > 0) await this.sleep(Math.min(POLL_MS, beforeSleep), deadline);
+      // No trace is sent once the deadline has expired.
+      if (deadline.expired()) {
         scope.warn(
-          errorMessage`${inputRef("wait")}: GasFree transfer ${initial.id} did not finish within ${scope.waitTimeoutMs}ms; returning submitted`,
+          errorMessage`${inputRef("wait")}: GasFree transfer ${initial.id} did not finish before the command's time limit; returning submitted`,
         );
         return undefined;
       }
       let current: GasFreeTransferRecord;
       try {
-        current = await this.provider.trace(network, initial.id, AbortSignal.timeout(remaining));
+        current = await this.provider.trace(network, initial.id, requestDispatchCheck(deadline));
       } catch (error) {
         if (isRetryablePoll(error)) continue;
         if (error instanceof CliError && error.code === "gasfree_integrity") throw error;
@@ -394,6 +416,53 @@ export class GasFreeService {
       }
     }
   }
+}
+
+// Refusals the provider states before acting; any other failure after dispatch may have been accepted.
+const DEFINITE_SUBMIT_REFUSALS = new Set([
+  "gasfree_auth_failed",
+  "gasfree_rejected",
+  "provider_rate_limited",
+]);
+
+// The signed authorization stays valid until its deadline, so an unknown submit keeps what is needed
+// to reconcile it, never the signature.
+function uncertainSubmit(
+  error: unknown,
+  network: NetworkDescriptor,
+  authorization: GasFreeAuthorization,
+  token: ResolvedGasFreeToken,
+  address: GasFreeAddressInfo,
+  digest: Uint8Array,
+): unknown {
+  if (
+    error instanceof DeadlineExpiredError ||
+    (error instanceof CliError &&
+      (error.kind === "usage" || DEFINITE_SUBMIT_REFUSALS.has(error.code)))
+  ) {
+    return error;
+  }
+  const code = error instanceof CliError && error.code === "timeout" ? "timeout" : "provider_error";
+  return new TransportError(
+    code,
+    "GasFree submit outcome is unknown and no trace id is known; check the GasFree nonce before signing another transfer",
+    {
+      paymentStatus: "unknown",
+      retryPayment: false,
+      network: network.id,
+      serviceProvider: authorization.serviceProvider,
+      owner: authorization.user,
+      from: address.gasFreeAddress,
+      to: authorization.receiver,
+      token: token.symbol,
+      tokenAddress: authorization.token,
+      amount: authorization.value,
+      authorizedMaxFee: authorization.maxFee,
+      nonce: authorization.nonce,
+      deadline: authorization.deadline,
+      permitDigest: `0x${bytesToHex(digest)}`,
+    },
+  );
 }
 
 function isRetryablePoll(error: unknown): boolean {

@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 export interface TronHistoryQuery {
@@ -31,5 +32,6 @@ export interface TronHistoryReader {
     network: NetworkDescriptor,
     address: string,
     query: TronHistoryQuery,
+    check: DispatchCheck,
   ): Promise<TronHistoryResult>;
 }

@@ -1,3 +1,4 @@
+import { CommandDeadline } from "../services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { X402Service } from "./x402-service.js";
 import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
@@ -7,7 +8,9 @@ import type { SignerResolver } from "../services/signer/index.js";
 import { WalletError } from "../../domain/errors/index.js";
 import { processBroadcastGuard } from "../services/broadcast-guard.js";
 
-const scope = { activeAccount: "payer" } as never;
+const NO_DEADLINE = new CommandDeadline(0);
+
+const scope = { deadline: NO_DEADLINE, activeAccount: "payer" } as never;
 const network = { id: "eip155:56", family: "evm" } as never;
 const input = { url: "https://example.test", method: "GET", headers: [] };
 const PAY_TO = "0x2222222222222222222222222222222222222222";
@@ -58,6 +61,7 @@ function fixture(failure?: "prepare" | "resolve" | "pay") {
         offer: vi.fn(),
       },
       host: { start },
+      requestTimeoutMs: 0,
     },
   );
   return { service, request, pay, close, signers, catalog, serverClose, start };
@@ -69,7 +73,7 @@ describe("X402Service", () => {
     await expect(f.service.pay(scope, network, { ...input, dryRun })).resolves.toMatchObject(
       dryRun ? { dryRun: true } : { settled: true },
     );
-    expect(f.request).toHaveBeenCalledWith(scope, network, input);
+    expect(f.request).toHaveBeenCalledWith(scope, network, input, expect.anything());
     expect(f.pay).toHaveBeenCalledTimes(dryRun ? 0 : 1);
     expect(f.signers.assertCanSign).toHaveBeenCalledTimes(dryRun ? 0 : 1);
     expect(f.signers.resolve).toHaveBeenCalledTimes(dryRun ? 0 : 1);
@@ -84,6 +88,7 @@ describe("X402Service", () => {
         },
         approver: { approve: expect.any(Function) },
         guard: processBroadcastGuard,
+        submit: { signal: expect.any(AbortSignal), assertDispatchable: expect.any(Function) },
         limits: { gasfreeFeeCapped: false },
       });
     expect(f.close).toHaveBeenCalledOnce();
@@ -128,11 +133,11 @@ describe("X402Service", () => {
 
   it("delegates catalog operations", async () => {
     const { service, catalog } = fixture();
-    await service.providerList({ limit: 20, offset: 0 });
-    await service.providerShow("a/b");
-    await service.providerEndpoints("a/b");
-    await service.providerUpdate();
-    expect(catalog.list).toHaveBeenCalledWith({ limit: 20, offset: 0 });
+    await service.providerList(NO_DEADLINE, { limit: 20, offset: 0 });
+    await service.providerShow(NO_DEADLINE, "a/b");
+    await service.providerEndpoints(NO_DEADLINE, "a/b");
+    await service.providerUpdate(NO_DEADLINE);
+    expect(catalog.list).toHaveBeenCalledWith({ limit: 20, offset: 0 }, expect.anything());
   });
 });
 
@@ -162,13 +167,19 @@ it.each([undefined, "pay", "resolve"] as const)(
         asset: "0xasset",
         exactRawAmount: "10000000",
       }),
+      expect.anything(),
     );
-    expect(f.start).toHaveBeenCalledWith(expect.anything(), {
-      host: "127.0.0.1",
-      port: 0,
-      accessLog: "diagnostic",
-      daemon: false,
-    });
+    expect(f.start).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        host: "127.0.0.1",
+        port: 0,
+        accessLog: "diagnostic",
+        daemon: false,
+        persistent: false,
+      },
+      NO_DEADLINE,
+    );
     expect(f.close).toHaveBeenCalledOnce();
     expect(f.serverClose).toHaveBeenCalledOnce();
   },

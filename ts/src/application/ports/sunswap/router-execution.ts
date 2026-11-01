@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../contracts/deadline.js";
 // Return unsigned calls; the transaction pipeline owns signing and broadcasting.
 import type { ContractParameter } from "../../contracts/tron/tron-contract-call.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
@@ -16,7 +17,7 @@ export interface RouterExecutionPort {
   routerAddress(network: NetworkDescriptor): string;
 
   // Chain time in Unix seconds, shared with the encoder so deadline checks use the same clock.
-  transactionTime(network: NetworkDescriptor): Promise<number>;
+  transactionTime(network: NetworkDescriptor, check: DispatchCheck): Promise<number>;
 
   // Derives the floor from slippageBips; callers must verify it in the encoded call.
   buildSwapCall(
@@ -31,5 +32,6 @@ export interface RouterExecutionPort {
       // Absent for native TRX, which needs no permit.
       readonly permit?: { readonly grant: unknown; readonly signature: string };
     },
+    check: DispatchCheck,
   ): Promise<RouterSwapCall>;
 }

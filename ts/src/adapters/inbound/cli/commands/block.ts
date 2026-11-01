@@ -31,9 +31,9 @@ export const blockSpec: ChainSpec = {
 };
 
 export const blockTronBinding = (svc: TronBlockService): FamilyBinding => ({
-  run: async (_ctx, net, input) => svc.get(net, input.number),
+  run: async (ctx, net, input) => svc.get(ctx.deadline, net, input.number),
 });
 
 export const blockEvmBinding = (svc: EvmBlockService): FamilyBinding => ({
-  run: async (_ctx, net, input) => svc.get(net, input.number),
+  run: async (ctx, net, input) => svc.get(ctx.deadline, net, input.number),
 });

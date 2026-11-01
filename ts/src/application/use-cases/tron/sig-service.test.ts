@@ -12,11 +12,11 @@ import {
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import { TronSigService } from "./sig-service.js";
 import { SigningService } from "../../services/signing/signing-service.js";
-import type { TronReferenceBlockStatus } from "../../ports/chain/tron/tron-gateway.js";
+import type { TronGateway, TronReferenceBlockStatus } from "../../ports/chain/tron/tron-gateway.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -51,9 +51,9 @@ function unsignedHex(expiration = NOW + 60_000): string {
 function scope(): TransactionScope {
   return {
     activeAccount: "local" as never,
-    timeoutMs: 100,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 100,
+
     resolveAddress: () => A,
     emit: vi.fn(),
     warn: vi.fn(),

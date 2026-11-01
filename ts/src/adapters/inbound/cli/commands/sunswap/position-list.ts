@@ -46,7 +46,7 @@ export const sunswapPositionListTronBinding = (
   service: SunSwapMarketQueryService,
 ): FamilyBinding => ({
   run: async (ctx, net, input) =>
-    service.positionList(net, {
+    service.positionList(ctx.deadline, net, {
       owner: ctx.resolveAddress("tron"),
       limit: input.limit,
       offset: input.offset,

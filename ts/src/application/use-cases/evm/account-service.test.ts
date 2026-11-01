@@ -5,8 +5,13 @@ import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
-const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xADDR" };
+const scope: AccountScope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => "0xADDR",
+};
 const net = {
   id: "eip155:1",
   family: "evm",

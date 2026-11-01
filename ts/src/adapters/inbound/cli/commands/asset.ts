@@ -244,7 +244,13 @@ export function assetDefinitions(
       spec: assetUnfreezeSpec,
       binding: { run: (ctx, net, input) => svc.unfreeze(ctx, net, input) },
     },
-    { spec: assetInfoSpec, binding: { run: (_ctx, net, input) => svc.info(net, input) } },
-    { spec: assetListSpec, binding: { run: (_ctx, net, input) => svc.list(net, input) } },
+    {
+      spec: assetInfoSpec,
+      binding: { run: (ctx, net, input) => svc.info(ctx.deadline, net, input) },
+    },
+    {
+      spec: assetListSpec,
+      binding: { run: (ctx, net, input) => svc.list(ctx.deadline, net, input) },
+    },
   ];
 }

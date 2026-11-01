@@ -39,13 +39,13 @@ wallet-cli tx send --to T... --amount 1 --network nile --account cold
 
 Instead of a password prompt, the Ledger asks you to approve. When the TRON app can decode the transaction, its details appear **on the Ledger screen** — verify the recipient and amount there (that is the whole point of the device) and approve. Some contract operations are signed by hash instead; see [Hash signing](#hash-signing). The transaction then broadcasts normally; confirm with [`tx status`](../commands/tx/status.md).
 
-**Time to review.** A TRON transaction normally expires about 60 seconds after it is built, which a careful on-device review can outlast. For a new TRON transaction sent to a Ledger, the CLI therefore sets the expiration to at least ten minutes from signing — or the device timeout (`--timeout`) plus one minute, if longer. An expiration you set yourself is kept, and a transaction file that was already built or signed elsewhere is never changed. The expiration is checked again after the device signs: a transaction that expired while you were reviewing it fails with `tx_expired` and is not broadcast — rebuild and sign again.
+**Time to review.** A TRON transaction normally expires about 60 seconds after it is built, which a careful on-device review can outlast. For a new TRON transaction sent to a Ledger, the CLI therefore sets the expiration to at least ten minutes from signing. An expiration you set yourself is kept, and a transaction file that was already built or signed elsewhere is never changed. The expiration is checked again after the device signs: a transaction that expired while you were reviewing it fails with `tx_expired` and is not broadcast — rebuild and sign again.
 
 This is your best defense against address-swapping malware: what the device screen shows is what gets signed, regardless of what the host displays.
 
 ## 3. When the device doesn't respond
 
-Device calls are bounded by the same `--timeout` as RPC (default 60000 ms) and fail with `error.code: "timeout"`. In order:
+Device calls count against the command's `--timeout` (default 90000 ms), and a command that runs out of time fails with `error.code: "timeout"`. In order:
 
 1. Is the Ledger unlocked and the right app open — the one the account was registered with, not the dashboard?
 2. Replug the cable; avoid USB hubs.

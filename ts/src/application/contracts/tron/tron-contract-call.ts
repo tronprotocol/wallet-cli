@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../deadline.js";
 import type { BaseUnits, Sun } from "../../../domain/amounts/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 
@@ -30,6 +31,7 @@ export interface ApprovalCapablePort {
     token: string,
     owner: string,
     spender: string,
+    check: DispatchCheck,
   ): Promise<BaseUnits>;
 
   approvalPayload(

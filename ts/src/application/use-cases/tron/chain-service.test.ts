@@ -1,8 +1,11 @@
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, it, expect } from "vitest";
 import { TronChainService } from "./chain-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const net = {
   id: "tron:3448148188",
@@ -26,7 +29,7 @@ describe("TronChainService.params", () => {
     ],
   };
   it("lists all parameters with the catalog unit", async () => {
-    expect(await svc(gateway).params(net)).toEqual({
+    expect(await svc(gateway).params(NO_DEADLINE, net)).toEqual({
       params: [
         { key: "getEnergyFee", value: 210, unit: "sun" },
         { key: "getMemoFee", value: 1000000, unit: "sun" },
@@ -35,17 +38,17 @@ describe("TronChainService.params", () => {
   });
   it("gives a parameter without a catalog unit an empty unit", async () => {
     const flags = { getChainParameters: async () => [{ key: "getAllowMultiSign", value: 1 }] };
-    expect(await svc(flags).params(net)).toEqual({
+    expect(await svc(flags).params(NO_DEADLINE, net)).toEqual({
       params: [{ key: "getAllowMultiSign", value: 1, unit: "" }],
     });
   });
   it("returns a single key, and unknown_parameter for unknown keys", async () => {
-    expect(await svc(gateway).params(net, "getEnergyFee")).toEqual({
+    expect(await svc(gateway).params(NO_DEADLINE, net, "getEnergyFee")).toEqual({
       key: "getEnergyFee",
       value: 210,
       unit: "sun",
     });
-    await expect(svc(gateway).params(net, "getNope")).rejects.toMatchObject({
+    await expect(svc(gateway).params(NO_DEADLINE, net, "getNope")).rejects.toMatchObject({
       code: "unknown_parameter",
     });
   });
@@ -61,7 +64,7 @@ describe("TronChainService.prices", () => {
       getBandwidthPrices: async () => points([0, 10], [1614456000000, 1000]),
       getChainParameters: async () => [{ key: "getMemoFee", value: 1000000 }],
     };
-    expect(await svc(gateway).prices(net)).toEqual({
+    expect(await svc(gateway).prices(NO_DEADLINE, net)).toEqual({
       energy: {
         currentSunPerUnit: 210,
         history: [
@@ -88,7 +91,7 @@ describe("TronChainService.prices", () => {
       getBandwidthPrices: async () => points([0, 10]),
       getChainParameters: async () => [],
     };
-    await expect(svc(gateway).prices(net)).rejects.toMatchObject({
+    await expect(svc(gateway).prices(NO_DEADLINE, net)).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });
@@ -106,7 +109,7 @@ describe("TronChainService.node", () => {
       }),
       getHeadBlock: async () => ({ number: 84120345, timestampMs: now - 2000 }),
     };
-    const view = await svc(gateway).node(net);
+    const view = await svc(gateway).node(NO_DEADLINE, net);
     expect(view).toMatchObject({
       endpoint: "nile.trongrid.io",
       version: "java-tron 4.7.7",
@@ -124,7 +127,7 @@ describe("TronChainService.node", () => {
       getHeadBlock: async () => ({ number: 1, timestampMs: Date.now() }),
     };
     const withKey = { ...net, httpEndpoint: "https://tron.example/wallet?apikey=SECRET-KEY" };
-    const view = await svc(gateway).node(withKey as typeof net);
+    const view = await svc(gateway).node(NO_DEADLINE, withKey as typeof net);
 
     expect(view.endpoint).toBe("tron.example");
     expect(JSON.stringify(view)).not.toContain("SECRET");
@@ -135,7 +138,7 @@ describe("TronChainService.node", () => {
       getNodeInfo: async () => ({}),
       getHeadBlock: async () => ({ number: 100, timestampMs: Date.now() - 60_000 }),
     };
-    const view = await svc(gateway).node(net);
+    const view = await svc(gateway).node(NO_DEADLINE, net);
     expect(view.version).toBeNull();
     expect(view.solidBlock).toBeNull();
     expect(view.lagBlocks).toBeNull();
@@ -150,7 +153,9 @@ describe("TronChainService.node", () => {
         throw new ChainError("invalid_node_response", "the node reported no latest block");
       },
     };
-    await expect(svc(gateway).node(net)).rejects.toMatchObject({ code: "invalid_node_response" });
+    await expect(svc(gateway).node(NO_DEADLINE, net)).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
   });
 });
 
@@ -161,6 +166,8 @@ describe("TronChainService.prices with a negative memo fee", () => {
       getBandwidthPrices: async () => points([0, 1000]),
       getChainParameters: async () => [{ key: "getMemoFee", value: -1 }],
     };
-    await expect(svc(gateway).prices(net)).rejects.toMatchObject({ code: "provider_error" });
+    await expect(svc(gateway).prices(NO_DEADLINE, net)).rejects.toMatchObject({
+      code: "provider_error",
+    });
   });
 });

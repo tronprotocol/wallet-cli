@@ -113,5 +113,5 @@ export const gasFreeTraceSpec: ChainSpec = {
 };
 
 export const gasFreeTraceTronBinding = (service: GasFreeService): FamilyBinding => ({
-  run: async (_context, network, input) => service.trace(network, input.traceId),
+  run: async (context, network, input) => service.trace(context.deadline, network, input.traceId),
 });

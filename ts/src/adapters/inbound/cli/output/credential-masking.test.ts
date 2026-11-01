@@ -22,7 +22,7 @@ const network = {
 
 // A provider that echoes the request's API key in a JSON-RPC error body.
 async function echoedKeyError(): Promise<CliError> {
-  const transport = new FetchHttpTransport(networkHttpConfig(network, 1000), async (_url, init) => {
+  const transport = new FetchHttpTransport(networkHttpConfig(network), async (_url, init) => {
     const key = new Headers(init?.headers).get("X-Api-Key");
     const body = {
       jsonrpc: "2.0",
@@ -32,7 +32,7 @@ async function echoedKeyError(): Promise<CliError> {
     return new Response(JSON.stringify(body), { status: 200 });
   });
   try {
-    await new EvmRpcClient(network, 1000, transport).getBlockNumber();
+    await new EvmRpcClient(network, transport).getBlockNumber();
   } catch (error) {
     return normalizeCliError(error);
   }

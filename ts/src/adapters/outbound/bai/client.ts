@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { baiApiError } from "./api-error.js";
 import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
 import { z } from "zod";
@@ -25,13 +26,12 @@ export const DEFAULT_BAI_BASE_URL = "https://chat.bankofai.io";
 export class BaiClient implements BaiApi {
   constructor(
     private readonly config: Pick<Config, "baiApiKey">,
-    private readonly timeoutMs: number,
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly baseUrl = DEFAULT_BAI_BASE_URL,
   ) {}
 
-  async status(): Promise<BaiStatusView> {
-    const value = responseObject(await this.call("usage.summary", null));
+  async status(check: DispatchCheck): Promise<BaiStatusView> {
+    const value = responseObject(await this.call("usage.summary", null, check));
     return {
       pointsBalance: scalar(value.points_balance, "points_balance"),
       monthlySpent: scalar(value.monthly_spent, "monthly_spent"),
@@ -42,15 +42,19 @@ export class BaiClient implements BaiApi {
     };
   }
 
-  async usageList(input: BaiPageInput): Promise<BaiPageView<BaiUsageRecord>> {
-    const raw = await this.call("usage.records", {
-      page: input.page,
-      pageSize: input.pageSize,
-      sortBy: "created_at",
-      sortOrder: input.sortOrder,
-      ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
-      mode: "all",
-    });
+  async usageList(input: BaiPageInput, check: DispatchCheck): Promise<BaiPageView<BaiUsageRecord>> {
+    const raw = await this.call(
+      "usage.records",
+      {
+        page: input.page,
+        pageSize: input.pageSize,
+        sortBy: "created_at",
+        sortOrder: input.sortOrder,
+        ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+        mode: "all",
+      },
+      check,
+    );
     const parsed = z.looseObject({ data: z.array(ObjectSchema) }).safeParse(raw);
     if (!parsed.success)
       throw new TransportError("provider_error", "B.AI returned invalid usage records");
@@ -58,18 +62,22 @@ export class BaiClient implements BaiApi {
     return { ...result, items: result.items.map(usageRecord) };
   }
 
-  async rechargeList(input: BaiPageInput): Promise<BaiPageView<BaiRawOrder>> {
+  async rechargeList(input: BaiPageInput, check: DispatchCheck): Promise<BaiPageView<BaiRawOrder>> {
     return page(
-      await this.call("order.listOrders", {
-        page: input.page,
-        pageSize: input.pageSize,
-        sortBy: "createdAt",
-        order: input.sortOrder,
-      }),
+      await this.call(
+        "order.listOrders",
+        {
+          page: input.page,
+          pageSize: input.pageSize,
+          sortBy: "createdAt",
+          order: input.sortOrder,
+        },
+        check,
+      ),
     ) as unknown as BaiPageView<BaiRawOrder>;
   }
 
-  private async call(procedure: string, input: unknown): Promise<unknown> {
+  private async call(procedure: string, input: unknown, check: DispatchCheck): Promise<unknown> {
     const key = this.config.baiApiKey;
     if (!key) {
       throw new UsageError(
@@ -97,7 +105,8 @@ export class BaiClient implements BaiApi {
           ? ""
           : `?batch=1&input=${encoded}`;
     const url = `${this.baseUrl}/trpc/lambda/${procedure}${suffix}`;
-    const signal = AbortSignal.timeout(this.timeoutMs);
+    const signal = check.signal;
+    check.assertDispatchable();
     let response: Response;
     try {
       response = await this.fetcher(url, {
@@ -113,10 +122,7 @@ export class BaiClient implements BaiApi {
       response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
     } catch (error) {
       if (error instanceof TransportError) throw error;
-      if (
-        signal.aborted ||
-        (error instanceof Error && /TimeoutError|AbortError/.test(error.name))
-      ) {
+      if (signal.aborted) {
         throw new TransportError("timeout", "B.AI API request timed out");
       }
       throw new TransportError(

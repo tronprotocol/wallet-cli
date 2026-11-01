@@ -6,7 +6,11 @@ import type {
   OutputMode,
   WarningView,
 } from "../../../../domain/types/index.js";
-import type { CodedWarning, ProgressEvent } from "../../../../application/contracts/index.js";
+import type {
+  CodedWarning,
+  ExecutionDeadline,
+  ProgressEvent,
+} from "../../../../application/contracts/index.js";
 import type { NetworkRegistry } from "../../../../application/ports/network-registry.js";
 import type {
   ExecutionContext,
@@ -28,6 +32,7 @@ export type AccountSession = Pick<
 
 export interface RuntimeDeps {
   config: Config;
+  deadline: ExecutionDeadline;
   networkRegistry: NetworkRegistry;
   streams: StreamManager;
   secrets: SecretResolver;
@@ -38,9 +43,7 @@ export interface RuntimeDeps {
 
 class ExecutionContextImpl implements ExecutionContext {
   output: OutputMode;
-  timeoutMs: number;
   wait: boolean;
-  waitTimeoutMs: number;
   #selected?: AccountSelector;
 
   constructor(
@@ -48,11 +51,12 @@ class ExecutionContextImpl implements ExecutionContext {
     private readonly deps: RuntimeDeps,
   ) {
     this.output = globals.output ?? deps.config.defaultOutput;
-    this.timeoutMs = globals.timeoutMs ?? deps.config.timeoutMs;
     this.wait = globals.wait ?? false;
-    this.waitTimeoutMs = globals.waitTimeoutMs ?? deps.config.waitTimeoutMs;
   }
 
+  get deadline(): ExecutionDeadline {
+    return this.deps.deadline;
+  }
   get config(): Config {
     return this.deps.config;
   }

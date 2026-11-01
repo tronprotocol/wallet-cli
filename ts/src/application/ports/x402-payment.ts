@@ -1,3 +1,4 @@
+import type { DispatchCheck } from "../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { BroadcastGuard } from "../contracts/broadcast-guard.js";
 import type {
@@ -117,6 +118,8 @@ export interface X402PaymentCapabilities {
   readonly approver: Permit2Approver;
   // Checked before any payment or approval leaves the process.
   readonly guard: BroadcastGuard;
+  // Runs immediately before the paid request is sent, after signing and any approval.
+  readonly submit: DispatchCheck;
   readonly limits: X402PayerLimits;
 }
 
@@ -140,5 +143,6 @@ export interface X402PaymentPort {
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: X402PaymentRequest,
+    check: DispatchCheck,
   ): Promise<X402Resource>;
 }

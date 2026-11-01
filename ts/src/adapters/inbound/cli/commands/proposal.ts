@@ -32,7 +32,7 @@ export const proposalListSpec: ChainSpec = {
 };
 
 export const proposalListTronBinding = (service: TronProposalService): FamilyBinding => ({
-  run: async (_ctx, net, input) => service.list(net, input),
+  run: async (ctx, net, input) => service.list(ctx.deadline, net, input),
 });
 
 export const proposalShowSpec: ChainSpec = {
@@ -59,7 +59,7 @@ export const proposalShowSpec: ChainSpec = {
 };
 
 export const proposalShowTronBinding = (service: TronProposalService): FamilyBinding => ({
-  run: async (_ctx, net, input) => service.show(net, input.id),
+  run: async (ctx, net, input) => service.show(ctx.deadline, net, input.id),
 });
 
 const proposalWriteBase = {

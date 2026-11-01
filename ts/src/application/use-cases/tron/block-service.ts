@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -6,8 +8,10 @@ export class TronBlockService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
   // A missing latest block is an invalid response.
-  async get(network: NetworkDescriptor, number?: string) {
-    const block = await this.gateways.get(network, "tron").getBlock(number);
+  async get(deadline: ExecutionDeadline, network: NetworkDescriptor, number?: string) {
+    const block = await this.gateways
+      .get(network, "tron", requestDispatchCheck(deadline))
+      .getBlock(number);
     if (block === null) {
       throw number === undefined
         ? new ChainError(

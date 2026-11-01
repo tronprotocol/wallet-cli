@@ -36,8 +36,8 @@ export const sunswapTokenListSpec: ChainSpec = {
 };
 
 export const sunswapTokenListTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.tokenList(net, {
+  run: async (ctx, net, input) =>
+    service.tokenList(ctx.deadline, net, {
       protocol: input.protocol,
       orderBy: input.orderBy,
       limit: input.limit,

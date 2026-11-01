@@ -1,4 +1,8 @@
 import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
+import {
   barBroadcasts,
   processBroadcastGuard,
 } from "../../../application/services/broadcast-guard.js";
@@ -13,6 +17,10 @@ import { ExecutionError } from "../../../domain/errors/index.js";
 import { ERROR_CODES, type ErrorCode } from "../../../domain/errors/codes.js";
 import { signTronLinkRequest } from "./auth.js";
 import { TronLinkClient } from "./client.js";
+import { expiredCheck, expiringCheck } from "../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const ADDRESS = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const UUID = "00000000-0000-4000-8000-000000000001";
@@ -64,13 +72,17 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
       processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
     );
-    await client.list(NETWORK, ADDRESS, { state: "open", isSigned: false, start: 20, limit: 10 });
+    await client.list(
+      NETWORK,
+      ADDRESS,
+      { state: "open", isSigned: false, start: 20, limit: 10 },
+      NO_CHECK,
+    );
 
     const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(calledUrl.pathname).toBe("/multi/list");
@@ -99,13 +111,12 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
       processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
     );
-    await client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact);
+    await client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact, NO_CHECK);
 
     const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(calledUrl.pathname).toBe("/multi/transaction");
@@ -141,7 +152,6 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
       processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
@@ -153,7 +163,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       raw_data: { contract: [] },
       raw_data_hex: "00",
     } as TronTransactionArtifact;
-    await client.submit(NETWORK, ADDRESS, transaction);
+    await client.submit(NETWORK, ADDRESS, transaction, NO_CHECK);
     expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({
       address: ADDRESS,
       transaction,
@@ -172,14 +182,13 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const messages: unknown[] = [];
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
       processBroadcastGuard,
       globalThis.fetch,
       () => NOW,
       () => UUID,
       factory,
     );
-    const watching = client.watch(NETWORK, ADDRESS, controller.signal, (message) =>
+    const watching = client.watch(NETWORK, ADDRESS, controller.signal, NO_CHECK, (message) =>
       messages.push(message),
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -193,6 +202,43 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     controller.abort();
     await watching;
     expect(messages).toEqual([1]);
+  });
+
+  it("builds no socket once the deadline has expired", async () => {
+    const factory = vi.fn();
+    const client = new TronLinkClient(
+      CONFIG,
+      processBroadcastGuard,
+      globalThis.fetch,
+      () => NOW,
+      () => UUID,
+      factory as never,
+    );
+    await expect(
+      client.watch(NETWORK, ADDRESS, new AbortController().signal, expiredCheck(), () => {}),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("ends a watch with timeout when the deadline expires, and closes the socket", async () => {
+    const socket = new FakeSocket();
+    const factory = () => {
+      queueMicrotask(() => socket.open());
+      return socket as never;
+    };
+    const client = new TronLinkClient(
+      CONFIG,
+      processBroadcastGuard,
+      globalThis.fetch,
+      () => NOW,
+      () => UUID,
+      factory,
+    );
+    const error = await client
+      .watch(NETWORK, ADDRESS, new AbortController().signal, expiringCheck(20), () => {})
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: "timeout" });
+    expect(socket.readyState).toBe(3);
   });
 
   it("normalizes list rows and keeps a malformed row with its claimed id", async () => {
@@ -219,8 +265,13 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const fetchMock = vi.fn(async () =>
       response({ code: 0, data: { range_total: 2, data: [row, { ...row, state: 3 }] } }),
     );
-    const client = new TronLinkClient(CONFIG, 1_000, processBroadcastGuard, fetchMock as never);
-    const page = await client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 });
+    const client = new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as never);
+    const page = await client.list(
+      NETWORK,
+      ADDRESS,
+      { state: "all", start: 0, limit: 20 },
+      NO_CHECK,
+    );
 
     expect(page.entries[0]).toEqual({
       kind: "record",
@@ -259,8 +310,13 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const fetchMock = vi.fn(async () =>
       response({ code: 0, data: { range_total: 1, data: [{ hash: "not-a-hash" }] } }),
     );
-    const client = new TronLinkClient(CONFIG, 1_000, processBroadcastGuard, fetchMock as never);
-    const page = await client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 });
+    const client = new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as never);
+    const page = await client.list(
+      NETWORK,
+      ADDRESS,
+      { state: "all", start: 0, limit: 20 },
+      NO_CHECK,
+    );
 
     const entry = page.entries[0];
     expect(entry).toMatchObject({ kind: "malformed", claimedTxId: null });
@@ -276,14 +332,13 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
       processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
     );
     await expect(
-      client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 }),
+      client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 }, NO_CHECK),
     ).rejects.toMatchObject({
       code: "provider_error",
       details: { providerCode: 4000, providerMessage: "Authentication failed." },
@@ -295,7 +350,6 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const client = (body: unknown) =>
       new TronLinkClient(
         CONFIG,
-        1_000,
         processBroadcastGuard,
         vi.fn(async () => response(body)) as unknown as typeof fetch,
         () => NOW,
@@ -303,11 +357,16 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       );
     let rejection: { details?: { providerMessage?: string } } = {};
     try {
-      await client({ code: 20004, message: noisy }).list(NETWORK, ADDRESS, {
-        state: "all",
-        start: 0,
-        limit: 20,
-      });
+      await client({ code: 20004, message: noisy }).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      );
     } catch (error) {
       rejection = error as { details?: { providerMessage?: string } };
     }
@@ -317,39 +376,49 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     expect(message.startsWith("xy[31mzzz")).toBe(true);
 
     await expect(
-      client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
-        state: "all",
-        start: 0,
-        limit: 20,
-      }),
+      client({ code: 20004, message: { nested: true } }).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "provider_error", details: { providerCode: 20004 } });
     await expect(
-      client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
-        state: "all",
-        start: 0,
-        limit: 20,
-      }),
+      client({ code: 20004, message: { nested: true } }).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      ),
     ).rejects.not.toHaveProperty("details.providerMessage");
   });
 
   it("requires complete credentials and rejects insecure endpoints before a request", async () => {
     const fetchMock = vi.fn();
     await expect(
-      new TronLinkClient(
-        {} as Config,
-        1_000,
-        processBroadcastGuard,
-        fetchMock as typeof fetch,
-      ).list(NETWORK, ADDRESS, {
-        state: "all",
-        start: 0,
-        limit: 20,
-      }),
+      new TronLinkClient({} as Config, processBroadcastGuard, fetchMock as typeof fetch).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "tronlink_credentials_missing" });
 
     const insecure = { ...NETWORK, tronlinkHttpEndpoint: "http://api.walletadapter.org" };
     await expect(
-      new TronLinkClient(CONFIG, 1_000, processBroadcastGuard, fetchMock as typeof fetch).list(
+      new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as typeof fetch).list(
         insecure,
         ADDRESS,
         {
@@ -357,6 +426,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
           start: 0,
           limit: 20,
         },
+        NO_CHECK,
       ),
     ).rejects.toMatchObject({ code: "invalid_config" });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -366,15 +436,10 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
 describe("TronLinkClient.submit dry-run guard", () => {
   it("refuses while broadcasting is barred and sends nothing", async () => {
     const fetchMock = vi.fn(async () => response({ code: 0, data: {} }));
-    const client = new TronLinkClient(
-      CONFIG,
-      1_000,
-      processBroadcastGuard,
-      fetchMock as typeof fetch,
-    );
+    const client = new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as typeof fetch);
     await barBroadcasts("tx multisig --dry-run", async () => {
       await expect(
-        client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact),
+        client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact, NO_CHECK),
       ).rejects.toMatchObject({ code: "dry_run_violation" });
     });
     expect(fetchMock).not.toHaveBeenCalled();

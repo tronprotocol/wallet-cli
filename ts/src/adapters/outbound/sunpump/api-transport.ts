@@ -1,4 +1,5 @@
 // Use lossless JSON parsing to preserve token amounts and prices.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { SunPumpApiClient } from "@sun-protocol/sun-sdk-api";
 import { parse as parseLosslessJson } from "lossless-json";
 import { isTronNetwork, type NetworkDescriptor } from "../../../domain/types/network.js";
@@ -41,7 +42,7 @@ class RateLimited extends Error {
 
 export async function sunpumpRequest(
   network: NetworkDescriptor,
-  timeoutMs: number,
+  check: DispatchCheck,
   deps: SunPumpApiDeps,
   call: (client: SunPumpApiClient) => Promise<unknown>,
 ): Promise<unknown> {
@@ -49,7 +50,7 @@ export async function sunpumpRequest(
     baseUrl: sunpumpApiBaseUrl(network),
     fetchImpl: rateLimitAware(
       createTimedFetch({
-        timeoutMs,
+        check,
         ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
       }),
     ),

@@ -4,6 +4,7 @@ import type {
   OfflineTxSignView,
   TxApprovalView,
 } from "../../../domain/types/index.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 
 export interface TronSignOptions {
@@ -25,7 +26,11 @@ export interface TronHexSigner {
 
 // Signs only after the node confirms the signer holds the transaction's permission.
 export interface TronCheckedSigner {
-  approvals(network: NetworkDescriptor, hex: string): Promise<TxApprovalView>;
+  approvals(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    hex: string,
+  ): Promise<TxApprovalView>;
   signChecked(
     scope: TransactionScope,
     network: NetworkDescriptor,

@@ -69,7 +69,7 @@ export const voteListSpec: ChainSpec = {
 };
 
 export const voteListTronBinding = (svc: TronVoteService): FamilyBinding => ({
-  run: async (_ctx, net, input) => svc.list(net, input),
+  run: async (ctx, net, input) => svc.list(ctx.deadline, net, input),
 });
 
 export const voteStatusSpec: ChainSpec = {

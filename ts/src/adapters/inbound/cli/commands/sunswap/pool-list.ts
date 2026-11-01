@@ -65,7 +65,7 @@ export const sunswapPoolListSpec: ChainSpec = {
 
 export const sunswapPoolListTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
   run: async (ctx, net, input) =>
-    service.poolList(ctx, net, {
+    service.poolList(ctx.deadline, ctx, net, {
       orderBy: input.orderBy,
       sort: input.sort,
       limit: input.limit,
