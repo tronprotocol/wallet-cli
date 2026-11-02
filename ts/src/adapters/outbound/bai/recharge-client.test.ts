@@ -318,7 +318,7 @@ it("converts a decimal only in the outgoing report JSON", async () => {
   expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.amount).toBe(1.23);
 });
 
-it("reports a rate limit with exactly httpStatus and retryAfterSeconds", async () => {
+it("reports a rate limit with the standard keys beside procedure and retryPayment", async () => {
   const fetcher = vi.fn(
     async () => new Response("secret", { status: 429, headers: { "Retry-After": "7" } }),
   );
@@ -333,6 +333,8 @@ it("reports a rate limit with exactly httpStatus and retryAfterSeconds", async (
     .catch((caught: unknown) => caught);
   expect(error).toMatchObject({ code: "provider_rate_limited" });
   expect((error as { details?: unknown }).details).toEqual({
+    procedure: "order.reportTxHash",
+    retryPayment: false,
     httpStatus: 429,
     retryAfterSeconds: 7,
   });

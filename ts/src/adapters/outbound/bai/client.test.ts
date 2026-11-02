@@ -227,6 +227,22 @@ describe("BaiClient", () => {
     await expect(client.status(NO_CHECK)).rejects.toMatchObject({ code });
   });
 
+  it("keeps procedure and retryPayment beside the rate-limit keys", async () => {
+    const client = new BaiClient(
+      { baiApiKey: "test-key" },
+      async () => new Response("", { status: 429, headers: { "retry-after": "6" } }),
+    );
+    const error = (await client.status(NO_CHECK).catch((caught: unknown) => caught)) as {
+      details?: unknown;
+    };
+    expect(error.details).toEqual({
+      procedure: "usage.summary",
+      retryPayment: false,
+      httpStatus: 429,
+      retryAfterSeconds: 6,
+    });
+  });
+
   it("classifies missing credentials and rejected credentials without exposing the key", async () => {
     const missing = new BaiClient({}, vi.fn(), "https://bai.example");
     await expect(missing.status(NO_CHECK)).rejects.toMatchObject({

@@ -214,6 +214,7 @@ export class BaiRechargeClient implements BaiRechargeApi {
       },
       {
         service: "B.AI",
+        context: { procedure, retryPayment: false },
         check,
         refuse: (response) => credentialRefusal(procedure, response.status),
         errors: {

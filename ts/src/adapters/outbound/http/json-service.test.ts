@@ -100,6 +100,27 @@ describe("requestJson", () => {
     expect(cancel).toHaveBeenCalledOnce();
   });
 
+  it("keeps the flow's context fields beside the rate-limit keys on 429", async () => {
+    const fetchImpl = serving(
+      () => new Response("", { status: 429, headers: { "retry-after": "4" } }),
+    );
+    const error = (await requestJson(
+      fetchImpl,
+      "https://example.test",
+      {},
+      {
+        ...REQUEST,
+        context: { procedure: "order.reportTxHash", retryPayment: false, httpStatus: 200 },
+      },
+    ).catch((caught: unknown) => caught)) as ChainError;
+    expect(error.details).toEqual({
+      procedure: "order.reportTxHash",
+      retryPayment: false,
+      httpStatus: 429,
+      retryAfterSeconds: 4,
+    });
+  });
+
   it("maps 429 with an HTTP-date Retry-After to seconds", async () => {
     const date = new Date(Date.now() + 30_000).toUTCString();
     const fetchImpl = serving(

@@ -32,13 +32,17 @@ export function rateLimitDetails(headers: Headers): RateLimitDetails {
   return { httpStatus: 429, ...(seconds === undefined ? {} : { retryAfterSeconds: seconds }) };
 }
 
-// `service` names the service in the message, for example "GasFree service".
-export function rateLimitedError(service: string, headers: Headers): ChainError {
-  return new ChainError(
-    "provider_rate_limited",
-    `${service} rate limit exceeded`,
-    rateLimitDetails(headers),
-  );
+// `service` names the service in the message, for example "GasFree service". `context` holds the
+// flow's own detail fields; the rate-limit keys win over it.
+export function rateLimitedError(
+  service: string,
+  headers: Headers,
+  context: Readonly<Record<string, string | number | boolean>> = {},
+): ChainError {
+  return new ChainError("provider_rate_limited", `${service} rate limit exceeded`, {
+    ...context,
+    ...rateLimitDetails(headers),
+  });
 }
 
 // A fetch hook for SDK clients: the dispatch check, no redirects, the size bound, and 429 as
@@ -81,6 +85,8 @@ export interface JsonServiceRequest {
   readonly parse?: (text: string) => unknown;
   // An error for a non-2xx status other than 429; the body is not read. Undefined reads the body.
   readonly refuse?: (response: Response) => CliError | undefined;
+  // Detail fields of the flow that a 429 error carries beside the rate-limit keys.
+  readonly context?: Readonly<Record<string, string | number | boolean>>;
 }
 
 export interface JsonServiceResponse {
@@ -106,7 +112,7 @@ export async function requestJson(
   }
   const refused =
     response.status === 429
-      ? rateLimitedError(request.service, response.headers)
+      ? rateLimitedError(request.service, response.headers, request.context)
       : response.ok
         ? undefined
         : request.refuse?.(response);

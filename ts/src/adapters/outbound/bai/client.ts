@@ -111,6 +111,7 @@ export class BaiClient implements BaiApi {
       { method: "GET", headers: { Accept: "application/json", Authorization: `Bearer ${key}` } },
       {
         service: "B.AI",
+        context: { procedure, retryPayment: false },
         check,
         // Preserve summary precision; list responses use JSON numbers.
         parse: (text) =>
