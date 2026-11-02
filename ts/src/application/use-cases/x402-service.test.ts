@@ -5,7 +5,8 @@ import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
 import type { X402Inspection, X402PaidResult } from "../ports/x402-payment.js";
 import type { X402ServeDetails } from "../ports/x402-server.js";
 import type { SignerResolver } from "../services/signer/index.js";
-import { WalletError } from "../../domain/errors/index.js";
+import { ExecutionError, WalletError } from "../../domain/errors/index.js";
+import { BaiRechargeFlow } from "./bai-recharge-flow.js";
 import { processBroadcastGuard } from "../services/broadcast-guard.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
@@ -27,7 +28,7 @@ function fixture(failure?: "prepare" | "resolve" | "pay") {
     pay,
     close,
   }));
-  const facts = vi.fn(() => ({ tokenDecimals: () => undefined }));
+  const facts = vi.fn(() => ({ tokenDecimals: (): number | undefined => undefined }));
   const signers = {
     assertCanSign: vi.fn(),
     prepare: vi.fn(() => {
@@ -64,7 +65,7 @@ function fixture(failure?: "prepare" | "resolve" | "pay") {
       requestTimeoutMs: 0,
     },
   );
-  return { service, request, pay, close, signers, catalog, serverClose, start };
+  return { service, request, pay, close, signers, catalog, serverClose, start, facts };
 }
 
 describe("X402Service", () => {
@@ -288,5 +289,85 @@ describe("payer limits", () => {
     expect(f.pay).toHaveBeenCalledWith(
       expect.objectContaining({ limits: { gasfreeFeeCapped: true } }),
     );
+  });
+});
+
+describe("roundtrip failures before the payment request", () => {
+  const roundtripInput = {
+    payTo: PAY_TO,
+    amount: "10",
+    token: "USDT",
+    scheme: "exact" as const,
+    host: "127.0.0.1",
+    port: 0,
+    facilitatorUrl: "https://facilitator.example",
+  };
+  const recharge = (service: X402Service) =>
+    new BaiRechargeFlow(
+      { createOrder: async () => ({ orderId: "order-1" }), reportTxHash: vi.fn() },
+      {
+        pay: async () => {
+          await service.roundtrip(scope, network, roundtripInput);
+          throw new Error("unreachable");
+        },
+      },
+    ).execute(NO_DEADLINE, {
+      channel: "crypto",
+      chain: "bnb",
+      tokenName: "USDT",
+      amount: "10",
+      walletAddress: "payer",
+      deviceType: "web",
+    } as never);
+
+  it.each([
+    ["a port in use", new ExecutionError("port_in_use", "in use"), "port_in_use"],
+    ["an unclassified error", new Error("EACCES"), "internal_error"],
+  ])("reports a paywall host start failure (%s) as not sent", async (_case, failure, code) => {
+    const f = fixture();
+    f.start.mockRejectedValueOnce(failure);
+    const error = (await recharge(f.service).catch((e: unknown) => e)) as {
+      code: string;
+      details: object;
+    };
+    expect(error).toMatchObject({
+      code,
+      details: { paymentStatus: "not_sent", retryPayment: false, orderId: "order-1" },
+    });
+    expect(error.details).not.toHaveProperty("outcome");
+    expect(f.request).not.toHaveBeenCalled();
+  });
+
+  it("reports a limit check failure before the paid request as not sent", async () => {
+    const f = fixture();
+    f.facts.mockReturnValue({ tokenDecimals: () => 18 });
+    const error = (await f.service
+      .roundtrip(scope, network, {
+        ...roundtripInput,
+        token: undefined,
+        asset: "0x55d398326f99059fF775485246999027B3197955",
+        decimals: 6,
+      })
+      .catch((e: unknown) => e)) as { code: string; details: object };
+    expect(error).toMatchObject({
+      code: "invalid_option",
+      details: { paymentStatus: "not_sent", retryPayment: false },
+    });
+    expect(error.details).not.toHaveProperty("outcome");
+    expect(f.start).toHaveBeenCalledOnce();
+    expect(f.request).not.toHaveBeenCalled();
+    expect(f.serverClose).toHaveBeenCalledOnce();
+  });
+
+  it("reports a submit-admission refusal before the paid request as not sent", async () => {
+    const f = fixture();
+    const deadline = new CommandDeadline(1999);
+    const error = (await f.service
+      .roundtrip({ deadline, activeAccount: "payer" } as never, network, roundtripInput)
+      .catch((e: unknown) => e)) as { code: string; details: object };
+    deadline.dispose();
+    expect(error).toMatchObject({ code: "timeout", details: { paymentStatus: "not_sent" } });
+    expect(error.details).not.toHaveProperty("outcome");
+    expect(f.pay).not.toHaveBeenCalled();
   });
 });

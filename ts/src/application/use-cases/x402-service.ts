@@ -6,6 +6,7 @@ import type { Permit2Approver, X402PaymentFacts } from "../contracts/x402-payer.
 import type { X402Permit2Approvals } from "./x402-permit2-approval.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import {
+  classifyError,
   errorMessage,
   ExecutionError,
   inputRef,
@@ -95,10 +96,12 @@ export class X402Service {
     return withoutSettlement(await this.#pay(scope, network, input));
   }
 
+  // `beforePay` reclassifies a failure raised before the payment request starts.
   async #pay(
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: X402PayRequest,
+    beforePay: (error: unknown) => unknown = (error) => error,
   ): Promise<X402PaymentResult> {
     const {
       dryRun,
@@ -108,27 +111,40 @@ export class X402Service {
       maxGasfreeFeeRaw,
       ...request
     } = input;
-    const facts = this.payments.facts(network);
-    const rawLimit = checkedLimits(input, facts);
-    const resource = await this.payments.request(
-      scope,
-      network,
-      request,
-      requestDispatchCheck(scope.deadline),
-    );
+    let facts: X402PaymentFacts;
+    let rawLimit: BaseUnits | undefined;
+    let resource: Awaited<ReturnType<X402PaymentPort["request"]>>;
+    try {
+      facts = this.payments.facts(network);
+      rawLimit = checkedLimits(input, facts);
+      resource = await this.payments.request(
+        scope,
+        network,
+        request,
+        requestDispatchCheck(scope.deadline),
+      );
+    } catch (error) {
+      throw beforePay(error);
+    }
     if (resource.kind === "response") return resource.result;
     try {
-      const limit = appliedLimit(resource.inspection, input, facts, rawLimit);
-      if (dryRun) return resource.inspection;
-      const payer = createPayerSigner(this.signers, this.#signing(), scope, network, {
-        family: network.family,
-        ...(maxGasfreeFeeRaw === undefined ? {} : { maxGasfreeFeeRaw }),
-        ...(maxGasfreeFee === undefined ? {} : { maxGasfreeFee }),
-        gasfreeFeeDecimals: (token) => facts.tokenDecimals(token),
-        // Only the Permit2 approval a payment needs may be signed as a transaction.
-        ...(facts.permit2 ? { approveIntent: facts.permit2 } : {}),
-      });
-      assertSubmitAdmitted(scope.deadline);
+      let limit: BaseUnits | undefined;
+      let payer: ReturnType<typeof createPayerSigner>;
+      try {
+        limit = appliedLimit(resource.inspection, input, facts, rawLimit);
+        if (dryRun) return resource.inspection;
+        payer = createPayerSigner(this.signers, this.#signing(), scope, network, {
+          family: network.family,
+          ...(maxGasfreeFeeRaw === undefined ? {} : { maxGasfreeFeeRaw }),
+          ...(maxGasfreeFee === undefined ? {} : { maxGasfreeFee }),
+          gasfreeFeeDecimals: (token) => facts.tokenDecimals(token),
+          // Only the Permit2 approval a payment needs may be signed as a transaction.
+          ...(facts.permit2 ? { approveIntent: facts.permit2 } : {}),
+        });
+        assertSubmitAdmitted(scope.deadline);
+      } catch (error) {
+        throw beforePay(error);
+      }
       return await resource.pay({
         payer,
         approver: this.#approver(scope, network, facts),
@@ -231,44 +247,54 @@ export class X402Service {
     network: NetworkDescriptor,
     input: X402ServeInput,
   ): Promise<X402Roundtrip> {
-    const { facilitator, host } = this.#paywalls();
-    const paywall = new Paywall(
-      facilitator,
-      paywallTerms(network, input, facilitator),
-      sharedRequestDeadline(scope.deadline),
-    );
-    const handle = await host.start(
-      paywall,
-      {
-        host: input.host,
-        port: input.port,
-        accessLog: "diagnostic",
-        daemon: false,
-        persistent: false,
-      },
-      scope.deadline,
-    );
+    let handle: Awaited<ReturnType<X402PaywallHost["start"]>>;
+    try {
+      const { facilitator, host } = this.#paywalls();
+      const paywall = new Paywall(
+        facilitator,
+        paywallTerms(network, input, facilitator),
+        sharedRequestDeadline(scope.deadline),
+      );
+      handle = await host.start(
+        paywall,
+        {
+          host: input.host,
+          port: input.port,
+          accessLog: "diagnostic",
+          daemon: false,
+          persistent: false,
+        },
+        scope.deadline,
+      );
+    } catch (error) {
+      throw unpaid(error);
+    }
     try {
       const served = handle.details;
-      const result = await this.#pay(scope, network, {
-        url: served.payUrl,
-        method: "GET",
-        headers: [],
-        ...(input.token === undefined ? {} : { token: input.token }),
-        scheme: input.scheme,
-        expectedPayTo: input.payTo,
-        // Pin the route to the asset this paywall serves; a raw limit has no unit of its own.
-        asset: input.asset ?? served.asset,
-        ...(input.decimals === undefined ? {} : { decimals: input.decimals }),
-        exactRawAmount: baseUnitAmount(served.rawAmount),
-        maxRawAmount: served.rawAmount,
-        ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
-        ...(input.gasfreeRelay === undefined ? {} : { gasfreeRelay: input.gasfreeRelay }),
-        ...(input.maxGasfreeFee === undefined ? {} : { maxGasfreeFee: input.maxGasfreeFee }),
-        ...(input.maxGasfreeFeeRaw === undefined
-          ? {}
-          : { maxGasfreeFeeRaw: input.maxGasfreeFeeRaw }),
-      });
+      const result = await this.#pay(
+        scope,
+        network,
+        {
+          url: served.payUrl,
+          method: "GET",
+          headers: [],
+          ...(input.token === undefined ? {} : { token: input.token }),
+          scheme: input.scheme,
+          expectedPayTo: input.payTo,
+          // Pin the route to the asset this paywall serves; a raw limit has no unit of its own.
+          asset: input.asset ?? served.asset,
+          ...(input.decimals === undefined ? {} : { decimals: input.decimals }),
+          exactRawAmount: baseUnitAmount(served.rawAmount),
+          maxRawAmount: served.rawAmount,
+          ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
+          ...(input.gasfreeRelay === undefined ? {} : { gasfreeRelay: input.gasfreeRelay }),
+          ...(input.maxGasfreeFee === undefined ? {} : { maxGasfreeFee: input.maxGasfreeFee }),
+          ...(input.maxGasfreeFeeRaw === undefined
+            ? {}
+            : { maxGasfreeFeeRaw: input.maxGasfreeFeeRaw }),
+        },
+        unpaid,
+      );
       const settlement = "settlement" in result ? result.settlement : undefined;
       return {
         serve: served,
@@ -363,6 +389,18 @@ function wholeTokenLimit(
   } catch (error) {
     throw notSent(error as CliError);
   }
+}
+
+// A roundtrip failure before its payment request starts: nothing was paid, whatever the cause.
+function unpaid(error: unknown): CliError {
+  const classified = classifyError(error);
+  const { outcome: _outcome, ...details } = (classified.details ?? {}) as Record<string, unknown>;
+  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
+  return new ErrorType(classified.code, classified.userMessage, {
+    ...details,
+    paymentStatus: "not_sent",
+    retryPayment: false,
+  });
 }
 
 function notSent(error: CliError): CliError {
