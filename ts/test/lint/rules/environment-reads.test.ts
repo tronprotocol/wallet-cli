@@ -155,14 +155,19 @@ describe("environment reads", () => {
     "src/bootstrap-other/environment.ts",
     "src/domain/bootstrap/environment.ts",
     "src/adapters/inbound/cli/input/prompt/neighbor.ts",
-    "src/adapters/inbound/cli/help/index.test.ts",
     "src/adapters/outbound/config/neighbor.ts",
     "src/adapters/outbound/ledger/neighbor.ts",
+  ])("rejects a read outside the exact boundary: %s", async (file) => {
+    expect(await messages("process.env.TOKEN;", file)).toHaveLength(1);
+  });
+
+  it.each([
+    "src/adapters/inbound/cli/help/index.test.ts",
     "src/domain/environment.test.ts",
     "test/environment.test.ts",
     "vitest.config.ts",
-  ])("rejects a read outside the exact boundary: %s", async (file) => {
-    expect(await messages("process.env.TOKEN;", file)).toHaveLength(1);
+  ])("does not check tests and tooling: %s", async (file) => {
+    expect(await messages("process.env.TOKEN;", file)).toHaveLength(0);
   });
 
   reported("retains a global read outside a shadowed scope", [

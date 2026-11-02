@@ -47,6 +47,10 @@ export default tseslint.config(
         rules: { "closed-port-types": closedPortTypes, "environment-reads": environmentReads },
       },
     },
+  },
+  {
+    files: ["src/**/*.ts"],
+    ignores: ["**/*.test.ts"],
     rules: { "wallet-cli/environment-reads": "error" },
   },
   {
