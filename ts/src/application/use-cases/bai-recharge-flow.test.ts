@@ -211,7 +211,6 @@ it("creates no preorder when too little of the command's time is left to submit"
 
 it.each([
   ["a classified failure", new TransportError("provider_error", "relay failed")],
-  ["an expiry", new DeadlineExpiredError()],
   ["an unclassified failure", new Error("boom")],
 ])("keeps the created preorder's id when payment ends in %s", async (_case, failure) => {
   const { flow, pay, api } = fixture();
@@ -222,11 +221,15 @@ it.each([
   expect(api.reportTxHash).not.toHaveBeenCalled();
 });
 
-it("does not mark a payment that was not sent as an unknown outcome", async () => {
-  const { flow, pay } = fixture();
-  pay.mockRejectedValueOnce(
+it.each([
+  [
+    "a payment reported as not sent",
     new TransportError("provider_error", "no signer", { paymentStatus: "not_sent" }),
-  );
+  ],
+  ["a deadline refusal before dispatch", new DeadlineExpiredError()],
+])("does not mark %s as an unknown outcome", async (_case, failure) => {
+  const { flow, pay } = fixture();
+  pay.mockRejectedValueOnce(failure);
   const error = (await flow.execute(NO_DEADLINE, input).catch((e: unknown) => e)) as {
     details: object;
   };

@@ -85,7 +85,7 @@ The command did not finish within `--timeout` (default 90000 ms), which covers t
 - Raise the limit: `--timeout 180000`. A `--timeout` below 2000 never submits a transaction or payment.
 - A transaction that was accepted but not yet confirmed when the time runs out returns `stage: "submitted"` and a warning instead of `timeout`; check it with `tx status`.
 - Ledger: confirm the device is unlocked and the app the account was registered with (`--app tron` or `--app ethereum`) is open, then retry.
-- **If `error.details.outcome` is `"unknown"`**, the transaction may have been submitted; `error.details.txId` names it. Check `tx status` with that id before resending. See [unknown outcome](machine-interface.md#unknown-outcome-errordetailsoutcome).
+- **If `error.details.outcome` is `"unknown"`**, the transaction, payment or service write may have taken effect. When `error.details.txId` is present, check `tx status` with that id before resending; otherwise reconcile with the command's own evidence (the GasFree `nonce` or `traceId`, `candidateTxHash`, the B.AI order, `sunpump token-search`). See [unknown outcome](machine-interface.md#unknown-outcome-errordetailsoutcome).
 
 ## `rpc_error` (exit 1)
 

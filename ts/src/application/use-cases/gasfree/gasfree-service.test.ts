@@ -328,7 +328,10 @@ describe("GasFreeService", () => {
         token: "USDT",
         dryRun: false,
       }),
-    ).rejects.toMatchObject({ code: "gasfree_integrity", details: { traceId: "trace-1" } });
+    ).rejects.toMatchObject({
+      code: "gasfree_integrity",
+      details: { traceId: "trace-1", outcome: "unknown" },
+    });
   });
 
   it("fails before signing when the balance cannot cover amount plus fees", async () => {
@@ -410,7 +413,10 @@ describe("GasFreeService", () => {
         token: "USDT",
         dryRun: false,
       }),
-    ).rejects.toMatchObject({ code: "gasfree_integrity" });
+    ).rejects.toMatchObject({
+      code: "gasfree_integrity",
+      details: { traceId: "trace-1", outcome: "unknown" },
+    });
   });
 
   it("rejects signed transfer fields that mutate while polling", async () => {
@@ -422,7 +428,10 @@ describe("GasFreeService", () => {
         token: "USDT",
         dryRun: false,
       }),
-    ).rejects.toMatchObject({ code: "gasfree_integrity", details: { traceId: "trace-1" } });
+    ).rejects.toMatchObject({
+      code: "gasfree_integrity",
+      details: { traceId: "trace-1", outcome: "unknown" },
+    });
   });
 
   describe("--wait polling failures never destroy the receipt", () => {
@@ -501,6 +510,19 @@ describe("GasFreeService", () => {
       expect(cliWarnings(ctx)).toEqual([
         "GasFree trace could not be polled (gasfree_rejected); returning submitted — reconcile with `gasfree trace trace-1`",
       ]);
+    });
+
+    it("marks an integrity failure the provider reports while polling as an unknown outcome", async () => {
+      const fixtureValue = fixture({
+        active: true,
+        trace: async () => {
+          throw new ChainError("gasfree_integrity", "GasFree trace record is malformed");
+        },
+      });
+
+      await expect(send(fixtureValue, scope(true, 5000, fixtureValue.clock))).rejects.toMatchObject(
+        { code: "gasfree_integrity", details: { traceId: "trace-1", outcome: "unknown" } },
+      );
     });
 
     it("passes the deadline check to each trace and sends none after expiry", async () => {

@@ -247,7 +247,11 @@ export class GasFreeService {
     } catch (error) {
       throw uncertainSubmit(error, network, authorization, token, addressInfo, expectedDigest);
     }
-    assertAccepted(submitted, authorization, addressInfo.gasFreeAddress, { traceId: submitted.id });
+    // A receipt that fails integrity does not show what happened to the sent authorization.
+    assertAccepted(submitted, authorization, addressInfo.gasFreeAddress, {
+      traceId: submitted.id,
+      outcome: "unknown",
+    });
     const accepted: GasFreeTransferView = {
       ...base,
       stage: "submitted",
@@ -366,7 +370,7 @@ export class GasFreeService {
     gasFreeAddress: string,
   ): Promise<GasFreeTransferRecord | undefined> {
     const { deadline } = scope;
-    const traceContext = { traceId: initial.id };
+    const traceContext = { traceId: initial.id, outcome: "unknown" };
     let previous = initial.state;
     if (previous === "SUCCEED" || previous === "FAILED") return initial;
     for (;;) {
@@ -384,7 +388,11 @@ export class GasFreeService {
         current = await this.provider.trace(network, initial.id, requestDispatchCheck(deadline));
       } catch (error) {
         if (isRetryablePoll(error)) continue;
-        if (error instanceof CliError && error.code === "gasfree_integrity") throw error;
+        if (error instanceof CliError && error.code === "gasfree_integrity")
+          throw new ChainError(error.code, error.userMessage, {
+            ...error.details,
+            ...traceContext,
+          });
         scope.warn(
           errorMessage`GasFree trace could not be polled (${
             error instanceof CliError ? error.code : "provider_error"

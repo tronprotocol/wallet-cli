@@ -133,13 +133,15 @@ export class BaiRechargeClient implements BaiRechargeApi {
     return result;
   }
   async createOrder(input: BaiCreateOrderInput, check: DispatchCheck): Promise<BaiCreatedOrder> {
-    const result = this.decode(
-      object,
-      await this.call("order.createOrder", this.input(orderInput, input), check),
-    );
-    if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
-    const id = orderId.safeParse(result.id ?? result.orderId);
-    return id.success ? { orderId: id.data } : {};
+    const checked = this.input(orderInput, input);
+    try {
+      const result = this.decode(object, await this.call("order.createOrder", checked, check));
+      if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
+      const id = orderId.safeParse(result.id ?? result.orderId);
+      return id.success ? { orderId: id.data } : {};
+    } catch (error) {
+      throw uncertainPreorder(error);
+    }
   }
   async reportTxHash(
     input: BaiReportTransactionInput,
@@ -271,4 +273,15 @@ export class BaiRechargeClient implements BaiRechargeApi {
     }
     return envelope;
   }
+}
+
+const DEFINITE_REFUSALS = new Set(["bai_rejected", "bai_auth_failed", "provider_rate_limited"]);
+
+// A sent preorder may have been created unless B.AI refused it; no payment is implied.
+function uncertainPreorder(error: unknown): unknown {
+  if (!(error instanceof TransportError) || DEFINITE_REFUSALS.has(error.code)) return error;
+  const details = (error.details ?? {}) as { httpStatus?: number };
+  if (details.httpStatus !== undefined && details.httpStatus >= 400 && details.httpStatus < 500)
+    return error;
+  return new TransportError(error.code, error.userMessage, { ...details, outcome: "unknown" });
 }

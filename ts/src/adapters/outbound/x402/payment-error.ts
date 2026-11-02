@@ -254,7 +254,22 @@ export function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
   return {};
 }
 
-// Caller observed no payment signature; approval signatures are tracked separately.
+// The paid request was sent: unless the error carries a known payment status, the payment may
+// have settled.
+export function sentPaymentError(error: unknown, phase: PaymentPhase): CliError {
+  const classified = sdkPaymentError(error, phase);
+  const details = (classified.details ?? {}) as Record<string, unknown>;
+  if (details.paymentStatus !== undefined && details.paymentStatus !== "unknown") return classified;
+  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
+  return new ErrorType(classified.code, classified.userMessage, {
+    ...details,
+    paymentStatus: "unknown",
+    outcome: "unknown",
+    retryPayment: false,
+  });
+}
+
+// Caller observed no dispatch of the paid request; approval transactions are tracked separately.
 export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliError {
   const classified = sdkPaymentError(error, phase);
   const details = classified.details as Record<string, unknown> | undefined;

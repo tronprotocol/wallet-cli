@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
-import { sdkPaymentError, providerPaymentError, unsentPaymentError } from "./payment-error.js";
+import {
+  sdkPaymentError,
+  providerPaymentError,
+  sentPaymentError,
+  unsentPaymentError,
+} from "./payment-error.js";
 import { errorMessage, UsageError, TransportError } from "../../../domain/errors/index.js";
 import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
@@ -176,4 +181,31 @@ it.each([
     details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
   });
   expect(error.message).toContain("--max-amount");
+});
+
+it.each([
+  ["a typed timeout", new TransportError("timeout", "HTTP request timed out or was aborted")],
+  ["an oversized body", new TransportError("response_too_large", "too large")],
+  ["a plain SDK error", new Error("boom")],
+])("marks %s after the paid request was sent as an unknown outcome", (_case, error) => {
+  expect(sentPaymentError(error, "payment_request")).toMatchObject({
+    code: error instanceof TransportError ? error.code : "provider_error",
+    details: {
+      phase: "payment_request",
+      paymentStatus: "unknown",
+      outcome: "unknown",
+      retryPayment: false,
+    },
+  });
+});
+
+it("keeps a known settlement after the paid request was sent", () => {
+  const settled = new TransportError("response_too_large", "too large", {
+    phase: "response",
+    paymentStatus: "settled",
+    settled: true,
+  });
+  const result = sentPaymentError(settled, "payment_request");
+  expect(result.details).toMatchObject({ paymentStatus: "settled", settled: true });
+  expect(result.details).not.toHaveProperty("outcome");
 });

@@ -4,6 +4,7 @@ import { X402_TOKENS, GASFREE_TOKENS, tokensForScheme } from "./tokens.js";
 import {
   unsentPaymentError,
   sdkPaymentError,
+  sentPaymentError,
   providerPaymentError,
   type PaymentPhase,
 } from "./payment-error.js";
@@ -122,7 +123,7 @@ export class X402PaymentClient implements X402PaymentPort {
       type: "activity",
       message: "Requesting the resource and checking payment requirements…",
     });
-    const authorization: PaymentAuthorization = { signed: false };
+    const authorization: PaymentAuthorization = { sent: false };
     let phase: PaymentPhase = "request";
     let out: OutputReservation | undefined;
     try {
@@ -159,8 +160,8 @@ export class X402PaymentClient implements X402PaymentPort {
           try {
             let paidFetch: typeof fetch;
             if (this.paidFetchFactory) {
-              // External fetch factories own their signing lifecycle.
-              authorization.signed = true;
+              // External fetch factories own their signing and dispatch lifecycle.
+              authorization.sent = true;
               paidFetch = await this.paidFetchFactory(network, signer, scope);
             } else {
               paidFetch = await this.createPaidFetch(
@@ -203,8 +204,8 @@ export class X402PaymentClient implements X402PaymentPort {
               ...(authorization.approval ? { approval: authorization.approval } : {}),
             };
           } catch (error) {
-            const classified = authorization.signed
-              ? sdkPaymentError(error, phase)
+            const classified = authorization.sent
+              ? sentPaymentError(error, phase)
               : unsentPaymentError(error, phase);
             throw withApproval(classified, authorization.approval);
           }
@@ -405,7 +406,6 @@ export class X402PaymentClient implements X402PaymentPort {
         try {
           check.assertDispatchable();
           const signed = await wallet.signTypedData(normalizeTypedData(payload));
-          authorization.signed = true;
           scope.emit({
             type: "activity",
             message:
@@ -426,8 +426,6 @@ export class X402PaymentClient implements X402PaymentPort {
           .catch((error: unknown) => {
             throw sdkPaymentError(error, "sign");
           });
-        // A signed approval is not a payment authorization.
-        if (family.transactionIsPayment) authorization.signed = true;
         scope.emit({
           type: "activity",
           message: "Payment transaction signed; continuing payment verification and settlement…",
@@ -469,7 +467,9 @@ export class X402PaymentClient implements X402PaymentPort {
       authorization.requirement = selectedRequirements;
     });
     // Every request after the initial challenge carries the payment.
-    const boundedFetch = this.boundedFetch(submit, network, signer);
+    const boundedFetch = this.boundedFetch(submit, network, signer, () => {
+      authorization.sent = true;
+    });
     let first: Response | undefined = initial;
     let paymentSent = false;
     const fetchWithInitial: typeof fetch = (request, init) => {
@@ -495,10 +495,13 @@ export class X402PaymentClient implements X402PaymentPort {
     check: DispatchCheck,
     network: NetworkDescriptor,
     signer?: Pick<PayerSigner, "address">,
+    onDispatch?: () => void,
   ): typeof fetch {
     return async (request, init) => {
       let response: Response | undefined;
+      // fetchBounded calls this only after the dispatch check passes.
       const fetcher: typeof fetch = async (url, options) => {
+        onDispatch?.();
         response = await this.fetcher(url, options);
         return response;
       };
@@ -581,8 +584,6 @@ interface FamilyIntegration {
   registerSchemes(client: x402Client, context: SchemeContext): Promise<void>;
   // Permit2 contract and the registered tokens it may be approved for; undefined without a deployment.
   permit2(network: NetworkDescriptor, tokens: readonly string[]): X402PaymentFacts["permit2"];
-  // True when a transaction the SDK asks to sign is the payment itself, not a Permit2 approval.
-  readonly transactionIsPayment: boolean;
   readonly signTransaction: X402WalletOptions["signTransaction"];
 }
 
@@ -600,7 +601,6 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
       spender: evmAddress.canonical(EVM_PERMIT2_ADDRESS),
       tokens: tokens.map((token) => evmAddress.canonical(token)),
     }),
-    transactionIsPayment: true,
     signTransaction: signEvmPaymentTransaction,
   },
   tron: {
@@ -679,7 +679,6 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
       const spender = PERMIT2_ADDRESSES[toX402Network(network)];
       return spender ? { spender, tokens } : undefined;
     },
-    transactionIsPayment: false,
     signTransaction: signTronPermit2Approval,
   },
 };
@@ -694,8 +693,8 @@ function paymentFacts(network: NetworkDescriptor): X402PaymentFacts {
 }
 
 interface PaymentAuthorization {
-  // Excludes TRON approval signatures.
-  signed: boolean;
+  // The request carrying the payment passed its dispatch check and was handed to the transport.
+  sent: boolean;
   // Signed Permit2 approval and SDK progress.
   approval?: SignedApproval & { status: "confirmed" | "exported" };
   requirement?: { asset: string; amount: string };

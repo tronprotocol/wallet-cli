@@ -53,7 +53,11 @@ export class BaiRechargeFlow {
       // Preserve classified payment failures and any settlement evidence.
       if (error instanceof CliError) {
         const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-        const details = { paymentStatus: "unknown", ...error.details };
+        // The deadline refuses a request before it is sent.
+        const details = {
+          paymentStatus: error instanceof DeadlineExpiredError ? "not_sent" : "unknown",
+          ...error.details,
+        };
         throw new ErrorType(error.code, error, {
           ...details,
           ...(details.paymentStatus === "unknown" ? { outcome: "unknown" } : {}),

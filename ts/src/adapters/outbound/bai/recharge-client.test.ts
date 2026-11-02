@@ -332,3 +332,79 @@ it("carries an integer Retry-After header on a rate limit as retryAfterMs", asyn
     ),
   ).rejects.toMatchObject({ code: "provider_rate_limited", details: { retryAfterMs: 7000 } });
 });
+
+describe("preorder outcome", () => {
+  const order = {
+    channel: "crypto" as const,
+    chain: "bnb",
+    tokenName: "USDT",
+    amount: baiRechargeAmount("10"),
+    walletAddress: "payer",
+    deviceType: "web" as const,
+  };
+  const create = (fetcher: (...args: never[]) => Promise<Response>, check = NO_CHECK) =>
+    new BaiRechargeClient({ baiApiKey: "secret" }, fetcher as typeof fetch, "https://bai.example")
+      .createOrder(order, check)
+      .then(
+        () => expect.fail("createOrder resolved"),
+        (error: unknown) => error as { code: string; details?: object },
+      );
+
+  it.each([
+    [
+      "a lost response",
+      async () => {
+        throw new TypeError("socket hang up");
+      },
+      "provider_error",
+    ],
+    ["an HTTP 500", async () => new Response("down", { status: 500 }), "provider_error"],
+    ["malformed JSON", async () => new Response("{"), "provider_error"],
+    ["an empty result", async () => new Response("{}"), "provider_error"],
+  ])("marks %s after dispatch as an unknown outcome", async (_case, fetcher, code) => {
+    const error = await create(fetcher);
+    expect(error).toMatchObject({ code, details: { outcome: "unknown" } });
+    expect(error.details).not.toHaveProperty("paymentStatus");
+  });
+
+  it("marks a timeout after dispatch as an unknown outcome", async () => {
+    const controller = new AbortController();
+    const error = await create(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal!.addEventListener("abort", () => reject(init.signal!.reason));
+          controller.abort();
+        }),
+      { signal: controller.signal, assertDispatchable: () => {} },
+    );
+    expect(error).toMatchObject({ code: "timeout", details: { outcome: "unknown" } });
+  });
+
+  it.each([
+    [
+      "a business rejection",
+      async () =>
+        new Response(JSON.stringify({ success: false, code: "UNSUPPORTED_CHAIN" }), {
+          status: 400,
+        }),
+    ],
+    ["an auth failure", async () => new Response("no", { status: 401 })],
+    ["a rate limit", async () => new Response("no", { status: 429 })],
+    ["an HTTP 400", async () => new Response("bad", { status: 400 })],
+  ])("does not mark %s as an unknown outcome", async (_case, fetcher) => {
+    const error = await create(fetcher);
+    expect(error).toHaveProperty("code");
+    expect(error.details).not.toHaveProperty("outcome");
+  });
+
+  it("does not mark a deadline refusal before dispatch", async () => {
+    const deadline = new CommandDeadline(1);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const fetcher = vi.fn(async () => new Response("{}"));
+    const error = await create(fetcher, requestDispatchCheck(deadline));
+    expect(error).toMatchObject({ code: "timeout" });
+    expect(error.details ?? {}).not.toHaveProperty("outcome");
+    expect(fetcher).not.toHaveBeenCalled();
+    deadline.dispose();
+  });
+});
