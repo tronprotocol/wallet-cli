@@ -1,10 +1,9 @@
 import { decodeReceivedAmount } from "./received-amount.js";
 import { providers, TronWeb, utils as tronUtils } from "tronweb";
 import type { Types } from "tronweb";
-import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
+import { parse as parseLosslessJson } from "lossless-json";
 import type {
   AccountPermissionsView,
-  ActivePermissionView,
   BroadcastResult,
   PermissionGroupView,
   NetworkDescriptor,
@@ -37,16 +36,12 @@ import type {
   TronNodeInfo,
   TronPricePoint,
   TronProposal,
-  TronRawAccount,
-  TronRawBlock,
   TronReferenceBlockStatus,
   TronResourceUsage,
   TronSignWeight,
-  TronStakeTotals,
   TronTokenInfo,
   TronTx,
   TronTxInfo,
-  TronUnfreezing,
   TronVote,
   TronWitness,
 } from "../../../../application/ports/chain/tron/tron-gateway.js";
@@ -59,8 +54,41 @@ import {
 } from "../../../../application/contracts/deadline.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
+import {
+  activePermissionFromNode,
+  parseTronAccountResponse,
+  permissionGroupFromNode,
+  tronAccountState,
+  tronResourceUsage,
+  type NodeAccount,
+} from "./account-response.js";
+import {
+  assertUsableAsset,
+  assetList,
+  exchangeValue,
+  parseTronAssetResponse,
+} from "./asset-response.js";
+import {
+  broadcastResult,
+  normalizeProposal,
+  normalizeWitness,
+  parsePriceTimeline,
+  parseTronBlockResponse,
+  tronBlock,
+  tronNodeInfo,
+} from "./chain-response.js";
+import {
+  decodeAbiString,
+  decodeAbiUint,
+  decodeTronMessage,
+  nodeQuantity,
+  normalizeAccountValue,
+  normalizeTxInfoValue,
+  quantityString,
+  safeChainParameter,
+  safeNodeInteger,
+} from "./node-values.js";
 import { assertBuiltTx } from "./tx-guard.js";
-import { classifyNodeRejection, isOutcomeUnknownBroadcastCode } from "./node-errors.js";
 import { decodeTronTransaction } from "./transaction-decoder.js";
 import { isDeployedContract, normalizeContractResponses } from "./contract-response.js";
 import {
@@ -74,11 +102,8 @@ import {
   normalizeTransactionHex,
   refreshTransactionIdentity,
 } from "./transaction-codec.js";
-import {
-  decodeOperations,
-  isActivePermissionId,
-} from "../../../../domain/tron/permission/index.js";
-import { addressCodec, FAMILIES, normalizeTxHash } from "../../../../domain/family/index.js";
+import { decodeOperations } from "../../../../domain/tron/permission/index.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
 import {
   FetchHttpTransport,
   HttpTransportError,
@@ -1601,116 +1626,6 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 }
 
-const ACCOUNT_QUANTITY_KEYS = new Set([
-  "amount",
-  "allowance",
-  "balance",
-  "frozen_amount",
-  "frozen_balance",
-  "latest_withdraw_time",
-  "reward",
-  "total_supply",
-  "unfreeze_amount",
-  "value",
-  "vote_count",
-  "voteCount",
-]);
-
-function quantityString(value: unknown): string {
-  if (typeof value === "bigint") return value >= 0n ? value.toString() : "0";
-  if (typeof value === "number")
-    return Number.isSafeInteger(value) && value >= 0 ? String(value) : "0";
-  if (typeof value === "string" && /^\d+$/.test(value)) return value;
-  return "0";
-}
-
-function optionalNumber(value: unknown): number | undefined {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : undefined;
-}
-
-function decodeAsciiHex(value: unknown): string | undefined {
-  const raw = String(value ?? "");
-  const hex = raw.replace(/^0x/, "");
-  if (!hex || !/^[0-9a-fA-F]+$/.test(hex) || hex.length % 2 !== 0) return raw || undefined;
-  try {
-    const text = Buffer.from(hex, "hex").toString("utf8").replace(/\0+$/, "");
-    return text || undefined;
-  } catch {
-    return raw || undefined;
-  }
-}
-
-function normalizeWitness(value: unknown): TronWitness | null {
-  if (!value || typeof value !== "object") return null;
-  const raw = value as Record<string, unknown>;
-  const address = hexToBase58(raw.address);
-  if (!address) return null;
-  return {
-    address,
-    voteCount: quantityString(raw.voteCount ?? raw.vote_count),
-    url: decodeAsciiHex(raw.url),
-    totalProduced: optionalNumber(raw.totalProduced),
-    totalMissed: optionalNumber(raw.totalMissed),
-    latestBlockNum: optionalNumber(raw.latestBlockNum),
-    latestSlotNum: optionalNumber(raw.latestSlotNum),
-    isJobs: typeof raw.isJobs === "boolean" ? raw.isJobs : undefined,
-  };
-}
-
-// Accept node arrays of {key, value} and maps keyed by parameter ID.
-function normalizeProposalParameters(value: unknown): Record<string, string> {
-  if (Array.isArray(value)) {
-    const entries = value.flatMap((entry) => {
-      if (!entry || typeof entry !== "object") return [];
-      const { key, value: parameterValue } = entry as { key?: unknown; value?: unknown };
-      if (
-        key === undefined ||
-        key === null ||
-        parameterValue === undefined ||
-        parameterValue === null
-      )
-        return [];
-      return [[String(key), String(parameterValue)] as const];
-    });
-    return Object.fromEntries(entries);
-  }
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .filter(([, entry]) => entry !== undefined && entry !== null)
-        .map(([key, entry]) => [key, String(entry)]),
-    );
-  }
-  return {};
-}
-
-function normalizeProposal(value: unknown): TronProposal | null {
-  if (!value || typeof value !== "object") return null;
-  const raw = value as Record<string, unknown>;
-  const id = Number(raw.proposal_id ?? raw.proposalId);
-  if (!Number.isSafeInteger(id) || id < 0) return null;
-  const proposerAddress = hexToBase58(raw.proposer_address ?? raw.proposerAddress);
-  if (!proposerAddress) return null;
-  const parameters = normalizeProposalParameters(raw.parameters);
-  const stateValue = raw.state;
-  const states = ["PENDING", "DISAPPROVED", "APPROVED", "CANCELED"] as const;
-  const state =
-    typeof stateValue === "string" &&
-    states.includes(stateValue.toUpperCase() as (typeof states)[number])
-      ? (stateValue.toUpperCase() as (typeof states)[number])
-      : (states[Number(stateValue)] ?? "PENDING");
-  return {
-    id,
-    proposerAddress,
-    parameters,
-    expirationTime: Number(raw.expiration_time ?? raw.expirationTime ?? 0),
-    createTime: Number(raw.create_time ?? raw.createTime ?? 0),
-    approvals: (Array.isArray(raw.approvals) ? raw.approvals : []).map(hexToBase58).filter(Boolean),
-    state,
-  };
-}
-
 function abiEntries(abi: unknown): unknown[] | undefined {
   if (Array.isArray(abi)) return abi;
   const wrapped = (abi as { entrys?: unknown } | null)?.entrys;
@@ -1732,561 +1647,7 @@ function assertConstructorEncodable(abi: unknown): void {
   }
 }
 
-// Preserve int64 quantities and decode hex text, leaving owner addresses in hex.
-export function parseTronAssetResponse(text: string): TronAsset {
-  return decodeAssetText(normalizeAccountValue(parseLosslessJson(text))) as TronAsset;
-}
-
-const ASSET_TEXT_KEYS = new Set(["name", "abbr", "url", "description"]);
-
-function decodeAssetText(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(decodeAssetText);
-  if (!value || typeof value !== "object") return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, entry]) => [
-      key,
-      ASSET_TEXT_KEYS.has(key) && typeof entry === "string"
-        ? hexToUtf8(entry)
-        : decodeAssetText(entry),
-    ]),
-  );
-}
-
-function hexToUtf8(value: string): string {
-  if (value === "" || !/^([0-9a-fA-F]{2})+$/.test(value)) return value;
-  return Buffer.from(value, "hex").toString("utf8");
-}
-
-// Keep realized amounts as exact decimal strings even when they fit in a JS number.
-const REALISED_AMOUNT_KEYS = new Set([
-  "unfreeze_amount",
-  "withdraw_amount",
-  "exchange_received_amount",
-  "exchange_inject_another_amount",
-  "exchange_withdraw_another_amount",
-]);
-
-function normalizeTxInfoValue(value: unknown, key?: string): unknown {
-  if (isLosslessNumber(value)) {
-    const exact = value.toString();
-    if (key && REALISED_AMOUNT_KEYS.has(key)) return exact;
-    const number = Number(exact);
-    return Number.isSafeInteger(number) ? number : exact;
-  }
-  if (Array.isArray(value)) return value.map((entry) => normalizeTxInfoValue(entry));
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([entryKey, entry]) => [
-        entryKey,
-        normalizeTxInfoValue(entry, entryKey),
-      ]),
-    );
-  }
-  return value;
-}
-
-// Absent TRC10 precision means zero; explicit values must be in 0..6.
-const TRC10_MAX_PRECISION = 6;
-const INT32_MAX = 2_147_483_647;
-
-function assetViolation(asset: TronAsset): string | undefined {
-  const precision = asset.precision;
-  if (
-    precision !== undefined &&
-    (!Number.isInteger(precision) || precision < 0 || precision > TRC10_MAX_PRECISION)
-  ) {
-    return `precision ${JSON.stringify(precision)} is outside the protocol range 0..${TRC10_MAX_PRECISION}`;
-  }
-  for (const field of ["trx_num", "num"] as const) {
-    const value = asset[field];
-    if (!Number.isInteger(value) || value <= 0 || value > INT32_MAX) {
-      return `${field} ${JSON.stringify(value)} is not a positive int32`;
-    }
-  }
-  return undefined;
-}
-
-function assertUsableAsset(asset: TronAsset, requestedId?: string): TronAsset {
-  if (requestedId !== undefined && String(asset.id) !== requestedId) {
-    throw new ChainError(
-      "invalid_node_response",
-      `asked the node for TRC10 ${requestedId} and it answered with ${JSON.stringify(asset.id)}`,
-    );
-  }
-  const violation = assetViolation(asset);
-  if (violation) {
-    throw new ChainError("invalid_node_response", `TRC10 ${String(asset.id)}: ${violation}`);
-  }
-  return asset;
-}
-
-// Drop unusable rows so one invalid asset does not discard the whole page.
-function assetList(text: string): TronAsset[] {
-  const raw = parseTronAssetResponse(text) as unknown as { assetIssue?: unknown };
-  const assets = Array.isArray(raw.assetIssue) ? (raw.assetIssue as TronAsset[]) : [];
-  return assets.filter((asset) => assetViolation(asset) === undefined);
-}
-
-function exchangeValue(text: string): Record<string, unknown> {
-  return normalizeAccountValue(parseLosslessJson(text)) as Record<string, unknown>;
-}
-
-// Preserve account quantities as exact decimal strings.
-interface TronAccountAsset {
-  key?: string;
-  value?: string;
-  [key: string]: unknown;
-}
-
-interface TronFrozenBalance {
-  type?: unknown;
-  amount?: string;
-  unfreeze_amount?: string;
-  frozen_balance?: string;
-  [key: string]: unknown;
-}
-
-interface TronVoteAllocation {
-  vote_address?: unknown;
-  voteAddress?: unknown;
-  vote_count?: unknown;
-  voteCount?: unknown;
-  [key: string]: unknown;
-}
-
-// Node account JSON; SUN and token quantities are decimal strings.
-interface NodeAccount {
-  balance?: string;
-  allowance?: string;
-  asset?: TronAccountAsset[];
-  assetV2?: TronAccountAsset[];
-  frozen?: TronFrozenBalance[];
-  frozenV2?: TronFrozenBalance[];
-  unfrozenV2?: TronFrozenBalance[];
-  votes?: TronVoteAllocation[];
-  [key: string]: unknown;
-}
-
-export function parseTronAccountResponse(text: string): NodeAccount {
-  return normalizeAccountValue(parseLosslessJson(text)) as NodeAccount;
-}
-
-// Preserve unsafe block integers as exact decimal strings.
-export function parseTronBlockResponse(text: string): Types.Block {
-  return normalizeLosslessValue(parseLosslessJson(text)) as Types.Block;
-}
-
-// Nodes return {} for a height they do not hold.
-function tronBlock(block: Types.Block): TronBlock | null {
-  if (!block || typeof block !== "object" || !("blockID" in block)) return null;
-  const header = block.block_header?.raw_data;
-  // Protobuf JSON omits zero values; only the genesis block has height and timestamp 0.
-  return {
-    number: safeNodeInteger(header?.number ?? 0, "block number"),
-    timestampMs: safeNodeInteger(header?.timestamp ?? 0, "block timestamp"),
-    transactionCount: Array.isArray(block.transactions) ? block.transactions.length : 0,
-    raw: block as unknown as TronRawBlock,
-  };
-}
-
-// Node format: comma-separated "sinceMs:price" pairs, oldest first.
-function parsePriceTimeline(raw: unknown, resource: string): TronPricePoint[] {
-  const segments = typeof raw === "string" && raw !== "" ? raw.split(",") : [];
-  const points = segments.map((segment) => {
-    const match = /^(\d+):(\d+)$/.exec(segment);
-    return { sinceMs: Number(match?.[1]), sunPerUnit: Number(match?.[2]) };
-  });
-  const valid = points.every(
-    (point) => Number.isSafeInteger(point.sinceMs) && Number.isSafeInteger(point.sunPerUnit),
-  );
-  if (points.length === 0 || !valid) {
-    throw new ChainError(
-      "invalid_node_response",
-      `the node returned a malformed ${resource} price timeline`,
-    );
-  }
-  return points;
-}
-
-interface NodeInfoResponse {
-  solidityBlock?: unknown;
-  currentConnectCount?: unknown;
-  activeConnectCount?: unknown;
-  configNodeInfo?: { codeVersion?: unknown; p2pVersion?: unknown };
-}
-
-function tronNodeInfo(info: NodeInfoResponse): TronNodeInfo {
-  // solidityBlock reads "Num:<height>,ID:<block id>".
-  const solid = /Num:(\d+)/.exec(typeof info.solidityBlock === "string" ? info.solidityBlock : "");
-  const solidBlockNumber = solid ? Number(solid[1]) : undefined;
-  const connected = info.currentConnectCount;
-  const active = info.activeConnectCount;
-  const text = (value: unknown) => (typeof value === "string" && value !== "" ? value : undefined);
-  const codeVersion = text(info.configNodeInfo?.codeVersion);
-  const p2pVersion = text(info.configNodeInfo?.p2pVersion);
-  return {
-    ...(solidBlockNumber !== undefined && Number.isSafeInteger(solidBlockNumber)
-      ? { solidBlockNumber }
-      : {}),
-    ...(Number.isSafeInteger(connected) && Number.isSafeInteger(active)
-      ? { peers: { connected: connected as number, active: active as number } }
-      : {}),
-    ...(codeVersion === undefined ? {} : { codeVersion }),
-    ...(p2pVersion === undefined ? {} : { p2pVersion }),
-  };
-}
-
-// Protobuf JSON omits zero-valued counters.
-function tronResourceUsage(resources: Types.AccountResourceMessage): TronResourceUsage {
-  const count = (field: keyof Types.AccountResourceMessage): number =>
-    resources[field] === undefined ? 0 : safeNodeInteger(resources[field], field);
-  return {
-    energy: { used: count("EnergyUsed"), limit: count("EnergyLimit") },
-    bandwidth: {
-      used: count("NetUsed") + count("freeNetUsed"),
-      limit: count("NetLimit") + count("freeNetLimit"),
-    },
-    votingPower: { total: count("tronPowerLimit"), used: count("tronPowerUsed") },
-  };
-}
-
-// Protobuf JSON omits zero values: an absent quantity is 0, an absent frozenV2 type is BANDWIDTH.
-function tronAccountState(account: NodeAccount, expected?: string): TronAccountState {
-  const address = nodeAccountAddress(account.address, "account address", expected);
-  const name = accountText(account.account_name, "account_name");
-  const id = accountText(account.account_id, "account_id");
-  const createdAt = optionalNodeTime(account.create_time, "create_time");
-  const latestWithdrawAt = optionalNodeTime(account.latest_withdraw_time, "latest_withdraw_time");
-  return {
-    ...(address === undefined ? {} : { address }),
-    balanceSun: nodeQuantity(account.balance, "balance"),
-    ...(name === undefined ? {} : { name }),
-    ...(id === undefined ? {} : { id }),
-    ...(createdAt === undefined ? {} : { createdAt }),
-    ...(latestWithdrawAt === undefined ? {} : { latestWithdrawAt }),
-    stake: stakeTotals(account.frozenV2 ?? []),
-    unfreezing: (account.unfrozenV2 ?? []).map(unfreezingEntry),
-    votes: (account.votes ?? []).flatMap(accountVote),
-    raw: account as unknown as TronRawAccount,
-  };
-}
-
-// Entries of any other type are not counted.
-function stakeTotals(entries: readonly TronFrozenBalance[]): TronStakeTotals {
-  const sums = { BANDWIDTH: 0n, ENERGY: 0n, TRON_POWER: 0n };
-  for (const entry of entries) {
-    const type = entry.type ?? "BANDWIDTH";
-    if (type !== "BANDWIDTH" && type !== "ENERGY" && type !== "TRON_POWER") continue;
-    sums[type] += BigInt(nodeQuantity(entry.amount, "frozenV2 amount"));
-  }
-  return {
-    energySun: sums.ENERGY.toString(),
-    bandwidthSun: sums.BANDWIDTH.toString(),
-    tronPowerSun: sums.TRON_POWER.toString(),
-    totalSun: (sums.ENERGY + sums.BANDWIDTH + sums.TRON_POWER).toString(),
-  };
-}
-
-function unfreezingEntry(entry: TronFrozenBalance): TronUnfreezing {
-  const withdrawableAt = optionalNodeTime(entry.unfreeze_expire_time, "unfreeze_expire_time");
-  if (withdrawableAt === undefined) {
-    throw new ChainError("provider_error", "TRON node returned an unfrozenV2 entry without expiry");
-  }
-  return { amountSun: nodeQuantity(entry.unfreeze_amount, "unfreeze_amount"), withdrawableAt };
-}
-
-function accountVote(vote: TronVoteAllocation): TronVote[] {
-  const count = nodeQuantity(vote.vote_count, "vote_count");
-  if (count === "0") return [];
-  const witness = nodeAccountAddress(vote.vote_address, "vote address");
-  if (witness === undefined) {
-    throw new ChainError("provider_error", "TRON node returned a vote without an address");
-  }
-  return [{ witness, count }];
-}
-
-function nodeAccountAddress(raw: unknown, field: string, expected?: string): string | undefined {
-  if (raw === undefined || raw === null || raw === "") return undefined;
-  if (typeof raw !== "string") {
-    throw new ChainError("provider_error", `TRON node returned a malformed ${field}`);
-  }
-  const address = tronHexToBase58(raw);
-  if (!addressCodec("tron").validate(address)) {
-    throw new ChainError("provider_error", `TRON node returned an invalid ${field}`);
-  }
-  if (expected !== undefined && address !== expected) {
-    throw new ChainError(
-      "provider_error",
-      "TRON node returned an account address different from the query",
-    );
-  }
-  return address;
-}
-
-// Account text is hex-encoded bytes; bytes that are not UTF-8 decode to U+FFFD.
-function accountText(value: unknown, field: string): string | undefined {
-  if (value === undefined || value === null || value === "") return undefined;
-  if (typeof value !== "string" || !/^(?:[0-9a-fA-F]{2})+$/.test(value)) {
-    throw new ChainError("provider_error", `TRON node returned malformed ${field}`);
-  }
-  return Buffer.from(value, "hex").toString("utf8");
-}
-
-function nodeQuantity(value: unknown, field: string): string {
-  if (value === undefined) return "0";
-  if (typeof value === "string" && /^\d+$/.test(value)) return value;
-  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return String(value);
-  throw new ChainError("provider_error", `TRON node returned an invalid ${field}`);
-}
-
-// Epoch milliseconds; 0 and absence both mean the time is unset.
-function optionalNodeTime(value: unknown, field: string): number | undefined {
-  if (value === undefined) return undefined;
-  const time = safeNodeInteger(value, field);
-  return time === 0 ? undefined : time;
-}
-
-function safeNodeInteger(value: unknown, field: string): number {
-  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return value;
-  if (typeof value === "string" && /^\d+$/.test(value)) {
-    const parsed = Number(value);
-    if (Number.isSafeInteger(parsed)) return parsed;
-  }
-  throw new ChainError("provider_error", `TRON node returned an imprecise or invalid ${field}`);
-}
-
-// A node may report -1 for a parameter that is not active; readers that use a value as a fee check its sign.
-function safeChainParameter(value: unknown, key: string): number {
-  if (typeof value === "number" && Number.isSafeInteger(value)) return value;
-  if (typeof value === "string" && /^-?\d+$/.test(value)) {
-    const parsed = Number(value);
-    if (Number.isSafeInteger(parsed)) return parsed;
-  }
-  throw new ChainError("provider_error", `TRON node returned an imprecise or invalid ${key}`);
-}
-
-function safePermissionName(value: unknown, fallback: string, field: string): string {
-  const name = value === undefined ? fallback : value;
-  if (
-    typeof name !== "string" ||
-    name.length === 0 ||
-    Buffer.byteLength(name, "utf8") > 32 ||
-    /\p{Cc}/u.test(name)
-  ) {
-    throw new ChainError("provider_error", `TRON node returned an invalid ${field}`);
-  }
-  return name;
-}
-
-function permissionGroupFromNode(
-  value: unknown,
-  kind: string,
-  fallbackId: number,
-  constraints: { expectedId?: number; exactKeys?: number } = {},
-): PermissionGroupView {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new ChainError("provider_error", `TRON node returned malformed ${kind} permission data`);
-  }
-  const raw = value as Record<string, unknown>;
-  if (
-    !Array.isArray(raw.keys) ||
-    raw.keys.length === 0 ||
-    raw.keys.length > 5 ||
-    (constraints.exactKeys !== undefined && raw.keys.length !== constraints.exactKeys)
-  ) {
-    throw new ChainError("provider_error", `TRON node returned an invalid ${kind} key count`);
-  }
-  const threshold = safeNodeInteger(raw.threshold, `${kind}.threshold`);
-  if (threshold === 0)
-    throw new ChainError("provider_error", `TRON node returned zero ${kind} threshold`);
-  const seen = new Set<string>();
-  let totalWeight = 0n;
-  const keys = raw.keys.map((entry, index) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
-      throw new ChainError("provider_error", `TRON node returned malformed ${kind}.keys[${index}]`);
-    }
-    const key = entry as Record<string, unknown>;
-    const address = hexToBase58(key.address);
-    const weight = safeNodeInteger(key.weight, `${kind}.keys[${index}].weight`);
-    if (!addressCodec("tron").validate(address) || weight === 0 || seen.has(address)) {
-      throw new ChainError("provider_error", `TRON node returned invalid ${kind}.keys[${index}]`);
-    }
-    seen.add(address);
-    totalWeight += BigInt(weight);
-    return { address, weight, local: null };
-  });
-  if (BigInt(threshold) > totalWeight) {
-    throw new ChainError(
-      "provider_error",
-      `TRON node returned ${kind} threshold above total key weight`,
-    );
-  }
-  const id = raw.id === undefined ? fallbackId : safeNodeInteger(raw.id, `${kind}.id`);
-  if (constraints.expectedId !== undefined && id !== constraints.expectedId) {
-    throw new ChainError("provider_error", `TRON node returned invalid ${kind} permission id`);
-  }
-  return {
-    id,
-    name: safePermissionName(raw.permission_name, kind, `${kind}.permission_name`),
-    threshold,
-    keys,
-  };
-}
-
-function activePermissionFromNode(value: unknown, index: number): ActivePermissionView {
-  const group = permissionGroupFromNode(value, `active[${index}]`, index + 2);
-  if (!isActivePermissionId(group.id)) {
-    throw new ChainError(
-      "provider_error",
-      `TRON node returned invalid active[${index}] permission id`,
-    );
-  }
-  const raw = value as Record<string, unknown>;
-  if (typeof raw.operations !== "string") {
-    throw new ChainError(
-      "provider_error",
-      `TRON node returned active[${index}] without operations`,
-    );
-  }
-  let operations: ReturnType<typeof decodeOperations>;
-  try {
-    operations = decodeOperations(raw.operations);
-  } catch {
-    throw new ChainError(
-      "provider_error",
-      `TRON node returned malformed active[${index}] operations`,
-    );
-  }
-  return {
-    ...group,
-    operations: operations.operations,
-    operationLabels: operations.labels,
-    operationsHex: operations.operationsHex,
-    unknownOperationIds: operations.unknownOperationIds,
-  };
-}
-
-function normalizeAccountValue(value: unknown, key?: string): unknown {
-  if (isLosslessNumber(value)) {
-    const exact = value.toString();
-    if (key && (ACCOUNT_QUANTITY_KEYS.has(key) || /balance/i.test(key))) return exact;
-    const number = Number(exact);
-    return Number.isSafeInteger(number) ? number : exact;
-  }
-  if (Array.isArray(value)) return value.map((entry) => normalizeAccountValue(entry));
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([entryKey, entry]) => [
-        entryKey,
-        normalizeAccountValue(entry, entryKey),
-      ]),
-    );
-  }
-  return value;
-}
-
-function normalizeLosslessValue(value: unknown): unknown {
-  if (isLosslessNumber(value)) {
-    const exact = value.toString();
-    const number = Number(exact);
-    return Number.isSafeInteger(number) ? number : exact;
-  }
-  if (Array.isArray(value)) return value.map(normalizeLosslessValue);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, entry]) => [key, normalizeLosslessValue(entry)]),
-    );
-  }
-  return value;
-}
-
 export interface FeeEstimate extends Record<string, unknown> {
   feeModel: "tron-resource";
   energy: number;
-}
-
-function decodeAbiUint(hex?: string): bigint | undefined {
-  if (!hex || !/^[0-9a-fA-F]+$/.test(hex)) return undefined;
-  return BigInt("0x" + hex);
-}
-
-// Decode dynamic ABI strings and legacy bytes32 text.
-function decodeAbiString(hex?: string): string | undefined {
-  if (!hex || !/^[0-9a-fA-F]+$/.test(hex)) return undefined;
-  const buf = Buffer.from(hex, "hex");
-  if (buf.length === 32) return buf.toString("utf8").replace(/\0[\s\S]*$/, "") || undefined;
-  if (buf.length < 64) return undefined;
-  const offset = Number(BigInt("0x" + buf.subarray(0, 32).toString("hex")));
-  if (!Number.isSafeInteger(offset) || offset + 32 > buf.length) return undefined;
-  const length = Number(BigInt("0x" + buf.subarray(offset, offset + 32).toString("hex")));
-  if (!Number.isSafeInteger(length) || offset + 32 + length > buf.length) return undefined;
-  return buf.subarray(offset + 32, offset + 32 + length).toString("utf8") || undefined;
-}
-
-// Node messages may contain hex-encoded UTF-8.
-function decodeTronMessage(message?: string): string {
-  if (!message) return "";
-  if (/^[0-9a-fA-F]+$/.test(message) && message.length % 2 === 0) {
-    try {
-      return Buffer.from(message, "hex").toString("utf8");
-    } catch {
-      return message;
-    }
-  }
-  return message;
-}
-
-// sentTxId is the id of the transaction this call sent.
-function broadcastResult(response: unknown, sentTxId: string | undefined): BroadcastResult {
-  if (response === null || typeof response !== "object" || Array.isArray(response)) {
-    throw new ChainError("invalid_node_response", "TRON broadcast returned a malformed response");
-  }
-  const res = response as {
-    result?: unknown;
-    message?: unknown;
-    code?: unknown;
-    txid?: unknown;
-    transaction?: { txID?: unknown } | null;
-  };
-  // Node rejections can omit result entirely; only explicit true means acceptance.
-  if (res.result !== true) {
-    const nodeCode = typeof res.code === "string" ? res.code : undefined;
-    const reason =
-      (typeof res.message === "string" ? decodeTronMessage(res.message) : undefined) || nodeCode;
-    if (!reason) {
-      throw new ChainError(
-        "invalid_node_response",
-        "TRON broadcast returned neither acceptance nor a rejection reason",
-      );
-    }
-    const known = classifyNodeRejection(reason, nodeCode);
-    // A duplicate counts as accepted only when the node names the transaction this call sent.
-    if (!known && nodeCode === "DUP_TRANSACTION_ERROR" && sentTxId !== undefined) {
-      const reported = typeof res.txid === "string" ? res.txid : res.transaction?.txID;
-      if (typeof reported === "string" && sameTxId(reported, sentTxId)) {
-        return { txId: sentTxId, alreadyKnown: true };
-      }
-    }
-    if (!known && isOutcomeUnknownBroadcastCode(nodeCode)) {
-      throw new ChainError(
-        "rpc_error",
-        `TRON broadcast outcome unknown (${nodeCode}): ${redactErrorMessage(reason)}`,
-        { nodeCode, nodeMessage: redactErrorMessage(reason) },
-      );
-    }
-    throw new ChainError(
-      known?.code ?? "transaction_rejected",
-      known?.message
-        ? `${known.message}: ${redactErrorMessage(reason)}`
-        : `TRON broadcast rejected: ${redactErrorMessage(reason)}`,
-      { nodeCode, nodeMessage: redactErrorMessage(reason) },
-    );
-  }
-  const txId = res.txid ?? res.transaction?.txID;
-  return { txId: typeof txId === "string" ? txId : undefined };
-}
-
-function sameTxId(a: string, b: string): boolean {
-  const left = normalizeTxHash("tron", a);
-  return left !== undefined && left === normalizeTxHash("tron", b);
 }

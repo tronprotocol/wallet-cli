@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTronAccountResponse } from "./tron.js";
+import { parseTronAccountResponse } from "./account-response.js";
 
 describe("parseTronAccountResponse", () => {
   it("preserves account, staking and TRC10 quantities as exact decimal strings", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTronAssetResponse } from "./tron.js";
+import { parseTronAssetResponse } from "./asset-response.js";
 
 describe("parseTronAssetResponse", () => {
   it("keeps an int64 total supply exact instead of rounding it to a float64", () => {
