@@ -135,7 +135,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
       {
         ...(phase ? { phase } : {}),
         httpStatus,
-        ...(httpStatus === 429 ? sdkRetryAfter(record?.response?.headers?.["retry-after"]) : {}),
+        ...sdkRetryAfter(record?.response?.headers?.["retry-after"]),
         reason: "http_error",
         paymentStatus: "unknown",
         outcome: "unknown",

@@ -110,6 +110,14 @@ it.each(["challenge", "create_payment", "payment_request", "verify", "settle"] a
   },
 );
 
+it("keeps a Retry-After hint on an upstream status other than 429", () => {
+  const result = sdkPaymentError(
+    { response: { status: 503, headers: { "retry-after": "20" } } },
+    "settle",
+  );
+  expect(result.details).toMatchObject({ httpStatus: 503, retryAfterSeconds: 20 });
+});
+
 it("retains only readable Retry-After hints", () => {
   const result = sdkPaymentError(
     { response: { status: 429, headers: { "retry-after": "30" } } },
