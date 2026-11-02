@@ -161,6 +161,17 @@ export class WalletService {
     return this.wallets.list().map(withoutDerivationPath);
   }
 
+  // Seed accounts share one keystore per wallet, so count wallets, not accounts.
+  softwareWalletCount(): number {
+    const walletIds = new Set(
+      this.wallets
+        .list()
+        .filter((a) => a.type === "seed" || a.type === "privateKey")
+        .map((a) => a.accountId.split(".")[0]),
+    );
+    return walletIds.size;
+  }
+
   unreadableWallets() {
     return this.wallets.unreadable();
   }

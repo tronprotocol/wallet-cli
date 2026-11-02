@@ -12,10 +12,7 @@ function setup(opts: { newPrompt?: string; confirm?: boolean } = {}) {
   const changePassword = vi.fn(() => ({ wallets: ["seed", "hot"], count: 2 }));
   const wallets = {
     changePassword,
-    list: () => [
-      { accountId: "wlt_seed.0", type: "seed" },
-      { accountId: "wlt_hot", type: "privateKey" },
-    ],
+    softwareWalletCount: () => 2,
   } as unknown as WalletService;
   const secrets = { read: (kind: string) => (kind === "password" ? OLD : undefined) };
   const prompt = {

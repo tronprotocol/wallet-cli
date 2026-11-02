@@ -742,7 +742,7 @@ export function registerWalletCommands(
             "password change needs confirmation: pass --yes or run in a terminal",
           );
         }
-        const count = countSoftwareWallets(wallets);
+        const count = wallets.softwareWalletCount();
         const ok = await ctx.prompt.confirm({
           label: `Re-encrypt ${count} software wallet(s) with the new password?`,
         });
@@ -751,14 +751,4 @@ export function registerWalletCommands(
       return wallets.changePassword(oldPassword, newPassword);
     },
   } satisfies CommandDefinition);
-}
-
-function countSoftwareWallets(wallets: WalletService): number {
-  const ids = new Set(
-    wallets
-      .list()
-      .filter((a) => a.type === "seed" || a.type === "privateKey")
-      .map((a) => a.accountId.split(".")[0]),
-  );
-  return ids.size;
 }

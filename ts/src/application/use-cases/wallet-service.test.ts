@@ -9,9 +9,9 @@ import { WalletService } from "./wallet-service.js";
 const NO_DEADLINE = new CommandDeadline(0);
 const TRON_ADDRESS = "TJRabPrwbZy45sbavfcjinPJC18kjpRTv8";
 
-function service(ledger: Partial<LedgerDevice>) {
+function service(ledger: Partial<LedgerDevice>, wallets: Partial<WalletRepository> = {}) {
   return new WalletService(
-    {} as WalletRepository,
+    wallets as WalletRepository,
     ledger as LedgerDevice,
     {} as never,
     {} as never,
@@ -43,5 +43,19 @@ describe("WalletService Ledger account location", () => {
     );
     expect(path).toBe(Derivation.ledgerPath("tron", 1));
     expect(select.mock.calls[0]![0]).toMatchObject({ label: "Select tron account" });
+  });
+});
+
+describe("WalletService.softwareWalletCount", () => {
+  it("counts seed and private-key wallets once each, skipping Ledger and watch accounts", () => {
+    const list = () =>
+      [
+        { accountId: "wlt_seed.0", type: "seed" },
+        { accountId: "wlt_seed.1", type: "seed" },
+        { accountId: "wlt_hot", type: "privateKey" },
+        { accountId: "wlt_cold", type: "ledger" },
+        { accountId: "wlt_watch", type: "watch" },
+      ] as unknown as ReturnType<WalletRepository["list"]>;
+    expect(service({}, { list }).softwareWalletCount()).toBe(2);
   });
 });
