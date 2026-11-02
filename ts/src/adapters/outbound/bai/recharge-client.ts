@@ -1,6 +1,6 @@
 import type { DispatchCheck } from "../../../application/contracts/deadline.js";
-import { baiApiError, baiBusinessMessage } from "./api-error.js";
-import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
+import { baiApiError, baiBusinessMessage, credentialRefusal } from "./api-error.js";
+import { requestJson } from "../http/json-service.js";
 import { z } from "zod";
 import type { Config } from "../../../domain/types/index.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
@@ -196,73 +196,59 @@ export class BaiRechargeClient implements BaiRechargeApi {
       );
     const payload = JSON.stringify({ json: input });
     if (method === "GET") url.searchParams.set("input", payload);
-    const signal = check.signal;
-    check.assertDispatchable();
-    let response: Response;
-    let decoded: unknown;
-    try {
-      response = await this.fetcher(url.toString(), {
+    const {
+      status,
+      ok,
+      body: decoded,
+    } = await requestJson(
+      this.fetcher,
+      url.toString(),
+      {
         method,
         headers: {
           Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        redirect: "error",
-        signal,
         ...(method === "POST" ? { body: payload } : {}),
-      });
-      if ([401, 403, 429].includes(response.status)) {
-        const retryAfter = response.headers.get("retry-after") ?? "";
-        await response.body?.cancel();
-        throw baiApiError(
-          undefined,
-          procedure,
-          response.status,
-          /^\d{1,6}$/.test(retryAfter) ? Number(retryAfter) * 1000 : undefined,
-        )!;
-      }
-      response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
-      try {
-        decoded = await response.json();
-      } catch {
-        const statusError = baiApiError(undefined, procedure, response.status);
-        if (statusError) throw statusError;
-        throw new TransportError("provider_error", "B.AI returned malformed JSON", {
-          procedure,
-          reason: "malformed_json",
-          retryPayment: false,
-        });
-      }
-      const apiError = baiApiError(decoded, procedure, response.status);
-      // A report rejection is a credit result, not a reason to pay again.
-      const envelope = object.safeParse(decoded);
-      const data = envelope.success ? envelope.data : undefined;
-      const wrapped = data?.result as { data?: { json?: unknown } } | undefined;
-      const reported = report.safeParse(wrapped?.data?.json ?? data);
-      if (
-        apiError &&
-        !(
-          response.ok &&
-          procedure === "order.reportTxHash" &&
-          reported.success &&
-          !reported.data.success
-        )
-      )
-        throw apiError;
-    } catch (error) {
-      if (error instanceof TransportError) throw error;
-      if (signal.aborted)
-        throw new TransportError(
-          "timeout",
-          "B.AI recharge API timed out; mutation outcome may be unknown",
-        );
-      throw new TransportError(
-        "provider_error",
-        "B.AI recharge API connection failed; check connectivity and reconcile any pending mutation before retrying",
-        { procedure, reason: "connection_failed", retryPayment: false },
-      );
-    }
+      },
+      {
+        service: "B.AI",
+        check,
+        refuse: (response) => credentialRefusal(procedure, response.status),
+        errors: {
+          timeout: () =>
+            new TransportError(
+              "timeout",
+              "B.AI recharge API timed out; mutation outcome may be unknown",
+            ),
+          unreachable: () =>
+            new TransportError(
+              "provider_error",
+              "B.AI recharge API connection failed; check connectivity and reconcile any pending mutation before retrying",
+              { procedure, reason: "connection_failed", retryPayment: false },
+            ),
+          malformed: (status) =>
+            baiApiError(undefined, procedure, status) ??
+            new TransportError("provider_error", "B.AI returned malformed JSON", {
+              procedure,
+              reason: "malformed_json",
+              retryPayment: false,
+            }),
+        },
+      },
+    );
+    const apiError = baiApiError(decoded, procedure, status);
+    // A report rejection is a credit result, not a reason to pay again.
+    const parsedEnvelope = object.safeParse(decoded);
+    const data = parsedEnvelope.success ? parsedEnvelope.data : undefined;
+    const wrapped = data?.result as { data?: { json?: unknown } } | undefined;
+    const reported = report.safeParse(wrapped?.data?.json ?? data);
+    if (
+      apiError &&
+      !(ok && procedure === "order.reportTxHash" && reported.success && !reported.data.success)
+    )
+      throw apiError;
     const envelope = this.decode(object, decoded);
     if (envelope.error !== undefined) throw this.invalid();
     if (envelope.result !== undefined) {

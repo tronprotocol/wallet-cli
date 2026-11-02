@@ -318,19 +318,24 @@ it("converts a decimal only in the outgoing report JSON", async () => {
   expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.amount).toBe(1.23);
 });
 
-it("carries an integer Retry-After header on a rate limit as retryAfterMs", async () => {
+it("reports a rate limit with exactly httpStatus and retryAfterSeconds", async () => {
   const fetcher = vi.fn(
     async () => new Response("secret", { status: 429, headers: { "Retry-After": "7" } }),
   );
-  await expect(
-    new BaiRechargeClient({ baiApiKey: "secret" }, fetcher).reportTxHash(
+  const error = await new BaiRechargeClient({ baiApiKey: "secret" }, fetcher)
+    .reportTxHash(
       {
         chain: "tron",
         txHash: "a".repeat(64),
       },
       NO_CHECK,
-    ),
-  ).rejects.toMatchObject({ code: "provider_rate_limited", details: { retryAfterMs: 7000 } });
+    )
+    .catch((caught: unknown) => caught);
+  expect(error).toMatchObject({ code: "provider_rate_limited" });
+  expect((error as { details?: unknown }).details).toEqual({
+    httpStatus: 429,
+    retryAfterSeconds: 7,
+  });
 });
 
 describe("preorder outcome", () => {

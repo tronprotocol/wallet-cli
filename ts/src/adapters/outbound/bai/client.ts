@@ -1,6 +1,6 @@
 import type { DispatchCheck } from "../../../application/contracts/deadline.js";
-import { baiApiError } from "./api-error.js";
-import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
+import { baiApiError, credentialRefusal } from "./api-error.js";
+import { requestJson } from "../http/json-service.js";
 import { z } from "zod";
 import { parse as parseLosslessJson } from "lossless-json";
 import type {
@@ -105,49 +105,37 @@ export class BaiClient implements BaiApi {
           ? ""
           : `?batch=1&input=${encoded}`;
     const url = `${this.baseUrl}/trpc/lambda/${procedure}${suffix}`;
-    const signal = check.signal;
-    check.assertDispatchable();
-    let response: Response;
-    try {
-      response = await this.fetcher(url, {
-        method: "GET",
-        headers: { Accept: "application/json", Authorization: `Bearer ${key}` },
-        redirect: "error",
-        signal,
-      });
-      if ([401, 403, 429].includes(response.status)) {
-        await response.body?.cancel();
-        throw baiApiError(undefined, procedure, response.status)!;
-      }
-      response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
-    } catch (error) {
-      if (error instanceof TransportError) throw error;
-      if (signal.aborted) {
-        throw new TransportError("timeout", "B.AI API request timed out");
-      }
-      throw new TransportError(
-        "provider_error",
-        "B.AI API connection failed; check connectivity and the service endpoint",
-        { procedure, reason: "connection_failed" },
-      );
-    }
-    let decoded: unknown;
-    try {
-      const body = await response.text();
-      // Preserve summary precision; list responses use JSON numbers.
-      decoded =
-        procedure === "usage.summary"
-          ? parseLosslessJson(body, undefined, (value) => value)
-          : JSON.parse(body);
-    } catch {
-      const statusError = baiApiError(undefined, procedure, response.status);
-      if (statusError) throw statusError;
-      throw new TransportError("provider_error", "B.AI API returned malformed JSON", {
-        procedure,
-        reason: "malformed_json",
-      });
-    }
-    const apiError = baiApiError(decoded, procedure, response.status);
+    const { status, body: decoded } = await requestJson(
+      this.fetcher,
+      url,
+      { method: "GET", headers: { Accept: "application/json", Authorization: `Bearer ${key}` } },
+      {
+        service: "B.AI",
+        check,
+        // Preserve summary precision; list responses use JSON numbers.
+        parse: (text) =>
+          procedure === "usage.summary"
+            ? parseLosslessJson(text, undefined, (value) => value)
+            : JSON.parse(text),
+        refuse: (response) => credentialRefusal(procedure, response.status),
+        errors: {
+          timeout: () => new TransportError("timeout", "B.AI API request timed out"),
+          unreachable: () =>
+            new TransportError(
+              "provider_error",
+              "B.AI API connection failed; check connectivity and the service endpoint",
+              { procedure, reason: "connection_failed" },
+            ),
+          malformed: (status) =>
+            baiApiError(undefined, procedure, status) ??
+            new TransportError("provider_error", "B.AI API returned malformed JSON", {
+              procedure,
+              reason: "malformed_json",
+            }),
+        },
+      },
+    );
+    const apiError = baiApiError(decoded, procedure, status);
     if (apiError) throw apiError;
     const first = Array.isArray(decoded) ? decoded[0] : decoded;
     if (

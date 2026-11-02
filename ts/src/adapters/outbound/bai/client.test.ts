@@ -218,6 +218,7 @@ describe("BaiClient", () => {
     ['{"error":{"json":{"code":-32603}}}', 500, "provider_error"],
     ['{"points_balance":', 200, "provider_error"],
     ['{"points_balance":', 503, "provider_error"],
+    ["", 429, "provider_rate_limited"],
   ])("classifies summary response %s at HTTP %s as %s", async (body, status, code) => {
     const client = new BaiClient(
       { baiApiKey: "test-key" },

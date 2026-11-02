@@ -104,14 +104,17 @@ it("turns a transport error into an unconfirmed result that keeps the hash", asy
   const reportTxHash = vi
     .fn()
     .mockRejectedValue(
-      new TransportError("provider_rate_limited", "slow down", { retryAfterMs: 7000 }),
+      new TransportError("provider_rate_limited", "slow down", {
+        httpStatus: 429,
+        retryAfterSeconds: 7,
+      }),
     );
   await expect(reportBaiTransaction(NO_DEADLINE, { reportTxHash }, request)).resolves.toMatchObject(
     {
       ...request,
       creditStatus: "unconfirmed",
       code: "provider_rate_limited",
-      error: { details: { retryAfterMs: 7000 } },
+      error: { details: { httpStatus: 429, retryAfterSeconds: 7 } },
       retryPayment: false,
       warning: expect.stringContaining("Do not pay again"),
     },
