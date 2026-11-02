@@ -3,6 +3,7 @@ import {
   requestDispatchCheck,
   submitDispatchCheck,
 } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import { sleepWithin } from "../../services/deadline-poll.js";
 import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
 import { gasfreeService } from "../../services/capability/predicates.js";
@@ -65,7 +66,7 @@ export class GasFreeService {
     private readonly signers: SignerResolver,
     private readonly signing: SigningService,
     private readonly recipients: RecipientResolver,
-    private readonly clock: () => number = () => Date.now(),
+    private readonly clock: WallClock = systemWallClock,
     private readonly sleep: (
       milliseconds: number,
       deadline: ExecutionDeadline,

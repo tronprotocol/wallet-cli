@@ -3,6 +3,7 @@ import {
   requestDispatchCheck,
   submitDispatchCheck,
 } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import { localTxId } from "../../services/broadcast-identity.js";
 import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
@@ -51,7 +52,7 @@ export class TronMultisigCollaborationService {
     private readonly collaboration: TronLinkCollaborationPort,
     private readonly gateways: ChainGatewayProvider,
     private readonly multisig: TronCheckedSigner,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async list(

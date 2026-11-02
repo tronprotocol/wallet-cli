@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type {
   NetworkDescriptor,
   TronTransactionArtifact,
@@ -25,7 +26,7 @@ export class TronSigService implements TronHexSigner {
     private readonly signers: SignerResolver,
     private readonly signing: SigningService,
     private readonly artifacts: TransactionArtifactWriter,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   // `out` is the file the user chose for the signed hex.

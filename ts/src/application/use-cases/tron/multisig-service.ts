@@ -1,4 +1,5 @@
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type {
   NetworkDescriptor,
   CheckedTxSignView,
@@ -30,7 +31,7 @@ export class TronMultisigService implements TronCheckedSigner {
     private readonly gateways: ChainGatewayProvider,
     private readonly signing: TronHexSigner,
     private readonly artifacts: TransactionArtifactWriter,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async approvals(

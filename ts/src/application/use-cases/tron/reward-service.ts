@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { decimalToBigInt } from "../../../domain/numbers/index.js";
@@ -23,7 +24,7 @@ export class TronRewardService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async balance(

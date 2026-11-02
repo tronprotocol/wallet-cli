@@ -4,6 +4,7 @@ import type {
   PayerSigner,
   SignedApproval,
 } from "../../contracts/x402-payer.js";
+import { systemWallClock } from "../../contracts/wall-clock.js";
 import type {
   SignedTxOf,
   TypedDataPayload,
@@ -217,7 +218,7 @@ export function withPayerPolicy(payer: UnguardedPayer, policy: PayerPolicy): Pay
       }
       assertPayerMatches(payload, primaryType, payer.address, policy.family);
       assertFeeWithinCap(payload, primaryType, policy);
-      const now = policy.now ?? (() => Math.floor(Date.now() / 1000));
+      const now = policy.now ?? (() => Math.floor(systemWallClock() / 1000));
       assertNotExpired(payload, primaryType, now());
       const signed = await payer.signTypedData(payload);
       assertSignedTheRequest(signed, primaryType);

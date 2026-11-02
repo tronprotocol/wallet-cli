@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 // Inputs use whole tokens; chain quantities and returned supply amounts use minimal units.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
@@ -75,7 +76,7 @@ export class TronAssetService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async info(deadline: ExecutionDeadline, network: NetworkDescriptor, input: AssetInfoInput) {
