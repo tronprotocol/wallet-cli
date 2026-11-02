@@ -1,6 +1,12 @@
 import { requestDispatchCheck } from "../services/command-deadline.js";
 import type { NetworkDescriptor, TxOutcome } from "../../domain/types/index.js";
-import { ChainError } from "../../domain/errors/index.js";
+import {
+  ChainError,
+  CliError,
+  errorMessage,
+  ExecutionError,
+  UsageError,
+} from "../../domain/errors/index.js";
 import { sunAmount } from "../../domain/amounts/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type {
@@ -61,25 +67,30 @@ export class X402Permit2Approvals {
     ];
     const approvalScope = waitingScope(scope);
     scope.emit({ type: "activity", message: "Sending the one-time Permit2 approval…" });
-    const outcome = await this.pipeline.runTron({
-      ctx: approvalScope,
-      net: network,
-      account: scope.activeAccount,
-      broadcaster: gateway,
-      mode: "broadcast",
-      permissionId: 0,
-      ...tronTransactionHooks(gateway),
-      preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
-      confirm: tronConfirmation(gateway, approvalScope),
-      confirmationRequired: true,
-      build: (from) =>
-        gateway.triggerSmartContract(from, request.token, APPROVE, parameters, {
-          callValue: sunAmount("0"),
-          feeLimit: sunAmount(String(X402_APPROVE_FEE_LIMIT_SUN)),
-          permissionId: 0,
-        }),
-      estimate: () => gateway.estimateResources(owner, request.token, APPROVE, parameters),
-    });
+    let outcome: TxOutcome;
+    try {
+      outcome = await this.pipeline.runTron({
+        ctx: approvalScope,
+        net: network,
+        account: scope.activeAccount,
+        broadcaster: gateway,
+        mode: "broadcast",
+        permissionId: 0,
+        ...tronTransactionHooks(gateway),
+        preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
+        confirm: tronConfirmation(gateway, approvalScope),
+        confirmationRequired: true,
+        build: (from) =>
+          gateway.triggerSmartContract(from, request.token, APPROVE, parameters, {
+            callValue: sunAmount("0"),
+            feeLimit: sunAmount(String(X402_APPROVE_FEE_LIMIT_SUN)),
+            permissionId: 0,
+          }),
+        estimate: () => gateway.estimateResources(owner, request.token, APPROVE, parameters),
+      });
+    } catch (error) {
+      throw sentApprovalError(error);
+    }
     const txId = outcomeTxId(outcome);
     const evidence = txId === undefined ? undefined : { txId };
     if (outcome.stage === "failed") {
@@ -118,6 +129,20 @@ export class X402Permit2Approvals {
     }
     return approval;
   }
+}
+
+// An error after the approval was sent (its wait stopped, or its outcome is unknown) names the
+// approval like the deadline case does, so its txId is not read as the payment.
+function sentApprovalError(error: unknown): unknown {
+  if (!(error instanceof CliError)) return error;
+  const txId = (error.details as { txId?: unknown } | undefined)?.txId;
+  if (typeof txId !== "string") return error;
+  const ErrorType = error.kind === "usage" ? UsageError : ExecutionError;
+  return new ErrorType(
+    error.code,
+    errorMessage`the Permit2 approval ${txId} failed with ${error.code} (${error.userMessage}) after it was sent; no payment was signed; the approval may still confirm on chain`,
+    error.details,
+  );
 }
 
 function outcomeTxId(outcome: TxOutcome): string | undefined {

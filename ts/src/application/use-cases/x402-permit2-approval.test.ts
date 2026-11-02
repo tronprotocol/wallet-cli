@@ -121,14 +121,22 @@ describe("X402Permit2Approvals", () => {
     );
   });
 
-  it("requires the approval's confirmation and keeps the error that stopped the wait", async () => {
+  it("requires the approval's confirmation and names the approval in the error that stopped the wait", async () => {
     const stopped = new ExecutionError("not_found", "no receipts", {
       txId: TX_ID,
       outcome: "unknown",
     });
     const h = harness(stopped);
 
-    await expect(h.approver.approve(h.request)).rejects.toBe(stopped);
+    const error = (await h.approver.approve(h.request).catch((caught: unknown) => caught)) as {
+      code: string;
+      message: string;
+      details: unknown;
+    };
+    expect(error.code).toBe("not_found");
+    expect(error.details).toEqual({ txId: TX_ID, outcome: "unknown" });
+    expect(error.message).toContain(`the Permit2 approval ${TX_ID} failed with not_found`);
+    expect(error.message).toContain("no payment was signed");
     expect(h.run.mock.calls[0]![0].confirmationRequired).toBe(true);
     expect(h.onConfirmed).not.toHaveBeenCalled();
   });
@@ -157,6 +165,14 @@ describe("X402Permit2Approvals", () => {
     await expect(h.approver.approve(h.request)).rejects.toMatchObject({
       code: "rpc_error",
       details: { txId: TX_ID },
+      message: expect.stringContaining("the Permit2 approval"),
     });
+  });
+
+  it("passes an error from before the approval was sent through unchanged", async () => {
+    const refused = new ExecutionError("signing_rejected", "rejected on the device");
+    const h = harness(refused);
+
+    await expect(h.approver.approve(h.request)).rejects.toBe(refused);
   });
 });
