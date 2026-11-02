@@ -13,8 +13,9 @@ export interface MigrationStep {
   path: string;
   currentVersion: number;
   needsPassword(doc: unknown): boolean;
-  // Password is supplied when the plan requires it.
-  migrate(doc: unknown, password?: string): unknown;
+  // Password is supplied when the plan requires it. Call refresh() between slow steps, such as
+  // decrypting each key, so the held locks do not turn stale.
+  migrate(doc: unknown, password: string | undefined, refresh: () => void): unknown;
 }
 
 // Carry versions, not documents: commit must re-read each file under its lock.
@@ -66,13 +67,20 @@ export class MigrationRunner {
   }
 
   // Hold all file locks across the complete read-modify-write.
-  private write(stale: StaleFile[], password: string | undefined, held = 0): string[] {
-    if (held === stale.length) return this.commit(stale, password);
-    return this.store.withLock(stale[held]!.step.path, () => this.write(stale, password, held + 1));
+  private write(
+    stale: StaleFile[],
+    password: string | undefined,
+    refreshes: Array<() => void> = [],
+  ): string[] {
+    if (refreshes.length === stale.length)
+      return this.commit(stale, password, () => refreshes.forEach((refresh) => refresh()));
+    return this.store.withLock(stale[refreshes.length]!.step.path, (refresh) =>
+      this.write(stale, password, [...refreshes, refresh]),
+    );
   }
 
   // Re-read under lock to preserve changes made while confirmation or password prompts were open.
-  private commit(stale: StaleFile[], password: string | undefined): string[] {
+  private commit(stale: StaleFile[], password: string | undefined, refresh: () => void): string[] {
     const writes: Array<{ path: string; value: unknown }> = [];
     for (const { step, storedVersion } of stale) {
       const doc = this.store.readJson<unknown>(step.path);
@@ -87,10 +95,11 @@ export class MigrationRunner {
       }
       writes.push(
         { path: backupPathFor(step.path, found), value: doc },
-        { path: step.path, value: step.migrate(doc, password) },
+        { path: step.path, value: step.migrate(doc, password, refresh) },
       );
     }
     if (writes.length === 0) return [];
+    refresh();
     return this.store.writeJsonAll(writes);
   }
 }

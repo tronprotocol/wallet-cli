@@ -843,6 +843,32 @@ describe("changePassword", () => {
     expect(() => ks2.decryptKey(keyId)).not.toThrow();
   }, 15_000);
 
+  it("refreshes the lock before each blob and before writing, and stops when it is lost", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
+    const store = new AtomicFileStore();
+    const ks = new Keystore(root, store, () => "OldPw1!aa");
+    ks.import({ secret: MNEMONIC, type: "seed", label: "seed" });
+    ks.import({
+      secret: "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+      type: "privateKey",
+      label: "hot",
+    });
+    const before = storageSnapshot(root);
+    const realLock = store.withLock.bind(store);
+    let refreshes = 0;
+    store.withLock = ((path: string, fn: (refresh: () => void) => unknown) =>
+      realLock(path, (refresh) =>
+        fn(() => {
+          refresh();
+          if (++refreshes === 3) throw new Error("lock lost");
+        }),
+      )) as typeof store.withLock;
+
+    expect(() => ks.changePassword("OldPw1!aa", "NewPw2@bb")).toThrow("lock lost");
+    expect(refreshes).toBe(3); // Two blobs, then the check before writing.
+    expect(storageSnapshot(root)).toEqual(before);
+  }, 15_000);
+
   it("rejects a wrong old password without touching any file", () => {
     const root = mkdtempSync(join(tmpdir(), "ks-change-password-"));
     const ks = new Keystore(root, new AtomicFileStore(), () => "OldPw1!aa");
