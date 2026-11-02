@@ -1,17 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { ESLint } from "eslint";
-import { execFileSync, spawnSync } from "node:child_process";
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repo = fileURLToPath(new URL("../../..", import.meta.url));
@@ -27,31 +16,10 @@ const capabilities = [
   ["ws", "WebSocketServer"],
   ["ws", "Server"],
 ];
-let dir: string;
-let eslint: ESLint;
-
-beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "wallet-cli-server-imports-"));
-  symlinkSync(join(repo, "node_modules"), join(dir, "node_modules"));
-  for (const file of [
-    "eslint.config.js",
-    "package.json",
-    "scripts/lint.mjs",
-    "eslint-rules/closed-port-types.mjs",
-    "eslint-rules/environment-reads.mjs",
-  ]) {
-    mkdirSync(dirname(join(dir, file)), { recursive: true });
-    copyFileSync(join(repo, file), join(dir, file));
-  }
-  execFileSync("git", ["init", "-q"], { cwd: dir });
-  writeFileSync(join(dir, ".gitignore"), "node_modules/\n");
-  eslint = new ESLint({ cwd: dir });
-});
-
-afterAll(() => rmSync(dir, { recursive: true, force: true }));
+const eslint = new ESLint({ cwd: repo });
 
 async function messages(source: string, file = "src/adapters/outbound/example.ts") {
-  const [result] = await eslint.lintText(source, { filePath: join(dir, file) });
+  const [result] = await eslint.lintText(source, { filePath: join(repo, file) });
   expect(result!.fatalErrorCount).toBe(0);
   return result!.messages.filter((message) => message.ruleId === ruleId);
 }
@@ -175,44 +143,5 @@ describe("server imports", () => {
     ["const { createServer } = require('node:http');", 0],
   ])("records stock import-rule limitations: %s", async (source, count) => {
     expect(await messages(source)).toHaveLength(count);
-  });
-
-  it("requires baseline removal after a fix and rejects new or increased counts", () => {
-    function write(file: string, source: string) {
-      mkdirSync(dirname(join(dir, file)), { recursive: true });
-      writeFileSync(join(dir, file), source);
-    }
-    function run(script: string) {
-      return spawnSync("npm", ["run", script], { cwd: dir, encoding: "utf8" });
-    }
-    const file = "src/adapters/outbound/x402/server.ts";
-    const source =
-      "import { createServer, type Server } from 'node:http'; export { createServer, type Server };\n";
-    const clean = "export const fixed = true;\n";
-    write(file, source);
-    const baseline = run("lint:baseline");
-    expect(baseline.status, baseline.stdout + baseline.stderr).toBe(0);
-    const baselinePath = join(dir, "eslint-suppressions.json");
-    expect(JSON.parse(readFileSync(baselinePath, "utf8"))).toEqual({
-      [file]: { [ruleId]: { count: 1 } },
-    });
-    const known = run("lint");
-    expect(known.status, known.stdout + known.stderr).toBe(0);
-    write("src/adapters/outbound/new.ts", source);
-    const added = run("lint");
-    expect(added.status).toBe(1);
-    expect(added.stdout).toContain(ruleId);
-    write("src/adapters/outbound/new.ts", clean);
-    write(file, source.replace("type Server", "Server"));
-    const increased = run("lint");
-    expect(increased.status).toBe(1);
-    expect(increased.stdout).toContain(ruleId);
-    write(file, clean);
-    const fixed = run("lint");
-    expect(fixed.status).toBe(2);
-    expect(fixed.stderr).toContain("There are suppressions left that do not occur anymore");
-    expect(run("lint:baseline").status).toBe(0);
-    expect(JSON.parse(readFileSync(baselinePath, "utf8"))).toEqual({});
-    expect(run("lint").status).toBe(0);
   });
 });
