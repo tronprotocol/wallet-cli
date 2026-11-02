@@ -108,6 +108,25 @@ function partsOf(message: UserMessage): readonly MessagePart[] {
   return message.parts ?? [{ value: message.message, text: message.textMessage }];
 }
 
+// Rewrites authored layout only; external values and references are kept as they are.
+export function replaceMessageLayout(
+  message: UserMessage,
+  pattern: RegExp,
+  replacement: string,
+): UserMessage {
+  if (message.parts === undefined || message.parts.length === 0) {
+    return {
+      message: message.message.replace(pattern, replacement),
+      textMessage: message.textMessage.replace(pattern, replacement),
+    };
+  }
+  return userMessage(
+    message.parts.map((part) =>
+      typeof part === "string" ? part.replace(pattern, replacement) : part,
+    ),
+  );
+}
+
 // Escapes interpolated line separators for text output; preserves raw values for JSON.
 // Input and follow-up references and nested messages stay structured.
 export function errorMessage(strings: TemplateStringsArray, ...values: unknown[]): UserMessage {

@@ -3,6 +3,7 @@ import {
   errorMessage,
   ExecutionError,
   inputRef,
+  replaceMessageLayout,
   TransportError,
   UsageError,
 } from "../../../domain/errors/index.js";
@@ -275,15 +276,10 @@ export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliErro
   return withErrorDetails(
     classified,
     { ...rest, ...kept, paymentStatus: "not_sent", retryPayment: false },
-    {
-      message: classified.message.replace(
-        /; reconcile before paying again/g,
-        "; no payment was sent",
-      ),
-      textMessage: classified.textMessage.replace(
-        /; reconcile before paying again/g,
-        "; no payment was sent",
-      ),
-    },
+    replaceMessageLayout(
+      classified.userMessage,
+      /; reconcile before paying again/g,
+      "; no payment was sent",
+    ),
   );
 }

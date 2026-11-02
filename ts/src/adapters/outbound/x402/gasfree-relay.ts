@@ -11,7 +11,12 @@ import type {
   NetworkDescriptor,
   TronNetworkDescriptor,
 } from "../../../domain/types/index.js";
-import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import {
+  CliError,
+  errorMessage,
+  TransportError,
+  UsageError,
+} from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
 import { rateLimitDetails } from "../http/json-service.js";
 import { X402_FAMILIES } from "../../../domain/x402/families.js";
@@ -138,7 +143,7 @@ class CheckedRelay extends GasFreeAPIClient {
       );
     } catch (error) {
       if (error instanceof CliError) {
-        throw new TransportError(error.code, `${this.label}: ${error.message}`, {
+        throw new TransportError(error.code, errorMessage`${this.label}: ${error.userMessage}`, {
           ...error.details,
           retryPayment: false,
         });

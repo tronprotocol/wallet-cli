@@ -18,6 +18,8 @@ import { registerWalletCommands } from "../commands/wallet.js";
 import { CommandRegistry } from "../registry/index.js";
 import { SignerResolver } from "../../../../application/services/signer/index.js";
 import { X402PaymentClient } from "../../../outbound/x402/payment-client.js";
+import { unsentPaymentError } from "../../../outbound/x402/payment-error.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 import { normalizeCliError } from "./errors.js";
 
 function thrown(action: () => unknown): CliError {
@@ -232,5 +234,79 @@ describe("submission error output", () => {
       message: "node: lost\nreply",
       details: { txId },
     });
+  });
+});
+
+describe("x402 not-sent errors keep CLI input spelling", () => {
+  const net = { id: "eip155:56", family: "evm", chainId: "56" } as never;
+  const scope = { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never;
+
+  async function responseError(body: Uint8Array, contentType: string): Promise<CliError> {
+    const fetcher = vi.fn<typeof fetch>(
+      async () => new Response(new Uint8Array(body), { headers: { "content-type": contentType } }),
+    );
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      { resolve: vi.fn(), assertCanSign: vi.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+    const error = await client
+      .pay(scope, net, { url: "https://api.example/resource", method: "GET", headers: [] })
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(CliError);
+    return error as CliError;
+  }
+
+  it.each([
+    {
+      name: "binary",
+      body: new TextEncoder().encode("binary content"),
+      contentType: "application/octet-stream",
+      message:
+        "binary response requires --out to save its bytes; check payment details before any further payment",
+    },
+    {
+      name: "invalid UTF-8",
+      body: Uint8Array.from([0xff, 0xfe]),
+      contentType: "text/plain",
+      message:
+        "endpoint returned invalid UTF-8; --out is required to save raw bytes; check payment details before any further payment",
+    },
+  ])("renders the $name response error with --out", async ({ body, contentType, message }) => {
+    const error = await responseError(body, contentType);
+    expect(error.parts).toContainEqual({ input: "out" });
+    expect(render(error, "text")).toContain(`]: ${message}\n`);
+    expect(JSON.parse(render(error, "json")).error.message).toBe(message);
+  });
+
+  it.each([
+    {
+      sdk: "All payment requirements were rejected by spendControls.maxAmountPerPayment ($1, including USDT). Raise maxAmountPerPayment, set it to false to disable, set allowedAssets[].maxAmountPerPayment for a per-asset atomic cap, or set spendControls: false to disable all spend controls.",
+      message:
+        "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount, or --max-raw-amount with --token or --asset, to authorize it",
+    },
+    {
+      sdk: "All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed. Add an allowedAssets entry for non-default tokens, set allowedAssets: true, or set spendControls: false.",
+      message:
+        "no offered payment route uses an asset the built-in spend control allows; pass --max-amount, or --max-raw-amount with --token or --asset, to set the ceiling yourself",
+    },
+  ])("renders a spend-control refusal through the not-sent conversion", ({ sdk, message }) => {
+    const error = unsentPaymentError(
+      new Error(`Failed to create payment payload: ${sdk}`),
+      "create_payment",
+    );
+    expect(render(error, "text")).toContain(`]: ${message}\n`);
+    expect(JSON.parse(render(error, "json")).error).toMatchObject({
+      message,
+      details: { paymentStatus: "not_sent" },
+    });
+  });
+
+  it("still replaces the reconcile advice when nothing was sent", () => {
+    const error = unsentPaymentError(new Error("socket hang up"), "create_payment");
+    expect(JSON.parse(render(error, "json")).error.message).toBe(
+      "x402 request or payment failed; no payment was sent",
+    );
   });
 });
