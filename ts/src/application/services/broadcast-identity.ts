@@ -4,17 +4,20 @@ import {
   ExecutionError,
   UsageError,
 } from "../../domain/errors/index.js";
+import { normalizeTxHash, type ChainFamily } from "../../domain/family/index.js";
 import { DeadlineExpiredError } from "../contracts/deadline.js";
 
 // Prefer the signed transaction’s ID; warn on mismatch without denying a completed broadcast.
 export function authoritativeTxId(
+  family: ChainFamily,
   local: string | undefined,
   reported: string | undefined,
   warn: (message: string) => void,
 ): string {
   const nodeId = reported ?? "";
   if (!local) return nodeId;
-  if (nodeId && nodeId.toLowerCase() !== local.toLowerCase()) {
+  const canonical = normalizeTxHash(family, local);
+  if (nodeId && (canonical === undefined || canonical !== normalizeTxHash(family, nodeId))) {
     warn(
       `the node reported transaction id ${nodeId} for a transaction whose id is ${local}; ` +
         "using the id derived from the signed transaction. The node is misreporting or faulty",

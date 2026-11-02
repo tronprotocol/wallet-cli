@@ -132,6 +132,7 @@ describe("tx status and --wait read one execution fact", () => {
     const status = await service({ tx: { txID: "abc" }, info }).status(NO_DEADLINE, NET, "abc");
     const gateway = nodeGateway({ info });
     const waited = await submitAndStage(
+      "tron",
       waitScope,
       "abc",
       async () => ({ txId: "abc" }),

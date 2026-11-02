@@ -39,7 +39,9 @@ function gateway(info: object | undefined): TronGateway {
   } as unknown as TronGateway;
 }
 
-function transaction(type: string, txID = "abc"): TronTransactionArtifact {
+const TX = "ab".repeat(32);
+
+function transaction(type: string, txID = TX): TronTransactionArtifact {
   return { txID, raw_data: { contract: [{ type }] }, raw_data_hex: "" };
 }
 
@@ -51,6 +53,7 @@ function stageTronBroadcast(
   tx: TronTransactionArtifact,
 ) {
   return submitAndStage(
+    "tron",
     s,
     localTxId(tx),
     async () => result,
@@ -70,7 +73,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, receipt: { result: "SUCCESS" } }),
       s,
-      { txId: "abc" },
+      { txId: TX },
       NATIVE,
     );
     expect(out.stage).toBe("confirmed");
@@ -79,13 +82,13 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
 
   it("wait requested but never confirms within the window → submitted + a warning", async () => {
     const s = scope({ deadline: shortAfterSubmit() });
-    const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" }, NATIVE);
+    const out = await stageTronBroadcast(gateway(undefined), s, { txId: TX }, NATIVE);
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toHaveLength(1);
     expect(s.warnings[0]).toContain("not confirmed");
-    expect(s.warnings[0]).toContain("abc");
+    expect(s.warnings[0]).toContain(TX);
     expect(s.cliWarnings[0]).toBe(
-      "abc not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
+      `${TX} not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)`,
     );
   });
 
@@ -107,7 +110,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
 
   it("no --wait → submitted, no warning (silence is correct here)", async () => {
     const s = scope({ wait: false });
-    const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" }, NATIVE);
+    const out = await stageTronBroadcast(gateway(undefined), s, { txId: TX }, NATIVE);
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toEqual([]);
   });
@@ -177,7 +180,7 @@ describe("tronConfirmation distinguishes mined from succeeded", () => {
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, result: "FAILED", receipt: {} }),
       s,
-      { txId: "abc" },
+      { txId: TX },
       NATIVE,
     );
     expect(out.stage).toBe("failed");
@@ -188,7 +191,7 @@ describe("tronConfirmation distinguishes mined from succeeded", () => {
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, receipt: { result: "17" } }),
       s,
-      { txId: "abc" },
+      { txId: TX },
       NATIVE,
     );
     expect(out.stage).toBe("failed");
@@ -198,7 +201,7 @@ describe("tronConfirmation distinguishes mined from succeeded", () => {
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, receipt: { result: "DEFAULT" } }),
       scope(),
-      { txId: "abc" },
+      { txId: TX },
       NATIVE,
     );
     expect(out).toMatchObject({ stage: "confirmed", failed: false });
@@ -209,7 +212,7 @@ describe("tronConfirmation distinguishes mined from succeeded", () => {
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, receipt: {} }),
       s,
-      { txId: "abc" },
+      { txId: TX },
       NATIVE,
     );
     expect(out.stage).toBe("confirmed");
@@ -223,7 +226,7 @@ describe("tronConfirmation requires an execution result for contract execution",
         gateway({ blockNumber: 42, receipt: {} }),
         scope({ deadline: new CommandDeadline(10) }),
       );
-      expect(await confirm("abc", transaction(type))).toBeUndefined();
+      expect(await confirm(TX, transaction(type))).toBeUndefined();
     });
   }
 
@@ -232,7 +235,7 @@ describe("tronConfirmation requires an execution result for contract execution",
       gateway({ blockNumber: 42, receipt: { result: "REVERT" } }),
       scope({ deadline: new CommandDeadline(10) }),
     );
-    expect(await confirm("abc", CONTRACT_CALL)).toMatchObject({ failed: true, result: "REVERT" });
+    expect(await confirm(TX, CONTRACT_CALL)).toMatchObject({ failed: true, result: "REVERT" });
   });
 
   it("tx broadcast of a contract call stays submitted while its result is unknown", async () => {
@@ -240,7 +243,7 @@ describe("tronConfirmation requires an execution result for contract execution",
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, receipt: {} }),
       s,
-      { txId: "abc" },
+      { txId: TX },
       CONTRACT_CALL,
     );
     expect(out.stage).toBe("submitted");
@@ -259,7 +262,7 @@ describe("tronConfirmation bounds each poll by the command deadline", () => {
     } as unknown as TronGateway;
 
     expect(
-      await tronConfirmation(g, scope({ deadline: new CommandDeadline(30) }))("abc", NATIVE),
+      await tronConfirmation(g, scope({ deadline: new CommandDeadline(30) }))(TX, NATIVE),
     ).toBeUndefined();
     expect(calls).toBe(1);
   });
@@ -274,16 +277,16 @@ describe("tx broadcast stops waiting on an error a retry cannot fix", () => {
     const out = await stageTronBroadcast(
       { getTransactionInfoById } as unknown as TronGateway,
       scope({ warn }),
-      { txId: "abc" },
+      { txId: TX },
       NATIVE,
     );
 
-    expect(out).toMatchObject({ stage: "submitted", txId: "abc" });
+    expect(out).toMatchObject({ stage: "submitted", txId: TX });
     expect(getTransactionInfoById).toHaveBeenCalledTimes(1);
     const [warning] = warn.mock.calls[0]!;
     expect(warning.code).toBe("not_found");
     expect(cliMessage(warning.message).message).toBe(
-      "abc not confirmed: waiting stopped on not_found (the node has no gettransactioninfobyid); returning submitted (it may still confirm on-chain)",
+      `${TX} not confirmed: waiting stopped on not_found (the node has no gettransactioninfobyid); returning submitted (it may still confirm on-chain)`,
     );
   });
 
@@ -298,7 +301,7 @@ describe("tx broadcast stops waiting on an error a retry cannot fix", () => {
       const out = stageTronBroadcast(
         { getTransactionInfoById } as unknown as TronGateway,
         s,
-        { txId: "abc" },
+        { txId: TX },
         NATIVE,
       );
       await vi.advanceTimersByTimeAsync(1_500);

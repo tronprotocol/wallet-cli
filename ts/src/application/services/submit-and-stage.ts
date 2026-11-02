@@ -5,6 +5,7 @@ import type {
   TxOutcome,
 } from "../../domain/types/index.js";
 import { classifyError, errorMessage } from "../../domain/errors/index.js";
+import type { ChainFamily } from "../../domain/family/index.js";
 import type { DispatchCheck } from "../contracts/deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import { authoritativeTxId, outcomeUnknownError, submitWithTxId } from "./broadcast-identity.js";
@@ -18,6 +19,7 @@ export type BroadcastOutcome = Extract<TxOutcome, { stage: BroadcastStage }>;
 // failure other than the deadline is reported with its code. With `confirmationRequired` that failure
 // is thrown instead, as an outcome-unknown error carrying the txId.
 export async function submitAndStage(
+  family: ChainFamily,
   scope: Pick<TransactionScope, "deadline" | "wait" | "warn">,
   local: string | undefined,
   submit: (check: DispatchCheck) => Promise<BroadcastResult>,
@@ -26,7 +28,7 @@ export async function submitAndStage(
 ): Promise<BroadcastOutcome> {
   assertSubmitAdmitted(scope.deadline);
   const result = await submitWithTxId(local, () => submit(submitDispatchCheck(scope.deadline)));
-  const txId = authoritativeTxId(local, result.txId ?? result.hash, (m) => scope.warn(m));
+  const txId = authoritativeTxId(family, local, result.txId ?? result.hash, (m) => scope.warn(m));
   const wait = waitsForConfirmation(scope.wait, true);
   if (!wait || !txId) {
     if (wait && !txId) {

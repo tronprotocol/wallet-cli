@@ -198,6 +198,7 @@ export class TxPipeline {
     }
     authorization?.assertBroadcastable();
     return submitAndStage(
+      p.net.family,
       p.ctx,
       txIdOf(signed),
       (check) => p.broadcaster.broadcast(signed, check),

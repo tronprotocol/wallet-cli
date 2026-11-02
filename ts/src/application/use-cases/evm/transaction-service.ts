@@ -298,6 +298,7 @@ export class EvmTransactionService {
     assertChainId(parsed, network);
     const serialized = parsed.serialized!;
     return submitAndStage(
+      "evm",
       scope,
       parsed.hash,
       (check) => gateway.sendRawTransaction(serialized, check),

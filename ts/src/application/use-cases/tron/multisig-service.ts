@@ -101,6 +101,7 @@ export class TronMultisigService implements TronCheckedSigner {
       };
     }
     const outcome = await submitAndStage(
+      "tron",
       scope,
       localTxId(transaction),
       (check) => gateway.broadcastHex(hex, check),

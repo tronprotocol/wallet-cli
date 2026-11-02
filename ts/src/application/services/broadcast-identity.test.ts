@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { submitWithTxId } from "./broadcast-identity.js";
+import { describe, expect, it, vi } from "vitest";
+import { authoritativeTxId, submitWithTxId } from "./broadcast-identity.js";
 import { DeadlineExpiredError } from "../contracts/deadline.js";
 import { ChainError, TransportError } from "../../domain/errors/index.js";
 
@@ -27,5 +27,27 @@ describe("submitWithTxId", () => {
     const rejection = new ChainError("transaction_rejected", "refused");
     await expect(submitWithTxId("tx-1", () => Promise.reject(rejection))).rejects.toBe(rejection);
     expect(rejection.details).toBeUndefined();
+  });
+});
+
+describe("authoritativeTxId", () => {
+  const LOCAL = "ab".repeat(32);
+
+  it.each([
+    ["tron", LOCAL, `0x${LOCAL.toUpperCase()}`],
+    ["evm", `0x${LOCAL}`, `0x${LOCAL.toUpperCase()}`],
+  ] as const)(
+    "accepts another spelling of the same %s id without a warning",
+    (family, local, reported) => {
+      const warn = vi.fn();
+      expect(authoritativeTxId(family, local, reported, warn)).toBe(local);
+      expect(warn).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["cd".repeat(32), "not-a-hash"])("keeps the local id and warns on %s", (reported) => {
+    const warn = vi.fn();
+    expect(authoritativeTxId("tron", LOCAL, reported, warn)).toBe(LOCAL);
+    expect(warn).toHaveBeenCalledOnce();
   });
 });

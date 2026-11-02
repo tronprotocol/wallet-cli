@@ -15,13 +15,14 @@ function scope(wait: boolean | undefined) {
   return { s, warn };
 }
 
+const TX1 = "11".repeat(32);
 const confirmed = { confirmed: true as const, failed: false, blockNumber: 3 };
 
 describe("submitAndStage", () => {
   it("takes the node's hash when the signed transaction carries no id", async () => {
     const { s, warn } = scope(true);
     const confirm = vi.fn(async () => confirmed);
-    const out = await submitAndStage(s, undefined, async () => ({ hash: "0xab" }), confirm);
+    const out = await submitAndStage("evm", s, undefined, async () => ({ hash: "0xab" }), confirm);
 
     expect(confirm).toHaveBeenCalledWith("0xab");
     expect(out).toMatchObject({ stage: "confirmed", txId: "0xab", hash: "0xab" });
@@ -31,7 +32,7 @@ describe("submitAndStage", () => {
   it("passes the submit dispatch check to the submit", async () => {
     const { s } = scope(false);
     const submit = vi.fn(async () => ({ txId: "a" }));
-    await submitAndStage(s, "a", submit, async () => confirmed);
+    await submitAndStage("tron", s, "a", submit, async () => confirmed);
 
     expect(submit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -44,7 +45,13 @@ describe("submitAndStage", () => {
   it("does not wait without an id and says so", async () => {
     const { s, warn } = scope(undefined);
     const confirm = vi.fn(async () => confirmed);
-    const out = await submitAndStage(s, undefined, async () => ({ alreadyKnown: true }), confirm);
+    const out = await submitAndStage(
+      "evm",
+      s,
+      undefined,
+      async () => ({ alreadyKnown: true }),
+      confirm,
+    );
 
     expect(out).toEqual({ stage: "submitted", alreadyKnown: true });
     expect(confirm).not.toHaveBeenCalled();
@@ -59,9 +66,10 @@ describe("submitAndStage with a required confirmation", () => {
     const { s, warn } = scope(true);
     const stop = new ChainError("not_found", "no receipts here", { nodeCode: "x" });
     const error = await submitAndStage(
+      "tron",
       s,
-      "tx1",
-      async () => ({ txId: "tx1" }),
+      TX1,
+      async () => ({ txId: TX1 }),
       async () => {
         throw stop;
       },
@@ -72,7 +80,7 @@ describe("submitAndStage with a required confirmation", () => {
     expect(error).toMatchObject({
       code: "not_found",
       message: "no receipts here",
-      details: { nodeCode: "x", txId: "tx1", outcome: "unknown" },
+      details: { nodeCode: "x", txId: TX1, outcome: "unknown" },
     });
     expect(warn).not.toHaveBeenCalled();
   });
@@ -83,11 +91,12 @@ describe("submitAndStage with a required confirmation", () => {
     deadline.dispose();
     const warn = vi.fn();
     const out = await submitAndStage(
+      "tron",
       { deadline, wait: true, warn },
-      "tx1",
+      TX1,
       async () => {
         clock.now = () => 10_000;
-        return { txId: "tx1" };
+        return { txId: TX1 };
       },
       async () => {
         throw new DeadlineExpiredError();
@@ -95,7 +104,7 @@ describe("submitAndStage with a required confirmation", () => {
       { confirmationRequired: true },
     );
 
-    expect(out).toMatchObject({ stage: "submitted", txId: "tx1" });
+    expect(out).toMatchObject({ stage: "submitted", txId: TX1 });
     expect(warn).toHaveBeenCalledOnce();
   });
 });
