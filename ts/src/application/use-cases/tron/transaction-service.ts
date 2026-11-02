@@ -6,13 +6,13 @@ import {
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   AccountRef,
-  EffectiveTokenEntry,
   NetworkDescriptor,
   TxInfoView,
   TxParties,
   TxStatusView,
 } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { tokenBySymbol } from "../../../domain/token/symbol.js";
 import { TRX_TRANSFER_BANDWIDTH_BURN_SUN } from "../../../domain/fees/tron.js";
 import {
   fromBaseUnits,
@@ -179,25 +179,6 @@ export class TronTransactionService {
     };
   }
 
-  private lookupToken(networkId: string, account: AccountRef, symbol: string): EffectiveTokenEntry {
-    const matches = this.tokens
-      .effective(networkId, account)
-      .filter((token) => token.symbol.toLowerCase() === symbol.toLowerCase());
-    if (matches.length === 0) {
-      throw new UsageError(
-        "token_not_in_book",
-        `token symbol not in address book on ${networkId}: ${symbol}`,
-      );
-    }
-    if (matches.length > 1) {
-      throw new UsageError(
-        "ambiguous_token_symbol",
-        errorMessage`token symbol ${symbol} matches multiple tokens; use ${inputRef("contract")} or ${inputRef("assetId")}`,
-      );
-    }
-    return matches[0]!;
-  }
-
   private async resolveTransfer(
     gateway: TronGateway,
     networkId: string,
@@ -215,7 +196,11 @@ export class TronTransactionService {
     let decimals: number | undefined;
     let tokenSymbol: string | undefined;
     if (input.token) {
-      const token = this.lookupToken(networkId, account, input.token);
+      const token = tokenBySymbol(
+        this.tokens.effective(networkId, account),
+        input.token,
+        networkId,
+      );
       if (token.kind !== "trc20" && token.kind !== "trc10") {
         throw new UsageError("invalid_value", `${input.token} is not a TRON token on ${networkId}`);
       }

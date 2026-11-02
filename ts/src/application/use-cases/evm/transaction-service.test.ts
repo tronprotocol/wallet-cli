@@ -68,7 +68,7 @@ function harness(over: Partial<Record<string, unknown>> = {}) {
     }),
   } as unknown as TxPipeline;
   const recipients = { resolve: vi.fn(() => ({ address: RECEIVER })) };
-  const tokens = { effective: () => [] };
+  const tokens = { effective: () => (over.tokens as unknown[]) ?? [] };
   const service = new EvmTransactionService(
     { get: () => gateway } as unknown as ChainGatewayProvider,
     tokens as never,
@@ -261,6 +261,37 @@ describe("EvmTransactionService.send — ERC-20 transfer", () => {
     await expect(
       service.send(scope(), SEPOLIA, { to: RECEIVER, contract: USDT, amount: "5" } as never),
     ).rejects.toMatchObject({ code: "token_metadata_unavailable" });
+  });
+});
+
+describe("EvmTransactionService.send — --token", () => {
+  const book = (symbol: string, id: string) => ({ kind: "erc20", id, symbol, decimals: 6 });
+
+  it("sends to the one book entry with that symbol", async () => {
+    const { service, built } = harness({ tokens: [book("USDT", USDT)] });
+    await service.send(scope(), SEPOLIA, { to: RECEIVER, token: "usdt", amount: "1" } as never);
+
+    expect(built[0]).toMatchObject({ to: USDT });
+  });
+
+  it("refuses a symbol that matches two entries before building or signing", async () => {
+    const { service, pipeline } = harness({
+      tokens: [book("FOO", USDT), book("foo", RECEIVER)],
+    });
+
+    await expect(
+      service.send(scope(), SEPOLIA, { to: RECEIVER, token: "FOO", amount: "1" } as never),
+    ).rejects.toMatchObject({ code: "ambiguous_token_symbol" });
+    expect(pipeline.runEvm).not.toHaveBeenCalled();
+  });
+
+  it("refuses a symbol outside the book with token_not_in_book", async () => {
+    const { service, pipeline } = harness();
+
+    await expect(
+      service.send(scope(), SEPOLIA, { to: RECEIVER, token: "FOO", amount: "1" } as never),
+    ).rejects.toMatchObject({ code: "token_not_in_book" });
+    expect(pipeline.runEvm).not.toHaveBeenCalled();
   });
 });
 

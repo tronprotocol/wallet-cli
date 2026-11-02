@@ -17,6 +17,7 @@ import {
 } from "../../../domain/errors/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
 import { builtinSunSwapToken } from "../../../domain/sunswap/tokens.js";
+import { matchTokenSymbol } from "../../../domain/token/symbol.js";
 
 const ADDRESS = new TronAddress();
 
@@ -63,13 +64,13 @@ export class SunSwapTokenResolver {
   resolveSymbol(network: NetworkDescriptor, symbol: string, lookup: TokenLookup): ResolvedToken {
     const builtin = builtinSunSwapToken(symbol, network.id);
     if (builtin) return { address: builtin, fromTokenBook: false };
-    const wanted = symbol.toUpperCase();
     // SunSwap accepts TRC20 contract addresses, not TRC10 asset IDs.
-    const matches = this.#book(network, lookup).filter(
-      (token) => token.kind === "trc20" && token.symbol.toUpperCase() === wanted,
+    const match = matchTokenSymbol(
+      this.#book(network, lookup).filter((token) => token.kind === "trc20"),
+      symbol,
     );
-    if (matches.length > 1) {
-      const candidates = matches
+    if (match.kind === "ambiguous") {
+      const candidates = match.matches
         .map((token) =>
           token.source === "user" ? `${token.id} (from your token book)` : `${token.id} (official)`,
         )
@@ -79,8 +80,9 @@ export class SunSwapTokenResolver {
         `token symbol ${symbol} matches more than one token on ${this.label(network)}: ${candidates}; pass the contract address of the one you mean`,
       );
     }
-    const entry = matches[0];
-    if (entry) return { address: entry.id, fromTokenBook: entry.source === "user" };
+    if (match.kind === "one") {
+      return { address: match.token.id, fromTokenBook: match.token.source === "user" };
+    }
     throw new UsageError(
       "unsupported_token",
       errorMessage`unknown token symbol ${symbol} on ${this.label(network)}; ${NOT_FOUND_HINT[lookup.caller]}`,

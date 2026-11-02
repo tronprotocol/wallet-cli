@@ -39,6 +39,7 @@ import {
   recoverGasFreeSigner,
 } from "../../../domain/gasfree/index.js";
 import { assertPositiveAmount, toBaseUnits } from "../../../domain/amounts/index.js";
+import { matchTokenSymbol } from "../../../domain/token/symbol.js";
 import type { SigningService } from "../../services/signing/signing-service.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 
@@ -466,14 +467,14 @@ function isRetryablePoll(error: unknown): boolean {
 }
 
 function selectToken(tokens: ResolvedGasFreeToken[], symbol: string): ResolvedGasFreeToken {
-  const matches = tokens.filter((token) => token.symbol.toLowerCase() === symbol.toLowerCase());
-  if (matches.length === 0) {
+  const match = matchTokenSymbol(tokens, symbol);
+  if (match.kind === "none") {
     throw new UsageError("unsupported_token", `GasFree provider does not support token: ${symbol}`);
   }
-  if (matches.length > 1) {
+  if (match.kind === "ambiguous") {
     throw new ChainError("gasfree_integrity", `GasFree token symbol is ambiguous: ${symbol}`);
   }
-  return matches[0]!;
+  return match.token;
 }
 
 function selectProvider(providers: GasFreeProviderConfig[]): GasFreeProviderConfig {

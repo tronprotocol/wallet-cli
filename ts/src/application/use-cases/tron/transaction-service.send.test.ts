@@ -102,6 +102,53 @@ describe("TronTransactionService amount rule", () => {
   });
 });
 
+describe("TronTransactionService --token", () => {
+  const FOO_A = {
+    kind: "trc20",
+    id: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+    symbol: "FOO",
+    decimals: 6,
+  };
+  const FOO_B = { kind: "trc10", id: "1002000", symbol: "foo", decimals: 6 };
+
+  function service(tokens: unknown[]) {
+    const pipeline = { assertCanSign: vi.fn(), runTron: vi.fn() } as unknown as TxPipeline;
+    const transactions = new TronTransactionService(
+      { get: () => ({}) } as unknown as ChainGatewayProvider,
+      { effective: () => tokens } as never,
+      pipeline,
+      { resolve: () => ({ address: RECEIVER }) } as never,
+    );
+    return { transactions, pipeline };
+  }
+
+  it("refuses a symbol that matches two entries before building or signing", async () => {
+    const { transactions, pipeline } = service([FOO_A, FOO_B]);
+    await expect(
+      transactions.send(scope(), NETWORK, {
+        to: RECEIVER,
+        token: "Foo",
+        rawAmount: "1",
+        feeLimit: sunAmount("1"),
+      }),
+    ).rejects.toMatchObject({ code: "ambiguous_token_symbol" });
+    expect(pipeline.runTron).not.toHaveBeenCalled();
+  });
+
+  it("refuses a symbol outside the book with token_not_in_book", async () => {
+    const { transactions, pipeline } = service([FOO_A]);
+    await expect(
+      transactions.send(scope(), NETWORK, {
+        to: RECEIVER,
+        token: "BAR",
+        rawAmount: "1",
+        feeLimit: sunAmount("1"),
+      }),
+    ).rejects.toMatchObject({ code: "token_not_in_book" });
+    expect(pipeline.runTron).not.toHaveBeenCalled();
+  });
+});
+
 describe("TronTransactionService TRC20 --wait", () => {
   const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 

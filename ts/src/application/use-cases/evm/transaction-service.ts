@@ -17,6 +17,7 @@ import {
 import { assertEvmTransactionChain } from "../../services/signing/chain-identity.js";
 import { authoritativeTxId, submitWithTxId } from "../../services/broadcast-identity.js";
 import { FAMILIES } from "../../../domain/family/index.js";
+import { tokenBySymbol } from "../../../domain/token/symbol.js";
 import {
   fromBaseUnits,
   positiveBaseUnits,
@@ -150,10 +151,12 @@ export class EvmTransactionService {
     let decimals = input.decimals;
     let symbol: string | undefined;
     if (input.token) {
-      const entry = this.tokens
-        .effective(networkId, account)
-        .find((t) => t.symbol.toLowerCase() === input.token!.toLowerCase());
-      if (!entry || entry.kind !== "erc20") {
+      const entry = tokenBySymbol(
+        this.tokens.effective(networkId, account),
+        input.token,
+        networkId,
+      );
+      if (entry.kind !== "erc20") {
         throw new ExecutionError(
           "token_metadata_unavailable",
           `${input.token} is not an ERC-20 token on ${networkId}`,

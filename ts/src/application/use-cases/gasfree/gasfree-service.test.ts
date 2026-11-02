@@ -215,6 +215,37 @@ describe("GasFreeService", () => {
     expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
   });
 
+  it("refuses a symbol that two provider tokens share before signing", async () => {
+    const fixtureValue = fixture();
+    vi.mocked(fixtureValue.provider.listTokens).mockResolvedValueOnce([
+      { tokenAddress: TOKEN, activateFee: "1000000", transferFee: "500000" },
+      { tokenAddress: RECEIVER, activateFee: "1000000", transferFee: "500000" },
+    ]);
+    await expect(
+      fixtureValue.service.transfer(scope(), NETWORK, {
+        to: RECEIVER,
+        amount: "1",
+        token: "usdt",
+        dryRun: false,
+      }),
+    ).rejects.toMatchObject({ code: "gasfree_integrity" });
+    expect(fixtureValue.signer.signTypedData).not.toHaveBeenCalled();
+    expect(fixtureValue.submitTransfer).not.toHaveBeenCalled();
+  });
+
+  it("refuses a symbol the provider does not list", async () => {
+    const fixtureValue = fixture();
+    await expect(
+      fixtureValue.service.transfer(scope(), NETWORK, {
+        to: RECEIVER,
+        amount: "1",
+        token: "USDD",
+        dryRun: false,
+      }),
+    ).rejects.toMatchObject({ code: "unsupported_token" });
+    expect(fixtureValue.signer.signTypedData).not.toHaveBeenCalled();
+  });
+
   it("resolves a contact before signing and binds its address into TIP-712", async () => {
     const fixtureValue = fixture({ active: true });
     const result = await fixtureValue.service.transfer(scope(), NETWORK, {
