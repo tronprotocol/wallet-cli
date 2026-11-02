@@ -35,7 +35,7 @@ The response body is returned in `data.response` — parsed for `application/jso
 
 A response format error can occur **after payment has settled**. In that case `error.details` retains `paymentStatus: "settled"`, `settled: true`, the transaction hash, and `retryPayment: false`. Do not pay again to recover the response; reconcile with the provider using the transaction hash. Choose `--out` before requesting a binary resource.
 
-**When a payment fails, read `error.details` before trying again.** `paymentStatus: "not_sent"` means nothing left the account; `"unknown"` means the CLI cannot tell, so treat it as possibly paid and reconcile first; `retryPayment: false` means do not pay again to recover. See [x402 and B.AI payment details](../../machine-interface.md#x402-and-bai-payment-details).
+**When a payment fails, read `error.details` before trying again.** `paymentStatus: "not_sent"` means nothing left the account; `"unknown"` means the CLI cannot tell, so treat it as possibly paid and reconcile first (the error then also carries [`outcome: "unknown"`](../../machine-interface.md#unknown-outcome-errordetailsoutcome)); `retryPayment: false` means do not pay again to recover. See [x402 and B.AI payment details](../../machine-interface.md#x402-and-bai-payment-details).
 
 Requires an account, even for an endpoint that turns out to be free. The master password (via `--password-stdin`) is needed only when a payment is signed.
 

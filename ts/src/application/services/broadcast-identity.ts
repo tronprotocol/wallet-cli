@@ -36,10 +36,14 @@ export async function submitWithTxId<T>(
   } catch (error) {
     if (error instanceof DeadlineExpiredError) throw error;
     const classified = classifyError(error);
-    if (!txId || !["timeout", "rpc_error", "invalid_node_response"].includes(classified.code)) {
+    if (!["timeout", "rpc_error", "invalid_node_response"].includes(classified.code)) {
       throw error;
     }
     const ErrorType = classified.kind === "usage" ? UsageError : ExecutionError;
-    throw new ErrorType(classified.code, classified, { ...classified.details, txId });
+    throw new ErrorType(classified.code, classified, {
+      ...classified.details,
+      ...(txId ? { txId } : {}),
+      outcome: "unknown",
+    });
   }
 }

@@ -69,6 +69,7 @@ it("retains failed settlement hash and safe reason without calling it successful
       candidateTxHash: "a".repeat(64),
       reason: "invalid_transaction_state",
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     },
   });
@@ -133,9 +134,19 @@ it("classifies a missing GasFree asset before payment creation without exposing 
 
 it("uses not_sent only when the caller has no authorization or transaction evidence", async () => {
   const { unsentPaymentError } = await import("./payment-error.js");
-  expect(unsentPaymentError(new Error("insufficient_funds"), "create_payment")).toMatchObject({
+  const unsent = unsentPaymentError(new Error("insufficient_funds"), "create_payment");
+  expect(unsent).toMatchObject({
     code: "insufficient_balance",
     details: { paymentStatus: "not_sent" },
+  });
+  expect(unsent.details).not.toHaveProperty("outcome");
+  // A sent approval whose outcome is unknown keeps it; only the payment was not sent.
+  const approval = new TransportError("rpc_error", "approve reply lost", {
+    txId: "b".repeat(64),
+    outcome: "unknown",
+  });
+  expect(unsentPaymentError(approval, "create_payment")).toMatchObject({
+    details: { txId: "b".repeat(64), outcome: "unknown", paymentStatus: "not_sent" },
   });
   const failure = new TransportError("provider_error", "settlement uncertain", {
     candidateTxHash: "a".repeat(64),

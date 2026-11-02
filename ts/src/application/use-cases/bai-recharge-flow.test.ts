@@ -217,9 +217,21 @@ it.each([
   const { flow, pay, api } = fixture();
   pay.mockRejectedValueOnce(failure);
   await expect(flow.execute(NO_DEADLINE, input)).rejects.toMatchObject({
-    details: { orderId: "1", paymentStatus: "unknown", retryPayment: false },
+    details: { orderId: "1", paymentStatus: "unknown", outcome: "unknown", retryPayment: false },
   });
   expect(api.reportTxHash).not.toHaveBeenCalled();
+});
+
+it("does not mark a payment that was not sent as an unknown outcome", async () => {
+  const { flow, pay } = fixture();
+  pay.mockRejectedValueOnce(
+    new TransportError("provider_error", "no signer", { paymentStatus: "not_sent" }),
+  );
+  const error = (await flow.execute(NO_DEADLINE, input).catch((e: unknown) => e)) as {
+    details: object;
+  };
+  expect(error.details).toMatchObject({ paymentStatus: "not_sent", orderId: "1" });
+  expect(error.details).not.toHaveProperty("outcome");
 });
 
 it("reports no order id when B.AI returned none", async () => {

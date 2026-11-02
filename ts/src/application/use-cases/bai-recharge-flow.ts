@@ -53,9 +53,10 @@ export class BaiRechargeFlow {
       // Preserve classified payment failures and any settlement evidence.
       if (error instanceof CliError) {
         const ErrorType = error.kind === "usage" ? UsageError : TransportError;
+        const details = { paymentStatus: "unknown", ...error.details };
         throw new ErrorType(error.code, error, {
-          paymentStatus: "unknown",
-          ...error.details,
+          ...details,
+          ...(details.paymentStatus === "unknown" ? { outcome: "unknown" } : {}),
           retryPayment: false,
           chain: request.chain,
           amount: request.amount,
@@ -66,13 +67,14 @@ export class BaiRechargeFlow {
       throw new TransportError(
         "provider_error",
         "Recharge payment outcome is unknown; reconcile the transaction before paying again",
-        { paymentStatus: "unknown", retryPayment: false, ...created },
+        { paymentStatus: "unknown", outcome: "unknown", retryPayment: false, ...created },
       );
     }
     if (!paid.txHash?.trim()) {
       throw new TransportError(
         "provider_error",
         "Recharge payment returned no transaction hash; reconcile before paying again",
+        { outcome: "unknown" },
       );
     }
     const reportInput = {

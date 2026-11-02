@@ -237,7 +237,7 @@ describe("failures", () => {
       .catch((e: unknown) => e as CliError);
     expect(error).toMatchObject({
       code: "launch_outcome_unknown",
-      details: { name: "T", symbol: "T" },
+      details: { name: "T", symbol: "T", outcome: "unknown" },
     });
     expect((error as CliError).message).toMatch(/accepted the launch and returned no token/);
     expect((error as CliError).message).toMatch(/sunpump token-search "T"/);

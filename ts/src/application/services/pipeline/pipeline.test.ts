@@ -401,7 +401,7 @@ describe("TxPipeline submission outcome", () => {
       expect(errorEnvelope(error)).toEqual({
         code,
         message: original.message,
-        details: { nodeCode: "fixture", txId },
+        details: { nodeCode: "fixture", txId, outcome: "unknown" },
       });
       expect(error.textMessage).toBe(original.textMessage);
       expect(error.kind).toBe(original.kind);
@@ -421,12 +421,21 @@ describe("TxPipeline submission outcome", () => {
     },
   );
 
+  it("confirms a transaction the node already knew and keeps alreadyKnown", async () => {
+    const h = harness();
+    h.broadcast.mockResolvedValueOnce({ txId, alreadyKnown: true } as never);
+    const confirm = vi.fn(async () => ({ confirmed: true as const, failed: true, blockNumber: 7 }));
+    const outcome = await h.pipeline.runTron({ ...h.input, confirm });
+    expect(confirm).toHaveBeenCalledWith(txId, { txID: txId });
+    expect(outcome).toMatchObject({ stage: "failed", txId, alreadyKnown: true, blockNumber: 7 });
+  });
+
   it("does not invent an ID when the signed payload has none", async () => {
     const h = harness({});
     const original = new ChainError("timeout", "lost response", { nodeCode: "fixture" });
     h.broadcast.mockRejectedValueOnce(original);
-    await expect(h.pipeline.runTron(h.input)).rejects.toBe(original);
-    expect(original.details).toEqual({ nodeCode: "fixture" });
+    const error = (await h.pipeline.runTron(h.input).catch((e) => e)) as ChainError;
+    expect(error.details).toEqual({ nodeCode: "fixture", outcome: "unknown" });
   });
 
   it.each(["build", "estimate", "preflight", "sign", "expiry", "authorization"])(

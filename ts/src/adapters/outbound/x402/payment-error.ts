@@ -52,6 +52,7 @@ export function providerPaymentError(
     {
       phase,
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
       ...(typeof key === "string" &&
       (Object.hasOwn(reasons, key) ||
@@ -115,6 +116,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         ...(phase ? { phase } : {}),
         retryPayment: false,
         paymentStatus: "unknown",
+        outcome: "unknown",
       },
     );
   }
@@ -139,6 +141,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         ...safeRetryAfter(record?.response?.headers?.["retry-after"]),
         reason: "http_error",
         paymentStatus: "unknown",
+        outcome: "unknown",
         retryPayment: false,
       },
     );
@@ -155,6 +158,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         reason: "connection_failed",
         transportCode,
         paymentStatus: "unknown",
+        outcome: "unknown",
         retryPayment: false,
       },
     );
@@ -184,7 +188,9 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     return new TransportError(known.code, known.message, {
       ...(phase ? { phase } : {}),
       reason,
-      paymentStatus: reason.startsWith("gasfree_") ? "not_sent" : "unknown",
+      ...(reason.startsWith("gasfree_")
+        ? { paymentStatus: "not_sent" }
+        : { paymentStatus: "unknown", outcome: "unknown" }),
       retryPayment: false,
     });
   }
@@ -192,6 +198,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     return new TransportError("timeout", "x402 request timed out; reconcile before paying again", {
       ...(phase ? { phase } : {}),
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     });
   }
@@ -201,6 +208,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     {
       ...(phase ? { phase } : {}),
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     },
   );
@@ -252,6 +260,9 @@ export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliErro
   const details = classified.details as Record<string, unknown> | undefined;
   // Never discard settlement evidence, including failures while reading a paid response.
   if (details?.candidateTxHash || details?.settled === true) return classified;
+  // An unknown outcome of another request, such as a sent approval, still stands.
+  const { outcome, ...rest } = details ?? {};
+  const kept = outcome === undefined || details?.paymentStatus === "unknown" ? {} : { outcome };
   const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
   return new ErrorType(
     classified.code,
@@ -265,6 +276,6 @@ export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliErro
         "; no payment was sent",
       ),
     },
-    { ...details, paymentStatus: "not_sent", retryPayment: false },
+    { ...rest, ...kept, paymentStatus: "not_sent", retryPayment: false },
   );
 }

@@ -90,7 +90,7 @@ function outcomeUnknown(
   return new ChainError(
     "launch_outcome_unknown",
     `${reason}; run \`sunpump token-search ${JSON.stringify(request.symbol)}\` before launching again`,
-    { name: request.name, symbol: request.symbol, ...extra },
+    { name: request.name, symbol: request.symbol, ...extra, outcome: "unknown" },
   );
 }
 

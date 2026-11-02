@@ -94,6 +94,7 @@ it.each([
       reason,
       settled: false,
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     },
   });

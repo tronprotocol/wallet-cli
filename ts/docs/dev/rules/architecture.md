@@ -218,8 +218,9 @@ origin. Call sites do not skip a step that applies to their mode.
 
 6.3 Errors keep the codes and retry classes of the published contract.
 - A failed read, or a request known not to have acted, gets the matching retryable code.
-- A write that may have been committed follows its documented outcome-unknown policy. A chain submit of a
-  signed transaction whose outcome is unknown reports the id of that transaction in `error.details.txId`.
+- A write that may have been committed follows its documented outcome-unknown policy, and its error carries
+  `error.details.outcome: "unknown"`. A chain submit of a signed transaction whose outcome is unknown reports
+  the id of that transaction in `error.details.txId`.
 - A call that the deadline stops before its request is sent fails with `DeadlineExpiredError` (`timeout`,
   nothing sent, no txId). A call stopped after its request was sent fails with a `TransportError` or
   `ChainError` (`timeout`, outcome unknown); a submit adds the txId.

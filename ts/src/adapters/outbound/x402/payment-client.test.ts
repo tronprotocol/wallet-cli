@@ -378,6 +378,7 @@ it.each([
           delivered: status === 200,
           retryPayment: false,
           paymentStatus: "unknown",
+          outcome: "unknown",
           candidateTxHash: transaction,
           ...(reason === "insufficient_funds" ? { reason } : {}),
         },
@@ -577,7 +578,7 @@ it.each(["verify", "settle"])(
       .catch((error) => error);
     expect(error).toMatchObject({
       code: "permit2_allowance_required",
-      details: { phase, paymentStatus: "unknown", retryPayment: false },
+      details: { phase, paymentStatus: "unknown", outcome: "unknown", retryPayment: false },
     });
     expect(JSON.stringify(errorEnvelope(error))).not.toContain("SECRET");
   },

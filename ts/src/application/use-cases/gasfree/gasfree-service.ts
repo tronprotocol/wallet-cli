@@ -445,6 +445,7 @@ function uncertainSubmit(
     "GasFree submit outcome is unknown and no trace id is known; check the GasFree nonce before signing another transfer",
     {
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
       network: network.id,
       serviceProvider: authorization.serviceProvider,

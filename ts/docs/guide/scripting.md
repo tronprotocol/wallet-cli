@@ -95,7 +95,7 @@ wallet-cli tx broadcast --tx-stdin --network tron:3448148188 -o json < signed.js
 
 ## Timeouts and retries
 
-`--timeout` (ms, default 90000) is one deadline for the whole command, including the wait for confirmation; `0` removes it. On `error.code = "timeout"`, retrying with a larger value is safe for **read** commands. For a write, look for `error.details.txId` first: when it is present the transaction may have been submitted, so check `tx status` before resending — blind resend is how double-spends happen. See [time limit](../machine-interface.md#time-limit---timeout).
+`--timeout` (ms, default 90000) is one deadline for the whole command, including the wait for confirmation; `0` removes it. On `error.code = "timeout"`, retrying with a larger value is safe for **read** commands. For a write, look for `error.details.outcome` first: when it is `"unknown"` the transaction may have been submitted (its id is in `error.details.txId`), so check `tx status` before resending — blind resend is how double-spends happen. See [time limit](../machine-interface.md#time-limit---timeout).
 
 ## See also
 

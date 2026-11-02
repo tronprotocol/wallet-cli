@@ -319,7 +319,9 @@ export class X402PaymentClient implements X402PaymentPort {
         .toLowerCase();
       const responseDetails = {
         phase: "response",
-        paymentStatus: signer ? "unknown" : "not_sent",
+        ...(signer
+          ? { paymentStatus: "unknown", outcome: "unknown" }
+          : { paymentStatus: "not_sent" }),
         retryPayment: false,
         httpStatus: response.status,
         delivered: response.ok,

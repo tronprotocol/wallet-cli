@@ -636,6 +636,7 @@ describe("EvmTransactionService.broadcast", () => {
         details: {
           nodeCode: "fixture",
           txId: "0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026",
+          outcome: "unknown",
         },
       });
       expect(error.textMessage).toBe(original.textMessage);

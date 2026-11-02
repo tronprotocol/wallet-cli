@@ -555,6 +555,7 @@ describe("GasFree submit under the command deadline", () => {
       message: expect.stringContaining("no trace id is known"),
       details: {
         paymentStatus: "unknown",
+        outcome: "unknown",
         retryPayment: false,
         network: NETWORK.id,
         serviceProvider: PROVIDER,
@@ -583,7 +584,7 @@ describe("GasFree submit under the command deadline", () => {
 
     await expect(send(fixtureValue, scope())).rejects.toMatchObject({
       code: "provider_error",
-      details: { paymentStatus: "unknown", retryPayment: false, nonce: "8" },
+      details: { paymentStatus: "unknown", outcome: "unknown", retryPayment: false, nonce: "8" },
     });
   });
 
@@ -594,6 +595,7 @@ describe("GasFree submit under the command deadline", () => {
       const fixtureValue = fixture({ active: true });
       fixtureValue.submitTransfer.mockRejectedValueOnce(failure);
       await expect(send(fixtureValue, scope())).rejects.toBe(failure);
+      expect(failure.details).toBeUndefined();
     }
   });
 

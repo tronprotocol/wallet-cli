@@ -9,6 +9,7 @@ import {
 } from "../../../../application/services/broadcast-guard.js";
 import { submitWithTxId } from "../../../../application/services/broadcast-identity.js";
 import { TronRpcClient } from "./tron.js";
+import { decodeTransactionHex } from "./transaction-codec.js";
 import { withTronWeb } from "./__test-support__/tronweb.js";
 
 const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
@@ -135,7 +136,7 @@ describe("TronRpcClient broadcast reports a node code that may follow acceptance
       ]) {
         await expect(submitWithTxId(TX_ID, submit)).rejects.toMatchObject({
           code: "rpc_error",
-          details: { nodeCode: code, nodeMessage: "boom", txId: TX_ID },
+          details: { nodeCode: code, nodeMessage: "boom", txId: TX_ID, outcome: "unknown" },
         });
       }
     },
@@ -154,8 +155,58 @@ describe("TronRpcClient broadcast reports a node code that may follow acceptance
       ).catch((e: unknown) => e);
       expect(error).toMatchObject({ code: "transaction_rejected" });
       expect((error as { details?: object }).details).not.toHaveProperty("txId");
+      expect((error as { details?: object }).details).not.toHaveProperty("outcome");
     },
   );
+});
+
+describe("TronRpcClient broadcast reports a duplicate of the sent transaction as already known", () => {
+  const SENT_ID = decodeTransactionHex(SIGNED_HEX).txID;
+  const OTHER_ID = "c6b3021357e73a2672b7ad714ab7d9dca3601ef72138822f07116827012457ca";
+  const SENT = { ...decodeTransactionHex(SIGNED_HEX), signature: ["sig"] } as never;
+  const dup = (txid?: string) => ({
+    result: false,
+    code: "DUP_TRANSACTION_ERROR",
+    message: Buffer.from("dup transaction").toString("hex"),
+    ...(txid === undefined ? {} : { txid }),
+  });
+
+  function client(response: object) {
+    const { client, tronweb } = withTronWeb(
+      () => new TronRpcClient("http://localhost:1", undefined, processBroadcastGuard),
+    );
+    tronweb.trx.sendRawTransaction = (() => Promise.resolve(response)) as never;
+    tronweb.trx.sendHexTransaction = (() => Promise.resolve(response)) as never;
+    return client;
+  }
+
+  it("returns the sent id with alreadyKnown when the node names that transaction", async () => {
+    const c = client(dup(SENT_ID.toUpperCase()));
+    await expect(c.broadcast(SENT, NO_CHECK)).resolves.toEqual({
+      txId: SENT_ID,
+      alreadyKnown: true,
+    });
+    await expect(c.broadcastHex(SIGNED_HEX, NO_CHECK)).resolves.toEqual({
+      txId: SENT_ID,
+      alreadyKnown: true,
+    });
+  });
+
+  it.each([
+    ["another transaction", OTHER_ID],
+    ["no transaction", undefined],
+  ])("keeps a duplicate that names %s an unknown outcome", async (_case, txid) => {
+    const c = client(dup(txid));
+    for (const submit of [
+      () => c.broadcast(SENT, NO_CHECK),
+      () => c.broadcastHex(SIGNED_HEX, NO_CHECK),
+    ]) {
+      await expect(submitWithTxId(SENT_ID, submit)).rejects.toMatchObject({
+        code: "rpc_error",
+        details: { nodeCode: "DUP_TRANSACTION_ERROR", txId: SENT_ID, outcome: "unknown" },
+      });
+    }
+  });
 });
 
 describe("TronRpcClient broadcast keeps the node's own words in the message", () => {

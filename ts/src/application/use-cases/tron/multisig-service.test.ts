@@ -2,7 +2,11 @@ import { ChainError, classifyError, errorMessage } from "../../../domain/errors/
 import { describe, expect, it, vi } from "vitest";
 import type { SignedTx, Signer, UnsignedTx } from "../../../domain/types/index.js";
 import { encodeOperations } from "../../../domain/tron/permission/index.js";
-import type { TronGateway, TronSignWeight } from "../../ports/chain/tron/tron-gateway.js";
+import type {
+  TronGateway,
+  TronSignWeight,
+  TronTxInfo,
+} from "../../ports/chain/tron/tron-gateway.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
@@ -331,7 +335,7 @@ describe("TRON multisig submission outcome", () => {
       expect(errorEnvelope(error)).toEqual({
         code,
         message: original.message,
-        details: { nodeCode: "fixture", txId: decodeTransactionHex(hex).txID },
+        details: { nodeCode: "fixture", txId: decodeTransactionHex(hex).txID, outcome: "unknown" },
       });
       expect(error.textMessage).toBe(original.textMessage);
       expect(error.kind).toBe(original.kind);
@@ -339,6 +343,22 @@ describe("TRON multisig submission outcome", () => {
       expect(broadcastHex).toHaveBeenCalledWith(hex, expect.anything());
     },
   );
+
+  it("confirms an imported transaction the node already held and keeps alreadyKnown", async () => {
+    const hex = signedHex();
+    const txId = decodeTransactionHex(hex).txID;
+    const getTransactionInfoById = vi.fn(
+      async () => ({ blockNumber: 9, execution: "failed" }) as TronTxInfo,
+    );
+    const result = await service(
+      fakeGateway({
+        broadcastHex: vi.fn(async () => ({ txId, alreadyKnown: true })),
+        getTransactionInfoById,
+      }),
+    ).broadcastHex(scope(), NETWORK, hex, false);
+    expect(getTransactionInfoById).toHaveBeenCalledWith(txId);
+    expect(result).toMatchObject({ stage: "failed", txId, alreadyKnown: true, blockNumber: 9 });
+  });
 
   it("refuses an imported broadcast before submitting when too little time is left", async () => {
     const broadcastHex = vi.fn();

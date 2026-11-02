@@ -23,7 +23,7 @@ The token starts in status `CREATED`, on the curve. It moves to SunSwap only onc
 
 **A launch is real and permanent.** There is no undo and no testnet: the group is mainnet only. Use `--dry-run` first.
 
-**A launch that does not answer may still have happened.** SunPump deploys the token before it replies, so once the request may have reached it, every failure short of SunPump saying no — no reply within `--timeout`, a 5xx, a dropped connection, a reply that does not parse or names no token — fails with `launch_outcome_unknown` rather than `timeout` or `provider_error`. The token may exist. Run `sunpump token-search <symbol>` and check for it before you launch again: a second launch is a second, permanent token.
+**A launch that does not answer may still have happened.** SunPump deploys the token before it replies, so once the request may have reached it, every failure short of SunPump saying no — no reply within `--timeout`, a 5xx, a dropped connection, a reply that does not parse or names no token — fails with `launch_outcome_unknown` rather than `timeout` or `provider_error`, with [`error.details.outcome: "unknown"`](../../machine-interface.md#unknown-outcome-errordetailsoutcome). The token may exist. Run `sunpump token-search <symbol>` and check for it before you launch again: a second launch is a second, permanent token.
 
 `--dry-run` sends nothing to the create endpoint. It validates the options, reads the logo file, and prints the request that would be made. Because the creator is not known until the service picks one, the preview shows the fact instead of an address.
 

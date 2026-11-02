@@ -48,6 +48,7 @@ function invalidSettlement(
     {
       reason,
       paymentStatus: "unknown",
+      outcome: "unknown",
       settled: false,
       retryPayment: false,
       expectedNetwork,

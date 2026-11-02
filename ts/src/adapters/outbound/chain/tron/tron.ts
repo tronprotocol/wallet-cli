@@ -78,7 +78,7 @@ import {
   decodeOperations,
   isActivePermissionId,
 } from "../../../../domain/tron/permission/index.js";
-import { addressCodec, FAMILIES } from "../../../../domain/family/index.js";
+import { addressCodec, FAMILIES, normalizeTxHash } from "../../../../domain/family/index.js";
 import {
   FetchHttpTransport,
   HttpTransportError,
@@ -240,7 +240,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
         `TRON broadcast failed: ${redactErrorMessage((e as Error).message ?? "")}`,
       );
     }
-    return broadcastResult(res);
+    return broadcastResult(res, "txID" in signed ? signed.txID : undefined);
   }
 
   prepareTransaction(
@@ -438,11 +438,11 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async broadcastHex(input: string, check: DispatchCheck): Promise<BroadcastResult> {
     this.#broadcastGuard.assertAllowed();
     const hex = normalizeTransactionHex(input);
-    decodeTransactionHex(hex);
+    const { txID } = decodeTransactionHex(hex);
     const response = await withDispatchCheck(check, () =>
       this.#wrap("broadcast hex", () => this.#tw.trx.sendHexTransaction(hex)),
     );
-    return broadcastResult(response);
+    return broadcastResult(response, txID);
   }
 
   async getUpdateAccountPermissionFee(): Promise<number> {
@@ -2214,7 +2214,8 @@ function decodeTronMessage(message?: string): string {
   return message;
 }
 
-function broadcastResult(response: unknown): BroadcastResult {
+// sentTxId is the id of the transaction this call sent.
+function broadcastResult(response: unknown, sentTxId: string | undefined): BroadcastResult {
   if (response === null || typeof response !== "object" || Array.isArray(response)) {
     throw new ChainError("invalid_node_response", "TRON broadcast returned a malformed response");
   }
@@ -2237,6 +2238,13 @@ function broadcastResult(response: unknown): BroadcastResult {
       );
     }
     const known = classifyNodeRejection(reason, nodeCode);
+    // A duplicate counts as accepted only when the node names the transaction this call sent.
+    if (!known && nodeCode === "DUP_TRANSACTION_ERROR" && sentTxId !== undefined) {
+      const reported = typeof res.txid === "string" ? res.txid : res.transaction?.txID;
+      if (typeof reported === "string" && sameTxId(reported, sentTxId)) {
+        return { txId: sentTxId, alreadyKnown: true };
+      }
+    }
     if (!known && isOutcomeUnknownBroadcastCode(nodeCode)) {
       throw new ChainError(
         "rpc_error",
@@ -2254,4 +2262,9 @@ function broadcastResult(response: unknown): BroadcastResult {
   }
   const txId = res.txid ?? res.transaction?.txID;
   return { txId: typeof txId === "string" ? txId : undefined };
+}
+
+function sameTxId(a: string, b: string): boolean {
+  const left = normalizeTxHash("tron", a);
+  return left !== undefined && left === normalizeTxHash("tron", b);
 }
