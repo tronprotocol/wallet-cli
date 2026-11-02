@@ -42,18 +42,6 @@ export function proposalCreateTxJsonToPbExact(transaction: unknown): any {
   return protobuf;
 }
 
-export function proposalCreateTxCheckExact(transaction: unknown): boolean {
-  const expected = String((transaction as { raw_data_hex?: unknown })?.raw_data_hex ?? "")
-    .replace(/^0x/, "")
-    .toLowerCase();
-  return (
-    expected.length > 0 &&
-    tronUtils.transaction
-      .txPbToRawDataHex(proposalCreateTxJsonToPbExact(transaction))
-      .toLowerCase() === expected
-  );
-}
-
 // Preserve int64 energy limits without TronWeb's number conversion or builder cap.
 export function updateEnergyLimitTxJsonToPbExact(transaction: unknown): any {
   const source = transaction as { raw_data?: { contract?: Json[] } };
@@ -79,18 +67,6 @@ export function updateEnergyLimitTxJsonToPbExact(transaction: unknown): any {
   const contracts = protobuf.getRawData().getContractList();
   for (const [index, payload] of exactPayloads) contracts[index].getParameter().setValue(payload);
   return protobuf;
-}
-
-export function updateEnergyLimitTxCheckExact(transaction: unknown): boolean {
-  const expected = String((transaction as { raw_data_hex?: unknown })?.raw_data_hex ?? "")
-    .replace(/^0x/, "")
-    .toLowerCase();
-  return (
-    expected.length > 0 &&
-    tronUtils.transaction
-      .txPbToRawDataHex(updateEnergyLimitTxJsonToPbExact(transaction))
-      .toLowerCase() === expected
-  );
 }
 
 function proposalEntries(value: unknown): ProposalParameter[] {

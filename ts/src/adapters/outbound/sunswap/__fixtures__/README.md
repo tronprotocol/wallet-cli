@@ -1,6 +1,6 @@
-# V4 receipt fixtures
+# Fixtures
 
-Unmodified successful Nile receipts fetched with `wallet/gettransactioninfobyid` on 2026-09-29. Tests run offline.
+The `v4-*.json` files are unmodified successful Nile V4 receipts fetched with `wallet/gettransactioninfobyid` on 2026-09-29. Tests run offline.
 
 - `v4-remove.json`: [position 7 removal](https://nile.tronscan.org/transaction/d6b40b0f13034d0297979686ba44e2c31839bcd34d409cbc32c1180acb1f576b): 1,660 SUN principal + 4,821 SUN fees = 6,481 SUN transferred; USDT 602 + 3,132 = 3,734 base units.
 - `v4-collect.json`: [position 5 collection](https://nile.tronscan.org/transaction/14de49e721648ad94e464ca0d6f9a4e8662f8ee7526ff9f1c138cd40791d21d6): two TRC20 currencies, including an amount exceeding JavaScript's safe integer range.

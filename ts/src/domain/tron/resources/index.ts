@@ -20,7 +20,3 @@ export const RESOURCE_META: Record<Resource, ResourceMeta> = {
 export function toRpcCode(r: Resource): RpcResourceCode {
   return RESOURCE_META[r].rpcCode;
 }
-
-export function resourceOfRpcCode(code: string): Resource | undefined {
-  return RESOURCES.find((r) => RESOURCE_META[r].rpcCode === code);
-}

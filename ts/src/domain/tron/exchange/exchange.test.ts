@@ -7,7 +7,6 @@ import {
   slippageFloor,
   splitPair,
   tokenIdLabel,
-  withdrawIsPrecise,
 } from "./index.js";
 import { inputRef } from "../../errors/index.js";
 
@@ -75,13 +74,6 @@ describe("proportional inject / withdraw", () => {
   it("returns zero when the amount is too small for the ratio", () => {
     expect(proportionalOther(1_000_000n, 1n, 1n)).toBe(0n);
     expect(proportionalOther(0n, 5n, 5n)).toBe(0n);
-  });
-
-  it("accepts a clean withdrawal and rejects a fractional one", () => {
-    const first = 10_000n * TRX;
-    const second = 500_000n * 1_000_000n;
-    expect(withdrawIsPrecise(first, second, 1_000n * TRX)).toBe(true);
-    expect(withdrawIsPrecise(3n, 7n, 1n)).toBe(false);
   });
 });
 

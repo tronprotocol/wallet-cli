@@ -44,10 +44,6 @@ export function clampAligned(tick: number, spacing: number): number {
   return tick;
 }
 
-export function clampTick(tick: number): number {
-  return Math.min(MAX_TICK, Math.max(MIN_TICK, tick));
-}
-
 // Reject user boundaries instead of rounding them and changing the position; field names the input.
 export function assertAligned(tick: number, spacing: number, field: string): void {
   if (!Number.isInteger(tick)) {

@@ -47,22 +47,6 @@ export function proportionalOther(
   return (otherReserve * quant) / thisReserve;
 }
 
-// Models one node precision rule for messages only; the active variant is not exposed by RPC.
-export function withdrawIsPrecise(
-  thisReserve: bigint,
-  otherReserve: bigint,
-  quant: bigint,
-): boolean {
-  const other = proportionalOther(thisReserve, otherReserve, quant);
-  if (other <= 0n) return false;
-  // Round the quotient half-up to four decimal places.
-  const scaled = otherReserve * quant * 10_000n;
-  const quotient4dp = (scaled + thisReserve / 2n) / thisReserve;
-  const remainder4dp = quotient4dp - other * 10_000n;
-  // Scaling both sides by 10^4 makes this a 0.01% tolerance check.
-  return remainder4dp <= other;
-}
-
 // Accepts TRX or numeric ids; token names can contain the pair separator (:).
 export function normalizeTokenId(input: string): string {
   const value = input.trim();

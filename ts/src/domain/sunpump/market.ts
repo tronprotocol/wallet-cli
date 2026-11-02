@@ -13,9 +13,6 @@ export const SUNPUMP_ORDER_BY_NAMES = Object.keys(SUNPUMP_ORDER_BY) as SunPumpOr
 
 export const SUNPUMP_SORT_DIRECTIONS = ["asc", "desc"] as const;
 
-// Owner listings apply this order regardless of requested sorting.
-export const OWNER_LISTING_ORDER = { orderBy: "created", sort: "desc" } as const;
-
 // Reject unknown fields and directions; the service silently falls back instead of rejecting.
 export function sunpumpSortParam(orderBy: string, sort: string): string {
   const field = SUNPUMP_ORDER_BY[orderBy as SunPumpOrderBy];

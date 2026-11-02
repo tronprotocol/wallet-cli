@@ -40,13 +40,6 @@ export function tronAddressBytes(address: string): Bytes {
   return decoded;
 }
 
-export function tronAddressFromBytes(payload: Bytes): string {
-  if (payload.length !== 21 || payload[0] !== 0x41) {
-    throw new Error("TRON payload must be 0x41 + 20 bytes");
-  }
-  return b58c.encode(payload);
-}
-
 export function tronHexAddress(address: string): string {
   return bytesToHex(tronAddressBytes(address));
 }
@@ -159,14 +152,6 @@ export function tronBase58ToBytes(address: string): Uint8Array {
     throw new Error("invalid TRON address payload");
   }
   return decoded;
-}
-
-// Encodes a 21-byte, 0x41-prefixed payload as Base58Check.
-export function tronBytesToBase58(payload: Uint8Array): string {
-  if (payload.length !== 21 || payload[0] !== 0x41) {
-    throw new Error("invalid TRON address payload");
-  }
-  return b58c.encode(payload);
 }
 
 // Mixed-case input requires an EIP-55 checksum; uniform case is accepted unverified.

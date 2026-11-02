@@ -171,10 +171,6 @@ export const CHAIN_PARAMETER_CATALOG: readonly ChainParameterDefinition[] = name
 const byId = new Map(CHAIN_PARAMETER_CATALOG.map((entry) => [entry.id, entry]));
 const byName = new Map(CHAIN_PARAMETER_CATALOG.map((entry) => [entry.name.toLowerCase(), entry]));
 
-export function chainParameterById(id: number): ChainParameterDefinition | undefined {
-  return byId.get(id);
-}
-
 export function chainParameterByName(name: string): ChainParameterDefinition | undefined {
   return byName.get(name.toLowerCase());
 }
