@@ -9,9 +9,6 @@ export interface RateLimitDetails {
   readonly retryAfterSeconds?: number;
 }
 
-// IMF-fixdate, such as "Sun, 06 Nov 1994 08:49:37 GMT".
-const HTTP_DATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/;
-
 // Retry-After is unsigned delta-seconds or an HTTP-date; a past date gives zero.
 export function retryAfterSeconds(header: string | null): number | undefined {
   if (header === null) return undefined;
@@ -20,10 +17,10 @@ export function retryAfterSeconds(header: string | null): number | undefined {
     const seconds = Number(value);
     return Number.isSafeInteger(seconds) ? seconds : undefined;
   }
-  // Date.parse alone accepts fragments such as "1.5" or "Wed, 21 Oct".
-  if (!HTTP_DATE.test(value)) return undefined;
+  // Only an IMF-fixdate, such as "Sun, 06 Nov 1994 08:49:37 GMT", formats back to itself. Date.parse
+  // alone accepts fragments ("1.5"), wrong weekdays, and rolls over out-of-range fields ("31 Feb").
   const date = Date.parse(value);
-  if (Number.isNaN(date)) return undefined;
+  if (Number.isNaN(date) || new Date(date).toUTCString() !== value) return undefined;
   return Math.max(0, Math.round((date - Date.now()) / 1000));
 }
 

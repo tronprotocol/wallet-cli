@@ -46,12 +46,25 @@ describe("retryAfterSeconds", () => {
     expect(retryAfterSeconds(new Date(Date.now() - 60_000).toUTCString())).toBe(0);
   });
 
-  it.each([null, "soon", "-5", "+5", "", "99999999999999999999", "1.5", "Wed, 21 Oct"])(
-    "ignores %j",
-    (header) => {
-      expect(retryAfterSeconds(header)).toBeUndefined();
-    },
-  );
+  it.each([
+    null,
+    "soon",
+    "-5",
+    "+5",
+    "",
+    "99999999999999999999",
+    "1.5",
+    "Wed, 21 Oct",
+    "Invalid Date",
+    "Xxx, 02 Nov 2026 00:00:30 GMT",
+    "Tue, 02 Nov 2026 00:00:30 GMT",
+    "Tue, 31 Feb 2026 00:00:30 GMT",
+    "Mon, 02 Nov 2026 24:00:00 GMT",
+    "Mon, 02 Nov 2026 00:60:00 GMT",
+    "Mon, 02 Nov 2026 00:00:30 UTC",
+  ])("ignores %j", (header) => {
+    expect(retryAfterSeconds(header)).toBeUndefined();
+  });
 });
 
 it("carries exactly the status and the Retry-After seconds", () => {
