@@ -725,6 +725,17 @@ describe("EvmTransactionService.broadcast", () => {
     );
   });
 
+  it("stops waiting on a non-retryable receipt error even without a time limit", async () => {
+    const { service, gateway } = bcHarness();
+    gateway.getTransactionReceipt.mockRejectedValue(new ChainError("not_found", "no receipts"));
+    const warn = vi.fn();
+    const out = await service.broadcast({ ...scope(true), warn }, SEPOLIA, SIGNED);
+
+    expect(out).toMatchObject({ stage: "submitted" });
+    expect(gateway.getTransactionReceipt).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ code: "not_found" }));
+  });
+
   it.each([true, false])(
     "refuses an explicit wait intent (%s) on a dry run without submitting",
     async (wait) => {

@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { tronConfirmation } from "./tron-confirmation.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { BroadcastResult, TronTransactionArtifact } from "../../../domain/types/index.js";
 import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
 import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import { CommandDeadline, SUBMIT_ADMISSION_RESERVE_MS } from "../command-deadline.js";
 import { localTxId } from "../broadcast-identity.js";
 import { submitAndStage } from "../submit-and-stage.js";
@@ -261,5 +262,50 @@ describe("tronConfirmation bounds each poll by the command deadline", () => {
       await tronConfirmation(g, scope({ deadline: new CommandDeadline(30) }))("abc", NATIVE),
     ).toBeUndefined();
     expect(calls).toBe(1);
+  });
+});
+
+describe("tx broadcast stops waiting on an error a retry cannot fix", () => {
+  it("returns submitted at once, also without a time limit, with the code in the warning", async () => {
+    const getTransactionInfoById = vi.fn(async () => {
+      throw new ChainError("not_found", "the node has no gettransactioninfobyid");
+    });
+    const warn = vi.fn();
+    const out = await stageTronBroadcast(
+      { getTransactionInfoById } as unknown as TronGateway,
+      scope({ warn }),
+      { txId: "abc" },
+      NATIVE,
+    );
+
+    expect(out).toMatchObject({ stage: "submitted", txId: "abc" });
+    expect(getTransactionInfoById).toHaveBeenCalledTimes(1);
+    const [warning] = warn.mock.calls[0]!;
+    expect(warning.code).toBe("not_found");
+    expect(cliMessage(warning.message).message).toBe(
+      "abc not confirmed: waiting stopped on not_found (the node has no gettransactioninfobyid); returning submitted (it may still confirm on-chain)",
+    );
+  });
+
+  it("keeps polling through a retryable error", async () => {
+    const getTransactionInfoById = vi
+      .fn()
+      .mockRejectedValueOnce(new ChainError("rpc_error", "busy"))
+      .mockResolvedValueOnce(parseTronTxInfo({ blockNumber: 5 }));
+    const s = scope();
+    vi.useFakeTimers();
+    try {
+      const out = stageTronBroadcast(
+        { getTransactionInfoById } as unknown as TronGateway,
+        s,
+        { txId: "abc" },
+        NATIVE,
+      );
+      await vi.advanceTimersByTimeAsync(1_500);
+      await expect(out).resolves.toMatchObject({ stage: "confirmed", blockNumber: 5 });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(s.warnings).toEqual([]);
   });
 });

@@ -677,4 +677,19 @@ describe("TxPipeline under the command deadline", () => {
       "tx not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
     ]);
   });
+
+  it("returns the submitted receipt with the code when waiting stops on a non-retryable error", async () => {
+    const warn = vi.fn();
+    const out = await pipeline().runTron(
+      params(software, {
+        mode: "broadcast",
+        ctx: scope({ wait: true, warn }),
+        confirm: async () => {
+          throw new ChainError("not_found", "gone");
+        },
+      }),
+    );
+    expect(out).toMatchObject({ stage: "submitted", txId: "tx" });
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ code: "not_found" }));
+  });
 });

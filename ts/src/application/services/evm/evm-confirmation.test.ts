@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { evmConfirmation } from "./evm-confirmation.js";
 import type { EvmGateway } from "../../ports/chain/evm/evm-gateway.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import { CommandDeadline } from "../command-deadline.js";
 
 const HASH = `0x${"ab".repeat(32)}`;
@@ -71,14 +72,25 @@ describe("evmConfirmation", () => {
     expect(out).toBeUndefined();
   });
 
-  it("treats an RPC failure as not-yet-confirmed rather than throwing", async () => {
+  it("treats a retryable RPC failure as not-yet-confirmed rather than throwing", async () => {
     const gateway = {
       getTransactionReceipt: vi.fn(async () => {
-        throw new Error("endpoint down");
+        throw new ChainError("rpc_error", "endpoint down");
       }),
     } as unknown as EvmGateway;
 
     await expect(evmConfirmation(gateway, scope(30))(HASH)).resolves.toBeUndefined();
+  });
+
+  it("stops at the first error that a retry cannot fix", async () => {
+    const error = new ChainError("not_found", "no such method");
+    const getTransactionReceipt = vi.fn(async () => {
+      throw error;
+    });
+    const gateway = { getTransactionReceipt } as unknown as EvmGateway;
+
+    await expect(evmConfirmation(gateway, scope(0))(HASH)).rejects.toBe(error);
+    expect(getTransactionReceipt).toHaveBeenCalledTimes(1);
   });
 
   it("carries a deployed contract address through when the receipt names one", async () => {

@@ -49,7 +49,7 @@ printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
 
 ## Waiting for confirmation
 
-`tx send` waits for confirmation by default and reports the outcome in `data.stage` (`confirmed`, `failed`, or `submitted` when the time limit ends the wait):
+`tx send` waits for confirmation by default and reports the outcome in `data.stage` (`confirmed`, `failed`, or `submitted` when the time limit, or a poll error that cannot be retried unchanged, ends the wait):
 
 ```bash
 wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
