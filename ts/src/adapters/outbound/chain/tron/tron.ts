@@ -1469,6 +1469,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       permissionId?: number;
     },
   ): Promise<TronTransactionArtifact> {
+    assertConstructorEncodable(p.abi);
     const feeLimit = this.#safeNumber(p.feeLimit, "fee limit");
     return this.#wrap("createSmartContract", async () =>
       assertBuiltTx(
@@ -1708,6 +1709,27 @@ function normalizeProposal(value: unknown): TronProposal | null {
     approvals: (Array.isArray(raw.approvals) ? raw.approvals : []).map(hexToBase58).filter(Boolean),
     state,
   };
+}
+
+function abiEntries(abi: unknown): unknown[] | undefined {
+  if (Array.isArray(abi)) return abi;
+  const wrapped = (abi as { entrys?: unknown } | null)?.entrys;
+  return Array.isArray(wrapped) ? wrapped : undefined;
+}
+
+// TronWeb accepts empty-string stateMutability but crashes on non-string values.
+function assertConstructorEncodable(abi: unknown): void {
+  for (const entry of abiEntries(abi) ?? []) {
+    const e = entry as { type?: unknown; stateMutability?: unknown } | null;
+    if (e?.type !== "constructor") continue;
+    if (typeof e.stateMutability !== "string") {
+      throw new UsageError(
+        "invalid_value",
+        'the ABI constructor entry needs a string "stateMutability" ("nonpayable" or "payable"); ' +
+          "solc emits it — add it by hand if the ABI was trimmed or came from solc < 0.5",
+      );
+    }
+  }
 }
 
 // Preserve int64 quantities and decode hex text, leaving owner addresses in hex.

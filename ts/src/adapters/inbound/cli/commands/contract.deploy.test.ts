@@ -31,75 +31,14 @@ function deployWith(input: { abi: string; params?: string }) {
 const ctor = (over: Record<string, unknown> = {}) =>
   JSON.stringify([{ type: "constructor", inputs: [{ name: "x", type: "uint256" }], ...over }]);
 
-describe("contract deploy — ABI constructor guard", () => {
-  it("passes an ABI with no constructor straight through", async () => {
-    const { run, deploy } = deployWith({ abi: JSON.stringify([{ type: "function", name: "f" }]) });
+describe("contract deploy — ABI input", () => {
+  it("passes a parsed ABI through to the use case", async () => {
+    const { run, deploy } = deployWith({ abi: ctor() });
     await expect(run()).resolves.toBeDefined();
-    expect(deploy).toHaveBeenCalledOnce();
+    expect(deploy.mock.calls[0]![2]).toMatchObject({ abi: JSON.parse(ctor()) });
   });
 
-  it("passes a constructor carrying stateMutability", async () => {
-    const { run, deploy } = deployWith({ abi: ctor({ stateMutability: "nonpayable" }) });
-    await expect(run()).resolves.toBeDefined();
-    expect(deploy).toHaveBeenCalledOnce();
-  });
-
-  it("passes a payable constructor", async () => {
-    const { run, deploy } = deployWith({ abi: ctor({ stateMutability: "payable" }) });
-    await expect(run()).resolves.toBeDefined();
-    expect(deploy).toHaveBeenCalledOnce();
-  });
-
-  it("passes an empty-string stateMutability, which TronWeb accepts", async () => {
-    const { run, deploy } = deployWith({ abi: ctor({ stateMutability: "" }) });
-    await expect(run()).resolves.toBeDefined();
-    expect(deploy).toHaveBeenCalledOnce();
-  });
-
-  it.each([
-    ["absent", {}],
-    ["null", { stateMutability: null }],
-    ["a number", { stateMutability: 1 }],
-    ["a boolean", { stateMutability: false }],
-    ["an object", { stateMutability: {} }],
-  ])("rejects a constructor whose stateMutability is %s", async (_label, over) => {
-    const { run, deploy } = deployWith({ abi: ctor(over) });
-    await expect(run()).rejects.toMatchObject({
-      code: "invalid_value",
-      message: expect.stringContaining("stateMutability"),
-    });
-    expect(deploy).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    ["an empty inputs list", JSON.stringify([{ type: "constructor", inputs: [] }])],
-    ["no inputs key at all", JSON.stringify([{ type: "constructor" }])],
-  ])("rejects a stateMutability-less constructor with %s", async (_label, abi) => {
-    const { run } = deployWith({ abi });
-    await expect(run()).rejects.toMatchObject({ code: "invalid_value" });
-  });
-
-  it("looks inside the { entrys } wrapper TronWeb also accepts", async () => {
-    const { run } = deployWith({ abi: JSON.stringify({ entrys: [{ type: "constructor" }] }) });
-    await expect(run()).rejects.toMatchObject({ code: "invalid_value" });
-  });
-
-  it("passes an { entrys } wrapper whose constructor is well-formed", async () => {
-    const abi = JSON.stringify({
-      entrys: [{ type: "constructor", stateMutability: "nonpayable" }],
-    });
-    const { run, deploy } = deployWith({ abi });
-    await expect(run()).resolves.toBeDefined();
-    expect(deploy).toHaveBeenCalledOnce();
-  });
-
-  it("leaves an ABI that is neither array nor { entrys } to TronWeb", async () => {
-    const { run, deploy } = deployWith({ abi: JSON.stringify({ foo: 1 }) });
-    await expect(run()).resolves.toBeDefined();
-    expect(deploy).toHaveBeenCalledOnce();
-  });
-
-  it("still rejects an ABI that is not JSON at all", async () => {
+  it("rejects an ABI that is not JSON at all", async () => {
     const { run } = deployWith({ abi: "{not json" });
     await expect(run()).rejects.toMatchObject({ code: "invalid_value", message: /valid JSON/ });
   });
@@ -142,11 +81,6 @@ describe("contract deploy — --constructor-params takes the typed form", () => 
       message: expect.stringContaining("type"),
     });
     expect(deploy).not.toHaveBeenCalled();
-  });
-
-  it("still refuses an ABI whose constructor TronWeb would crash on", async () => {
-    const { run } = deployTyped({ abi: ctor({ stateMutability: 42 }), constructorParams: "[]" });
-    await expect(run()).rejects.toMatchObject({ code: "invalid_value" });
   });
 });
 

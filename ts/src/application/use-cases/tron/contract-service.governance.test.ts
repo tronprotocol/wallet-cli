@@ -158,4 +158,16 @@ describe("TronContractService governance", () => {
     ).resolves.toMatchObject({ originEnergyLimit: 50_000_000 });
     expect(build).toHaveBeenCalledWith(OWNER, CONTRACT, 50_000_000, { permissionId: 0 });
   });
+
+  it.each(["9223372036854775808", "0", -1])(
+    "refuses an energy limit outside a positive int64 (%j) before any node call",
+    async (energy) => {
+      const metadata = vi.fn();
+      const { service } = createService({ getContractMetadata: metadata });
+      await expect(
+        service.setOriginEnergyLimit(scope, NET, { address: CONTRACT, energy, permissionId: 0 }),
+      ).rejects.toMatchObject({ code: "invalid_value" });
+      expect(metadata).not.toHaveBeenCalled();
+    },
+  );
 });

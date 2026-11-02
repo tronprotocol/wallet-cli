@@ -1,7 +1,11 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { currentTronEnergyPrice } from "../../../domain/tron/tron-energy-price.js";
-import { percent } from "../../../domain/tron/governance/limits.js";
+import {
+  isOriginEnergyLimit,
+  MAX_ORIGIN_ENERGY_LIMIT,
+  percent,
+} from "../../../domain/tron/governance/limits.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type {
@@ -10,7 +14,7 @@ import type {
   TronGateway,
 } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError, UsageError } from "../../../domain/errors/index.js";
 import { computeTronCreate2Address } from "../../../domain/tron/governance/create2.js";
 import type {
   NetworkDescriptor,
@@ -197,6 +201,12 @@ export class TronContractService {
     network: NetworkDescriptor,
     input: GovernanceTransactionInput & { address: string; energy: number | string },
   ) {
+    if (!isOriginEnergyLimit(input.energy)) {
+      throw new UsageError(
+        "invalid_value",
+        `origin energy limit must be an integer from 1 to ${MAX_ORIGIN_ENERGY_LIMIT}`,
+      );
+    }
     return this.govern(
       scope,
       network,

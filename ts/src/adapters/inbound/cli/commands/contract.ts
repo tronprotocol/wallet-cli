@@ -8,7 +8,12 @@ import type { EvmContractService } from "../../../../application/use-cases/evm/c
 import type { TronContractParameter } from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { Schemas, addressFieldsFor } from "../schemas/index.js";
 import { gweiToWei } from "../../../../domain/evm/evm-gas.js";
-import { toBaseUnits, sunAmount, type Sun } from "../../../../domain/amounts/index.js";
+import {
+  isZeroAmount,
+  toBaseUnits,
+  sunAmount,
+  type Sun,
+} from "../../../../domain/amounts/index.js";
 import { FAMILIES } from "../../../../domain/family/index.js";
 import {
   governanceTxModeFields,
@@ -18,7 +23,7 @@ import {
   txModeFields,
 } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
-import { MAX_PERCENT } from "../../../../domain/tron/governance/limits.js";
+import { isOriginEnergyLimit, MAX_PERCENT } from "../../../../domain/tron/governance/limits.js";
 import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
 
 function jsonArray(raw: string | undefined, flag = "--params"): unknown[] {
@@ -46,27 +51,6 @@ function typedParams(raw: string | undefined): TronContractParameter[] {
     );
   }
   return arr as TronContractParameter[];
-}
-
-function abiEntries(abi: unknown): unknown[] | undefined {
-  if (Array.isArray(abi)) return abi;
-  const wrapped = (abi as { entrys?: unknown } | null)?.entrys;
-  return Array.isArray(wrapped) ? wrapped : undefined;
-}
-
-// TronWeb accepts empty-string stateMutability but crashes on non-string values.
-function assertConstructorEncodable(abi: unknown): void {
-  for (const entry of abiEntries(abi) ?? []) {
-    const e = entry as { type?: unknown; stateMutability?: unknown } | null;
-    if (e?.type !== "constructor") continue;
-    if (typeof e.stateMutability !== "string") {
-      throw new UsageError(
-        "invalid_value",
-        '--abi constructor entry needs a string "stateMutability" ("nonpayable" or "payable"); ' +
-          "solc emits it — add it by hand if the ABI was trimmed or came from solc < 0.5",
-      );
-    }
-  }
 }
 
 function typedConstructorParams(raw: string | undefined): TronContractParameter[] {
@@ -528,7 +512,6 @@ export const contractDeployTronBinding = (svc: TronContractService): FamilyBindi
         throw new UsageError("invalid_value", "--abi must be valid JSON");
       }
     }
-    assertConstructorEncodable(abi);
     return svc.deploy(ctx, net, {
       ...input,
       feeLimit: sunAmount(input.feeLimit),
@@ -605,7 +588,7 @@ export const contractSetOriginEnergyLimitSpec: ChainSpec = {
     address: governedContract,
     energy: Schemas.positiveIntString()
       .refine(
-        (value) => !/^\d+$/.test(value) || BigInt(value) <= (1n << 63n) - 1n,
+        (value) => !/^\d+$/.test(value) || isZeroAmount(value) || isOriginEnergyLimit(value),
         "must not exceed signed int64 max",
       )
       .describe("deployer energy contribution limit; integer > 0"),
