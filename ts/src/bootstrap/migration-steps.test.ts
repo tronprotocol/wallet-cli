@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -38,7 +38,7 @@ describe("the wallets step against a real encrypted vault", () => {
     const doc = JSON.parse(readFileSync(path, "utf8"));
 
     expect(step.needsPassword(doc)).toBe(true);
-    const migrated = step.migrate(doc, PASSWORD, () => {}) as {
+    const migrated = step.migrate(doc, PASSWORD) as {
       wallets: [{ source: { addresses: Record<string, { tron: string; evm: string }> } }];
     };
 
@@ -50,19 +50,11 @@ describe("the wallets step against a real encrypted vault", () => {
     }
   });
 
-  it("refreshes the held locks before decrypting each seed", () => {
-    const { root, store, path } = realV1Keystore();
-    const step = migrationSteps(root, store)[0]!;
-    const refresh = vi.fn();
-    step.migrate(JSON.parse(readFileSync(path, "utf8")), PASSWORD, refresh);
-    expect(refresh).toHaveBeenCalledTimes(1);
-  });
-
   it("refuses a wrong password rather than writing garbage", () => {
     const { root, store, path } = realV1Keystore();
     const step = migrationSteps(root, store)[0]!;
     const doc = JSON.parse(readFileSync(path, "utf8"));
 
-    expect(() => step.migrate(doc, "not-the-password", () => {})).toThrow();
+    expect(() => step.migrate(doc, "not-the-password")).toThrow();
   });
 });

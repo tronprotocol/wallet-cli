@@ -109,9 +109,9 @@ describe("MigrationRunner holds the file lock while it writes", () => {
     const locked: string[] = [];
     const store = new AtomicFileStore();
     const realLock = store.withLock.bind(store);
-    store.withLock = ((path: string, fn: (refresh: () => void) => unknown, opts?: unknown) => {
+    store.withLock = ((path: string, fn: () => unknown, opts?: unknown) => {
       locked.push(path);
-      return realLock(path, fn as (refresh: () => void) => never, opts as never);
+      return realLock(path, fn as () => never, opts as never);
     }) as typeof store.withLock;
 
     const runner = new MigrationRunner(store);

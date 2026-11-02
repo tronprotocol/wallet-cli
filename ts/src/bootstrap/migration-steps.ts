@@ -17,18 +17,12 @@ export function migrationSteps(root: string, store: AtomicFileStore): MigrationS
       path: join(root, "wallets.json"),
       currentVersion: WALLETS_VERSION,
       needsPassword: (doc) => walletsNeedPassword(doc as WalletsFileV1),
-      migrate: (doc, password, refresh) => {
+      migrate: (doc, password) => {
         // Authenticate through the keystore before decrypting migration inputs.
         const reader = new Keystore(root, store, () => password ?? "");
         return migrateWalletsToV2(doc as WalletsFileV1, {
-          seedFor: (vaultId) => {
-            refresh();
-            return reader.decryptSeed(vaultId);
-          },
-          keyFor: (keyId) => {
-            refresh();
-            return reader.decryptKey(keyId);
-          },
+          seedFor: (vaultId) => reader.decryptSeed(vaultId),
+          keyFor: (keyId) => reader.decryptKey(keyId),
         });
       },
     },

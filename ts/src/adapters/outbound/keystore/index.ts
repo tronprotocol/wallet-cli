@@ -98,10 +98,10 @@ export class Keystore {
   }
 
   // Every mutation first finishes an interrupted password change.
-  #locked<T>(fn: (refresh: () => void) => T): T {
-    return this.store.withLock(this.walletsPath, (refresh) => {
+  #locked<T>(fn: () => T): T {
+    return this.store.withLock(this.walletsPath, () => {
       this.store.recoverJournal(this.#journalPath());
-      return fn(refresh);
+      return fn();
     });
   }
 
@@ -433,7 +433,7 @@ export class Keystore {
   }
 
   changePassword(oldPassword: string, newPassword: string): { wallets: string[]; count: number } {
-    return this.#locked((refresh) => {
+    return this.#locked(() => {
       const verifier = this.store.readJson<KeystoreBlob>(this.#verifierPath());
       if (!verifier) {
         throw new WalletError(
@@ -449,7 +449,6 @@ export class Keystore {
       for (const w of file.wallets) {
         const s = w.source;
         if (s.type !== "seed" && s.type !== "privateKey") continue;
-        refresh(); // Each blob costs two scrypt runs; keep the lock from turning stale.
         const dir = s.type === "seed" ? ("vaults" as const) : ("keys" as const);
         const id = s.type === "seed" ? s.vaultId : s.keyId;
         const path = this.#blobPath(dir, id);
@@ -478,7 +477,6 @@ export class Keystore {
         path: this.#verifierPath(),
         value: CryptoEnvelope.encrypt(randomBytes(32), newPassword, "verifier", "verifier"),
       });
-      refresh();
       let outcome;
       try {
         outcome = this.store.writeJsonJournaled(this.#journalPath(), entries);

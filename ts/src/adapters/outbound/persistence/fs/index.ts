@@ -1,9 +1,7 @@
 import {
   closeSync,
   existsSync,
-  fstatSync,
   fsyncSync,
-  futimesSync,
   mkdirSync,
   openSync,
   readdirSync,
@@ -27,91 +25,23 @@ function sleepMs(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-// A holder refreshes its lock at least this often; a lock not refreshed for longer is stale.
-const LOCK_STALE_MS = 60_000;
-
-interface LockSnapshot {
-  file: string; // dev:ino
-  mtimeMs: number; // Last refresh time (wall clock, comparable across processes).
-  content: string;
-  pid?: number;
-  token?: string;
-}
-
-// Reads metadata and content through one descriptor so both describe the same file.
-function readLock(lock: string): LockSnapshot | null {
-  let fd: number;
+function isStaleLock(lock: string, staleMs: number): boolean {
+  let st;
   try {
-    fd = openSync(lock, "r");
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    // An unreadable lock is judged by its age alone.
-    try {
-      const st = statSync(lock);
-      return { file: `${st.dev}:${st.ino}`, mtimeMs: st.mtimeMs, content: "" };
-    } catch {
-      return null;
-    }
-  }
-  try {
-    const st = fstatSync(fd);
-    const content = readFileSync(fd, "utf8");
-    // Line 1 is the PID; lock files from earlier releases have only that line.
-    const [pidLine = "", token = ""] = content.split("\n");
-    const pid = Number(pidLine.trim());
-    return {
-      file: `${st.dev}:${st.ino}`,
-      mtimeMs: st.mtimeMs,
-      content,
-      ...(Number.isSafeInteger(pid) && pid > 0 ? { pid } : {}),
-      ...(token !== "" ? { token } : {}),
-    };
-  } finally {
-    closeSync(fd);
-  }
-}
-
-function isStaleLock(held: LockSnapshot, staleMs: number): boolean {
-  if (held.pid !== undefined) {
-    try {
-      process.kill(held.pid, 0);
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === "ESRCH") return true;
-    }
-  }
-  // A live PID may belong to an unrelated process after a crash, so the age rule still applies.
-  return Date.now() - held.mtimeMs > staleMs;
-}
-
-// Removes the lock only if it is still the snapshot judged stale. Removals of a stale lock are
-// serialized by a guard file, so two processes cannot both judge the same lock stale and one remove
-// the lock the other created after it.
-function removeStaleLock(lock: string, judged: LockSnapshot, staleMs: number): boolean {
-  const guard = `${lock}.steal`;
-  let fd: number;
-  try {
-    fd = openSync(guard, "wx", 0o600);
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-    // Only a process killed inside the guard leaves it behind.
-    const held = readLock(guard);
-    if (held !== null && isStaleLock(held, staleMs)) rmSync(guard, { force: true });
+    st = statSync(lock);
+  } catch {
     return false;
   }
-  try {
-    writeSync(fd, `${process.pid}\n`);
-    const current = readLock(lock);
-    if (current === null || !sameLock(current, judged)) return false;
-    unlinkSync(lock);
-    return true;
-  } finally {
-    closeSync(fd);
-    rmSync(guard, { force: true });
+  const pid = parseInt(readFileSync(lock, "utf8").trim(), 10);
+  if (Number.isInteger(pid) && pid > 0) {
+    try {
+      process.kill(pid, 0);
+      return false; // Never steal a live process's lock, regardless of age.
+    } catch (e) {
+      return (e as NodeJS.ErrnoException).code === "ESRCH";
+    }
   }
-}
-
-function sameLock(a: LockSnapshot, b: LockSnapshot): boolean {
-  return a.file === b.file && a.mtimeMs === b.mtimeMs && a.content === b.content;
+  return Date.now() - st.mtimeMs > staleMs;
 }
 
 // Windows cannot open directory handles for fsync.
@@ -400,59 +330,42 @@ export class AtomicFileStore {
     }
   }
 
-  // fn receives refresh(): a section that can run longer than a few seconds calls it at least every
-  // LOCK_STALE_MS, and it throws if another process has taken the lock over.
-  withLock<T>(
-    path: string,
-    fn: (refresh: () => void) => T,
-    opts: { timeoutMs?: number; staleMs?: number } = {},
-  ): T {
+  withLock<T>(path: string, fn: () => T, opts: { timeoutMs?: number; staleMs?: number } = {}): T {
     const lock = `${path}.lock`;
     mkdirSync(dirname(path), { recursive: true });
     const lockWaitMs = opts.timeoutMs ?? 5000;
     const remainingMs = this.deadline?.remainingMs() ?? Number.POSITIVE_INFINITY;
-    const waitUntil = performance.now() + Math.min(lockWaitMs, remainingMs);
-    const staleMs = opts.staleMs ?? LOCK_STALE_MS;
-    const token = randomBytes(16).toString("hex");
+    const waitUntil = Date.now() + Math.min(lockWaitMs, remainingMs);
+    const staleMs = opts.staleMs ?? 30000;
     let fd: number | undefined;
     while (fd === undefined) {
       try {
-        fd = openSync(lock, "wx", 0o600);
+        fd = openSync(lock, "wx");
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
-        const held = readLock(lock);
-        if (held === null) continue;
-        if (isStaleLock(held, staleMs) && removeStaleLock(lock, held, staleMs)) continue;
-        if (performance.now() > waitUntil) {
+        if (isStaleLock(lock, staleMs)) {
+          try {
+            unlinkSync(lock);
+          } catch {
+            // Another process may have removed the stale lock.
+          }
+          continue;
+        }
+        if (Date.now() > waitUntil) {
           if (remainingMs < lockWaitMs) throw new DeadlineExpiredError();
-          const owner = held.pid === undefined ? "" : `, held by process ${held.pid}`;
-          throw new ExecutionError(
-            "execution_error",
-            `timed out acquiring lock ${lock}${owner}; if no wallet-cli command is running, delete ${lock} and retry`,
-          );
+          throw new ExecutionError("execution_error", `timed out acquiring lock ${lock}`);
         }
         sleepMs(25);
       }
     }
-    const lockFd = fd;
     try {
-      writeSync(lockFd, `${process.pid}\n${token}\n${new Date().toISOString()}\n`);
       this.deadline?.assertActive();
-      return fn(() => {
-        if (readLock(lock)?.token !== token) {
-          throw new ExecutionError(
-            "execution_error",
-            `lock ${lock} was taken over by another process; stopped before writing`,
-          );
-        }
-        const now = new Date();
-        futimesSync(lockFd, now, now);
-      });
+      writeSync(fd, `${process.pid}\n`); // Record the PID so dead owners can be detected.
+      return fn();
     } finally {
-      closeSync(lockFd);
+      closeSync(fd);
       try {
-        // A lock taken over by another process is theirs to release.
-        if (readLock(lock)?.token === token) rmSync(lock, { force: true });
+        unlinkSync(lock);
       } catch {
         // Best-effort cleanup.
       }
