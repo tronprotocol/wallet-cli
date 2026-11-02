@@ -184,7 +184,7 @@ A record the client cannot reconcile with the chain stays visible and is labelle
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_found` — txId not on the service, `chain_id_mismatch` — the transaction was built for another chain, `rpc_error`, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error, rate limit, or a malformed service record such as a hash that is not 32-byte hex; TronLink reports **every** non-404 status this way, 429 included) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`; `invalid_option` — conflicting modes).
+`0` success · `1` execution failure (`not_found` — txId not on the service, `chain_id_mismatch` — the transaction was built for another chain, `rpc_error`, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error, or a malformed service record such as a hash that is not 32-byte hex; TronLink reports every status other than 404 and 429 this way; `provider_rate_limited` — TronLink returned HTTP 429, with `details.retryAfterSeconds` when it sent a usable `Retry-After`) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`; `invalid_option` — conflicting modes).
 
 ## See also
 
