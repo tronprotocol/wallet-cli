@@ -62,6 +62,7 @@ describe("retryAfterSeconds", () => {
     "Mon, 02 Nov 2026 24:00:00 GMT",
     "Mon, 02 Nov 2026 00:60:00 GMT",
     "Mon, 02 Nov 2026 00:00:30 UTC",
+    "Sat, 01 Jan 10000 00:00:00 GMT",
   ])("ignores %j", (header) => {
     expect(retryAfterSeconds(header)).toBeUndefined();
   });

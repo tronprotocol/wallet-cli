@@ -9,6 +9,9 @@ export interface RateLimitDetails {
   readonly retryAfterSeconds?: number;
 }
 
+const IMF_FIXDATE =
+  /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/;
+
 // Retry-After is unsigned delta-seconds or an HTTP-date; a past date gives zero.
 export function retryAfterSeconds(header: string | null): number | undefined {
   if (header === null) return undefined;
@@ -17,8 +20,10 @@ export function retryAfterSeconds(header: string | null): number | undefined {
     const seconds = Number(value);
     return Number.isSafeInteger(seconds) ? seconds : undefined;
   }
-  // Only an IMF-fixdate, such as "Sun, 06 Nov 1994 08:49:37 GMT", formats back to itself. Date.parse
-  // alone accepts fragments ("1.5"), wrong weekdays, and rolls over out-of-range fields ("31 Feb").
+  // An IMF-fixdate, such as "Sun, 06 Nov 1994 08:49:37 GMT", must also format back to itself:
+  // Date.parse accepts wrong weekdays and rolls over out-of-range fields ("31 Feb"), and
+  // toUTCString emits five-digit years, which the syntax check refuses.
+  if (!IMF_FIXDATE.test(value)) return undefined;
   const date = Date.parse(value);
   if (Number.isNaN(date) || new Date(date).toUTCString() !== value) return undefined;
   return Math.max(0, Math.round((date - Date.now()) / 1000));
