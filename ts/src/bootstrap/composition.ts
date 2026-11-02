@@ -1,5 +1,6 @@
 import { processBroadcastGuard } from "../application/services/broadcast-guard.js";
 import { CommandDeadline } from "../application/services/command-deadline.js";
+import { systemWallClock } from "../application/contracts/wall-clock.js";
 import { MessageSigner } from "../application/services/signing/message-signer.js";
 import { ManagedX402Server } from "./x402-server-lifecycle.js";
 import { daemonChildTimeoutMs } from "./x402-daemon.js";
@@ -228,6 +229,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     recipients: recipientResolver,
     balances: accountBalances,
     tokenBook: tokenBookService,
+    clock: systemWallClock,
   });
   registerEvmChainCommands(registry, {
     agents,

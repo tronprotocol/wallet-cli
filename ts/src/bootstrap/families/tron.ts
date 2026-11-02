@@ -146,6 +146,7 @@ import { TronTokenService } from "../../application/use-cases/tron/token-service
 import { TronTransactionService } from "../../application/use-cases/tron/transaction-service.js";
 import { TronContractService } from "../../application/use-cases/tron/contract-service.js";
 import { TronStakeService } from "../../application/use-cases/tron/stake-service.js";
+import type { WallClock } from "../../application/contracts/wall-clock.js";
 import { TronAssetService } from "../../application/use-cases/tron/asset-service.js";
 import { TronExchangeService } from "../../application/use-cases/tron/exchange-service.js";
 import { TronVoteService } from "../../application/use-cases/tron/vote-service.js";
@@ -297,6 +298,7 @@ export interface TronChainCommandDependencies {
   recipients: RecipientResolver;
   balances: AccountBalanceService;
   tokenBook: TokenBookService;
+  clock: WallClock;
 }
 
 export function registerTronChainCommands(
@@ -329,12 +331,19 @@ export function registerTronChainCommands(
     deps.recipients,
   );
   const artifacts = new SecureTransactionArtifactWriter();
-  const signing = new TronSigService(deps.gateways, deps.signers, deps.signing, artifacts);
-  const multisig = new TronMultisigService(deps.gateways, signing, artifacts);
+  const signing = new TronSigService(
+    deps.gateways,
+    deps.signers,
+    deps.signing,
+    artifacts,
+    deps.clock,
+  );
+  const multisig = new TronMultisigService(deps.gateways, signing, artifacts, deps.clock);
   const multisigCollaboration = new TronMultisigCollaborationService(
     deps.tronlink,
     deps.gateways,
     multisig,
+    deps.clock,
   );
   const gasfree = new GasFreeService(
     deps.gasfree,
@@ -342,6 +351,7 @@ export function registerTronChainCommands(
     deps.signers,
     deps.signing,
     deps.recipients,
+    deps.clock,
   );
   const sunswapTokens = new SunSwapTokenResolver(deps.tokens, deps.aliases);
   const sunswap = new SunSwapMarketQueryService(
@@ -358,6 +368,7 @@ export function registerTronChainCommands(
     deps.sunswapPermits,
     deps.signers,
     deps.signing,
+    deps.clock,
   );
   const sunpumpMarket = new SunPumpMarketQueryService(deps.sunpumpMarket);
   const sunpumpLaunch = new SunPumpTokenLaunchService(deps.sunpumpLaunch);
@@ -377,12 +388,14 @@ export function registerTronChainCommands(
     deps.sunswapPermits,
     deps.signers,
     deps.signing,
+    deps.clock,
   );
   const sunswapCollectFees = new SunSwapCollectFeesService(
     deps.sunswapLiquidity,
     deps.gateways,
     deps.transactions,
     sunswapTokens,
+    deps.clock,
   );
   const sunswapPositionInfo = new SunSwapPositionInfoService(
     deps.sunswapLiquidity,
@@ -393,16 +406,17 @@ export function registerTronChainCommands(
     deps.gateways,
     deps.transactions,
     sunswapTokens,
+    deps.clock,
   );
   const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
   const stake = new TronStakeService(deps.gateways, deps.transactions);
-  const asset = new TronAssetService(deps.gateways, deps.transactions);
+  const asset = new TronAssetService(deps.gateways, deps.transactions, deps.clock);
   const exchange = new TronExchangeService(deps.gateways, deps.transactions);
   const vote = new TronVoteService(deps.gateways, deps.transactions);
-  const reward = new TronRewardService(deps.gateways, deps.transactions);
-  const chain = new TronChainService(deps.gateways);
+  const reward = new TronRewardService(deps.gateways, deps.transactions, deps.clock);
+  const chain = new TronChainService(deps.gateways, deps.clock);
   const contract = new TronContractService(deps.gateways, deps.transactions);
-  const proposal = new TronProposalService(deps.gateways, deps.transactions);
+  const proposal = new TronProposalService(deps.gateways, deps.transactions, deps.clock);
   const witness = new TronWitnessService(deps.gateways, deps.transactions);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
