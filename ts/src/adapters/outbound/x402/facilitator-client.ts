@@ -1,4 +1,4 @@
-import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import { type DispatchCheck, withErrorDetails } from "../../../application/contracts/deadline.js";
 import { facilitatorUrl } from "./facilitator-url.js";
 import { facilitatorNetwork } from "./facilitator-network.js";
 import { sameAddress } from "../../../domain/family/index.js";
@@ -161,5 +161,15 @@ function refusal(
 function failure(error: unknown, phase: Phase): X402FacilitatorRefusal {
   const classified = sdkPaymentError(error, phase);
   const details = classified.details as Record<string, unknown> | undefined;
-  return refusal(false, details?.reason ?? classified.code, phase, details);
+  const refused = refusal(false, details?.reason ?? classified.code, phase, details);
+  // Only this client's transport sets the hint; a response body cannot supply one.
+  const seconds = details?.retryAfterSeconds;
+  if (typeof seconds !== "number") return refused;
+  return {
+    ...refused,
+    error: withErrorDetails(refused.error, {
+      ...refused.error.details,
+      retryAfterSeconds: seconds,
+    }),
+  };
 }
