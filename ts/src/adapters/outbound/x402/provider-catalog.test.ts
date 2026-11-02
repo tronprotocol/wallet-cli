@@ -260,3 +260,30 @@ describe("provider network resolution", () => {
     }
   });
 });
+
+it("reports a catalog 429 with the rate-limit keys and refuses redirects", async () => {
+  const fetcher = vi.fn(
+    async (_request: Parameters<typeof fetch>[0], _init?: RequestInit) =>
+      new Response("{}", { status: 429, headers: { "retry-after": "12" } }),
+  );
+  await expect(new X402ProviderCatalog(fetcher).show("fixture", NO_CHECK)).rejects.toMatchObject({
+    code: "provider_rate_limited",
+    details: { httpStatus: 429, retryAfterSeconds: 12 },
+  });
+  expect(fetcher.mock.calls[0]![1]).toMatchObject({ redirect: "error" });
+});
+
+it.each([
+  ["a non-object body", () => Response.json([1])],
+  ["a body that is not JSON", () => new Response("{")],
+])("refuses %s as invalid catalog JSON", async (_name, response) => {
+  await expect(
+    new X402ProviderCatalog(async () => response()).show("fixture", NO_CHECK),
+  ).rejects.toMatchObject({ code: "invalid_x402_response" });
+});
+
+it("keeps a generic status as provider_error", async () => {
+  await expect(
+    new X402ProviderCatalog(async () => new Response(null, { status: 503 })).update(NO_CHECK),
+  ).rejects.toMatchObject({ code: "provider_error", message: "x402 catalog returned HTTP 503" });
+});

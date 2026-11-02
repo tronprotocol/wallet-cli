@@ -1,5 +1,5 @@
 import type { DispatchCheck } from "../../../application/contracts/deadline.js";
-import { fetchBounded } from "../http/http-response.js";
+import { requestJson } from "../http/json-service.js";
 import { mkdir, rename, writeFile, readFile, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
@@ -13,7 +13,7 @@ import type {
   ProviderListView,
   ProviderRecord,
 } from "../../../application/ports/provider-catalog.js";
-import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import { TransportError, UsageError } from "../../../domain/errors/index.js";
 
 const CATALOG_URL = "https://x402-catalog.bankofai.io/api/catalog.json";
 
@@ -136,30 +136,28 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
   }
 
   private async readJson(url: string, check: DispatchCheck): Promise<Record<string, unknown>> {
-    let response: Response;
-    try {
-      response = await fetchBounded(
-        this.fetcher,
-        url,
-        { headers: { accept: "application/json" }, redirect: "error" },
+    const invalid = () =>
+      new TransportError("invalid_x402_response", "x402 catalog returned invalid JSON");
+    const { body } = await requestJson(
+      this.fetcher,
+      url,
+      { headers: { accept: "application/json" } },
+      {
+        service: "x402 catalog",
         check,
-      );
-    } catch (error) {
-      if (error instanceof CliError) throw error;
-      throw new TransportError("provider_error", "x402 catalog request failed");
-    }
-    if (response.status === 404)
-      throw new TransportError("provider_not_found", "x402 provider was not found");
-    if (!response.ok) {
-      throw new TransportError("provider_error", `x402 catalog returned HTTP ${response.status}`);
-    }
-    try {
-      const value: unknown = await response.json();
-      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
-      return value as Record<string, unknown>;
-    } catch {
-      throw new TransportError("invalid_x402_response", "x402 catalog returned invalid JSON");
-    }
+        errors: {
+          timeout: () => new TransportError("timeout", "x402 catalog request timed out"),
+          unreachable: () => new TransportError("provider_error", "x402 catalog request failed"),
+          malformed: invalid,
+        },
+        refuse: (response) =>
+          response.status === 404
+            ? new TransportError("provider_not_found", "x402 provider was not found")
+            : new TransportError("provider_error", `x402 catalog returned HTTP ${response.status}`),
+      },
+    );
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw invalid();
+    return body as Record<string, unknown>;
   }
 }
 
