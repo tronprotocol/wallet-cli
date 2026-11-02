@@ -149,6 +149,42 @@ describe("GasFreeClient", () => {
     await expect(client.listTokens(NETWORK, NO_CHECK)).rejects.not.toThrow(/test-secret|test-key/);
   });
 
+  it.each([
+    [() => response({}, 403), "gasfree_auth_failed", { status: 403 }],
+    [() => response({}, 404), "not_found", { status: 404 }],
+    [() => response({}, 400), "gasfree_rejected", { status: 400 }],
+    [() => response({}, 503), "provider_error", undefined],
+    [() => new Response("{nope"), "provider_error", undefined],
+    [() => new Response("x".repeat(1024 * 1024 + 1)), "provider_error", undefined],
+    [
+      () => new Response("", { status: 429, headers: { "retry-after": "9" } }),
+      "provider_rate_limited",
+      { httpStatus: 429, retryAfterSeconds: 9 },
+    ],
+    [() => new Response("", { status: 429 }), "provider_rate_limited", { httpStatus: 429 }],
+  ])("maps a service answer to its error (%#)", async (answer, code, details) => {
+    const client = new GasFreeClient(
+      CONFIG,
+      processBroadcastGuard,
+      vi.fn(async () => answer()) as typeof fetch,
+    );
+    const error = (await client
+      .listTokens(NETWORK, NO_CHECK)
+      .catch((caught: unknown) => caught)) as {
+      code: string;
+      details?: unknown;
+    };
+    expect(error.code).toBe(code);
+    expect(error.details).toEqual(details);
+  });
+
+  it("refuses redirects", async () => {
+    const fetcher = vi.fn(async () => response({}, 401));
+    const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);
+    await client.listTokens(NETWORK, NO_CHECK).catch(() => {});
+    expect(fetcher.mock.calls[0]).toMatchObject([expect.anything(), { redirect: "error" }]);
+  });
+
   it("rejects unsupported networks before sending credentials", async () => {
     const fetcher = vi.fn();
     const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);

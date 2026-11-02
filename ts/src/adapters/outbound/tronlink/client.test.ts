@@ -345,6 +345,36 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     });
   });
 
+  it.each([
+    [() => response({}, 404), "not_found", undefined],
+    [() => response({}, 500), "provider_error", { status: 500 }],
+    [() => new Response("{nope"), "provider_error", undefined],
+    [() => new Response("x".repeat(1024 * 1024 + 1)), "provider_error", undefined],
+    [
+      () => new Response("", { status: 429, headers: { "retry-after": "9" } }),
+      "provider_rate_limited",
+      { httpStatus: 429, retryAfterSeconds: 9 },
+    ],
+    [() => new Response("", { status: 429 }), "provider_rate_limited", { httpStatus: 429 }],
+  ])("maps a service answer to its error (%#)", async (answer, code, details) => {
+    const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
+      answer(),
+    );
+    const client = new TronLinkClient(
+      CONFIG,
+      processBroadcastGuard,
+      fetchMock as typeof fetch,
+      () => NOW,
+      () => UUID,
+    );
+    const error = (await client
+      .list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 }, NO_CHECK)
+      .catch((caught: unknown) => caught)) as { code: string; details?: unknown };
+    expect(error.code).toBe(code);
+    expect(error.details).toEqual(details);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "error" });
+  });
+
   it("bounds the service message and drops non-string or control-character noise", async () => {
     const noisy = `x\u0000y\u001b[31m${"z".repeat(400)}`;
     const client = (body: unknown) =>

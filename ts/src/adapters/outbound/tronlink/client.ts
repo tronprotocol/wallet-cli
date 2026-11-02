@@ -28,6 +28,7 @@ import {
   type TronLinkCredentials,
 } from "./auth.js";
 import { normalizeTxHash } from "../../../domain/family/index.js";
+import { type JsonServiceErrors, requestJson } from "../http/json-service.js";
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_REQUEST_BYTES = 1024 * 1024;
@@ -223,56 +224,41 @@ export class TronLinkClient implements TronLinkCollaborationPort {
       throw new UsageError("invalid_value", "TronLink request body exceeds the 1 MiB limit");
     }
 
-    const signal = check.signal;
-    check.assertDispatchable();
-    try {
-      const response = await this.fetchImpl(url, {
+    const { body: root } = await requestJson(
+      this.fetchImpl,
+      url,
+      {
         method: body === undefined ? "GET" : "POST",
         headers: body === undefined ? undefined : { "content-type": "application/json" },
         body: encodedBody,
-        signal,
-        redirect: "error",
         referrerPolicy: "no-referrer",
         cache: "no-store",
-      });
-      if (!response.ok) throw httpError(response);
-      const contentLength = response.headers.get("content-length");
-      if (
-        contentLength &&
-        /^\d+$/.test(contentLength) &&
-        Number(contentLength) > MAX_RESPONSE_BYTES
-      ) {
-        throw new ChainError("provider_error", "TronLink response exceeds the 1 MiB limit");
-      }
-      const text = await readBoundedText(response, MAX_RESPONSE_BYTES);
-      let root: unknown;
-      try {
-        root = normalizeLossless(parseLosslessJson(text));
-      } catch {
-        throw new ChainError(
-          "provider_error",
-          "TronLink collaboration service returned malformed JSON",
-        );
-      }
-      return unwrapBusinessResponse(root);
-    } catch (error) {
-      if (error instanceof CliError) throw error;
-      if (signal.aborted) {
-        throw new ChainError("timeout", "TronLink request did not finish in time");
-      }
-      throw new TransportError("provider_error", "TronLink collaboration service request failed");
-    }
+      },
+      {
+        service: "TronLink collaboration service",
+        check,
+        maxBytes: MAX_RESPONSE_BYTES,
+        parse: (text) => normalizeLossless(parseLosslessJson(text)),
+        refuse: httpError,
+        errors: TRONLINK_ERRORS,
+      },
+    );
+    return unwrapBusinessResponse(root);
   }
 }
+
+const TRONLINK_ERRORS: JsonServiceErrors = {
+  timeout: () => new ChainError("timeout", "TronLink request did not finish in time"),
+  unreachable: () =>
+    new TransportError("provider_error", "TronLink collaboration service request failed"),
+  tooLarge: () => new ChainError("provider_error", "TronLink response exceeds the 1 MiB limit"),
+  malformed: () =>
+    new ChainError("provider_error", "TronLink collaboration service returned malformed JSON"),
+};
 
 function httpError(response: Response): CliError {
   if (response.status === 404) {
     return new ChainError("not_found", "TronLink collaboration resource was not found");
-  }
-  if (response.status === 429) {
-    return new ChainError("provider_error", "TronLink collaboration service rate limit exceeded", {
-      status: 429,
-    });
   }
   return new TransportError(
     "provider_error",
@@ -313,27 +299,6 @@ function tronLinkEndpoint(network: NetworkDescriptor): string {
     );
   }
   return parsed.toString().replace(/\/+$/, "");
-}
-
-async function readBoundedText(response: Response, maximum: number): Promise<string> {
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let size = 0;
-  let text = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > maximum)
-        throw new ChainError("provider_error", "TronLink response exceeds the 1 MiB limit");
-      text += decoder.decode(value, { stream: true });
-    }
-    return text + decoder.decode();
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 function unwrapBusinessResponse(value: unknown): unknown {

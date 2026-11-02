@@ -22,6 +22,7 @@ import type {
 import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
 import { normalizeTxHash } from "../../../domain/family/index.js";
+import { type JsonServiceErrors, requestJson } from "../http/json-service.js";
 
 const MAX_BYTES = 1024 * 1024;
 const ADDRESS = new TronAddress();
@@ -175,10 +176,10 @@ export class GasFreeClient implements GasFreeProvider {
     if (encoded !== undefined && Buffer.byteLength(encoded, "utf8") > MAX_BYTES) {
       throw new UsageError("invalid_value", "GasFree request exceeds the 1 MiB limit");
     }
-    const signal = check.signal;
-    check.assertDispatchable();
-    try {
-      const response = await this.fetchImpl(`${metadata.baseUrl}${path}`, {
+    const { body: decoded } = await requestJson(
+      this.fetchImpl,
+      `${metadata.baseUrl}${path}`,
+      {
         method,
         headers: {
           Timestamp: timestamp,
@@ -187,31 +188,19 @@ export class GasFreeClient implements GasFreeProvider {
           ...(encoded === undefined ? {} : { "content-type": "application/json" }),
         },
         body: encoded,
-        signal,
-        redirect: "error",
         referrerPolicy: "no-referrer",
         cache: "no-store",
-      });
-      if (!response.ok) throw httpError(response);
-      const contentLength = response.headers.get("content-length");
-      if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_BYTES) {
-        throw new ChainError("provider_error", "GasFree response exceeds the 1 MiB limit");
-      }
-      const text = await readBoundedText(response, MAX_BYTES);
-      let decoded: unknown;
-      try {
-        decoded = normalizeLossless(parseLosslessJson(text));
-      } catch {
-        throw new ChainError("provider_error", "GasFree service returned malformed JSON");
-      }
-      return unwrap(decoded);
-    } catch (error) {
-      if (error instanceof CliError) throw error;
-      if (signal.aborted) {
-        throw new ChainError("timeout", "GasFree request did not finish in time");
-      }
-      throw new TransportError("provider_error", "GasFree service request failed");
-    }
+      },
+      {
+        service: "GasFree service",
+        check,
+        maxBytes: MAX_BYTES,
+        parse: (text) => normalizeLossless(parseLosslessJson(text)),
+        refuse: httpError,
+        errors: GASFREE_ERRORS,
+      },
+    );
+    return unwrap(decoded);
   }
 
   #credentials(): { apiKey: string; apiSecret: string } {
@@ -256,6 +245,13 @@ function endpoint(network: NetworkDescriptor): { baseUrl: string; apiPrefix: str
   return { baseUrl: url.origin, apiPrefix: value.apiPrefix };
 }
 
+const GASFREE_ERRORS: JsonServiceErrors = {
+  timeout: () => new ChainError("timeout", "GasFree request did not finish in time"),
+  unreachable: () => new TransportError("provider_error", "GasFree service request failed"),
+  tooLarge: () => new ChainError("provider_error", "GasFree response exceeds the 1 MiB limit"),
+  malformed: () => new ChainError("provider_error", "GasFree service returned malformed JSON"),
+};
+
 function httpError(response: Response): CliError {
   if (response.status === 401 || response.status === 403) {
     return new ChainError("gasfree_auth_failed", "GasFree credentials were rejected", {
@@ -265,13 +261,6 @@ function httpError(response: Response): CliError {
   if (response.status === 404) {
     return new ChainError("not_found", "GasFree resource was not found", {
       status: 404,
-    });
-  }
-  if (response.status === 429) {
-    const retryAfter = response.headers.get("retry-after");
-    return new ChainError("provider_rate_limited", "GasFree service rate limit exceeded", {
-      status: 429,
-      ...(retryAfter && /^[\x20-\x7e]{1,128}$/.test(retryAfter) ? { retryAfter } : {}),
     });
   }
   if (response.status >= 500) {
@@ -436,28 +425,6 @@ function array(value: unknown, field: string): unknown[] {
 
 function invalid(field: string, expected: string): ChainError {
   return new ChainError("provider_error", `GasFree ${field} must be ${expected}`);
-}
-
-async function readBoundedText(response: Response, maximum: number): Promise<string> {
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let size = 0;
-  let output = "";
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > maximum) {
-        throw new ChainError("provider_error", "GasFree response exceeds the 1 MiB limit");
-      }
-      output += decoder.decode(value, { stream: true });
-    }
-    return output + decoder.decode();
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 function normalizeLossless(value: unknown): unknown {
