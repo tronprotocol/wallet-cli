@@ -9,15 +9,19 @@ export interface RateLimitDetails {
   readonly retryAfterSeconds?: number;
 }
 
+// IMF-fixdate, such as "Sun, 06 Nov 1994 08:49:37 GMT".
+const HTTP_DATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/;
+
 // Retry-After is unsigned delta-seconds or an HTTP-date; a past date gives zero.
 export function retryAfterSeconds(header: string | null): number | undefined {
   if (header === null) return undefined;
   const value = header.trim();
-  // Reject signed integers before Date.parse can read them as dates.
-  if (/^[+-]?\d+$/.test(value)) {
+  if (/^\d+$/.test(value)) {
     const seconds = Number(value);
-    return /^\d+$/.test(value) && Number.isSafeInteger(seconds) ? seconds : undefined;
+    return Number.isSafeInteger(seconds) ? seconds : undefined;
   }
+  // Date.parse alone accepts fragments such as "1.5" or "Wed, 21 Oct".
+  if (!HTTP_DATE.test(value)) return undefined;
   const date = Date.parse(value);
   if (Number.isNaN(date)) return undefined;
   return Math.max(0, Math.round((date - Date.now()) / 1000));

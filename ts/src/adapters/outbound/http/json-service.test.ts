@@ -46,9 +46,12 @@ describe("retryAfterSeconds", () => {
     expect(retryAfterSeconds(new Date(Date.now() - 60_000).toUTCString())).toBe(0);
   });
 
-  it.each([null, "soon", "-5", "+5", "", "99999999999999999999"])("ignores %j", (header) => {
-    expect(retryAfterSeconds(header)).toBeUndefined();
-  });
+  it.each([null, "soon", "-5", "+5", "", "99999999999999999999", "1.5", "Wed, 21 Oct"])(
+    "ignores %j",
+    (header) => {
+      expect(retryAfterSeconds(header)).toBeUndefined();
+    },
+  );
 });
 
 it("carries exactly the status and the Retry-After seconds", () => {
