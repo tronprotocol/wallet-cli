@@ -12,6 +12,7 @@ export type FollowUp =
   | "keystore-backup"
   | "ledger-import"
   | "proposal-list"
+  | "sunpump-token-search"
   | "sunswap-pool-list-v4"
   | "sunswap-position-list"
   | "sunswap-swap"

@@ -10,7 +10,13 @@ import type {
   SunPumpTokenLaunchRequest,
 } from "../../../application/ports/sunpump/token-launch.js";
 import type { SunPumpTokenRecord } from "../../../application/ports/sunpump/market-data.js";
-import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  CliError,
+  errorMessage,
+  followUp,
+  UsageError,
+} from "../../../domain/errors/index.js";
 import { isTokenRow, mapToken } from "./market-api.mapper.js";
 import { rawTokenSchema, type RawToken } from "./market-api.schema.js";
 import { parseSunPumpShape, sunpumpRequest, type SunPumpApiDeps } from "./api-transport.js";
@@ -89,7 +95,7 @@ function outcomeUnknown(
 ): ChainError {
   return new ChainError(
     "launch_outcome_unknown",
-    `${reason}; run \`sunpump token-search ${JSON.stringify(request.symbol)}\` before launching again`,
+    errorMessage`${reason}; run \`${followUp("sunpump-token-search", request.symbol)}\` before launching again`,
     { name: request.name, symbol: request.symbol, ...extra, outcome: "unknown" },
   );
 }

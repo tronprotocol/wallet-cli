@@ -9,7 +9,8 @@ import {
 import { describe, expect, it } from "vitest";
 import { SunPumpLaunchApi } from "./launch-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { CliError } from "../../../domain/errors/index.js";
+import { CliError, followUp } from "../../../domain/errors/index.js";
+import { cliMessage } from "../../inbound/cli/output/errors.js";
 import { expiredCheck, expiringCheck } from "../http/__test-support__/dispatch.js";
 import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
 
@@ -240,7 +241,10 @@ describe("failures", () => {
       details: { name: "T", symbol: "T", outcome: "unknown" },
     });
     expect((error as CliError).message).toMatch(/accepted the launch and returned no token/);
-    expect((error as CliError).message).toMatch(/sunpump token-search "T"/);
+    expect((error as CliError).parts).toContainEqual(followUp("sunpump-token-search", "T"));
+    expect(cliMessage((error as CliError).userMessage).textMessage).toBe(
+      'SunPump accepted the launch and returned no token; run `sunpump token-search "T"` before launching again',
+    );
   });
 
   it("reports a timeout as an unknown outcome, not as a retryable timeout", async () => {
@@ -265,7 +269,9 @@ describe("failures", () => {
       details: { name: "WqaR111008", symbol: "WQ111008" },
     });
     expect((error as CliError).message).toMatch(/did not answer in time/);
-    expect((error as CliError).message).toMatch(/sunpump token-search "WQ111008"/);
+    expect(cliMessage((error as CliError).userMessage).message).toMatch(
+      /sunpump token-search "WQ111008"/,
+    );
   });
 
   it("refuses an expired deadline before sending, with no unknown outcome", async () => {
