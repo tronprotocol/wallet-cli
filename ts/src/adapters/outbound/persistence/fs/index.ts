@@ -44,6 +44,15 @@ function isStaleLock(lock: string, staleMs: number): boolean {
   return Date.now() - st.mtimeMs > staleMs;
 }
 
+function lockHolder(lock: string): string {
+  try {
+    const pid = parseInt(readFileSync(lock, "utf8").trim(), 10);
+    return Number.isInteger(pid) && pid > 0 ? `, held by process ${pid}` : "";
+  } catch {
+    return "";
+  }
+}
+
 // Windows cannot open directory handles for fsync.
 const DIR_FSYNC_SUPPORTED = process.platform !== "win32";
 
@@ -353,7 +362,10 @@ export class AtomicFileStore {
         }
         if (Date.now() > waitUntil) {
           if (remainingMs < lockWaitMs) throw new DeadlineExpiredError();
-          throw new ExecutionError("execution_error", `timed out acquiring lock ${lock}`);
+          throw new ExecutionError(
+            "execution_error",
+            `timed out acquiring lock ${lock}${lockHolder(lock)}; if no wallet-cli command is running, delete ${lock} and retry`,
+          );
         }
         sleepMs(25);
       }

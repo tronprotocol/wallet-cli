@@ -152,6 +152,8 @@ path resolution, file layout, permissions, and the no-overwrite rule. **review**
   leaves the previous state; cleanup after it is reported truthfully. Write ordering alone is not rollback: full
   rollback needs a recovery design with fault tests.
 - Inbound reaches stored state only through application use cases, never through a repository port.
+- A lock is taken over only when the process that holds it is dead, never because of its age. A lock that cannot
+  be acquired reports its path, so the user can remove it when no command is running.
 
 **test**, **review**.
 

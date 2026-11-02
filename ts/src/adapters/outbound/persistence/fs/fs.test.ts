@@ -346,7 +346,7 @@ describe("AtomicFileStore.withLock under the command deadline", () => {
     const path = held();
     const store = new AtomicFileStore(new CommandDeadline(0));
     expect(() => store.withLock(path, () => {}, { timeoutMs: 50 })).toThrow(
-      /timed out acquiring lock/,
+      `timed out acquiring lock ${path}.lock, held by process ${process.pid}; if no wallet-cli command is running, delete ${path}.lock and retry`,
     );
   });
 
