@@ -65,7 +65,7 @@ it.each([
 const relay = (fetcher: typeof fetch, check: DispatchCheck = NO_CHECK) =>
   gasfreeRelayClient(network, "https://relay.example", {}, check, fetcher)!;
 
-it("classifies HTTP 429 as provider_rate_limited with a numeric Retry-After only", async () => {
+it("classifies HTTP 429 as provider_rate_limited with a readable Retry-After only", async () => {
   const fetcher = vi.fn(
     async () => new Response("SECRET", { status: 429, headers: { "retry-after": "7" } }),
   );

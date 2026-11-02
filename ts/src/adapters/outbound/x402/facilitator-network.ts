@@ -5,6 +5,7 @@ import { sameX402Network } from "../../../domain/x402/network-id.js";
 import { X402_FAMILIES } from "../../../domain/x402/families.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
+import { rateLimitDetails } from "../http/json-service.js";
 import { sdkPaymentError } from "./payment-error.js";
 
 // Use the facilitator's own spelling of a network id where peers spell it differently.
@@ -36,7 +37,13 @@ export async function facilitatorNetwork(
     throw new TransportError(
       response.status === 429 ? "provider_rate_limited" : "provider_error",
       "Could not determine facilitator support; no payment was authorized",
-      { httpStatus: response.status, phase: "challenge", retryPayment: false },
+      {
+        ...(response.status === 429
+          ? rateLimitDetails(response.headers)
+          : { httpStatus: response.status }),
+        phase: "challenge",
+        retryPayment: false,
+      },
     );
   let data: unknown;
   try {

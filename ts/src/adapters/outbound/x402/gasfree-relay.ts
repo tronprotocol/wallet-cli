@@ -13,7 +13,7 @@ import type {
 } from "../../../domain/types/index.js";
 import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
-import { safeRetryAfter } from "./payment-error.js";
+import { rateLimitDetails } from "../http/json-service.js";
 import { X402_FAMILIES } from "../../../domain/x402/families.js";
 
 // Reads authorization data; the endpoint's facilitator submits payment.
@@ -157,8 +157,7 @@ class CheckedRelay extends GasFreeAPIClient {
           ? `${this.label} is rate limited; wait before retrying`
           : `${this.label} returned HTTP ${response.status}; no fallback was attempted`,
         {
-          httpStatus: response.status,
-          ...(limited ? safeRetryAfter(response.headers.get("retry-after")) : {}),
+          ...(limited ? rateLimitDetails(response.headers) : { httpStatus: response.status }),
           retryPayment: false,
         },
       );

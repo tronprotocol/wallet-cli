@@ -6,6 +6,7 @@ import { tokensForScheme } from "./tokens.js";
 import { providerPaymentError, sdkPaymentError } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { fetchBounded } from "../http/http-response.js";
+import { rateLimitDetails } from "../http/json-service.js";
 import {
   decodePaymentSignatureHeader,
   encodePaymentRequiredHeader,
@@ -140,9 +141,9 @@ export class X402FacilitatorClient implements X402FacilitatorPort {
       throw new TransportError(
         response.status === 429 ? "provider_rate_limited" : "provider_error",
         `facilitator returned HTTP ${response.status}`,
-        {
-          httpStatus: response.status,
-        },
+        response.status === 429
+          ? rateLimitDetails(response.headers)
+          : { httpStatus: response.status },
       );
     return (await response.json()) as Record<string, unknown>;
   }

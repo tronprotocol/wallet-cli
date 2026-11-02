@@ -10,6 +10,7 @@ import {
 } from "./payment-error.js";
 import { successfulSettlement } from "./settlement.js";
 import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
+import { rateLimitDetails } from "../http/json-service.js";
 import { abortReason, untilAborted, withDispatchCheck } from "../http/dispatch-context.js";
 import { evmRpcCapabilities } from "./evm-rpc.js";
 import {
@@ -303,7 +304,9 @@ export class X402PaymentClient implements X402PaymentPort {
             ? "x402 provider is rate limited; wait before retrying and reconcile payment status"
             : `x402 endpoint returned HTTP ${response.status}`,
           {
-            httpStatus: response.status,
+            ...(response.status === 429
+              ? rateLimitDetails(response.headers)
+              : { httpStatus: response.status }),
             settled: false,
             delivered: false,
             retryPayment: false,

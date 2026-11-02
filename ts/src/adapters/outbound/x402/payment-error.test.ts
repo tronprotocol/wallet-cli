@@ -110,7 +110,7 @@ it.each(["challenge", "create_payment", "payment_request", "verify", "settle"] a
   },
 );
 
-it("retains only numeric Retry-After hints", () => {
+it("retains only readable Retry-After hints", () => {
   const result = sdkPaymentError(
     { response: { status: 429, headers: { "retry-after": "30" } } },
     "settle",

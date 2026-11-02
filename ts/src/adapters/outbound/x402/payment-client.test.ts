@@ -678,6 +678,20 @@ it.each([
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(resolve).not.toHaveBeenCalled();
 });
+it("carries Retry-After seconds on an endpoint rate limit", async () => {
+  const fetcher = vi.fn(async () =>
+    Response.json({}, { status: 429, headers: { "retry-after": "8" } }),
+  );
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    { resolve: vi.fn() } as unknown as SignerResolver,
+    {} as never,
+    {} as never,
+  );
+  await expect(
+    client.pay(scope, net, { url: "https://example.test/a", method: "GET", headers: [] }),
+  ).rejects.toMatchObject({ code: "provider_rate_limited", details: { retryAfterSeconds: 8 } });
+});
 it.each(["tron:3448148188", "tron:0xcd8690dc"])(
   "matches incoming %s without changing chain identity",
   async (network) => {

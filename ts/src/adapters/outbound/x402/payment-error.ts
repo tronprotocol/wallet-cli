@@ -6,6 +6,7 @@ import {
 } from "../../../domain/errors/index.js";
 import { addressShape, CHAIN_FAMILIES, isTxHash } from "../../../domain/family/index.js";
 import { withErrorDetails } from "../../../application/contracts/deadline.js";
+import { retryAfterSeconds } from "../http/json-service.js";
 
 // Only emit our own messages. SDK/provider messages can contain credentials and URLs.
 const transportCodes = ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"] as const;
@@ -134,7 +135,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
       {
         ...(phase ? { phase } : {}),
         httpStatus,
-        ...safeRetryAfter(record?.response?.headers?.["retry-after"]),
+        ...(httpStatus === 429 ? sdkRetryAfter(record?.response?.headers?.["retry-after"]) : {}),
         reason: "http_error",
         paymentStatus: "unknown",
         outcome: "unknown",
@@ -240,14 +241,9 @@ function candidateEvidence(value?: Record<string, unknown>) {
   };
 }
 
-// Accept integer seconds only; ignore HTTP dates.
-export function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
-  if (
-    (typeof value === "string" && /^\d{1,9}$/.test(value)) ||
-    (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 999999999)
-  )
-    return { retryAfterSeconds: Number(value) };
-  return {};
+function sdkRetryAfter(value: unknown): { retryAfterSeconds?: number } {
+  const seconds = retryAfterSeconds(typeof value === "string" ? value : null);
+  return seconds === undefined ? {} : { retryAfterSeconds: seconds };
 }
 
 // The paid request was sent: unless the error carries a known payment status, the payment may

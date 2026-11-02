@@ -51,6 +51,24 @@ it.each([
   ).rejects.toMatchObject({ code });
   expect(fetcher).toHaveBeenCalledOnce();
 });
+it("carries Retry-After seconds on a facilitator rate limit", async () => {
+  const fetcher = vi.fn(
+    async () => new Response(null, { status: 429, headers: { "retry-after": "5" } }),
+  );
+  const error = await facilitatorNetwork(
+    network,
+    "exact",
+    "https://facilitator.example",
+    fetcher,
+    NO_CHECK,
+  ).catch((caught: unknown) => caught);
+  expect((error as { details?: unknown }).details).toEqual({
+    httpStatus: 429,
+    retryAfterSeconds: 5,
+    phase: "challenge",
+    retryPayment: false,
+  });
+});
 it("leaves EVM representation unchanged without a negotiation request", async () => {
   const fetcher = vi.fn();
   expect(
