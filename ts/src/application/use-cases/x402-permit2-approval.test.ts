@@ -3,7 +3,7 @@ import { X402Permit2Approvals } from "./x402-permit2-approval.js";
 import type { TxPipeline, TronTxPipelineParams } from "../services/pipeline/index.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
 import type { TxOutcome } from "../../domain/types/index.js";
-import { TransportError } from "../../domain/errors/index.js";
+import { ExecutionError, TransportError } from "../../domain/errors/index.js";
 import { CommandDeadline } from "../services/command-deadline.js";
 
 const PAYER = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
@@ -119,6 +119,18 @@ describe("X402Permit2Approvals", () => {
     expect(h.onConfirmed.mock.invocationCallOrder[0]).toBeLessThan(
       h.readAllowance.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("requires the approval's confirmation and keeps the error that stopped the wait", async () => {
+    const stopped = new ExecutionError("not_found", "no receipts", {
+      txId: TX_ID,
+      outcome: "unknown",
+    });
+    const h = harness(stopped);
+
+    await expect(h.approver.approve(h.request)).rejects.toBe(stopped);
+    expect(h.run.mock.calls[0]![0].confirmationRequired).toBe(true);
+    expect(h.onConfirmed).not.toHaveBeenCalled();
   });
 
   it("reports an unconfirmed approval as a timeout with its transaction id", async () => {

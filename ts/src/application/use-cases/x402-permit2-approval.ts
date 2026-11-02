@@ -71,6 +71,7 @@ export class X402Permit2Approvals {
       ...tronTransactionHooks(gateway),
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
       confirm: tronConfirmation(gateway, approvalScope),
+      confirmationRequired: true,
       build: (from) =>
         gateway.triggerSmartContract(from, request.token, APPROVE, parameters, {
           callValue: sunAmount("0"),
@@ -89,7 +90,8 @@ export class X402Permit2Approvals {
         evidence,
       );
     }
-    // A submitted approval may still confirm; the payment cannot be verified without it.
+    // Only the deadline leaves an approval submitted; it may still confirm, but the payment cannot be
+    // verified without it.
     if (outcome.stage !== "confirmed" || txId === undefined) {
       throw new ChainError(
         "timeout",

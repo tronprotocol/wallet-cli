@@ -1,4 +1,9 @@
-import { classifyError, ExecutionError, UsageError } from "../../domain/errors/index.js";
+import {
+  classifyError,
+  type CliError,
+  ExecutionError,
+  UsageError,
+} from "../../domain/errors/index.js";
 import { DeadlineExpiredError } from "../contracts/deadline.js";
 
 // Prefer the signed transaction’s ID; warn on mismatch without denying a completed broadcast.
@@ -39,11 +44,17 @@ export async function submitWithTxId<T>(
     if (!["timeout", "rpc_error", "invalid_node_response"].includes(classified.code)) {
       throw error;
     }
-    const ErrorType = classified.kind === "usage" ? UsageError : ExecutionError;
-    throw new ErrorType(classified.code, classified, {
-      ...classified.details,
-      ...(txId ? { txId } : {}),
-      outcome: "unknown",
-    });
+    throw outcomeUnknownError(classified, txId);
   }
+}
+
+// The same code and retry class, marked as a write whose outcome is unknown.
+export function outcomeUnknownError(error: unknown, txId: string | undefined): CliError {
+  const classified = classifyError(error);
+  const ErrorType = classified.kind === "usage" ? UsageError : ExecutionError;
+  return new ErrorType(classified.code, classified, {
+    ...classified.details,
+    ...(txId ? { txId } : {}),
+    outcome: "unknown",
+  });
 }

@@ -217,6 +217,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
             mode,
             estimable: true,
             feeLimit,
+            confirmationRequired: true,
           },
         );
         const txId = outcomeTxId(outcome);
@@ -228,7 +229,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
             `the approval for ${approval.symbol} failed on chain${result}; the main transaction was not sent`,
           );
         }
-        // A submitted approval may still time out; dependent calls require confirmation.
+        // Only the deadline leaves an approval submitted; dependent calls require confirmation.
         if (mode.mode === "broadcast" && outcome.stage !== "confirmed") {
           throw new ChainError(
             "timeout",
@@ -247,7 +248,12 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     scope: TransactionScope,
     network: NetworkDescriptor,
     payload: ContractCallPayload,
-    options: { mode: ResolvedTransactionMode; estimable: boolean; feeLimit?: Sun },
+    options: {
+      mode: ResolvedTransactionMode;
+      estimable: boolean;
+      feeLimit?: Sun;
+      confirmationRequired?: boolean;
+    },
   ): Promise<TxOutcome> {
     const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     return this.pipeline.runTron({
@@ -260,6 +266,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       // Check signer membership before signing; enforce the combined threshold before broadcast.
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
       confirm: tronConfirmation(gateway, scope),
+      confirmationRequired: options.confirmationRequired === true,
       build: async (from) =>
         gateway.triggerSmartContract(
           from,

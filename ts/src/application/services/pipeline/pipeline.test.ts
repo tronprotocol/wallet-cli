@@ -692,4 +692,21 @@ describe("TxPipeline under the command deadline", () => {
     expect(out).toMatchObject({ stage: "submitted", txId: "tx" });
     expect(warn).toHaveBeenCalledWith(expect.objectContaining({ code: "not_found" }));
   });
+
+  it("throws that error with the txId when the caller requires confirmation", async () => {
+    const run = pipeline().runTron(
+      params(software, {
+        mode: "broadcast",
+        ctx: scope({ wait: true }),
+        confirmationRequired: true,
+        confirm: async () => {
+          throw new ChainError("not_found", "gone");
+        },
+      }),
+    );
+    await expect(run).rejects.toMatchObject({
+      code: "not_found",
+      details: { txId: "tx", outcome: "unknown" },
+    });
+  });
 });

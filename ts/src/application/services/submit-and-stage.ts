@@ -7,7 +7,7 @@ import type {
 import { classifyError, errorMessage } from "../../domain/errors/index.js";
 import type { DispatchCheck } from "../contracts/deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
-import { authoritativeTxId, submitWithTxId } from "./broadcast-identity.js";
+import { authoritativeTxId, outcomeUnknownError, submitWithTxId } from "./broadcast-identity.js";
 import { assertSubmitAdmitted, endedByDeadline, submitDispatchCheck } from "./command-deadline.js";
 import { waitsForConfirmation } from "./transaction-mode.js";
 
@@ -15,12 +15,14 @@ export type BroadcastOutcome = Extract<TxOutcome, { stage: BroadcastStage }>;
 
 // Submits a signed transaction and applies the wait policy. `local` is the id derived from the signed
 // transaction; once submitted, a confirmation failure still returns the submitted outcome, and a
-// failure other than the deadline is reported with its code.
+// failure other than the deadline is reported with its code. With `confirmationRequired` that failure
+// is thrown instead, as an outcome-unknown error carrying the txId.
 export async function submitAndStage(
   scope: Pick<TransactionScope, "deadline" | "wait" | "warn">,
   local: string | undefined,
   submit: (check: DispatchCheck) => Promise<BroadcastResult>,
   confirm: (txId: string) => Promise<TxConfirmation | undefined>,
+  options: { confirmationRequired?: boolean } = {},
 ): Promise<BroadcastOutcome> {
   assertSubmitAdmitted(scope.deadline);
   const result = await submitWithTxId(local, () => submit(submitDispatchCheck(scope.deadline)));
@@ -37,6 +39,7 @@ export async function submitAndStage(
     confirmed = await confirm(txId);
   } catch (error) {
     if (!endedByDeadline(error, scope.deadline)) {
+      if (options.confirmationRequired) throw outcomeUnknownError(error, txId);
       const cause = classifyError(error);
       scope.warn({
         code: cause.code,

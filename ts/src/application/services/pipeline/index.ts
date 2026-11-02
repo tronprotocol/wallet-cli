@@ -38,6 +38,8 @@ interface TxPipelineRun<T extends UnsignedTx> {
   artifact: (tx: T | SignedTxOf<T>) => string;
   // Returns undefined on timeout; errors preserve the submitted outcome.
   confirm: (txId: string, signed: SignedTxOf<T>) => Promise<TxConfirmation | undefined>;
+  // For a step that later steps depend on: a wait that stops on an error throws it.
+  confirmationRequired?: boolean;
 }
 
 export interface TronLifecycleSteps {
@@ -200,6 +202,7 @@ export class TxPipeline {
       txIdOf(signed),
       (check) => p.broadcaster.broadcast(signed, check),
       (txId) => p.confirm(txId, signed),
+      { confirmationRequired: p.confirmationRequired === true },
     );
   }
 }

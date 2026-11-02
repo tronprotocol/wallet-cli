@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { LiquidityTransactions } from "./liquidity-transactions.js";
-import { ChainError, errorMessage } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, ExecutionError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { AccountRef, NetworkDescriptor, TxOutcome } from "../../../domain/types/index.js";
 import type { TronTxPipelineParams } from "../../services/pipeline/index.js";
@@ -152,6 +152,26 @@ describe("approval confirmation before the main transaction", () => {
     });
     expect(h.port.allowance).toHaveBeenCalledTimes(1);
     expect(h.run).toHaveBeenCalledTimes(2);
+    expect(main).not.toHaveBeenCalled();
+  });
+
+  it("requires approval confirmations and keeps the error that stopped a wait", async () => {
+    const h = harness();
+    const stopped = new ExecutionError("not_found", "no receipts", {
+      txId: "approval-2",
+      outcome: "unknown",
+    });
+    h.run
+      .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
+      .mockRejectedValueOnce(stopped);
+    const main = vi.fn();
+    await expect(
+      h.tx.withApprovals(scope, network, [approval, approval], "owner", mode, undefined, main),
+    ).rejects.toMatchObject({
+      code: "not_found",
+      details: { txId: "approval-2", outcome: "unknown", approvalTxIds: ["approval-1"] },
+    });
+    expect(h.run.mock.calls.map(([p]) => p.confirmationRequired)).toEqual([true, true]);
     expect(main).not.toHaveBeenCalled();
   });
 

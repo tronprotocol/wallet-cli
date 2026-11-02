@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { ChainError, ExecutionError } from "../../domain/errors/index.js";
+import { DeadlineExpiredError } from "../contracts/deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import { CommandDeadline } from "./command-deadline.js";
 import { submitAndStage } from "./submit-and-stage.js";
@@ -49,5 +51,51 @@ describe("submitAndStage", () => {
     expect(warn).toHaveBeenCalledWith(
       "the broadcast returned no txid; returning submitted (unconfirmed)",
     );
+  });
+});
+
+describe("submitAndStage with a required confirmation", () => {
+  it("throws the error that stopped the wait, as an outcome-unknown submit error", async () => {
+    const { s, warn } = scope(true);
+    const stop = new ChainError("not_found", "no receipts here", { nodeCode: "x" });
+    const error = await submitAndStage(
+      s,
+      "tx1",
+      async () => ({ txId: "tx1" }),
+      async () => {
+        throw stop;
+      },
+      { confirmationRequired: true },
+    ).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ExecutionError);
+    expect(error).toMatchObject({
+      code: "not_found",
+      message: "no receipts here",
+      details: { nodeCode: "x", txId: "tx1", outcome: "unknown" },
+    });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("still returns submitted when the deadline ends the wait", async () => {
+    const clock = { now: () => 0 };
+    const deadline = new CommandDeadline(10_000, 0, clock);
+    deadline.dispose();
+    const warn = vi.fn();
+    const out = await submitAndStage(
+      { deadline, wait: true, warn },
+      "tx1",
+      async () => {
+        clock.now = () => 10_000;
+        return { txId: "tx1" };
+      },
+      async () => {
+        throw new DeadlineExpiredError();
+      },
+      { confirmationRequired: true },
+    );
+
+    expect(out).toMatchObject({ stage: "submitted", txId: "tx1" });
+    expect(warn).toHaveBeenCalledOnce();
   });
 });
