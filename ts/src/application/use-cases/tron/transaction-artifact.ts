@@ -1,5 +1,4 @@
 import { ChainError } from "../../../domain/errors/index.js";
-import { systemWallClock } from "../../contracts/wall-clock.js";
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
 
 export function transactionContract(transaction: TronTransactionArtifact) {
@@ -18,10 +17,7 @@ export function expirationOf(transaction: TronTransactionArtifact): number {
   return expiration!;
 }
 
-export function assertNotExpired(
-  transaction: TronTransactionArtifact,
-  now = systemWallClock(),
-): void {
+export function assertNotExpired(transaction: TronTransactionArtifact, now: number): void {
   const expiration = expirationOf(transaction);
   if (expiration <= now) {
     throw new ChainError(

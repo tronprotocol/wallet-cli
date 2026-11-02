@@ -1,4 +1,5 @@
 import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { accountText } from "../../../domain/account/index.js";
@@ -34,6 +35,7 @@ export class TronAccountService {
     private readonly tokens: TokenRepository,
     private readonly prices: PriceProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async activate(
@@ -81,7 +83,7 @@ export class TronAccountService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => gateway.buildAccountCreate(owner, input.address),
@@ -144,7 +146,7 @@ export class TronAccountService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) =>

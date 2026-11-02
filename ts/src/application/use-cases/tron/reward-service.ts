@@ -74,7 +74,7 @@ export class TronRewardService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => gateway.buildWithdrawBalance(owner),

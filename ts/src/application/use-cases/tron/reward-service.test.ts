@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRewardService } from "./reward-service.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronAccountState, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
-import type { TxPipeline } from "../../services/pipeline/index.js";
+import type { TronTxPipelineParams, TxPipeline } from "../../services/pipeline/index.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NET: NetworkDescriptor = {
@@ -153,5 +153,38 @@ describe("TronRewardService.withdraw", () => {
       withdrawnSun: "12",
       rewardSun: "12",
     });
+  });
+});
+
+describe("TronRewardService.withdraw transaction hooks", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("check expiry and the signing window against the injected clock, not system time", async () => {
+    const now = 1_800_000_000_500;
+    const prepareTransaction = vi.fn((value) => value);
+    const runTron = vi.fn(async () => ({ stage: "built", tx: {}, hex: "00" }));
+    const svc = service(
+      {
+        getReward: async () => "1",
+        getAccountState: async () => accountState(now - 25 * 60 * 60 * 1000),
+        prepareTransaction,
+      },
+      { runTron } as unknown as Partial<TxPipeline>,
+      now,
+    );
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now + 86_400_000);
+
+    await svc.withdraw(scope, NET, { signOnly: true });
+
+    const hooks = (runTron.mock.calls[0] as unknown as [TronTxPipelineParams])[0];
+    const tx = {
+      txID: "ab".repeat(32),
+      raw_data_hex: "00",
+      raw_data: { timestamp: now, expiration: now + 60_000, contract: [] },
+    };
+    expect(() => hooks.assertNotExpired(tx)).not.toThrow();
+    await hooks.prepareForSigning(tx);
+    expect(prepareTransaction).toHaveBeenCalledWith(tx, { permissionId: 0, expiration: 600_000 });
   });
 });

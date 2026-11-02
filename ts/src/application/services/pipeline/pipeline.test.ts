@@ -265,6 +265,7 @@ describe("TxPipeline reports the transaction id derived from the signed bytes", 
 });
 
 import { tronTransactionHooks } from "../../use-cases/tron/multisig-authorization.js";
+import { systemWallClock } from "../../contracts/wall-clock.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import { DeadlineExpiredError } from "../../contracts/deadline.js";
 import { CommandDeadline, SUBMIT_ADMISSION_RESERVE_MS } from "../command-deadline.js";
@@ -311,7 +312,7 @@ describe("TRON signing lifetime", () => {
       try {
         await new TxPipeline(signers, new SigningService({} as never)).runTron(
           params(signer, {
-            ...tronTransactionHooks(gateway),
+            ...tronTransactionHooks(gateway, systemWallClock),
             build: async () => tx,
             ctx: scope({ deadline: new CommandDeadline(0) }),
             ...(explicit ? { expiration: 90_000 } : {}),
@@ -354,7 +355,7 @@ describe("TRON signing lifetime", () => {
           new SigningService({} as never),
         ).runTron(
           params(signer, {
-            ...tronTransactionHooks(gateway),
+            ...tronTransactionHooks(gateway, systemWallClock),
             build: async () => tx,
             mode: "broadcast",
             broadcaster: { broadcast },

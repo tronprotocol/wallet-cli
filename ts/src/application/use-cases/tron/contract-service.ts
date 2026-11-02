@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { currentTronEnergyPrice } from "../../../domain/tron/tron-energy-price.js";
 import {
@@ -41,6 +42,7 @@ export class TronContractService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async call(
@@ -94,7 +96,7 @@ export class TronContractService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: async (from) =>
@@ -139,7 +141,7 @@ export class TronContractService {
       this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
     }
     const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
-    const hooks = tronTransactionHooks(gateway);
+    const hooks = tronTransactionHooks(gateway, this.now);
     let contractAddress: string | undefined;
     const outcome = await this.pipeline.runTron({
       ctx: scope,
@@ -280,7 +282,7 @@ export class TronContractService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       build: async (address) => await build(gateway, address),
       estimate: async (_tx: UnsignedTx) => ({

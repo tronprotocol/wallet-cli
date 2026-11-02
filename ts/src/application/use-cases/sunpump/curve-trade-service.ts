@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { activeTronAccount, resolveTronAccount } from "../../services/tron/tron-account.js";
 import { tradeOutput } from "../../services/trade-output.js";
@@ -61,8 +62,9 @@ export class SunPumpCurveTradeService {
     private readonly launchpad: LaunchpadPort,
     private readonly gateways: ChainGatewayProvider,
     pipeline: TxPipeline,
+    now: WallClock = systemWallClock,
   ) {
-    this.tx = new LiquidityTransactions(launchpad, gateways, pipeline);
+    this.tx = new LiquidityTransactions(launchpad, gateways, pipeline, now);
   }
 
   async buy(

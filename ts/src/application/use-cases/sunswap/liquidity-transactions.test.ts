@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { LiquidityTransactions } from "./liquidity-transactions.js";
+import { systemWallClock } from "../../contracts/wall-clock.js";
 import { ChainError, errorMessage, ExecutionError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { AccountRef, NetworkDescriptor, TxOutcome } from "../../../domain/types/index.js";
@@ -57,6 +58,7 @@ function harness() {
     port as never,
     { get: () => ({}) } as never,
     { runTron: run } as never,
+    systemWallClock,
   );
   return { tx, run, port };
 }

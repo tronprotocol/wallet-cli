@@ -320,6 +320,7 @@ export function registerTronChainCommands(
     deps.tokens,
     deps.prices,
     deps.transactions,
+    deps.clock,
   );
   const token = new TronTokenService(deps.gateways, deps.tokens);
   const message = new MessageService(deps.signers, deps.signing);
@@ -329,6 +330,7 @@ export function registerTronChainCommands(
     deps.tokens,
     deps.transactions,
     deps.recipients,
+    deps.clock,
   );
   const artifacts = new SecureTransactionArtifactWriter();
   const signing = new TronSigService(
@@ -376,6 +378,7 @@ export function registerTronChainCommands(
     deps.sunpumpLaunchpad,
     deps.gateways,
     deps.transactions,
+    deps.clock,
   );
   const sunswapSwap = new SunSwapSwapService(
     deps.sunpumpLaunchpad,
@@ -408,16 +411,21 @@ export function registerTronChainCommands(
     sunswapTokens,
     deps.clock,
   );
-  const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
-  const stake = new TronStakeService(deps.gateways, deps.transactions);
+  const permission = new TronPermissionService(
+    deps.gateways,
+    deps.accounts,
+    deps.transactions,
+    deps.clock,
+  );
+  const stake = new TronStakeService(deps.gateways, deps.transactions, deps.clock);
   const asset = new TronAssetService(deps.gateways, deps.transactions, deps.clock);
-  const exchange = new TronExchangeService(deps.gateways, deps.transactions);
-  const vote = new TronVoteService(deps.gateways, deps.transactions);
+  const exchange = new TronExchangeService(deps.gateways, deps.transactions, deps.clock);
+  const vote = new TronVoteService(deps.gateways, deps.transactions, deps.clock);
   const reward = new TronRewardService(deps.gateways, deps.transactions, deps.clock);
   const chain = new TronChainService(deps.gateways, deps.clock);
-  const contract = new TronContractService(deps.gateways, deps.transactions);
+  const contract = new TronContractService(deps.gateways, deps.transactions, deps.clock);
   const proposal = new TronProposalService(deps.gateways, deps.transactions, deps.clock);
-  const witness = new TronWitnessService(deps.gateways, deps.transactions);
+  const witness = new TronWitnessService(deps.gateways, deps.transactions, deps.clock);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
   // Registration order determines group help order; shared commands come first.

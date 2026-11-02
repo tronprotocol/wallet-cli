@@ -45,10 +45,13 @@ function gateway(over: Partial<TronGateway> = {}): TronGateway {
 
 describe("TRON multisig authorization preflight", () => {
   it("does not attach approval RPC checks to ordinary transaction commands", () => {
-    const hooks = tronTransactionHooks({
-      prepareTransaction: vi.fn((value) => value),
-      encodeTransactionHex: vi.fn(() => "abcd"),
-    } as unknown as TronGateway);
+    const hooks = tronTransactionHooks(
+      {
+        prepareTransaction: vi.fn((value) => value),
+        encodeTransactionHex: vi.fn(() => "abcd"),
+      } as unknown as TronGateway,
+      () => 0,
+    );
     expect("preflight" in hooks).toBe(false);
   });
 

@@ -113,7 +113,7 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       build: async (address) =>
         gateway.buildProposalCreate(
@@ -176,7 +176,7 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       build: async (address) =>
         gateway.buildProposalApprove(address, input.id, addApproval, {
@@ -225,7 +225,7 @@ export class TronProposalService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       build: async (address) =>
         gateway.buildProposalDelete(address, input.id, { permissionId: input.permissionId }),

@@ -3,6 +3,7 @@ import {
   requestDispatchCheck,
   unlessDeadline,
 } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   AccountRef,
@@ -57,6 +58,7 @@ export class TronTransactionService {
     private readonly tokens: TokenRepository,
     private readonly pipeline: TxPipeline,
     private readonly recipients: RecipientResolver,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: TronSendInput) {
@@ -71,7 +73,7 @@ export class TronTransactionService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>

@@ -172,7 +172,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
       ),
       requestTimeoutMs: timeoutMs,
     },
-    new X402Permit2Approvals(gatewayProvider, txPipeline),
+    new X402Permit2Approvals(gatewayProvider, txPipeline, systemWallClock),
     signing,
   );
   registerBaiCommands(
@@ -194,7 +194,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
   );
   const agentContracts = {
     evm: new EvmContractService(gatewayProvider, txPipeline),
-    tron: new TronContractService(gatewayProvider, txPipeline),
+    tron: new TronContractService(gatewayProvider, txPipeline, systemWallClock),
   };
   const agents = new AgentService(
     registryContracts(agentContracts),

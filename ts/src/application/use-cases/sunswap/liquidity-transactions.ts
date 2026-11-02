@@ -1,4 +1,5 @@
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
+import type { WallClock } from "../../contracts/wall-clock.js";
 import { requestDispatchCheck } from "../../services/command-deadline.js";
 import { resolveTronAccount } from "../../services/tron/tron-account.js";
 import {
@@ -69,6 +70,7 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
     private readonly liquidity: ApprovalCapablePort & { readonly approvalDomain: D },
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock,
   ) {}
 
   assertCanSign(scope: TransactionScope): void {
@@ -271,9 +273,9 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...options.mode,
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       // Check signer membership before signing; enforce the combined threshold before broadcast.
-      preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
+      preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer, this.now()),
       confirm: (txId, signed) => {
         options.onSubmitted?.(txId);
         return confirm(txId, signed);

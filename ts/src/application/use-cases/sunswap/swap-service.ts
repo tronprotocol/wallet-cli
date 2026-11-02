@@ -98,8 +98,8 @@ export class SunSwapSwapService {
     private readonly signing: SigningService,
     private readonly now: WallClock = systemWallClock,
   ) {
-    this.tx = new LiquidityTransactions(launchpad, gateways, pipeline);
-    this.routerTx = new LiquidityTransactions(liquidity, gateways, pipeline);
+    this.tx = new LiquidityTransactions(launchpad, gateways, pipeline, now);
+    this.routerTx = new LiquidityTransactions(liquidity, gateways, pipeline, now);
   }
 
   async swap(

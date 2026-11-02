@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
@@ -69,6 +70,7 @@ export class TronExchangeService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async show(deadline: ExecutionDeadline, network: NetworkDescriptor, input: ExchangeShowInput) {
@@ -137,7 +139,7 @@ export class TronExchangeService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>
@@ -209,7 +211,7 @@ export class TronExchangeService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>
@@ -292,7 +294,7 @@ export class TronExchangeService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>

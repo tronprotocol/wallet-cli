@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { percent, witnessUrl } from "../../../domain/tron/governance/limits.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
@@ -31,6 +32,7 @@ export class TronWitnessService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async create(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
@@ -66,7 +68,7 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       build: async (address) =>
         gateway.buildWitnessCreate(address, url, { permissionId: input.permissionId }),
@@ -97,7 +99,7 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       build: async (address) =>
         gateway.buildWitnessUpdate(address, url, { permissionId: input.permissionId }),
@@ -123,7 +125,7 @@ export class TronWitnessService {
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       build: async (address) =>
         gateway.buildWitnessSetBrokerage(address, brokerage, {

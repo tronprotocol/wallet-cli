@@ -235,7 +235,7 @@ export class SunSwapLiquidityService {
     private readonly signing: SigningService,
     private readonly now: WallClock = systemWallClock,
   ) {
-    this.tx = new LiquidityTransactions(liquidity, gateways, pipeline);
+    this.tx = new LiquidityTransactions(liquidity, gateways, pipeline, now);
   }
 
   async addLiquidity(

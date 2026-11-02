@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { CodedWarning, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -104,7 +104,7 @@ function makeHarness(port: LiquidityPort = makePort(), confirmed = true, clock?:
     RESOLVER,
     clock,
   );
-  return { service, scope, gateway, port, assertCanSign };
+  return { service, scope, gateway, port, assertCanSign, pipeline };
 }
 
 const V3 = { protocol: "V3", positionId: "686" };
@@ -223,6 +223,47 @@ describe("collect-fees", () => {
     expect((port.v3Position as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(
       2,
     );
+  });
+});
+
+describe("collect-fees — transaction hooks use the service clock", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("checks expiry, signing window and signer authorization against the injected time", async () => {
+    const now = 1_800_000_000_500;
+    const prepareTransaction = vi.fn((value) => value);
+    const { service, scope, gateway, pipeline } = makeHarness(makePort(), true, () => now);
+    Object.assign(gateway, {
+      prepareTransaction,
+      getSignWeight: vi.fn(async () => ({
+        permission: { id: 0, name: "owner", threshold: 1, keys: [{ address: OWNER, weight: 1 }] },
+        approvedList: [],
+        currentWeight: 0,
+        resultCode: "NOT_ENOUGH_PERMISSION",
+      })),
+      getApprovedList: vi.fn(async () => []),
+    });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(now + 86_400_000);
+
+    await service.collectFees(scope, NETWORK, V3);
+
+    const hooks = vi.mocked(pipeline.runTron).mock.calls[0]![0];
+    const tx = {
+      txID: "ab".repeat(32),
+      raw_data_hex: "00",
+      raw_data: {
+        timestamp: now,
+        expiration: now + 60_000,
+        contract: [{ type: "TriggerSmartContract", Permission_id: 0 }],
+      },
+    };
+    expect(() => hooks.assertNotExpired(tx)).not.toThrow();
+    await hooks.prepareForSigning(tx);
+    expect(prepareTransaction).toHaveBeenCalledWith(tx, { permissionId: 0, expiration: 600_000 });
+    await expect(hooks.preflight!(tx, OWNER)).resolves.toMatchObject({
+      assertBroadcastable: expect.any(Function),
+    });
   });
 });
 

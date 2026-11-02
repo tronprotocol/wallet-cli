@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   NetworkDescriptor,
@@ -66,6 +67,7 @@ export class TronStakeService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async votingPower(
@@ -250,7 +252,7 @@ export class TronStakeService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       signerOptions: opts,
       confirm: tronConfirmation(gateway, scope),

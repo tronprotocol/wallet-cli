@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { AccountPermissionsView, NetworkDescriptor } from "../../../domain/types/index.js";
 import { sunAmount } from "../../../domain/amounts/index.js";
@@ -28,6 +29,7 @@ export class TronPermissionService {
     private readonly gateways: ChainGatewayProvider,
     private readonly accounts: Pick<AccountStore, "list">,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async show(
@@ -80,8 +82,8 @@ export class TronPermissionService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
-      ...tronTransactionHooks(gateway),
-      preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer, this.now()),
       confirm: tronConfirmation(gateway, scope),
       build: () => gateway.buildAccountPermissionUpdate(address, permissions),
       estimate: async () => ({

@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../contracts/wall-clock.js";
 import type { NetworkDescriptor, TxOutcome } from "../../domain/types/index.js";
 import {
   ChainError,
@@ -31,6 +32,7 @@ export class X402Permit2Approvals {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   approver(
@@ -76,8 +78,8 @@ export class X402Permit2Approvals {
         broadcaster: gateway,
         mode: "broadcast",
         permissionId: 0,
-        ...tronTransactionHooks(gateway),
-        preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
+        ...tronTransactionHooks(gateway, this.now),
+        preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer, this.now()),
         confirm: tronConfirmation(gateway, approvalScope),
         confirmationRequired: true,
         build: (from) =>

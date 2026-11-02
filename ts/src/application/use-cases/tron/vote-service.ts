@@ -1,4 +1,5 @@
 import { requestDispatchCheck, unlessDeadline } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
@@ -68,6 +69,7 @@ export class TronVoteService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async cast(scope: TransactionScope, network: NetworkDescriptor, input: VoteCastInput) {
@@ -95,7 +97,7 @@ export class TronVoteService {
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (ownerAddress) => gateway.buildVoteWitness(ownerAddress, votes),

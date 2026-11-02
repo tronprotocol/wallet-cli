@@ -125,7 +125,7 @@ export class SunSwapRemoveLiquidityService {
     private readonly tokens: SunSwapTokenResolver,
     private readonly now: WallClock = systemWallClock,
   ) {
-    this.tx = new LiquidityTransactions(liquidity, gateways, pipeline);
+    this.tx = new LiquidityTransactions(liquidity, gateways, pipeline, now);
   }
 
   async removeLiquidity(

@@ -1,5 +1,5 @@
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
-import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
+import type { WallClock } from "../../contracts/wall-clock.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { decodeOperations } from "../../../domain/tron/permission/index.js";
 import { MAX_TRON_EXPIRATION_MS } from "../../../domain/transaction/index.js";
@@ -126,7 +126,7 @@ export async function assertTronSignerAuthorized(
   gateway: TronGateway,
   transaction: TronTransactionArtifact,
   signerAddress: string,
-  now = systemWallClock(),
+  now: number,
 ): Promise<SignerAuthorization> {
   assertNotExpired(transaction, now);
   const { weight, approved, permission } = await authorizationState(gateway, transaction);
@@ -148,7 +148,7 @@ export async function assertTronSignerAuthorized(
 }
 
 // These construction hooks omit online permission-approval checks.
-export function tronTransactionHooks(gateway: TronGateway, now: WallClock = systemWallClock) {
+export function tronTransactionHooks(gateway: TronGateway, now: WallClock) {
   return {
     prepare: (
       transaction: TronTransactionArtifact,
