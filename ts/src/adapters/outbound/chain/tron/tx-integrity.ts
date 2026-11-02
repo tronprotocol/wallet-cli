@@ -2,6 +2,7 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { ChainError } from "../../../../domain/errors/index.js";
+import { normalizeTxHash } from "../../../../domain/family/index.js";
 import { rawDataHexOf } from "./transaction-codec.js";
 
 const UNSUPPORTED_CONTRACT_TYPE = /^Unsupported transaction type/i;
@@ -87,7 +88,7 @@ export function assertTronTxIntegrity(tx: unknown): void {
     );
   }
 
-  const claimed = t.txID.replace(/^0x/, "").toLowerCase();
+  const claimed = normalizeTxHash("tron", t.txID);
   let derived: string;
   try {
     derived = bytesToHex(sha256(hexToBytes(t.raw_data_hex.replace(/^0x/, ""))));
