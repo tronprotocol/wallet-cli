@@ -1282,7 +1282,7 @@ export class SunSwapLiquidityService {
         const token = flag === "amount0" ? scenario.token0 : scenario.token1;
         throw new UsageError(
           "invalid_value",
-          `this range takes only ${token.symbol}; give --${flag}`,
+          errorMessage`this range takes only ${token.symbol}; give ${inputRef(flag)}`,
           { requiredAmount: flag },
         );
       }

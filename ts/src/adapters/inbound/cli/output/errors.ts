@@ -21,6 +21,7 @@ const FOLLOW_UP_COMMANDS: Record<FollowUp, (subject: string | undefined) => stri
   "gasfree-trace": (id) => (id === undefined ? "gasfree trace" : `gasfree trace ${id}`),
   "keystore-backup": (account) =>
     `wallet-cli backup ${account ?? "<account>"} --keystore --network tron:728126428 --password-stdin`,
+  "ledger-import": () => "import ledger",
   "proposal-list": () => "proposal list",
   "sunswap-pool-list-v4": () => "sunswap pool-list --protocol V4",
   "sunswap-position-list": () => "sunswap position-list",

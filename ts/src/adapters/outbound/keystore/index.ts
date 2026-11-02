@@ -43,6 +43,7 @@ import { AtomicFileStore } from "../persistence/fs/index.js";
 import {
   errorMessage,
   ExecutionError,
+  followUp,
   UsageError,
   WalletError,
 } from "../../../domain/errors/index.js";
@@ -214,11 +215,12 @@ export class Keystore {
       if (!wallet)
         throw new UsageError("account_not_found", errorMessage`unknown wallet ${walletId}`);
       if (!isHdWallet(wallet)) {
-        const hint =
-          wallet.source.type === "ledger" ? " — import another path with 'import ledger'" : "";
+        const message = errorMessage`${wallet.source.type} wallets are not HD; cannot add accounts`;
         throw new UsageError(
           "seed_not_found",
-          `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`,
+          wallet.source.type === "ledger"
+            ? errorMessage`${message} — import another path with '${followUp("ledger-import")}'`
+            : message,
         );
       }
       const next = index ?? nextAccountIndex(wallet.source);

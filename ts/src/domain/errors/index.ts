@@ -10,6 +10,7 @@ export type FollowUp =
   | "bai-report-recharge"
   | "gasfree-trace"
   | "keystore-backup"
+  | "ledger-import"
   | "proposal-list"
   | "sunswap-pool-list-v4"
   | "sunswap-position-list"

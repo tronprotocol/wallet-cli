@@ -202,6 +202,8 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
     primaryType: "PermitTransfer",
     message: { maxFee: 1300000n, value: 10000n },
   });
-  expect(warn).toHaveBeenCalledWith(expect.stringContaining("13000.00%"));
+  expect(warn).toHaveBeenCalledWith(
+    expect.objectContaining({ message: expect.stringContaining("13000.00%") }),
+  );
   expect(endpointRequests).toBe(2);
 });

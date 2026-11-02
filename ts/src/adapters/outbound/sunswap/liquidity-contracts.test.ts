@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 import { AbiCoder, Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
+import { CliError, inputRef } from "../../../domain/errors/index.js";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 import { parseTronTxInfo } from "../chain/tron/tron-responses.js";
 import { readPosition } from "../../../application/use-cases/sunswap/position-read.js";
 
@@ -918,6 +920,15 @@ describe("V3 deposited amounts", () => {
 
 describe("initial V4 price to tick", () => {
   const contracts = new SunSwapLiquidityContracts({} as ChainGatewayProvider);
+  function thrown(action: () => unknown): CliError {
+    try {
+      action();
+    } catch (error) {
+      expect(error).toBeInstanceOf(CliError);
+      return error as CliError;
+    }
+    throw new Error("expected a CLI error");
+  }
   it.each([
     ["79228162514264337593543950336", 0],
     ["263961795081773446554", -390416],
@@ -928,7 +939,11 @@ describe("initial V4 price to tick", () => {
   it.each(["0", "4295128738", "1461446703485210103287273052203988822378723970342", "-1", "1.5"])(
     "rejects invalid initial price %s before approval",
     (price) => {
-      expect(() => contracts.tickAtSqrtPrice(price)).toThrow(/--sqrt-price/);
+      const error = thrown(() => contracts.tickAtSqrtPrice(price));
+      expect(error.parts).toContainEqual(inputRef("sqrtPrice"));
+      expect(errorEnvelope(error).message).toBe(
+        `--sqrt-price must be an integer from ${TickMath.MIN_SQRT_RATIO.toString()} (inclusive) to ${TickMath.MAX_SQRT_RATIO.toString()} (exclusive)`,
+      );
     },
   );
 });

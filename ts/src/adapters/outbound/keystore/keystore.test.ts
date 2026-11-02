@@ -24,12 +24,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Keystore, walletAddress } from "./index.js";
-import type { CliError } from "../../../domain/errors/index.js";
+import { followUp, type CliError } from "../../../domain/errors/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
 import type { WalletsFile } from "../../../domain/types/index.js";
-import { exitCodeOf } from "../../inbound/cli/output/errors.js";
+import { errorEnvelope, exitCodeOf } from "../../inbound/cli/output/errors.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
 const TRON0 = new TronAddress().fromPublicKey(
@@ -269,7 +269,18 @@ describe("Keystore", () => {
       address: TRON0,
     }).accountId;
     const walletId = ledRef.split(".")[0]!;
-    expect(() => ks.addAccount(walletId)).toThrow(/not HD|import/i);
+    let error: CliError | undefined;
+    try {
+      ks.addAccount(walletId);
+    } catch (caught) {
+      error = caught as CliError;
+    }
+    expect(error?.parts).toContainEqual(followUp("ledger-import"));
+    expect(errorEnvelope(error!)).toEqual({
+      code: "seed_not_found",
+      message:
+        "ledger wallets are not HD; cannot add accounts — import another path with 'import ledger'",
+    });
   });
 
   it("addAccount appends the next HD index with fresh addresses", () => {

@@ -257,8 +257,9 @@ never from argv or environment variables, are stored in a file with mode 0600, a
 
 ## 7. Language boundary
 
-7.1 `application` and `domain` do not name CLI flags or commands. Errors carry structured fields; inbound decides
-how to describe them to the user. **review**.
+7.1 `application`, `domain`, and `adapters/outbound` do not name CLI flags or commands. Errors and warnings name
+inputs and next steps through structured references and fields; inbound decides how to describe them to the user.
+**review**.
 
 7.2 `domain` owns the error code registry: each code's meaning, retry class, and exit class, as published in the
 contract. `adapters/inbound` owns the envelope shape and the fallback for unknown and `either` codes. **test** for

@@ -9,7 +9,12 @@ import type {
   TronTransactionArtifact,
   TypedDataPayload,
 } from "../../../domain/types/index.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  errorMessage,
+  inputRef,
+  type UserMessage,
+} from "../../../domain/errors/index.js";
 import { EvmAddress, tronHexFromHash20, tronHexToBase58 } from "../../../domain/address/index.js";
 import { resolvePrimaryType } from "../../../domain/typed-data/index.js";
 
@@ -30,7 +35,7 @@ export interface X402WalletOptions {
   ) => Promise<unknown>;
   // Whether the payment request set a GasFree fee ceiling.
   readonly feeCapped?: boolean;
-  readonly warn?: (message: string) => void;
+  readonly warn?: (message: string | UserMessage) => void;
   // Preserve signed-approval evidence even if payment later fails.
   readonly onApprovalSigned?: (approval: SignedApproval) => void;
 }
@@ -127,8 +132,9 @@ function warnUncappedFee(payload: TypedDataPayload, options: X402WalletOptions):
   const value = String(payload.message.value);
   if (/^\d+$/.test(fee) && /^\d+$/.test(value) && BigInt(value) > 0n) {
     const percent = (BigInt(fee) * 10000n) / BigInt(value);
+    const share = `${percent / 100n}.${String(percent % 100n).padStart(2, "0")}%`;
     options.warn?.(
-      `GasFree maximum authorized fee ${fee} for payment ${value} (${percent / 100n}.${String(percent % 100n).padStart(2, "0")}% in base units). This is a ceiling, not the actual charge. Set --max-gasfree-fee or --max-gasfree-fee-raw to limit it.`,
+      errorMessage`GasFree maximum authorized fee ${fee} for payment ${value} (${share} in base units). This is a ceiling, not the actual charge. Set ${inputRef("maxGasfreeFee")} or ${inputRef("maxGasfreeFeeRaw")} to limit it.`,
     );
   }
 }

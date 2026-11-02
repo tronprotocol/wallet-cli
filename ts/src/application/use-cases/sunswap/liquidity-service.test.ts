@@ -12,6 +12,7 @@ import {
   UsageError,
   errorMessage,
   classifyError,
+  inputRef,
 } from "../../../domain/errors/index.js";
 import { SigningService } from "../../services/signing/signing-service.js";
 import { baseUnitAmount, sunAmount } from "../../../domain/amounts/index.js";
@@ -1909,24 +1910,24 @@ describe("Ledger report regressions — V3 ordering and approval progress", () =
       v3Amounts: vi.fn(() => {
         throw new UsageError(
           "invalid_value",
-          "the price is below this range, so the position takes only token0; give --amount0",
+          errorMessage`the price is below this range, so the position takes only token0; give ${inputRef("amount0")}`,
           { requiredAmount: "amount0" },
         );
       }),
     });
     const h = makeHarness(port);
-    await expect(
-      h.service.addLiquidity(h.scope, NETWORK, {
+    const error = (await h.service
+      .addLiquidity(h.scope, NETWORK, {
         protocol: "V3",
         token0: WTRX,
         token1: USDT,
         amount0: "1",
         fee: 500,
-      }),
-    ).rejects.toMatchObject({
-      code: "invalid_value",
-      message: expect.stringContaining("give --amount1"),
-    });
+      })
+      .catch((e: unknown) => e)) as CliError;
+    expect(error).toMatchObject({ code: "invalid_value", details: { requiredAmount: "amount1" } });
+    expect(error.parts).toContainEqual(inputRef("amount1"));
+    expect(errorEnvelope(error).message).toMatch(/^this range takes only \S+; give --amount1$/);
   });
   it("retains an approval ID when the allowance re-read fails", async () => {
     const h = makeHarness();

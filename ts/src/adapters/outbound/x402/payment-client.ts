@@ -48,7 +48,9 @@ import type {
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import {
+  errorMessage,
   ExecutionError,
+  inputRef,
   TransportError,
   UsageError,
   type CliError,
@@ -334,7 +336,7 @@ export class X402PaymentClient implements X402PaymentPort {
       if (isBinaryContentType(contentType)) {
         throw new UsageError(
           "invalid_option",
-          "binary response requires --out to save its bytes; check payment details before any further payment",
+          errorMessage`binary response requires ${inputRef("out")} to save its bytes; check payment details before any further payment`,
           responseDetails,
         );
       }
@@ -345,7 +347,7 @@ export class X402PaymentClient implements X402PaymentPort {
       } catch {
         throw new TransportError(
           "invalid_x402_response",
-          "endpoint returned invalid UTF-8; --out is required to save raw bytes; check payment details before any further payment",
+          errorMessage`endpoint returned invalid UTF-8; ${inputRef("out")} is required to save raw bytes; check payment details before any further payment`,
           responseDetails,
         );
       }

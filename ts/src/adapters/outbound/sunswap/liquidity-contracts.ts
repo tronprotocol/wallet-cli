@@ -48,7 +48,7 @@ import type { ChainGatewayProvider } from "../../../application/ports/chain/gate
 import { SunSwapV4Contracts } from "./v4-contracts.js";
 import { sdkNetworkName } from "./sdk-runtime.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import {
   tronAddressFromHash20,
   tronAddressToEvmHex,
@@ -176,7 +176,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     ) {
       throw new UsageError(
         "invalid_value",
-        `--sqrt-price must be an integer from ${TickMath.MIN_SQRT_RATIO.toString()} (inclusive) to ${TickMath.MAX_SQRT_RATIO.toString()} (exclusive)`,
+        errorMessage`${inputRef("sqrtPrice")} must be an integer from ${TickMath.MIN_SQRT_RATIO.toString()} (inclusive) to ${TickMath.MAX_SQRT_RATIO.toString()} (exclusive)`,
       );
     }
     return TickMath.getTickAtSqrtRatio(jsbiOf(sqrtPriceX96));
@@ -904,14 +904,14 @@ function amountsForDeposit(
   if (given.amount0 !== undefined && given.amount1 === undefined && !takes0) {
     throw new UsageError(
       "invalid_value",
-      "the price is above this range, so the position takes only token1; give --amount1",
+      errorMessage`the price is above this range, so the position takes only token1; give ${inputRef("amount1")}`,
       { requiredAmount: "amount1" },
     );
   }
   if (given.amount1 !== undefined && given.amount0 === undefined && !takes1) {
     throw new UsageError(
       "invalid_value",
-      "the price is below this range, so the position takes only token0; give --amount0",
+      errorMessage`the price is below this range, so the position takes only token0; give ${inputRef("amount0")}`,
       { requiredAmount: "amount0" },
     );
   }

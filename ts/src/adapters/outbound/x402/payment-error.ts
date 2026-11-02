@@ -1,6 +1,8 @@
 import {
   CliError,
+  errorMessage,
   ExecutionError,
+  inputRef,
   TransportError,
   UsageError,
 } from "../../../domain/errors/index.js";
@@ -165,8 +167,8 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     return new ExecutionError(
       overLimit ? "amount_exceeds_limit" : "no_matching_requirement",
       overLimit
-        ? "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount, or --max-raw-amount with --token or --asset, to authorize it"
-        : "no offered payment route uses an asset the built-in spend control allows; pass --max-amount, or --max-raw-amount with --token or --asset, to set the ceiling yourself",
+        ? errorMessage`payment exceeds the built-in $1 per-payment ceiling; pass ${inputRef("maxAmount")}, or ${inputRef("maxRawAmount")} with ${inputRef("token")} or ${inputRef("asset")}, to authorize it`
+        : errorMessage`no offered payment route uses an asset the built-in spend control allows; pass ${inputRef("maxAmount")}, or ${inputRef("maxRawAmount")} with ${inputRef("token")} or ${inputRef("asset")}, to set the ceiling yourself`,
       { ...(phase ? { phase } : {}), paymentStatus: "not_sent", retryPayment: false },
     );
   }

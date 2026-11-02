@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigLoader, NetworkRegistry } from "./index.js";
 import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
+import { CliError, inputRef } from "../../../domain/errors/index.js";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
 function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
@@ -39,6 +41,22 @@ describe("ConfigLoader defaultNetwork", () => {
   it("rejects a name that is in neither the builtin table nor the alias book", () => {
     const registry = new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
     expect(() => registry.resolve("not-a-network")).toThrow(/unknown network/);
+  });
+
+  it("names the network input when none is given", () => {
+    const registry = new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
+    let error: unknown;
+    try {
+      registry.resolve(undefined);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(CliError);
+    expect((error as CliError).parts).toContainEqual(inputRef("network"));
+    expect(errorEnvelope(error as CliError)).toEqual({
+      code: "missing_network",
+      message: "this command requires --network <id>",
+    });
   });
 });
 

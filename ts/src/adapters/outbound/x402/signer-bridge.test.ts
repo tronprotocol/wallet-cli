@@ -13,6 +13,8 @@ import {
 } from "../../../application/services/x402/payer-policy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
 import { tronHexAddress } from "../../../domain/address/index.js";
+import { inputRef, type UserMessage } from "../../../domain/errors/index.js";
+import { cliMessage } from "../../inbound/cli/output/errors.js";
 
 const EVM_ADDRESS = "0xaB5801a7D398351b8bE11C439e05C5B3259aeC9B";
 const TRON_ADDRESS = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
@@ -319,7 +321,13 @@ it("warns about an uncapped high GasFree fee before requesting the signature", a
   const payload = permitPayload(TRON_HEX, "1300000");
   payload.message.value = "10000";
   await wallet.signTypedData(payload);
-  expect(warn).toHaveBeenCalledWith(expect.stringContaining("13000.00%"));
+  const warning = warn.mock.calls[0]![0] as UserMessage;
+  expect(warning.parts).toEqual(
+    expect.arrayContaining([inputRef("maxGasfreeFee"), inputRef("maxGasfreeFeeRaw")]),
+  );
+  expect(cliMessage(warning).message).toBe(
+    "GasFree maximum authorized fee 1300000 for payment 10000 (13000.00% in base units). This is a ceiling, not the actual charge. Set --max-gasfree-fee or --max-gasfree-fee-raw to limit it.",
+  );
   expect(warn.mock.invocationCallOrder[0]).toBeLessThan(
     vi.mocked(payer.signTypedData).mock.invocationCallOrder[0]!,
   );

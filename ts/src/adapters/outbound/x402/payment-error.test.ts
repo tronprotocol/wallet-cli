@@ -5,7 +5,12 @@ import {
   sentPaymentError,
   unsentPaymentError,
 } from "./payment-error.js";
-import { errorMessage, UsageError, TransportError } from "../../../domain/errors/index.js";
+import {
+  errorMessage,
+  inputRef,
+  UsageError,
+  TransportError,
+} from "../../../domain/errors/index.js";
 import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
 it.each([
@@ -174,22 +179,35 @@ it.each([
   [
     "All payment requirements were rejected by spendControls.maxAmountPerPayment ($1, including USDT). Raise maxAmountPerPayment, set it to false to disable, set allowedAssets[].maxAmountPerPayment for a per-asset atomic cap, or set spendControls: false to disable all spend controls.",
     "amount_exceeds_limit",
+    "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount, or --max-raw-amount with --token or --asset, to authorize it",
   ],
   [
     "All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed. Add an allowedAssets entry for non-default tokens, set allowedAssets: true, or set spendControls: false.",
     "no_matching_requirement",
+    "no offered payment route uses an asset the built-in spend control allows; pass --max-amount, or --max-raw-amount with --token or --asset, to set the ceiling yourself",
   ],
-])("classifies the SDK's spend-control refusal as a typed, not-sent error", (message, code) => {
-  const error = sdkPaymentError(
-    new Error(`Failed to create payment payload: ${message}`),
-    "payment_request",
-  );
-  expect(error).toMatchObject({
-    code,
-    details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
-  });
-  expect(error.message).toContain("--max-amount");
-});
+])(
+  "classifies the SDK's spend-control refusal as a typed, not-sent error",
+  (message, code, text) => {
+    const error = sdkPaymentError(
+      new Error(`Failed to create payment payload: ${message}`),
+      "payment_request",
+    );
+    expect(error).toMatchObject({
+      code,
+      details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
+    });
+    expect(error.parts).toEqual(
+      expect.arrayContaining([
+        inputRef("maxAmount"),
+        inputRef("maxRawAmount"),
+        inputRef("token"),
+        inputRef("asset"),
+      ]),
+    );
+    expect(errorEnvelope(error).message).toBe(text);
+  },
+);
 
 it.each([
   ["a typed timeout", new TransportError("timeout", "HTTP request timed out or was aborted")],

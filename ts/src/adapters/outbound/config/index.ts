@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type { Config, NetworkDescriptor, OutputMode } from "../../../domain/types/index.js";
 import type { NetworkRegistry as INetworkRegistry } from "../../../application/ports/network-registry.js";
-import { UsageError } from "../../../domain/errors/index.js";
+import { errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { BUILTIN_ALIASES, BUILTIN_NETWORKS } from "./builtins.js";
 import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
 import { CHAIN_FAMILIES } from "../../../domain/family/index.js";
@@ -313,7 +313,10 @@ export class NetworkRegistry implements INetworkRegistry {
 
   resolve(id: string | undefined): NetworkDescriptor {
     if (!id || id.trim() === "") {
-      throw new UsageError("missing_network", "this command requires --network <id>");
+      throw new UsageError(
+        "missing_network",
+        errorMessage`this command requires ${inputRef("network")} <id>`,
+      );
     }
     const key = id.toLowerCase();
     // Resolve canonical ids before aliases so aliases cannot redirect a real network id.

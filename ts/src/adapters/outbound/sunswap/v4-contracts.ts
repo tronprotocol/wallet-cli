@@ -39,7 +39,7 @@ import type { ChainGatewayProvider } from "../../../application/ports/chain/gate
 import type { TronGateway } from "../../../application/ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { tronAddressFromHash20 } from "../../../domain/address/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { normalisePoolId } from "../../../domain/sunswap/protocol.js";
@@ -482,7 +482,7 @@ function assertTokenId(tokenId: string): string {
   if (!/^\d+$/.test(text)) {
     throw new UsageError(
       "invalid_value",
-      `--position-id must be a whole number; ${tokenId} is not one`,
+      errorMessage`${inputRef("positionId")} must be a whole number; ${tokenId} is not one`,
     );
   }
   return text;
