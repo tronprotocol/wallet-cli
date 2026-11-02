@@ -155,6 +155,7 @@ export class EvmTransactionService {
         this.tokens.effective(networkId, account),
         input.token,
         networkId,
+        errorMessage`use ${inputRef("contract")}`,
       );
       if (entry.kind !== "erc20") {
         throw new ExecutionError(

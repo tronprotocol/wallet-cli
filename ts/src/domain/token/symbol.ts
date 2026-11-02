@@ -1,6 +1,6 @@
 // A token's symbol is chosen by its contract's deployer, so several entries may share one; a
 // symbol resolves only when exactly one entry carries it.
-import { UsageError } from "../errors/index.js";
+import { errorMessage, UsageError, type UserMessage } from "../errors/index.js";
 
 export type TokenSymbolMatch<T> =
   | { readonly kind: "one"; readonly token: T }
@@ -19,10 +19,12 @@ export function matchTokenSymbol<T extends { readonly symbol: string }>(
 }
 
 // The token-book lookup of a symbol: `token_not_in_book` or `ambiguous_token_symbol` otherwise.
+// `instead` tells the user how to pick one token when the symbol is ambiguous.
 export function tokenBySymbol<T extends { readonly symbol: string; readonly id: string }>(
   tokens: readonly T[],
   symbol: string,
   networkId: string,
+  instead: UserMessage,
 ): T {
   const match = matchTokenSymbol(tokens, symbol);
   if (match.kind === "one") return match.token;
@@ -34,6 +36,6 @@ export function tokenBySymbol<T extends { readonly symbol: string; readonly id: 
   }
   throw new UsageError(
     "ambiguous_token_symbol",
-    `token symbol ${symbol} matches more than one token on ${networkId}: ${match.matches.map((token) => token.id).join(", ")}; address the one you mean by its id`,
+    errorMessage`token symbol ${symbol} matches more than one token on ${networkId}: ${match.matches.map((token) => token.id).join(", ")}; ${instead}`,
   );
 }

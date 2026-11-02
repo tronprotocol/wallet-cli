@@ -131,7 +131,10 @@ describe("TronTransactionService --token", () => {
         rawAmount: "1",
         feeLimit: sunAmount("1"),
       }),
-    ).rejects.toMatchObject({ code: "ambiguous_token_symbol" });
+    ).rejects.toMatchObject({
+      code: "ambiguous_token_symbol",
+      parts: expect.arrayContaining([{ input: "contract" }, { input: "assetId" }]),
+    });
     expect(pipeline.runTron).not.toHaveBeenCalled();
   });
 

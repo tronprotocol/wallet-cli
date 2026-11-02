@@ -281,7 +281,10 @@ describe("EvmTransactionService.send — --token", () => {
 
     await expect(
       service.send(scope(), SEPOLIA, { to: RECEIVER, token: "FOO", amount: "1" } as never),
-    ).rejects.toMatchObject({ code: "ambiguous_token_symbol" });
+    ).rejects.toMatchObject({
+      code: "ambiguous_token_symbol",
+      parts: expect.arrayContaining([{ input: "contract" }]),
+    });
     expect(pipeline.runEvm).not.toHaveBeenCalled();
   });
 
