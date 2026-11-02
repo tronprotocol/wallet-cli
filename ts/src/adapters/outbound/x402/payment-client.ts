@@ -1,4 +1,4 @@
-import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import { type DispatchCheck, withErrorDetails } from "../../../application/contracts/deadline.js";
 import { gasfreeRelayClient } from "./gasfree-relay.js";
 import { X402_TOKENS, GASFREE_TOKENS, tokensForScheme } from "./tokens.js";
 import {
@@ -720,8 +720,7 @@ function paidAmount(
 
 function withApproval(error: CliError, approval: PaymentAuthorization["approval"]): CliError {
   if (!approval) return error;
-  const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-  return new ErrorType(error.code, error, { ...error.details, approval });
+  return withErrorDetails(error, { ...error.details, approval });
 }
 
 interface OutputReservation {
@@ -927,9 +926,11 @@ function settlementError(
   }
   if (!successfulSettlement(receipt, expectedNetwork)) return classified;
   const settlement = receipt as Record<string, unknown>;
+  // Settlement succeeded, so the outcome is known.
+  const { outcome: _outcome, ...details } = (classified.details ?? {}) as Record<string, unknown>;
   const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
   return new ErrorType(classified.code, classified, {
-    ...classified.details,
+    ...details,
     phase: "response",
     paymentStatus: "settled",
     retryPayment: false,

@@ -1,10 +1,31 @@
-import { ExecutionError } from "../../domain/errors/index.js";
+import {
+  type CliError,
+  ExecutionError,
+  TransportError,
+  UsageError,
+  type UserMessage,
+} from "../../domain/errors/index.js";
 
 // The one error a command deadline produces; it is also the reason its signal aborts with.
 export class DeadlineExpiredError extends ExecutionError {
-  constructor(message = "the command did not finish within its time limit") {
-    super("timeout", message);
+  constructor(
+    message: string | UserMessage = "the command did not finish within its time limit",
+    details?: object,
+  ) {
+    super("timeout", message, details);
   }
+}
+
+// Copies a classified error with new details. A DeadlineExpiredError stays one, so callers can still
+// tell that its request was never sent.
+export function withErrorDetails(
+  error: CliError,
+  details: object,
+  message: string | UserMessage = error.userMessage,
+): CliError {
+  if (error instanceof DeadlineExpiredError) return new DeadlineExpiredError(message, details);
+  const ErrorType = error.kind === "usage" ? UsageError : TransportError;
+  return new ErrorType(error.code, message, details);
 }
 
 // Read-only view of the command deadline. remainingMs() is Infinity when the command has no limit.

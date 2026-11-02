@@ -235,6 +235,7 @@ it.each([
   };
   expect(error.details).toMatchObject({ paymentStatus: "not_sent", orderId: "1" });
   expect(error.details).not.toHaveProperty("outcome");
+  expect(error instanceof DeadlineExpiredError).toBe(failure instanceof DeadlineExpiredError);
 });
 
 it("reports no order id when B.AI returned none", async () => {

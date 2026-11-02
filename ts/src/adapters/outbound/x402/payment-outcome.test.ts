@@ -7,6 +7,7 @@ import type { SignerResolver } from "../../../application/services/signer/index.
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { CommandDeadline } from "../../../application/services/command-deadline.js";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
 
 const network = { id: "eip155:8453", family: "evm", chainId: "8453" } as NetworkDescriptor;
 const input = { url: "https://example.test/paid", method: "GET", headers: [] };
@@ -120,6 +121,7 @@ it("reports a paid request the deadline refuses before dispatch as not sent", as
   const error = (await pay().catch((e: unknown) => e)) as { code: string; details: object };
   expect(sent.paidRequests).toBe(0);
   expect(error).toMatchObject({ code: "timeout", details: { paymentStatus: "not_sent" } });
+  expect(error).toBeInstanceOf(DeadlineExpiredError);
   expect(error.details).not.toHaveProperty("outcome");
 });
 
@@ -155,5 +157,6 @@ it("keeps a B.AI recharge whose payment was refused before dispatch free of an u
     code: "timeout",
     details: { paymentStatus: "not_sent", orderId: "order-1" },
   });
+  expect(error).toBeInstanceOf(DeadlineExpiredError);
   expect(error.details).not.toHaveProperty("outcome");
 });

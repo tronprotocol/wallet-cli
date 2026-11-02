@@ -3,7 +3,11 @@ import {
   endedByDeadline,
   submitDispatchCheck,
 } from "../services/command-deadline.js";
-import { DeadlineExpiredError, type ExecutionDeadline } from "../contracts/deadline.js";
+import {
+  DeadlineExpiredError,
+  type ExecutionDeadline,
+  withErrorDetails,
+} from "../contracts/deadline.js";
 import type {
   BaiCreateOrderInput,
   BaiReportDelay,
@@ -52,13 +56,12 @@ export class BaiRechargeFlow {
     } catch (error) {
       // Preserve classified payment failures and any settlement evidence.
       if (error instanceof CliError) {
-        const ErrorType = error.kind === "usage" ? UsageError : TransportError;
         // The deadline refuses a request before it is sent.
         const details = {
           paymentStatus: error instanceof DeadlineExpiredError ? "not_sent" : "unknown",
           ...error.details,
         };
-        throw new ErrorType(error.code, error, {
+        throw withErrorDetails(error, {
           ...details,
           ...(details.paymentStatus === "unknown" ? { outcome: "unknown" } : {}),
           retryPayment: false,

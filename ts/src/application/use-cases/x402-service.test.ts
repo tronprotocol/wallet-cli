@@ -1,4 +1,5 @@
 import { CommandDeadline } from "../services/command-deadline.js";
+import { DeadlineExpiredError } from "../contracts/deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { X402Service } from "./x402-service.js";
 import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
@@ -323,6 +324,7 @@ describe("roundtrip failures before the payment request", () => {
   it.each([
     ["a port in use", new ExecutionError("port_in_use", "in use"), "port_in_use"],
     ["an unclassified error", new Error("EACCES"), "internal_error"],
+    ["a deadline refusal", new DeadlineExpiredError(), "timeout"],
   ])("reports a paywall host start failure (%s) as not sent", async (_case, failure, code) => {
     const f = fixture();
     f.start.mockRejectedValueOnce(failure);
@@ -335,6 +337,7 @@ describe("roundtrip failures before the payment request", () => {
       details: { paymentStatus: "not_sent", retryPayment: false, orderId: "order-1" },
     });
     expect(error.details).not.toHaveProperty("outcome");
+    expect(error instanceof DeadlineExpiredError).toBe(failure instanceof DeadlineExpiredError);
     expect(f.request).not.toHaveBeenCalled();
   });
 
@@ -367,6 +370,7 @@ describe("roundtrip failures before the payment request", () => {
       .catch((e: unknown) => e)) as { code: string; details: object };
     deadline.dispose();
     expect(error).toMatchObject({ code: "timeout", details: { paymentStatus: "not_sent" } });
+    expect(error).toBeInstanceOf(DeadlineExpiredError);
     expect(error.details).not.toHaveProperty("outcome");
     expect(f.pay).not.toHaveBeenCalled();
   });

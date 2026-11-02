@@ -20,7 +20,7 @@ import {
   paymentBaseUnits,
   paymentRawAmount,
 } from "../../domain/x402/payment-terms.js";
-import type { ExecutionDeadline } from "../contracts/deadline.js";
+import { type ExecutionDeadline, withErrorDetails } from "../contracts/deadline.js";
 import {
   assertSubmitAdmitted,
   requestDispatchCheck,
@@ -395,8 +395,7 @@ function wholeTokenLimit(
 function unpaid(error: unknown): CliError {
   const classified = classifyError(error);
   const { outcome: _outcome, ...details } = (classified.details ?? {}) as Record<string, unknown>;
-  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
-  return new ErrorType(classified.code, classified.userMessage, {
+  return withErrorDetails(classified, {
     ...details,
     paymentStatus: "not_sent",
     retryPayment: false,
@@ -404,6 +403,5 @@ function unpaid(error: unknown): CliError {
 }
 
 function notSent(error: CliError): CliError {
-  const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-  return new ErrorType(error.code, error.userMessage, { ...error.details, ...NOT_SENT });
+  return withErrorDetails(error, { ...error.details, ...NOT_SENT });
 }

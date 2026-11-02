@@ -105,6 +105,7 @@ describe("x402 response bytes", () => {
           paymentResponse: receipt,
           payer: { address: signer.address },
         });
+      if (mode === "settled") expect(error.details).not.toHaveProperty("outcome");
       expect(error.message).not.toMatch(/rerun|retry with|run again/i);
       expect(fetcher).toHaveBeenCalledOnce();
     },
@@ -211,10 +212,43 @@ describe("x402 response bytes", () => {
           retryPayment: false,
         },
       });
+      expect(error.details).not.toHaveProperty("outcome");
       expect(error.message).toContain("UTF-8");
       expect(exitCodeOf(error)).toBe(1);
     },
   );
+
+  it("keeps a settlement without an unknown outcome when the paid body fails to stream", async () => {
+    const headers = new Headers({
+      "payment-response": Buffer.from(JSON.stringify(receipt)).toString("base64"),
+    });
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error("stream broke"));
+      },
+    });
+    const { resolver } = harness(new Uint8Array());
+    const client = new X402Service(
+      new X402PaymentClient(
+        challengeFetch,
+        async () => async () => new Response(body, { headers }),
+      ),
+      resolver,
+      {} as never,
+      {} as never,
+    );
+    const error = await rejection(client.pay(scope, net, input));
+    expect(error).toMatchObject({
+      code: "provider_error",
+      details: {
+        paymentStatus: "settled",
+        settled: true,
+        txHash: transaction,
+        retryPayment: false,
+      },
+    });
+    expect(error.details).not.toHaveProperty("outcome");
+  });
 });
 
 function challengeFetch(): Promise<Response> {

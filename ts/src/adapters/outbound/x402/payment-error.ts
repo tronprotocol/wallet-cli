@@ -5,6 +5,7 @@ import {
   UsageError,
 } from "../../../domain/errors/index.js";
 import { addressShape, CHAIN_FAMILIES, isTxHash } from "../../../domain/family/index.js";
+import { withErrorDetails } from "../../../application/contracts/deadline.js";
 
 // Only emit our own messages. SDK/provider messages can contain credentials and URLs.
 const transportCodes = ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"] as const;
@@ -82,12 +83,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         { ...details, ...(phase ? { phase } : {}), retryPayment: false },
       );
     if (!phase || details?.phase) return error;
-    const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-    return new ErrorType(error.code, error, {
-      ...error.details,
-      phase,
-      retryPayment: false,
-    });
+    return withErrorDetails(error, { ...error.details, phase, retryPayment: false });
   }
   const message = error instanceof Error ? error.message : "";
   // x402-fetch wraps errors while retaining the SDK message.
@@ -278,9 +274,9 @@ export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliErro
   // An unknown outcome of another request, such as a sent approval, still stands.
   const { outcome, ...rest } = details ?? {};
   const kept = outcome === undefined || details?.paymentStatus === "unknown" ? {} : { outcome };
-  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
-  return new ErrorType(
-    classified.code,
+  return withErrorDetails(
+    classified,
+    { ...rest, ...kept, paymentStatus: "not_sent", retryPayment: false },
     {
       message: classified.message.replace(
         /; reconcile before paying again/g,
@@ -291,6 +287,5 @@ export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliErro
         "; no payment was sent",
       ),
     },
-    { ...rest, ...kept, paymentStatus: "not_sent", retryPayment: false },
   );
 }
