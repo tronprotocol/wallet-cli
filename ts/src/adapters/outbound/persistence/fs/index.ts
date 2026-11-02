@@ -361,11 +361,13 @@ export class AtomicFileStore {
           continue;
         }
         if (Date.now() > waitUntil) {
-          if (remainingMs < lockWaitMs) throw new DeadlineExpiredError();
-          throw new ExecutionError(
-            "execution_error",
-            `timed out acquiring lock ${lock}${lockHolder(lock)}; if no wallet-cli command is running, delete ${lock} and retry`,
-          );
+          const blocked = `lock ${lock}${lockHolder(lock)}; if no wallet-cli command is running, delete ${lock} and retry`;
+          if (remainingMs < lockWaitMs) {
+            throw new DeadlineExpiredError(
+              `the command did not finish within its time limit while waiting for ${blocked}`,
+            );
+          }
+          throw new ExecutionError("execution_error", `timed out acquiring ${blocked}`);
         }
         sleepMs(25);
       }

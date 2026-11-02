@@ -338,7 +338,10 @@ describe("AtomicFileStore.withLock under the command deadline", () => {
     const fn = vi.fn();
     const started = Date.now();
     expect(() => store.withLock(path, fn)).toThrow(DeadlineExpiredError);
-    expect(Date.now() - started).toBeLessThan(2000);
+    expect(() => store.withLock(path, fn)).toThrow(
+      `while waiting for lock ${path}.lock, held by process ${process.pid}; if no wallet-cli command is running, delete ${path}.lock and retry`,
+    );
+    expect(Date.now() - started).toBeLessThan(4000);
     expect(fn).not.toHaveBeenCalled();
   });
 
