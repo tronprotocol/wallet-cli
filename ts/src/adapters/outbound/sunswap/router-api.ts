@@ -11,8 +11,7 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
 import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
 import { sameAddress } from "../../../domain/family/index.js";
-import { createTimedFetch } from "../http/timed-fetch.js";
-import { RateLimited, rateLimitAware } from "./market-api.js";
+import { serviceFetch } from "../http/json-service.js";
 
 interface WireRoute {
   readonly amountInRaw?: unknown;
@@ -42,12 +41,11 @@ export class SunSwapRouterApi implements RouterPort {
   ): Promise<readonly RouterRoute[]> {
     const baseUrl = routerBaseUrl(network);
     const client = new RouterApiClient({
-      fetchImpl: rateLimitAware(
-        createTimedFetch({
-          check,
-          ...(this.deps.fetchImpl === undefined ? {} : { fetchImpl: this.deps.fetchImpl }),
-        }),
-      ),
+      fetchImpl: serviceFetch({
+        service: "SunSwap route service",
+        check,
+        ...(this.deps.fetchImpl === undefined ? {} : { fetchImpl: this.deps.fetchImpl }),
+      }),
       jsonParser: (text: string) => parseLosslessJson(text) as unknown,
     });
     let response: { code?: unknown; data?: unknown; message?: string; msg?: string };
@@ -74,14 +72,6 @@ export class SunSwapRouterApi implements RouterPort {
 }
 
 function translate(error: unknown): CliError {
-  if (error instanceof RateLimited) {
-    return new ChainError("provider_rate_limited", "SunSwap route service rate limit exceeded", {
-      httpStatus: 429,
-      ...(error.retryAfterSeconds === undefined
-        ? {}
-        : { retryAfterSeconds: error.retryAfterSeconds }),
-    });
-  }
   if (error instanceof CliError) return error;
   return new ChainError(
     "provider_error",

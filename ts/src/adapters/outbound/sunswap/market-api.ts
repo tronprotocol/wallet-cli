@@ -16,7 +16,7 @@ import type {
 } from "../../../application/ports/sunswap/market-data.js";
 import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
 import { expandScientificNotation } from "../../../domain/sunswap/amount.js";
-import { createTimedFetch } from "../http/timed-fetch.js";
+import { serviceFetch } from "../http/json-service.js";
 import { epochMsToUtcMinute, mapPool, mapPosition, mapToken } from "./market-api.mapper.js";
 import {
   poolCountSchema,
@@ -54,14 +54,6 @@ const BODY_EXCERPT_LIMIT = 200;
 export interface MarketApiDeps {
   readonly clientFactory?: SunApiClientFactory;
   readonly fetchImpl?: typeof globalThis.fetch;
-}
-
-// Capture Retry-After before the SDK discards the response headers.
-export class RateLimited extends Error {
-  constructor(readonly retryAfterSeconds?: number) {
-    super("rate limited");
-    this.name = "RateLimited";
-  }
 }
 
 export class SunSwapMarketApi implements MarketDataPort {
@@ -236,12 +228,11 @@ export class SunSwapMarketApi implements MarketDataPort {
   ): Promise<unknown> {
     const client = (this.deps.clientFactory ?? defaultClientFactory)({
       baseUrl: marketApiBaseUrl(network),
-      fetchImpl: rateLimitAware(
-        createTimedFetch({
-          check,
-          ...(this.deps.fetchImpl === undefined ? {} : { fetchImpl: this.deps.fetchImpl }),
-        }),
-      ),
+      fetchImpl: serviceFetch({
+        service: "SunSwap market API",
+        check,
+        ...(this.deps.fetchImpl === undefined ? {} : { fetchImpl: this.deps.fetchImpl }),
+      }),
       // JSON.parse would round liquidity and monetary values.
       jsonParser: (text: string) => parseLosslessJson(text),
     });
@@ -262,28 +253,6 @@ export type SunApiClientFactory = (options: {
 }) => SunApiClient;
 
 const defaultClientFactory: SunApiClientFactory = (options) => new SunApiClient(options);
-
-// Intercept only 429; preserve SDK handling for other statuses.
-export function rateLimitAware(fetchImpl: typeof globalThis.fetch): typeof globalThis.fetch {
-  return async (input, init) => {
-    const response = await fetchImpl(input, init);
-    if (response.status !== 429) return response;
-    const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
-    await response.body?.cancel().catch(() => {});
-    throw new RateLimited(retryAfter);
-  };
-}
-
-// Retry-After accepts unsigned delta-seconds or an HTTP-date.
-export function parseRetryAfter(header: string | null): number | undefined {
-  if (header === null) return undefined;
-  const value = header.trim();
-  // Reject signed integers before Date.parse can interpret them as dates.
-  if (/^[+-]?\d+$/.test(value)) return /^\d+$/.test(value) ? Number(value) : undefined;
-  const date = Date.parse(value);
-  if (Number.isNaN(date)) return undefined;
-  return Math.max(0, Math.round((date - Date.now()) / 1000));
-}
 
 // Envelope codes 0, 200, or absent indicate success.
 function unwrap(envelope: unknown): unknown {
@@ -316,15 +285,7 @@ function parse<T>(
 
 // Keep remote text out of error messages; expose only bounded excerpts in details.
 function translate(error: unknown): CliError {
-  if (error instanceof RateLimited) {
-    return new ChainError("provider_rate_limited", "SunSwap market API rate limit exceeded", {
-      httpStatus: 429,
-      ...(error.retryAfterSeconds === undefined
-        ? {}
-        : { retryAfterSeconds: error.retryAfterSeconds }),
-    });
-  }
-  // Preserve typed failures such as timeout and response_too_large.
+  // Preserve typed failures such as provider_rate_limited, timeout and response_too_large.
   if (error instanceof CliError) return error;
   const context = sdkContext(error);
   if (context) {

@@ -4,7 +4,7 @@ import { SunPumpApiClient } from "@sun-protocol/sun-sdk-api";
 import { parse as parseLosslessJson } from "lossless-json";
 import { isTronNetwork, type NetworkDescriptor } from "../../../domain/types/network.js";
 import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
-import { createTimedFetch } from "../http/timed-fetch.js";
+import { serviceFetch } from "../http/json-service.js";
 
 const BODY_EXCERPT_LIMIT = 200;
 
@@ -33,13 +33,6 @@ export function sunpumpApiBaseUrl(network: NetworkDescriptor): string {
   return configured;
 }
 
-class RateLimited extends Error {
-  constructor(readonly retryAfterSeconds?: number) {
-    super("rate limited");
-    this.name = "RateLimited";
-  }
-}
-
 export async function sunpumpRequest(
   network: NetworkDescriptor,
   check: DispatchCheck,
@@ -48,12 +41,11 @@ export async function sunpumpRequest(
 ): Promise<unknown> {
   const client = (deps.clientFactory ?? defaultClientFactory)({
     baseUrl: sunpumpApiBaseUrl(network),
-    fetchImpl: rateLimitAware(
-      createTimedFetch({
-        check,
-        ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
-      }),
-    ),
+    fetchImpl: serviceFetch({
+      service: "SunPump API",
+      check,
+      ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
+    }),
     jsonParser: (text: string) => parseLosslessJson(text),
   });
   let envelope: unknown;
@@ -63,27 +55,6 @@ export async function sunpumpRequest(
     throw translate(error);
   }
   return unwrap(envelope);
-}
-
-// Capture Retry-After before the SDK discards the response headers.
-function rateLimitAware(fetchImpl: typeof globalThis.fetch): typeof globalThis.fetch {
-  return async (input, init) => {
-    const response = await fetchImpl(input, init);
-    if (response.status !== 429) return response;
-    const retryAfter = parseRetryAfter(response.headers.get("retry-after"));
-    await response.body?.cancel().catch(() => {});
-    throw new RateLimited(retryAfter);
-  };
-}
-
-// Retry-After accepts unsigned seconds or an HTTP-date; past dates yield zero.
-export function parseRetryAfter(header: string | null): number | undefined {
-  if (header === null) return undefined;
-  const value = header.trim();
-  if (/^[+-]?\d+$/.test(value)) return /^\d+$/.test(value) ? Number(value) : undefined;
-  const date = Date.parse(value);
-  if (Number.isNaN(date)) return undefined;
-  return Math.max(0, Math.round((date - Date.now()) / 1000));
 }
 
 // HTTP 200 can contain a refusal; only envelope codes 0, 200, or absent are accepted.
@@ -117,15 +88,7 @@ export function parseSunPumpShape<T>(
 
 // Keep remote response text in bounded error details, outside error.message.
 function translate(error: unknown): CliError {
-  if (error instanceof RateLimited) {
-    return new ChainError("provider_rate_limited", "SunPump API rate limit exceeded", {
-      httpStatus: 429,
-      ...(error.retryAfterSeconds === undefined
-        ? {}
-        : { retryAfterSeconds: error.retryAfterSeconds }),
-    });
-  }
-  // Preserve timeout and response-size error codes from the fetch wrapper.
+  // Preserve provider_rate_limited, timeout and response-size error codes from the fetch hook.
   if (error instanceof CliError) return error;
   const context = sdkContext(error);
   if (context) {

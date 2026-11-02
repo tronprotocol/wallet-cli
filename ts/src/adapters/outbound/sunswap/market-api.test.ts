@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isLosslessNumber } from "lossless-json";
 import { SunApiClient } from "@sun-protocol/sun-sdk-api";
-import { parseRetryAfter, SunSwapMarketApi, type SunApiClientFactory } from "./market-api.js";
+import { SunSwapMarketApi, type SunApiClientFactory } from "./market-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { expiringCheck } from "../http/__test-support__/dispatch.js";
 
@@ -167,30 +167,6 @@ describe("SunSwapMarketApi paging", () => {
     await expect(api.listPositions(MAINNET, query, NO_CHECK)).resolves.not.toHaveProperty(
       "hasMore",
     );
-  });
-});
-
-describe("parseRetryAfter", () => {
-  it("accepts delta-seconds", () => {
-    expect(parseRetryAfter("30")).toBe(30);
-    expect(parseRetryAfter(" 0 ")).toBe(0);
-  });
-
-  it("converts an HTTP-date to seconds from now", () => {
-    const future = new Date(Date.now() + 45_000).toUTCString();
-    expect(parseRetryAfter(future)).toBeGreaterThan(40);
-    expect(parseRetryAfter(future)).toBeLessThanOrEqual(45);
-  });
-
-  it("clamps a past HTTP-date at zero", () => {
-    expect(parseRetryAfter(new Date(Date.now() - 60_000).toUTCString())).toBe(0);
-  });
-
-  it("omits anything it cannot read", () => {
-    expect(parseRetryAfter(null)).toBeUndefined();
-    expect(parseRetryAfter("soon")).toBeUndefined();
-    expect(parseRetryAfter("-5")).toBeUndefined();
-    expect(parseRetryAfter("")).toBeUndefined();
   });
 });
 
