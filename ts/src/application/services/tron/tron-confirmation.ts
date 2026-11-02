@@ -1,14 +1,6 @@
-import type {
-  BroadcastResult,
-  TronTransactionArtifact,
-  TxConfirmation,
-  TxOutcome,
-} from "../../../domain/types/index.js";
+import type { TronTransactionArtifact, TxConfirmation } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TronGateway, TronTxInfo } from "../../ports/chain/tron/tron-gateway.js";
-import { errorMessage } from "../../../domain/errors/index.js";
-import { waitsForConfirmation } from "../transaction-mode.js";
-import { authoritativeTxId, localTxId } from "../broadcast-identity.js";
 import { pollUntilDeadline } from "../deadline-poll.js";
 
 function normalize(info: TronTxInfo): TxConfirmation {
@@ -58,33 +50,4 @@ export function tronConfirmation(
         : undefined;
     });
   };
-}
-
-export async function stageTronBroadcast(
-  gateway: TronGateway,
-  scope: TransactionScope,
-  result: BroadcastResult,
-  transaction: TronTransactionArtifact,
-): Promise<TxOutcome> {
-  const local = localTxId(transaction);
-  const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) =>
-    scope.warn(m),
-  );
-  const wait = waitsForConfirmation(scope.wait, true);
-  if (!wait || !txId) {
-    if (wait && !txId) {
-      scope.warn("the broadcast returned no txid; returning submitted (unconfirmed)");
-    }
-    return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
-  }
-  const confirmed = await tronConfirmation(gateway, scope)(txId, transaction).catch(
-    () => undefined,
-  );
-  if (!confirmed) {
-    scope.warn(
-      errorMessage`${txId} not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)`,
-    );
-    return { stage: "submitted", ...result, txId };
-  }
-  return { stage: confirmed.failed ? "failed" : "confirmed", ...result, txId, ...confirmed };
 }

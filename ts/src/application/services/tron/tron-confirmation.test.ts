@@ -1,11 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { stageTronBroadcast, tronConfirmation } from "./tron-confirmation.js";
+import { tronConfirmation } from "./tron-confirmation.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
-import type { TronTransactionArtifact } from "../../../domain/types/index.js";
+import type { BroadcastResult, TronTransactionArtifact } from "../../../domain/types/index.js";
 import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
 import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
-import { CommandDeadline } from "../command-deadline.js";
+import { CommandDeadline, SUBMIT_ADMISSION_RESERVE_MS } from "../command-deadline.js";
+import { localTxId } from "../broadcast-identity.js";
+import { submitAndStage } from "../submit-and-stage.js";
 
 function scope(
   over: Partial<TransactionScope> = {},
@@ -16,7 +18,7 @@ function scope(
     warnings,
     cliWarnings,
     wait: true,
-    deadline: new CommandDeadline(10),
+    deadline: new CommandDeadline(0),
     activeAccount: {} as never,
     resolveAddress: () => "T",
     emit: () => {},
@@ -40,6 +42,24 @@ function transaction(type: string, txID = "abc"): TronTransactionArtifact {
   return { txID, raw_data: { contract: [{ type }] }, raw_data_hex: "" };
 }
 
+// The imported `tx broadcast` path: submit, then wait through tronConfirmation.
+function stageTronBroadcast(
+  g: TronGateway,
+  s: TransactionScope,
+  result: BroadcastResult,
+  tx: TronTransactionArtifact,
+) {
+  return submitAndStage(
+    s,
+    localTxId(tx),
+    async () => result,
+    (id) => tronConfirmation(g, s)(id, tx),
+  );
+}
+
+// Admits the submit, then expires while polling.
+const shortAfterSubmit = () => new CommandDeadline(SUBMIT_ADMISSION_RESERVE_MS + 50);
+
 const NATIVE = transaction("TransferContract");
 const CONTRACT_CALL = transaction("TriggerSmartContract");
 
@@ -57,7 +77,7 @@ describe("stageTronBroadcast (issue #7 — --wait fallback is not silent)", () =
   });
 
   it("wait requested but never confirms within the window → submitted + a warning", async () => {
-    const s = scope({ deadline: new CommandDeadline(10) });
+    const s = scope({ deadline: shortAfterSubmit() });
     const out = await stageTronBroadcast(gateway(undefined), s, { txId: "abc" }, NATIVE);
     expect(out.stage).toBe("submitted");
     expect(s.warnings).toHaveLength(1);
@@ -215,7 +235,7 @@ describe("tronConfirmation requires an execution result for contract execution",
   });
 
   it("tx broadcast of a contract call stays submitted while its result is unknown", async () => {
-    const s = scope({ deadline: new CommandDeadline(10) });
+    const s = scope({ deadline: shortAfterSubmit() });
     const out = await stageTronBroadcast(
       gateway({ blockNumber: 42, receipt: {} }),
       s,

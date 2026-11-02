@@ -12,7 +12,11 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline, EvmTxPipelineParams } from "../../services/pipeline/index.js";
 import { decodeEvmRawTransaction } from "../../../adapters/outbound/chain/evm/evm.js";
-import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
+import {
+  cliMessage,
+  errorEnvelope,
+  exitCodeOf,
+} from "../../../adapters/inbound/cli/output/errors.js";
 import { DeadlineExpiredError } from "../../contracts/deadline.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
 
@@ -702,6 +706,24 @@ describe("EvmTransactionService.broadcast", () => {
       expect(gateway.getTransactionReceipt).toHaveBeenCalledTimes(stage === "confirmed" ? 1 : 0);
     },
   );
+
+  it("returns submitted with the shared warning when the deadline ends the wait", async () => {
+    const { service, gateway } = bcHarness();
+    const clock = { now: () => 0 };
+    const deadline = new CommandDeadline(10_000, 0, clock);
+    deadline.dispose();
+    gateway.sendRawTransaction.mockImplementationOnce(async () => {
+      clock.now = () => 10_000;
+      return { hash: `0x${"cd".repeat(32)}` };
+    });
+    const warn = vi.fn();
+    const out = await service.broadcast({ ...scope(true), deadline, warn }, SEPOLIA, SIGNED);
+
+    expect(out).toMatchObject({ stage: "submitted" });
+    expect(cliMessage(warn.mock.calls.at(-1)![0]).message).toBe(
+      "0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026 not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
+    );
+  });
 
   it.each([true, false])(
     "refuses an explicit wait intent (%s) on a dry run without submitting",

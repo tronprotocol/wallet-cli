@@ -8,7 +8,8 @@ import {
   parseTronTx,
   parseTronTxInfo,
 } from "../../../adapters/outbound/chain/tron/tron-responses.js";
-import { stageTronBroadcast } from "../../services/tron/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
+import { submitAndStage } from "../../services/submit-and-stage.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
@@ -129,11 +130,12 @@ describe("tx status and --wait read one execution fact", () => {
     [{ blockNumber: 42, receipt: { result: "SUCCESS" } }, "confirmed"],
   ])("%j → %s in both", async (info, expected) => {
     const status = await service({ tx: { txID: "abc" }, info }).status(NO_DEADLINE, NET, "abc");
-    const waited = await stageTronBroadcast(
-      nodeGateway({ info }),
+    const gateway = nodeGateway({ info });
+    const waited = await submitAndStage(
       waitScope,
-      { txId: "abc" },
-      NATIVE,
+      "abc",
+      async () => ({ txId: "abc" }),
+      (id) => tronConfirmation(gateway, waitScope)(id, NATIVE),
     );
 
     expect(status.state).toBe(expected);

@@ -11,14 +11,11 @@ import { operationForContractType } from "../../../domain/tron/permission/index.
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
-import { stageTronBroadcast } from "../../services/tron/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
+import { submitAndStage } from "../../services/submit-and-stage.js";
 import { assertTronReferenceBlock } from "../../services/signing/chain-identity.js";
-import { localTxId, submitWithTxId } from "../../services/broadcast-identity.js";
-import {
-  assertSubmitAdmitted,
-  requestDispatchCheck,
-  submitDispatchCheck,
-} from "../../services/command-deadline.js";
+import { localTxId } from "../../services/broadcast-identity.js";
+import { requestDispatchCheck } from "../../services/command-deadline.js";
 import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import {
   assertThresholdReached,
@@ -103,14 +100,15 @@ export class TronMultisigService implements TronCheckedSigner {
         multiSignFeeSun,
       };
     }
-    const txId = localTxId(transaction);
-    assertSubmitAdmitted(scope.deadline);
-    const result = await submitWithTxId(txId, () =>
-      gateway.broadcastHex(hex, submitDispatchCheck(scope.deadline)),
+    const outcome = await submitAndStage(
+      scope,
+      localTxId(transaction),
+      (check) => gateway.broadcastHex(hex, check),
+      (txId) => tronConfirmation(gateway, scope)(txId, transaction),
     );
     return {
       kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result, transaction)),
+      ...outcome,
       transaction: approval,
       multiSignFeeSun,
     };

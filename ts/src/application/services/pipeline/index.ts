@@ -15,10 +15,10 @@ import { SignerResolver } from "../signer/index.js";
 import { errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { OWNER_PERMISSION_ID } from "../../../domain/tron/permission/index.js";
 import type { SignOrigin, SigningService } from "../signing/signing-service.js";
-import { authoritativeTxId, localTxId as txIdOf, submitWithTxId } from "../broadcast-identity.js";
+import { localTxId as txIdOf } from "../broadcast-identity.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 import { waitsForConfirmation, type TransactionExecutionMode } from "../transaction-mode.js";
-import { assertSubmitAdmitted, submitDispatchCheck } from "../command-deadline.js";
+import { submitAndStage } from "../submit-and-stage.js";
 
 export interface SignerAuthorization {
   // Sign-only may collect a partial signature; enforce the threshold only before broadcast.
@@ -152,7 +152,7 @@ export class TxPipeline {
     steps: LifecycleSteps<T>,
   ): Promise<TxOutcome> {
     const mode = p.mode;
-    const wait = waitsForConfirmation(p.ctx.wait, mode === "broadcast");
+    waitsForConfirmation(p.ctx.wait, mode === "broadcast");
 
     const deadline = p.ctx.deadline;
     const ownerAddress = p.ctx.resolveAddress(p.net.family);
@@ -195,33 +195,11 @@ export class TxPipeline {
       };
     }
     authorization?.assertBroadcastable();
-    assertSubmitAdmitted(deadline);
-    const local = txIdOf(signed);
-    const result = await submitWithTxId(local, () =>
-      p.broadcaster.broadcast(signed, submitDispatchCheck(deadline)),
+    return submitAndStage(
+      p.ctx,
+      txIdOf(signed),
+      (check) => p.broadcaster.broadcast(signed, check),
+      (txId) => p.confirm(txId, signed),
     );
-    const txId = authoritativeTxId(local, String(result.txId ?? result.hash ?? ""), (m) =>
-      p.ctx.warn(m),
-    );
-    if (!wait || !txId) {
-      if (wait && !txId) {
-        p.ctx.warn("the broadcast returned no txid; returning submitted (unconfirmed)");
-      }
-      return { stage: "submitted", ...result, ...(txId ? { txId } : {}) };
-    }
-    // Confirmation failure must preserve the already-broadcast transaction.
-    let confirmed: TxConfirmation | undefined;
-    try {
-      confirmed = await p.confirm(txId, signed);
-    } catch {
-      confirmed = undefined;
-    }
-    if (!confirmed) {
-      p.ctx.warn(
-        errorMessage`${txId} not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)`,
-      );
-      return { stage: "submitted", ...result, txId };
-    }
-    return { stage: confirmed.failed ? "failed" : "confirmed", ...result, txId, ...confirmed };
   }
 }

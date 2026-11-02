@@ -15,7 +15,7 @@ import {
   inputRef,
 } from "../../../domain/errors/index.js";
 import { assertEvmTransactionChain } from "../../services/signing/chain-identity.js";
-import { authoritativeTxId, submitWithTxId } from "../../services/broadcast-identity.js";
+import { submitAndStage } from "../../services/submit-and-stage.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { tokenBySymbol } from "../../../domain/token/symbol.js";
 import {
@@ -38,12 +38,7 @@ import type {
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import {
-  assertSubmitAdmitted,
-  requestDispatchCheck,
-  submitDispatchCheck,
-  unlessDeadline,
-} from "../../services/command-deadline.js";
+import { requestDispatchCheck, unlessDeadline } from "../../services/command-deadline.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
 import {
@@ -301,32 +296,13 @@ export class EvmTransactionService {
     waitsForConfirmation(scope.wait, !dryRun);
     if (dryRun) return this.#dryRunBroadcast(scope, network, gateway, parsed);
     assertChainId(parsed, network);
-    const local = parsed.hash;
     const serialized = parsed.serialized!;
-    assertSubmitAdmitted(scope.deadline);
-    const result = await submitWithTxId(local, () =>
-      gateway.sendRawTransaction(serialized, submitDispatchCheck(scope.deadline)),
+    return submitAndStage(
+      scope,
+      parsed.hash,
+      (check) => gateway.sendRawTransaction(serialized, check),
+      evmConfirmation(gateway, scope),
     );
-    const txId = authoritativeTxId(local, result.hash, (m) => scope.warn(m));
-    const submitted = {
-      stage: "submitted" as const,
-      ...result,
-      txId,
-      ...(result.alreadyKnown ? { alreadyKnown: true } : {}),
-    };
-    if (!waitsForConfirmation(scope.wait, true)) return submitted;
-    const confirmed = await evmConfirmation(gateway, scope)(txId).catch(() => undefined);
-    if (!confirmed) {
-      scope.warn(
-        errorMessage`${txId} not confirmed before the command's time limit; returning submitted`,
-      );
-      return submitted;
-    }
-    return {
-      ...submitted,
-      stage: confirmed.failed ? ("failed" as const) : ("confirmed" as const),
-      ...confirmed,
-    };
   }
 
   // Check chain, nonce and balance without submitting; failed node reads leave checks skipped.
