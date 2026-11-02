@@ -207,8 +207,10 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
             warn: (message) => scope.warn(message),
           }
         : scope;
+    let awaiting: string | undefined;
     try {
       for (const approval of approvals) {
+        awaiting = undefined;
         const outcome = await this.run(
           approvalScope,
           network,
@@ -218,8 +220,10 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
             estimable: true,
             feeLimit,
             confirmationRequired: true,
+            onSubmitted: (txId) => (awaiting = txId),
           },
         );
+        awaiting = undefined;
         const txId = outcomeTxId(outcome);
         if (txId) txIds.push(txId);
         if (outcome.stage === "failed") {
@@ -239,6 +243,8 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
         await this.#assertAllowanceLanded(scope.deadline, network, approval, owner);
       }
     } catch (error) {
+      // A wait that stopped on an error leaves its approval submitted, as a deadline does.
+      if (awaiting) txIds.push(awaiting);
       throw approvalProgressError(error, txIds);
     }
     return txIds;
@@ -253,9 +259,12 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       estimable: boolean;
       feeLimit?: Sun;
       confirmationRequired?: boolean;
+      // Called with the txId once the transaction is submitted, before its confirmation wait.
+      onSubmitted?: (txId: string) => void;
     },
   ): Promise<TxOutcome> {
     const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
+    const confirm = tronConfirmation(gateway, scope);
     return this.pipeline.runTron({
       ctx: scope,
       net: network,
@@ -265,7 +274,10 @@ export class LiquidityTransactions<D extends ApprovalDomain = ApprovalDomain> {
       ...tronTransactionHooks(gateway),
       // Check signer membership before signing; enforce the combined threshold before broadcast.
       preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
-      confirm: tronConfirmation(gateway, scope),
+      confirm: (txId, signed) => {
+        options.onSubmitted?.(txId);
+        return confirm(txId, signed);
+      },
       confirmationRequired: options.confirmationRequired === true,
       build: async (from) =>
         gateway.triggerSmartContract(

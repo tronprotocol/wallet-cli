@@ -163,13 +163,21 @@ describe("approval confirmation before the main transaction", () => {
     });
     h.run
       .mockResolvedValueOnce({ stage: "confirmed", txId: "approval-1" })
-      .mockRejectedValueOnce(stopped);
+      .mockImplementationOnce(async (p) => {
+        await p.confirm("approval-2", {} as never).catch(() => undefined);
+        throw stopped;
+      });
     const main = vi.fn();
     await expect(
       h.tx.withApprovals(scope, network, [approval, approval], "owner", mode, undefined, main),
     ).rejects.toMatchObject({
       code: "not_found",
-      details: { txId: "approval-2", outcome: "unknown", approvalTxIds: ["approval-1"] },
+      message: expect.stringContaining("already submitted: approval-1, approval-2"),
+      details: {
+        txId: "approval-2",
+        outcome: "unknown",
+        approvalTxIds: ["approval-1", "approval-2"],
+      },
     });
     expect(h.run.mock.calls.map(([p]) => p.confirmationRequired)).toEqual([true, true]);
     expect(main).not.toHaveBeenCalled();
