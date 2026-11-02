@@ -101,14 +101,12 @@ it("does not pause before a report-only recovery", async () => {
   expect(reportTxHash).toHaveBeenCalledExactlyOnceWith(request, expect.anything());
 });
 it("turns a transport error into an unconfirmed result that keeps the hash", async () => {
-  const reportTxHash = vi
-    .fn()
-    .mockRejectedValue(
-      new TransportError("provider_rate_limited", "slow down", {
-        httpStatus: 429,
-        retryAfterSeconds: 7,
-      }),
-    );
+  const reportTxHash = vi.fn().mockRejectedValue(
+    new TransportError("provider_rate_limited", "slow down", {
+      httpStatus: 429,
+      retryAfterSeconds: 7,
+    }),
+  );
   await expect(reportBaiTransaction(NO_DEADLINE, { reportTxHash }, request)).resolves.toMatchObject(
     {
       ...request,
