@@ -30,7 +30,6 @@ function command(
   const registry = new CommandRegistry();
   registerWalletCommands(registry, {
     walletService: walletService as never,
-    ledger: {} as never,
     qr,
   });
   const current = registry.resolveNeutral(["current"]);
@@ -119,7 +118,6 @@ function withNetwork(
   const registry = new CommandRegistry();
   registerWalletCommands(registry, {
     walletService: walletService as never,
-    ledger: {} as never,
     qr,
   });
   const current = registry.resolveNeutral(["current"]);

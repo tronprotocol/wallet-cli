@@ -98,7 +98,6 @@ function buildServices(ks: Keystore) {
       { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
       { append: () => {}, list: () => [] },
     ),
-    ledger,
     tokenBook: {} as any,
     priceProvider: {} as any,
     rpc: {} as any,
@@ -378,7 +377,6 @@ describe("list reports what the family filter hid", () => {
     const registry = new CommandRegistry();
     registerWalletCommands(registry, {
       walletService: { list: () => accounts, unreadableWallets: () => [] } as never,
-      ledger: {} as never,
       qr: { encode: () => null },
     });
     const list = registry.resolveNeutral(["list"]);

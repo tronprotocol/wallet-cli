@@ -85,7 +85,6 @@ function fixture(opts: { tty: boolean; records?: BackupRecord[] }) {
       },
       { append: () => {}, list: () => opts.records ?? [] },
     ),
-    ledger: {} as any,
   } as any);
 
   const session: SessionRef = {};

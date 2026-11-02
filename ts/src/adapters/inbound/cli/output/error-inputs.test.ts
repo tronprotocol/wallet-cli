@@ -62,7 +62,7 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
   const launch = sunpumpLaunchTronBinding(service as never);
   const registry = new CommandRegistry();
   registerX402Commands(registry, service as never);
-  registerWalletCommands(registry, { walletService: {} as never, ledger: {} as never });
+  registerWalletCommands(registry, { walletService: {} as never });
   const pay = registry.resolveNeutral(["x402", "pay"])!;
   const importKeystore = registry.resolveNeutral(["import", "keystore"])!;
   const fileCommands = [

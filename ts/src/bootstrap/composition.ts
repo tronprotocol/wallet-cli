@@ -146,7 +146,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const registry = new CommandRegistry();
   registerWalletCommands(registry, {
     walletService,
-    ledger,
     qr: new TerminalQrEncoder(),
   });
   registerConfigCommands(registry, configService);

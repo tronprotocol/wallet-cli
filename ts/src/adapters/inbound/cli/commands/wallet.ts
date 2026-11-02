@@ -4,15 +4,10 @@ import type { CommandDefinition, ExclusiveGroup } from "../contracts/index.js";
 import { Schemas } from "../schemas/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { accountRef, camelToKebab, ciEnum } from "../arity/index.js";
-import type { LedgerDevice } from "../../../../application/ports/ledger-device.js";
 import type { QrDisplay, QrEncoder } from "../../../../application/ports/qr-encoder.js";
 import type { BackupOperation } from "../../../../application/ports/backup-records.js";
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
-import {
-  DEFAULT_SCAN_LIMIT,
-  resolveLedgerPath,
-  selectLedgerPath,
-} from "../../../../application/services/ledger-account.js";
+import { DEFAULT_SCAN_LIMIT } from "../../../../application/services/ledger-account.js";
 import { ChainFamily, CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js";
 import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 import { passwordPolicyErrors } from "../../../../domain/wallet/password-policy.js";
@@ -115,7 +110,6 @@ export function registerWalletCommands(
   reg: CommandRegistry,
   services: {
     walletService: WalletService;
-    ledger: LedgerDevice;
     qr?: QrEncoder;
   },
 ): void {
@@ -289,10 +283,9 @@ export function registerWalletCommands(
         input.index !== undefined || input.path !== undefined || input.address !== undefined;
       const path =
         hasLocator || !ctx.prompt.isTTY()
-          ? await resolveLedgerPath(ctx.deadline, services.ledger, family, input)
-          : await selectLedgerPath(
+          ? await wallets.ledgerPath(ctx.deadline, family, input)
+          : await wallets.selectLedgerPath(
               ctx.deadline,
-              services.ledger,
               family,
               ctx.prompt,
               `Select ${family} account (Ledger Live template; use --path for another scheme)`,

@@ -37,8 +37,14 @@ import {
 import type { BackupWriter } from "../ports/backup-writer.js";
 import type { BackupRecord, BackupRecordStore } from "../ports/backup-records.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
+import type { PromptPort } from "../ports/prompt.js";
 import type { WalletRepository } from "../ports/wallet-repository.js";
 import { AccountSelection } from "../services/account-selection.js";
+import {
+  resolveLedgerPath,
+  selectLedgerPath,
+  type LedgerLocator,
+} from "../services/ledger-account.js";
 
 const mutationStatus = (created: boolean): "created" | "existing" =>
   created ? "created" : "existing";
@@ -111,6 +117,19 @@ export class WalletService {
 
   importPrivateKey(secret: string, label?: string) {
     return this.importSecret(secret, "privateKey", label);
+  }
+
+  ledgerPath(deadline: ExecutionDeadline, family: ChainFamily, locator: LedgerLocator) {
+    return resolveLedgerPath(deadline, this.ledger, family, locator);
+  }
+
+  selectLedgerPath(
+    deadline: ExecutionDeadline,
+    family: ChainFamily,
+    prompt: PromptPort,
+    label: string,
+  ) {
+    return selectLedgerPath(deadline, this.ledger, family, prompt, label);
   }
 
   async importLedger(

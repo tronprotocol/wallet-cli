@@ -59,7 +59,7 @@ function fixture(opts: { tty: boolean }) {
     { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
     { append: () => {}, list: () => [] },
   );
-  registerWalletCommands(registry, { walletService, ledger: {} as any } as any);
+  registerWalletCommands(registry, { walletService });
 
   const session: SessionRef = {};
   const shellOpts: ShellOptions = {

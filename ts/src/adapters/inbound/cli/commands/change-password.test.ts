@@ -3,7 +3,6 @@ import { registerWalletCommands } from "./wallet.js";
 import { CommandRegistry } from "../registry/index.js";
 import type { ExecutionContext } from "../contracts/index.js";
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
-import type { LedgerDevice } from "../../../../application/ports/ledger-device.js";
 
 const OLD = "OldPw1!aa";
 const NEW = "NewPw2@bb";
@@ -26,7 +25,7 @@ function setup(opts: { newPrompt?: string; confirm?: boolean } = {}) {
   };
   const ctx = { secrets, prompt } as unknown as ExecutionContext;
   const registry = new CommandRegistry();
-  registerWalletCommands(registry, { walletService: wallets, ledger: {} as LedgerDevice });
+  registerWalletCommands(registry, { walletService: wallets });
   const command = registry.resolveNeutral(["change-password"]!);
   if (!command) throw new Error("change-password command not registered");
   return { command, ctx, changePassword, prompt };

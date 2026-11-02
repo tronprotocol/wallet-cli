@@ -60,7 +60,7 @@ function fixture(root: string, hiddenAnswers: string[], hiddenIdx: { i: number }
     { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
     { append: () => {}, list: () => [] },
   );
-  registerWalletCommands(registry, { walletService, ledger: {} as any } as any);
+  registerWalletCommands(registry, { walletService });
 
   const session: SessionRef = {};
   const shellOpts: ShellOptions = {
