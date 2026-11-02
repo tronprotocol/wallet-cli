@@ -14,7 +14,7 @@ Each rule names how it is enforced:
 - **lint**: an ESLint rule.
 - **type**: the compiler rejects the violation.
 - **test**: a test fails on the violation.
-- **review**: no automation; listed in [Review-only rules](#review-only-rules).
+- **review**: no automation; checked in every review.
 
 An automated check is on as soon as it is written. Known violations go into its baseline: a new violation fails
 at once, and the refactor removes the known ones.
@@ -113,7 +113,7 @@ A new tolerated case is added here by a design decision. **test**: each case loa
 same case is refused.
 
 2.3 Each command has one Zod schema. It drives validation, positional arity, help text, and `--json-schema`; no
-second definition of a command's arguments exists. **test**: every registered command has exactly one schema.
+second definition of a command's arguments exists. **review**.
 
 ## 3. Ports
 
@@ -151,7 +151,8 @@ path resolution, file layout, permissions, and the no-overwrite rule. **review**
 - Each multi-file operation defines its commit point. A failure before it, including the process being killed,
   leaves the previous state; cleanup after it is reported truthfully. Write ordering alone is not rollback: full
   rollback needs a recovery design with fault tests.
-- Inbound reaches stored state only through application use cases, never through a repository port.
+- Inbound reaches stored state and devices (such as Ledger) only through application use cases, never through a
+  repository or device port.
 - A lock is taken over only when the process that holds it is dead, never because of its age. A lock that cannot
   be acquired reports its path, so the user can remove it when no command is running.
 
@@ -163,7 +164,8 @@ the flow.
 
 3.7 Time limits that `application` sets reach a port call as an `AbortSignal`. An adapter's own transport
 timeout is internal to the adapter. It may reach through an SDK by any mechanism, as long as a request whose
-time has run out is never sent. **type**, **test**.
+time has run out is never sent. With no command deadline (`--timeout 0`), a request may wait as long as its
+transport allows. **type**, **test**.
 
 The command deadline reaches outbound as a `DispatchCheck` (`application/contracts/deadline.ts`). The check is
 bound to the port at `gateways.get`, or passed in the call. The adapter calls `assertDispatchable()` immediately
@@ -244,7 +246,8 @@ origin, and its payload.
 
 6.5 Secrets (private keys, mnemonics, BIP39 passphrases, passwords) are encrypted at rest and never read from
 argv or environment variables, only from the dedicated stdin channel or a hidden TTY prompt. **lint**:
-`process.env` is read only in `bootstrap` and an allowlist; **test**: no command schema has a secret option.
+`process.env` is read only in `bootstrap` and an allowlist in production modules; **review**: no command schema has
+a secret option.
 
 Exception: native `backup` and `address generate` may write their secret in plaintext to a file
 created with mode 0600 that never overwrites or follows an existing path. A secret is printed to
@@ -270,8 +273,3 @@ the registry against the contract.
 8.1 Comments follow [comments.md](comments.md).
 
 8.2 Design decisions that must survive are recorded in this directory, not in code comments.
-
-## Review-only rules
-
-Check these in every review until they are automated: 2.1, 3.4, 4.2, 5.1, 5.2, 7.1, and the review parts of
-1.9, 2.2, 3.1, 3.2, 3.5, 3.6, 6.3, and 6.4.
