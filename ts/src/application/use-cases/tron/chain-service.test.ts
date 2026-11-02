@@ -1,6 +1,7 @@
 import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, it, expect } from "vitest";
 import { TronChainService } from "./chain-service.js";
+import type { WallClock } from "../../contracts/wall-clock.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
@@ -17,8 +18,8 @@ const net = {
   httpEndpoint: "https://nile.trongrid.io",
 } as NetworkDescriptor;
 
-function svc(gateway: Record<string, unknown>) {
-  return new TronChainService({ get: () => gateway } as unknown as ChainGatewayProvider);
+function svc(gateway: Record<string, unknown>, clock?: WallClock) {
+  return new TronChainService({ get: () => gateway } as unknown as ChainGatewayProvider, clock);
 }
 
 describe("TronChainService.params", () => {
@@ -144,6 +145,16 @@ describe("TronChainService.node", () => {
     expect(view.lagBlocks).toBeNull();
     expect(view.peers).toBeNull();
     expect(view.inSync).toBe(false);
+  });
+
+  it("counts a head block exactly 9 s behind the clock as in sync, and 1 ms older as not", async () => {
+    const now = 1_800_000_000_000;
+    const at = (timestampMs: number) => ({
+      getNodeInfo: async () => ({}),
+      getHeadBlock: async () => ({ number: 100, timestampMs }),
+    });
+    expect((await svc(at(now - 9_000), () => now).node(NO_DEADLINE, net)).inSync).toBe(true);
+    expect((await svc(at(now - 9_001), () => now).node(NO_DEADLINE, net)).inSync).toBe(false);
   });
 
   it("fails instead of reporting head block 0 when the node returns no head", async () => {

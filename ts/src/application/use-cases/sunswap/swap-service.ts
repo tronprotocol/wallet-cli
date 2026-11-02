@@ -1,4 +1,5 @@
 import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { activeTronAccount, resolveTronAccount } from "../../services/tron/tron-account.js";
 import { tradeOutput } from "../../services/trade-output.js";
@@ -95,6 +96,7 @@ export class SunSwapSwapService {
     private readonly permits: Permit2Port,
     private readonly signers: SignerResolver,
     private readonly signing: SigningService,
+    private readonly now: WallClock = systemWallClock,
   ) {
     this.tx = new LiquidityTransactions(launchpad, gateways, pipeline);
     this.routerTx = new LiquidityTransactions(liquidity, gateways, pipeline);
@@ -401,7 +403,7 @@ export class SunSwapSwapService {
     owner: string,
     spending: { amountIn: string; tokenAddress: string },
   ): Promise<{ signature: string; facts: PermitFacts }> {
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(this.now() / 1000);
     const facts = assertPermitAuthorizes(permit.typedData, {
       token: spending.tokenAddress,
       spender: permit.spender,

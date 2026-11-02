@@ -9,6 +9,7 @@ import { SunSwapCollectFeesService } from "./collect-fees-service.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { cliMessage, errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
+import type { WallClock } from "../../contracts/wall-clock.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
 
@@ -70,7 +71,7 @@ interface PipelineParams {
   estimate: (tx: unknown) => Promise<Record<string, unknown>>;
 }
 
-function makeHarness(port: LiquidityPort = makePort(), confirmed = true) {
+function makeHarness(port: LiquidityPort = makePort(), confirmed = true, clock?: WallClock) {
   const gateway = {
     triggerSmartContract: vi.fn(async (_f, _t, method) => ({ txID: `built:${method}` })),
     estimateResources: vi.fn(async () => ({ feeModel: "tron-resource" as const, energy: 1000 })),
@@ -101,6 +102,7 @@ function makeHarness(port: LiquidityPort = makePort(), confirmed = true) {
     { get: () => gateway } as unknown as ChainGatewayProvider,
     pipeline,
     RESOLVER,
+    clock,
   );
   return { service, scope, gateway, port, assertCanSign };
 }
@@ -435,6 +437,15 @@ describe("collect-fees — V4", () => {
     const now = Math.floor(Date.now() / 1000);
     expect(requests[0]!.deadline).toBeGreaterThanOrEqual(now + 29 * 60);
     expect(requests[0]!.deadline).toBeLessThanOrEqual(now + 30 * 60 + 5);
+  });
+
+  it("counts the default deadline from the clock's current time, in seconds", async () => {
+    const { port, requests } = makeV4Port();
+    const { service, scope } = makeHarness(port, true, () => 1_800_000_000_500);
+
+    await service.collectFees(scope, NETWORK, V4);
+
+    expect(requests[0]!.deadline).toBe(1_800_000_000 + 30 * 60);
   });
 
   it("reports the pool it collected from, by id and by key", async () => {

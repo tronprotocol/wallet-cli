@@ -4,6 +4,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TronGateway, TronProposal } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
+import type { WallClock } from "../../contracts/wall-clock.js";
 import { TronProposalService } from "./proposal-service.js";
 import { isUserMessage } from "../../../domain/errors/index.js";
 import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
@@ -33,6 +34,7 @@ const scope: TransactionScope = {
 function createService(
   gateway: Partial<TronGateway>,
   run?: (params: TronTxPipelineParams) => Promise<never>,
+  clock?: WallClock,
 ) {
   const concrete = gateway as TronGateway;
   const gateways = { get: () => concrete } as unknown as ChainGatewayProvider;
@@ -47,7 +49,7 @@ function createService(
         return { stage: "submitted", txId: "tx-proposal" } as never;
       }),
   } as unknown as TxPipeline;
-  return { service: new TronProposalService(gateways, pipeline), pipeline, captured };
+  return { service: new TronProposalService(gateways, pipeline, clock), pipeline, captured };
 }
 
 describe("TronProposalService", () => {
@@ -132,6 +134,40 @@ describe("TronProposalService", () => {
     expect(build).toHaveBeenCalledWith(OWNER, 47, false, { permissionId: 2 });
     expect(captured[0]).toMatchObject({ permissionId: 2, expiration: 120_000 });
     expect(typeof captured[0]!.prepare).toBe("function");
+  });
+
+  it("treats a proposal that expires at the clock's current time as closed", async () => {
+    const now = 1_800_000_000_000;
+    const proposal: TronProposal = {
+      id: 47,
+      proposerAddress: OTHER,
+      parameters: { "3": "15" },
+      expirationTime: now,
+      createTime: now - 60_000,
+      approvals: [],
+      state: "PENDING",
+    };
+    const { service, captured } = createService(
+      {
+        getProposal: async () => proposal,
+        getProposals: async () => [proposal],
+        getWitness: async () => ({ address: OWNER, voteCount: "1" }),
+        getWitnesses: async () =>
+          Array.from({ length: 27 }, () => ({ address: OTHER, voteCount: "1" })),
+      },
+      undefined,
+      () => now,
+    );
+
+    await expect(
+      service.list(NO_DEADLINE, NET, { state: "active", offset: 0 }),
+    ).resolves.toMatchObject({
+      proposals: [],
+    });
+    await expect(
+      service.approve(scope, NET, { id: 47, cancel: false, signOnly: true }),
+    ).rejects.toMatchObject({ code: "proposal_expired" });
+    expect(captured).toHaveLength(0);
   });
 
   it("rejects a non-witness before proposal creation is built", async () => {

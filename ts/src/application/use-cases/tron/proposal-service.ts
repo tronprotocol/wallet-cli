@@ -3,6 +3,7 @@ import {
   requestDispatchCheck,
   unlessDeadline,
 } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, followUp } from "../../../domain/errors/index.js";
@@ -48,6 +49,7 @@ export class TronProposalService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async list(deadline: ExecutionDeadline, network: NetworkDescriptor, input: ProposalListInput) {
@@ -58,7 +60,7 @@ export class TronProposalService {
     ]);
     const approvalThreshold = proposalApprovalThreshold(witnesses.length);
     const views = proposals
-      .filter((proposal) => input.state === "all" || isActive(proposal))
+      .filter((proposal) => input.state === "all" || isActive(proposal, this.now()))
       .sort((left, right) => right.id - left.id)
       .map((proposal) => listView(proposal));
     const total = views.length;
@@ -158,7 +160,7 @@ export class TronProposalService {
       gateway.getWitnesses(27),
       assertWitness(gateway, owner),
     ]);
-    assertProposalOpen(proposal);
+    assertProposalOpen(proposal, this.now());
     const alreadyApproved = proposal.approvals.includes(owner);
     if (!input.cancel && alreadyApproved) {
       throw new ChainError("already_approved", `account already approved proposal #${input.id}`);
@@ -209,7 +211,7 @@ export class TronProposalService {
     if (proposal.state === "CANCELED") {
       throw new ChainError("already_canceled", `proposal #${input.id} is already canceled`);
     }
-    assertProposalOpen(proposal);
+    assertProposalOpen(proposal, this.now());
     if (proposal.proposerAddress !== owner) {
       throw new ChainError(
         "not_proposal_owner",
@@ -255,8 +257,8 @@ async function requireProposal(gateway: TronGateway, id: number): Promise<TronPr
   return proposal;
 }
 
-function assertProposalOpen(proposal: TronProposal): void {
-  if (proposal.state !== "PENDING" || proposal.expirationTime <= Date.now()) {
+function assertProposalOpen(proposal: TronProposal, now: number): void {
+  if (proposal.state !== "PENDING" || proposal.expirationTime <= now) {
     throw new ChainError(
       "proposal_expired",
       `proposal #${proposal.id} is no longer in its voting window`,
@@ -264,8 +266,8 @@ function assertProposalOpen(proposal: TronProposal): void {
   }
 }
 
-function isActive(proposal: TronProposal): boolean {
-  return proposal.state === "PENDING" && proposal.expirationTime > Date.now();
+function isActive(proposal: TronProposal, now: number): boolean {
+  return proposal.state === "PENDING" && proposal.expirationTime > now;
 }
 
 function stateName(

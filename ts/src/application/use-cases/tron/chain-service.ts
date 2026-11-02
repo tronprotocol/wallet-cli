@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, UsageError } from "../../../domain/errors/index.js";
@@ -17,7 +18,10 @@ function priceView(timeline: TronPricePoint[]) {
 }
 
 export class TronChainService {
-  constructor(private readonly gateways: ChainGatewayProvider) {}
+  constructor(
+    private readonly gateways: ChainGatewayProvider,
+    private readonly now: WallClock = systemWallClock,
+  ) {}
 
   async params(deadline: ExecutionDeadline, network: NetworkDescriptor, key?: string) {
     const params = (
@@ -62,7 +66,7 @@ export class TronChainService {
       headBlock: { number: head.number, timestamp: head.timestampMs },
       solidBlock: solidNumber === null ? null : { number: solidNumber },
       lagBlocks: solidNumber === null ? null : head.number - solidNumber,
-      inSync: Date.now() - head.timestampMs <= IN_SYNC_WINDOW_MS,
+      inSync: this.now() - head.timestampMs <= IN_SYNC_WINDOW_MS,
       peers: info.peers ?? null,
     };
   }

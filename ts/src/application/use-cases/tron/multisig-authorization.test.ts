@@ -52,6 +52,25 @@ describe("TRON multisig authorization preflight", () => {
     expect("preflight" in hooks).toBe(false);
   });
 
+  it("extends the signing window from the clock's current time", async () => {
+    const now = 1_800_000_000_000;
+    const prepareTransaction = vi.fn((value) => value);
+    const hooks = tronTransactionHooks({ prepareTransaction } as unknown as TronGateway, () => now);
+    const unsigned = transaction();
+    const built = {
+      ...unsigned,
+      raw_data: { ...unsigned.raw_data, timestamp: now, expiration: now + 60_000 },
+    };
+    await hooks.prepareForSigning(built);
+    expect(prepareTransaction).toHaveBeenCalledWith(built, {
+      permissionId: 2,
+      expiration: 600_000,
+    });
+    expect(() =>
+      hooks.assertNotExpired({ ...built, raw_data: { ...built.raw_data, expiration: now } }),
+    ).toThrow(expect.objectContaining({ code: "tx_expired" }));
+  });
+
   it("accepts an unused key whose active bitmap allows the transaction contract", async () => {
     await expect(
       assertTronSignerAuthorized(gateway(), transaction(), A, 1_900_000_000_000),

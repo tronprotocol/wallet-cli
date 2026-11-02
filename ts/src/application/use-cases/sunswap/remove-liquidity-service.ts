@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { resolveTronAccount } from "../../services/tron/tron-account.js";
 import type { NetworkDescriptor, TxOutcome } from "../../../domain/types/index.js";
@@ -122,6 +123,7 @@ export class SunSwapRemoveLiquidityService {
     gateways: ChainGatewayProvider,
     pipeline: TxPipeline,
     private readonly tokens: SunSwapTokenResolver,
+    private readonly now: WallClock = systemWallClock,
   ) {
     this.tx = new LiquidityTransactions(liquidity, gateways, pipeline);
   }
@@ -286,7 +288,7 @@ export class SunSwapRemoveLiquidityService {
         protocol: "V2",
         router,
         recipient: input.recipient ?? owner,
-        deadline: resolveDeadline(input.deadline, Date.now()),
+        deadline: resolveDeadline(input.deadline, this.now()),
         lpAmount,
         lpDecimals: pair.lpDecimals,
         token0: side(token0, amount0, this.#v2Minimum(input.min0, amount0, token0)),
@@ -479,7 +481,7 @@ export class SunSwapRemoveLiquidityService {
         protocol: "V3",
         router: manager,
         recipient: input.recipient ?? owner,
-        deadline: resolveDeadline(input.deadline, Date.now()),
+        deadline: resolveDeadline(input.deadline, this.now()),
         nftTokenId: position.tokenId,
         liquidity: burn,
         token0: side(token0, expected.amount0, this.#v3Minimum(input.min0, token0)),
@@ -707,7 +709,7 @@ export class SunSwapRemoveLiquidityService {
     const amount0Min = this.#v4Minimum(input.min0, input.slippage, expected.amount0, token0);
     const amount1Min = this.#v4Minimum(input.min1, input.slippage, expected.amount1, token1);
 
-    const deadline = resolveDeadline(input.deadline, Date.now());
+    const deadline = resolveDeadline(input.deadline, this.now());
     const key = {
       currency0: pool.currency0,
       currency1: pool.currency1,

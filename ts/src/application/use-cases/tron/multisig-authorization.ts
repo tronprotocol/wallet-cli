@@ -1,4 +1,5 @@
 import type { TronTransactionArtifact } from "../../../domain/types/index.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { decodeOperations } from "../../../domain/tron/permission/index.js";
 import { MAX_TRON_EXPIRATION_MS } from "../../../domain/transaction/index.js";
@@ -125,7 +126,7 @@ export async function assertTronSignerAuthorized(
   gateway: TronGateway,
   transaction: TronTransactionArtifact,
   signerAddress: string,
-  now = Date.now(),
+  now = systemWallClock(),
 ): Promise<SignerAuthorization> {
   assertNotExpired(transaction, now);
   const { weight, approved, permission } = await authorizationState(gateway, transaction);
@@ -147,7 +148,7 @@ export async function assertTronSignerAuthorized(
 }
 
 // These construction hooks omit online permission-approval checks.
-export function tronTransactionHooks(gateway: TronGateway) {
+export function tronTransactionHooks(gateway: TronGateway, now: WallClock = systemWallClock) {
   return {
     prepare: (
       transaction: TronTransactionArtifact,
@@ -164,7 +165,7 @@ export function tronTransactionHooks(gateway: TronGateway) {
       // Allow Ledger review plus broadcast time without shortening a longer TTL.
       const expiration = Math.max(
         transaction.raw_data.expiration ?? 0,
-        Date.now() + Math.max(600_000, DEVICE_REVIEW_MS + 60_000),
+        now() + Math.max(600_000, DEVICE_REVIEW_MS + 60_000),
       );
       if (expiration - timestamp! > MAX_TRON_EXPIRATION_MS) {
         throw new ChainError(
@@ -177,7 +178,8 @@ export function tronTransactionHooks(gateway: TronGateway) {
         expiration: expiration - timestamp!,
       });
     },
-    assertNotExpired: (transaction: TronTransactionArtifact) => assertNotExpired(transaction),
+    assertNotExpired: (transaction: TronTransactionArtifact) =>
+      assertNotExpired(transaction, now()),
     artifact: (transaction: TronTransactionArtifact) => gateway.encodeTransactionHex(transaction),
   };
 }

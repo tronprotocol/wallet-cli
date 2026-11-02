@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { resolveTronAccount } from "../../services/tron/tron-account.js";
 import type { NetworkDescriptor, TxOutcome } from "../../../domain/types/index.js";
@@ -97,6 +98,7 @@ export class SunSwapCollectFeesService {
     gateways: ChainGatewayProvider,
     pipeline: TxPipeline,
     private readonly tokens: SunSwapTokenResolver,
+    private readonly now: WallClock = systemWallClock,
   ) {
     this.tx = new LiquidityTransactions(liquidity, gateways, pipeline);
   }
@@ -400,7 +402,7 @@ export class SunSwapCollectFeesService {
       this.#facts(scope.deadline, network, pool.currency1),
       this.#owedFees(scope, network, position),
     ]);
-    const deadline = resolveDeadline(input.deadline, Date.now());
+    const deadline = resolveDeadline(input.deadline, this.now());
 
     return {
       plan: {

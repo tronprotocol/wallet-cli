@@ -1,4 +1,5 @@
 import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { initialPrice } from "../../../domain/sunswap/initial-price.js";
 import { resolveTronAccount } from "../../services/tron/tron-account.js";
@@ -232,6 +233,7 @@ export class SunSwapLiquidityService {
     private readonly permits: Permit2Port,
     private readonly signers: SignerResolver,
     private readonly signing: SigningService,
+    private readonly now: WallClock = systemWallClock,
   ) {
     this.tx = new LiquidityTransactions(liquidity, gateways, pipeline);
   }
@@ -583,7 +585,7 @@ export class SunSwapLiquidityService {
 
     const sized = await this.#sizeV4(commandDeadline, network, owner, input, pool, range);
     const recipient = input.recipient ?? owner;
-    const deadline = resolveDeadline(input.deadline, Date.now());
+    const deadline = resolveDeadline(input.deadline, this.now());
 
     return {
       plan: {
@@ -675,7 +677,7 @@ export class SunSwapLiquidityService {
 
     const range = { tickLower: position.tickLower, tickUpper: position.tickUpper };
     const sized = await this.#sizeV4(commandDeadline, network, owner, input, pool, range);
-    const deadline = resolveDeadline(input.deadline, Date.now());
+    const deadline = resolveDeadline(input.deadline, this.now());
 
     return {
       plan: {
@@ -804,7 +806,7 @@ export class SunSwapLiquidityService {
   // Preview grant expiry is independent of the transaction deadline.
   #v4PermitRows(sized: V4Sizing): Partial<LiquidityPlanView> {
     if (sized.permitsNeeded.length === 0) return {};
-    const expiration = String(Math.floor(Date.now() / 1000) + PERMIT2_GRANT_TTL_SECONDS);
+    const expiration = String(Math.floor(this.now() / 1000) + PERMIT2_GRANT_TTL_SECONDS);
     return {
       permits: sized.permitsNeeded.map((side) => ({
         token: side.token,
@@ -934,7 +936,7 @@ export class SunSwapLiquidityService {
         requestDispatchCheck(scope.deadline),
       );
       if (permit === undefined) continue;
-      const now = Math.floor(Date.now() / 1000);
+      const now = Math.floor(this.now() / 1000);
       assertPermitAuthorizes(permit.typedData, {
         token: side.token,
         spender,
@@ -1253,7 +1255,7 @@ export class SunSwapLiquidityService {
     input: AddLiquidityInput,
   ): Promise<{ plan: LiquidityPlanView; liquidityBefore: string; poolOrder: boolean }> {
     const manager = this.liquidity.contracts(network).v3PositionManager;
-    const deadline = resolveDeadline(input.deadline, Date.now());
+    const deadline = resolveDeadline(input.deadline, this.now());
     const scenario = await this.#v3Scenario(commandDeadline, network, owner, input);
     const { pool, tickLower, tickUpper } = scenario;
 
@@ -1592,7 +1594,7 @@ export class SunSwapLiquidityService {
     );
     const amounts = this.#resolveAmounts(input, token0, token1, pair);
     const recipient = input.recipient ?? owner;
-    const deadline = resolveDeadline(input.deadline, Date.now());
+    const deadline = resolveDeadline(input.deadline, this.now());
 
     const sides = [
       { facts: token0, amount: amounts.amount0 },
