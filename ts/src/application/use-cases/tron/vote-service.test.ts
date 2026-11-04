@@ -94,18 +94,34 @@ describe("TronVoteService.cast", () => {
     const svc = service({
       getAccountResources: async () => votingPower(1000, 0),
       buildVoteWitness: async () => ({}) as never,
+      getChainParameters: async () => [{ key: "getMaintenanceTimeInterval", value: 1_800_000 }],
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=6`, `${SR2}=4`] })).resolves.toMatchObject({
       kind: "vote-cast",
       stage: "submitted",
       txId: "txid",
       totalVotes: 10,
-      maintenanceIntervalMs: 6 * 60 * 60 * 1000,
+      maintenanceIntervalMs: 1_800_000,
       votes: [
         { witness: SR1, count: 6 },
         { witness: SR2, count: 4 },
       ],
     });
+  });
+
+  it.each([
+    ["the read fails", async () => Promise.reject(new Error("node down"))],
+    ["the parameter is missing", async () => [{ key: "getEnergyFee", value: 100 }]],
+    ["the parameter has no value", async () => [{ key: "getMaintenanceTimeInterval" }]],
+  ])("omits the maintenance interval after the vote is sent when %s", async (_case, read) => {
+    const svc = service({
+      getAccountResources: async () => votingPower(1000, 0),
+      buildVoteWitness: async () => ({}) as never,
+      getChainParameters: read as TronGateway["getChainParameters"],
+    });
+    const result = await svc.cast(scope, NET, { for: [`${SR1}=1`] });
+    expect(result).toMatchObject({ stage: "submitted", txId: "txid" });
+    expect(result).not.toHaveProperty("maintenanceIntervalMs");
   });
 });
 

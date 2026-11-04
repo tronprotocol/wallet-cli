@@ -33,6 +33,7 @@ function harness(outcome: TxOutcome | Error, allowanceAfter = "1000000") {
   };
   const readAllowance = vi.fn(async () => allowanceAfter);
   const onConfirmed = vi.fn();
+  const onSubmitted = vi.fn();
   const approver = new X402Permit2Approvals(gateways, {
     runTron: run,
   } as unknown as TxPipeline).approver(scope, NETWORK, FACTS);
@@ -42,8 +43,9 @@ function harness(outcome: TxOutcome | Error, allowanceAfter = "1000000") {
     requiredAllowance: "1000000",
     readAllowance,
     onConfirmed,
+    onSubmitted,
   };
-  return { approver, request, run, gateway, readAllowance, onConfirmed };
+  return { approver, request, run, gateway, readAllowance, onConfirmed, onSubmitted };
 }
 
 describe("X402Permit2Approvals", () => {
@@ -141,13 +143,22 @@ describe("X402Permit2Approvals", () => {
     expect(h.onConfirmed).not.toHaveBeenCalled();
   });
 
-  it("reports an unconfirmed approval as a timeout with its transaction id", async () => {
+  it("reports an unconfirmed approval as an outcome-unknown timeout with its transaction id", async () => {
     const h = harness({ stage: "submitted", txId: TX_ID });
 
     await expect(h.approver.approve(h.request)).rejects.toMatchObject({
       code: "timeout",
-      details: { txId: TX_ID },
+      details: { txId: TX_ID, outcome: "unknown" },
     });
+  });
+
+  it("hands over the approval's transaction id once it was sent, before its confirmation", async () => {
+    const h = harness({ stage: "confirmed", txId: TX_ID });
+    await h.approver.approve(h.request);
+    const confirm = h.run.mock.calls[0]![0].confirm;
+    expect(h.onSubmitted).not.toHaveBeenCalled();
+    await confirm(TX_ID, {} as never).catch(() => {});
+    expect(h.onSubmitted).toHaveBeenCalledWith(TX_ID);
   });
 
   it("refuses when the confirmed approval left too little allowance", async () => {

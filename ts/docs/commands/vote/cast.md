@@ -18,7 +18,7 @@ Two hard rules from the chain:
 - **Total votes ≥ 1** — you cannot vote everything down to zero. To stop voting entirely, unstake the backing TRX ([`stake unfreeze`](../stake/unfreeze.md)); TP falls and the votes lapse.
 - **At most 30 entries per transaction** (java-tron `MAX_VOTE_NUMBER`). Since a cast is the full distribution, an account holds votes on at most 30 SRs — only 27 are ever elected, so normal voting never hits this.
 
-Votes take effect at the next maintenance cycle (~6 h). Each vote uses 1 TP (it is allocated, not spent — re-casting or unstaking frees it); available TP = staked TRX minus votes already placed ([`vote status`](status.md)).
+Votes take effect at the next maintenance cycle (the chain parameter `getMaintenanceTimeInterval`: 6 h on mainnet, 30 min on Nile). Each vote uses 1 TP (it is allocated, not spent — re-casting or unstaking frees it); available TP = staked TRX minus votes already placed ([`vote status`](status.md)).
 
 **By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
@@ -85,7 +85,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
 
 | Stage | Fields |
 |---|---|
-| `--no-wait` (submitted) | `kind: "vote-cast"`, `stage: "submitted"`, `txId`, `votes[]` (`witness`, `count`), `totalVotes`, `maintenanceIntervalMs` (approximate time until the votes are tallied, in ms) |
+| `--no-wait` (submitted) | `kind: "vote-cast"`, `stage: "submitted"`, `txId`, `votes[]` (`witness`, `count`), `totalVotes`, `maintenanceIntervalMs` (the network's maintenance cycle length, `getMaintenanceTimeInterval`, in ms — the longest wait until the votes are tallied; omitted when the chain parameter cannot be read) |
 | default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status

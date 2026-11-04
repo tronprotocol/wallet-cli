@@ -1,4 +1,8 @@
-import { type DispatchCheck, withErrorDetails } from "../../../application/contracts/deadline.js";
+import {
+  DeadlineExpiredError,
+  type DispatchCheck,
+  withErrorDetails,
+} from "../../../application/contracts/deadline.js";
 import { gasfreeRelayClient } from "./gasfree-relay.js";
 import { X402_TOKENS, GASFREE_TOKENS, tokensForScheme } from "./tokens.js";
 import {
@@ -48,6 +52,7 @@ import type {
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import {
+  ChainError,
   errorMessage,
   ExecutionError,
   inputRef,
@@ -210,7 +215,7 @@ export class X402PaymentClient implements X402PaymentPort {
             const classified = authorization.sent
               ? sentPaymentError(error, phase)
               : unsentPaymentError(error, phase);
-            throw withApproval(classified, authorization.approval);
+            throw withApproval(classified, authorization);
           }
         },
       };
@@ -461,6 +466,9 @@ export class X402PaymentClient implements X402PaymentPort {
       approver,
       relay,
       recordApproval: (approval) => recordApproval(approval, "confirmed"),
+      recordApprovalSubmitted: (txId) => {
+        authorization.approvalSubmitted = txId;
+      },
     });
     // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
     let creationError: unknown;
@@ -582,6 +590,7 @@ interface SchemeContext {
   readonly approver: Permit2Approver;
   readonly relay: ReturnType<typeof gasfreeRelayClient>;
   readonly recordApproval: (approval: SignedApproval) => void;
+  readonly recordApprovalSubmitted: (txId: string) => void;
 }
 
 interface FamilyIntegration {
@@ -611,7 +620,7 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
   tron: {
     async registerSchemes(
       client,
-      { network, check, bridge, payer, approver, relay, recordApproval },
+      { network, check, bridge, payer, approver, relay, recordApproval, recordApprovalSubmitted },
     ) {
       const x402Network = toX402Network(network);
       // SDK metadata is keyed by symbol: use an internal alias to retain exact's USDD entry.
@@ -665,6 +674,7 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
             spender,
             requiredAllowance: amount.toString(),
             readAllowance,
+            onSubmitted: recordApprovalSubmitted,
             onConfirmed: recordApproval,
           });
           return true;
@@ -702,6 +712,8 @@ interface PaymentAuthorization {
   sent: boolean;
   // Signed Permit2 approval and SDK progress.
   approval?: SignedApproval & { status: "confirmed" | "exported" };
+  // Transaction id of a Permit2 approval that was broadcast.
+  approvalSubmitted?: string;
   requirement?: { asset: string; amount: string };
 }
 
@@ -723,9 +735,23 @@ function paidAmount(
   };
 }
 
-function withApproval(error: CliError, approval: PaymentAuthorization["approval"]): CliError {
-  if (!approval) return error;
-  return withErrorDetails(error, { ...error.details, approval });
+// A broadcast approval that never confirmed may still land, so a failure that does not carry the
+// approval's own outcome reports its txId as outcome unknown.
+function withApproval(error: CliError, authorization: PaymentAuthorization): CliError {
+  const { approval, approvalSubmitted: txId } = authorization;
+  if (approval) return withErrorDetails(error, { ...error.details, approval });
+  if (txId === undefined) return error;
+  const details = (error.details ?? {}) as Record<string, unknown>;
+  if (details.txId === txId) return error;
+  const evidence = { ...details, txId, outcome: "unknown" };
+  if (error instanceof DeadlineExpiredError) {
+    return new ChainError(
+      "timeout",
+      errorMessage`the Permit2 approval ${txId} was not confirmed before the command's time limit; no payment was signed; the approval may still confirm on chain`,
+      evidence,
+    );
+  }
+  return withErrorDetails(error, evidence);
 }
 
 interface OutputReservation {

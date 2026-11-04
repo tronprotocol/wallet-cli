@@ -6,7 +6,6 @@ import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/
 import { decimalToBigInt } from "../../../domain/numbers/index.js";
 import {
   ELECTED_SR_COUNT,
-  MAINTENANCE_INTERVAL_MS,
   MAX_REWARDED_RANK,
   MAX_VOTE_ITEMS,
 } from "../../../domain/tron/governance/voting.js";
@@ -26,6 +25,17 @@ import { readVotingPower } from "./voting-power.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const BROKERAGE_CONCURRENCY = 8;
+
+// Runs after the vote may have been sent, so any failure, deadline expiry included, omits the value.
+async function readMaintenanceIntervalMs(gateway: TronGateway): Promise<number | undefined> {
+  try {
+    const parameters = await gateway.getChainParameters();
+    const value = parameters.find((entry) => entry.key === "getMaintenanceTimeInterval")?.value;
+    return value !== undefined && value > 0 ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface VoteCastInput extends TransactionModeInput {
   for: string[];
@@ -106,12 +116,13 @@ export class TronVoteService {
         note: "voting uses bandwidth only",
       }),
     });
+    const maintenanceIntervalMs = await readMaintenanceIntervalMs(gateway);
     return {
       kind: "vote-cast" as const,
       ...outcomeData(outcome),
       votes: votes.map((vote) => ({ witness: vote.witness, count: Number(vote.count) })),
       totalVotes: Number(totalVotes),
-      maintenanceIntervalMs: MAINTENANCE_INTERVAL_MS,
+      ...(maintenanceIntervalMs === undefined ? {} : { maintenanceIntervalMs }),
     };
   }
 

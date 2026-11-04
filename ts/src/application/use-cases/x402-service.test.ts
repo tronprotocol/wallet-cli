@@ -369,9 +369,29 @@ describe("roundtrip failures before the payment request", () => {
       .roundtrip({ deadline, activeAccount: "payer" } as never, network, roundtripInput)
       .catch((e: unknown) => e)) as { code: string; details: object };
     deadline.dispose();
-    expect(error).toMatchObject({ code: "timeout", details: { paymentStatus: "not_sent" } });
+    expect(error).toMatchObject({
+      code: "timeout",
+      details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
+    });
     expect(error).toBeInstanceOf(DeadlineExpiredError);
     expect(error.details).not.toHaveProperty("outcome");
     expect(f.pay).not.toHaveBeenCalled();
+  });
+
+  it("reports a pay submit-admission refusal with its phase and payment status", async () => {
+    const f = fixture();
+    const deadline = new CommandDeadline(1999);
+    const error = (await f.service
+      .pay({ deadline, activeAccount: "payer" } as never, network, input)
+      .catch((e: unknown) => e)) as { code: string; details: object };
+    deadline.dispose();
+    expect(error).toBeInstanceOf(DeadlineExpiredError);
+    expect(error).toMatchObject({
+      code: "timeout",
+      details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
+    });
+    expect(error.details).not.toHaveProperty("outcome");
+    expect(f.pay).not.toHaveBeenCalled();
+    expect(f.close).toHaveBeenCalledOnce();
   });
 });

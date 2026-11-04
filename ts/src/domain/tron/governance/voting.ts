@@ -4,8 +4,6 @@ export const ELECTED_SR_COUNT = 27;
 export const MAX_REWARDED_RANK = 127;
 // Entries one VoteWitnessContract may carry.
 export const MAX_VOTE_ITEMS = 30;
-// The chain parameter getMaintenanceTimeInterval on mainnet; votes are tallied when it ends.
-export const MAINTENANCE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 // An account may withdraw its voting reward once per interval.
 export const REWARD_WITHDRAW_INTERVAL_MS = 24 * 60 * 60 * 1000;
 // Approvals a proposal needs when the active witness count is unknown.

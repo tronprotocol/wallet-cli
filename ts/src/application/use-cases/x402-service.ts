@@ -141,9 +141,13 @@ export class X402Service {
           // Only the Permit2 approval a payment needs may be signed as a transaction.
           ...(facts.permit2 ? { approveIntent: facts.permit2 } : {}),
         });
-        assertSubmitAdmitted(scope.deadline);
       } catch (error) {
         throw beforePay(error);
+      }
+      try {
+        assertSubmitAdmitted(scope.deadline);
+      } catch (error) {
+        throw beforePay(withErrorDetails(error as CliError, PAYMENT_REQUEST_REFUSED));
       }
       return await resource.pay({
         payer,
@@ -319,6 +323,11 @@ function withoutSettlement(result: X402PaymentResult): X402PayResult {
 }
 
 // The challenge has not been answered, so nothing was paid.
+const PAYMENT_REQUEST_REFUSED = {
+  phase: "payment_request",
+  paymentStatus: "not_sent",
+  retryPayment: false,
+} as const;
 const NOT_SENT = { phase: "challenge", paymentStatus: "not_sent", retryPayment: false } as const;
 
 // Checks the request's ceilings and asset precision before any request; returns a raw ceiling.

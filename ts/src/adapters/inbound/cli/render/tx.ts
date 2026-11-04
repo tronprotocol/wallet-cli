@@ -108,7 +108,8 @@ function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   return receipt(ok(), summary, pairs);
 }
 
-const hours = (ms: number) => `~${Math.round(ms / 3_600_000)}h`;
+const hours = (ms: number) =>
+  ms < 3_600_000 ? `~${Math.round(ms / 60_000)}m` : `~${Math.round(ms / 3_600_000)}h`;
 
 function timingNote(r: TxReceiptView): string | undefined {
   if (r.kind === "vote-cast") {

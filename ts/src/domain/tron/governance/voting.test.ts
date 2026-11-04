@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   ELECTED_SR_COUNT,
-  MAINTENANCE_INTERVAL_MS,
   MAX_REWARDED_RANK,
   MAX_VOTE_ITEMS,
   proposalApprovalThreshold,
@@ -16,7 +15,6 @@ describe("voting limits", () => {
     expect(ELECTED_SR_COUNT).toBe(27);
     expect(MAX_REWARDED_RANK).toBe(127);
     expect(MAX_VOTE_ITEMS).toBe(30);
-    expect(MAINTENANCE_INTERVAL_MS).toBe(DAY_MS / 4);
     expect(REWARD_WITHDRAW_INTERVAL_MS).toBe(DAY_MS);
   });
 });

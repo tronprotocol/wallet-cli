@@ -15,6 +15,10 @@ describe("receipt timing guidance comes from the result", () => {
       `${status} — tallied at next maintenance cycle (~6h)`,
     );
     expect(render({ ...base, maintenanceIntervalMs: 2 * 3_600_000 })).toContain("(~2h)");
+    expect(render({ ...base, maintenanceIntervalMs: 1_800_000 })).toContain("(~30m)");
+    expect(render({ ...base })).toMatch(
+      new RegExp(`${status} — tallied at next maintenance cycle$`, "m"),
+    );
   });
 
   it.each([

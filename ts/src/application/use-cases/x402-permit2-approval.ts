@@ -69,6 +69,7 @@ export class X402Permit2Approvals {
     ];
     const approvalScope = waitingScope(scope);
     scope.emit({ type: "activity", message: "Sending the one-time Permit2 approval…" });
+    const confirm = tronConfirmation(gateway, approvalScope);
     let outcome: TxOutcome;
     try {
       outcome = await this.pipeline.runTron({
@@ -80,7 +81,10 @@ export class X402Permit2Approvals {
         permissionId: 0,
         ...tronTransactionHooks(gateway, this.now),
         preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer, this.now()),
-        confirm: tronConfirmation(gateway, approvalScope),
+        confirm: (txId, signed) => {
+          request.onSubmitted(txId);
+          return confirm(txId, signed);
+        },
         confirmationRequired: true,
         build: (from) =>
           gateway.triggerSmartContract(from, request.token, APPROVE, parameters, {
@@ -109,7 +113,7 @@ export class X402Permit2Approvals {
       throw new ChainError(
         "timeout",
         `the Permit2 approval was not confirmed before the command's time limit; no payment was signed; the approval may still confirm on chain`,
-        evidence,
+        evidence && { ...evidence, outcome: "unknown" },
       );
     }
     const approval: SignedApproval = {
