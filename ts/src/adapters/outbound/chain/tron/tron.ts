@@ -124,6 +124,24 @@ export function hexToBase58(addr: unknown): string {
   return tronHexToBase58(addr);
 }
 
+// java-tron answers a reverted constant call with result.result true and the transaction marked FAILED.
+function throwIfReverted(response: unknown): void {
+  const reply = response as
+    | {
+        result?: { result?: unknown };
+        transaction?: { ret?: { ret?: unknown }[] };
+        constant_result?: unknown[];
+      }
+    | undefined;
+  if (reply?.result?.result !== true || reply.transaction?.ret?.[0]?.ret !== "FAILED") return;
+  const raw = reply.constant_result?.[0];
+  throw new ChainError(
+    "execution_reverted",
+    "TRON constant call reverted",
+    typeof raw === "string" && /^[0-9a-f]+$/i.test(raw) ? { revertData: `0x${raw}` } : undefined,
+  );
+}
+
 interface AxiosSignalConfig {
   signal?: AbortSignal;
 }
@@ -222,17 +240,8 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       provider.request = ((...args: Parameters<typeof request>) =>
         this.#pacer.run(async () => {
           const response = await request(...args);
-          // Preserve revert data before TronWeb discards it when throwing result.message.
-          const constant = response as
-            { result?: { message?: unknown }; constant_result?: unknown[] } | undefined;
-          if (String(args[0]).endsWith("/triggerconstantcontract") && constant?.result?.message) {
-            const raw = constant.constant_result?.[0];
-            if (typeof raw === "string" && /^[0-9a-f]+$/i.test(raw)) {
-              throw new ChainError("execution_reverted", "TRON constant call reverted", {
-                revertData: `0x${raw}`,
-              });
-            }
-          }
+          // Classify a revert before TronWeb throws result.message as a plain Error.
+          if (String(args[0]).endsWith("/triggerconstantcontract")) throwIfReverted(response);
           return response;
         })) as typeof request;
     }
@@ -723,9 +732,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       params,
       owner,
     );
-    if (res.result?.result !== true) {
-      const reason = decodeTronMessage(res.result?.message) || "constant call reverted";
-      throw new ChainError("execution_error", `TRON ${fn} failed: ${redactErrorMessage(reason)}`);
+    // Reverts were already thrown by the provider; TronWeb returns a non-JSON body as a string.
+    if (typeof res !== "object" || res === null || typeof res.result !== "object") {
+      throw new ChainError("invalid_node_response", `TRON ${fn} returned no call result`);
+    }
+    if (res.result.result !== true) {
+      const { code } = res.result as { code?: unknown };
+      const reason = decodeTronMessage(res.result.message) || String(code ?? "no result");
+      throw new TransportError("rpc_error", `TRON ${fn} failed: ${redactErrorMessage(reason)}`);
     }
     return (res.constant_result ?? []) as string[];
   }
@@ -745,7 +759,10 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       return await fn();
     } catch (e) {
       const message = (e as Error).message ?? "";
-      if (/smart contract is not exist|revert opcode executed/i.test(message)) {
+      if (
+        (e instanceof ChainError && e.code === "execution_reverted") ||
+        /smart contract is not exist|revert opcode executed/i.test(message)
+      ) {
         throw new ChainError(
           "token_metadata_unavailable",
           `${contract} did not answer ${method} — it may not be a token contract`,
