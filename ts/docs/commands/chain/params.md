@@ -18,11 +18,11 @@ Frequently used keys:
 
 | Key | Meaning |
 |---|---|
-| `getEnergyFee` | Energy unit price (SUN/energy) — the burn rate when you lack energy; core input to fee estimation |
-| `getTransactionFee` | Bandwidth unit price (SUN/byte) — the burn rate once free bandwidth is spent |
-| `getCreateAccountFee` | Burned (SUN) when creating an account and the payer lacks enough staked bandwidth for the transaction — otherwise staked bandwidth is used instead |
-| `getWitnessPayPerBlock` | SR reward per block produced (SUN) — feeds the voting-reward pool |
-| `getMaintenanceTimeInterval` | Maintenance cycle length (ms; 21,600,000 = 6 h) — the vote-tally / SR-ranking period |
+| `getEnergyFee` | Energy unit price (sun/energy) — the burn rate when you lack energy; core input to fee estimation |
+| `getTransactionFee` | Bandwidth unit price (sun/byte) — the burn rate once free bandwidth is spent |
+| `getCreateAccountFee` | Burned (sun) when creating an account and the payer lacks enough staked bandwidth for the transaction — otherwise staked bandwidth is used instead |
+| `getWitnessPayPerBlock` | SR reward per block produced (sun) — feeds the voting-reward pool |
+| `getMaintenanceTimeInterval` | Maintenance cycle length (ms; 21,600,000 = 6 h on mainnet) — the vote-tally / SR-ranking period |
 
 For the fee-relevant prices in friendlier form, use [`chain prices`](prices.md).
 
@@ -44,7 +44,7 @@ wallet-cli chain params --key getEnergyFee --network nile
 
 ```console
 Key    getEnergyFee
-Value  210 sun
+Value  100 sun
 ```
 
 All parameters (excerpt):
@@ -56,11 +56,11 @@ wallet-cli chain params --network nile
 ```console
 | Key                        | Value          |
 | -------------------------- | -------------- |
-| getEnergyFee               | 210 sun        |
+| getEnergyFee               | 100 sun        |
 | getTransactionFee          | 1,000 sun/byte |
 | getCreateAccountFee        | 100,000 sun    |
-| getWitnessPayPerBlock      | 16,000,000 sun |
-| getMaintenanceTimeInterval | 21,600,000 ms  |
+| getWitnessPayPerBlock      | 8,000,000 sun  |
+| getMaintenanceTimeInterval | 1,800,000 ms   |
 ```
 
 ```bash
@@ -68,7 +68,7 @@ wallet-cli chain params --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"chain.params","data":{"params":[{"key":"getEnergyFee","value":210,"unit":"sun"},{"key":"getTransactionFee","value":1000,"unit":"sun/byte"},{"key":"getCreateAccountFee","value":100000,"unit":"sun"}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"chain.params","data":{"params":[{"key":"getEnergyFee","value":100,"unit":"sun"},{"key":"getTransactionFee","value":1000,"unit":"sun/byte"},{"key":"getCreateAccountFee","value":100000,"unit":"sun"}]},"meta":{"durationMs":19,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output

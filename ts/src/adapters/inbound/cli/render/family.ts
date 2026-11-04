@@ -88,8 +88,8 @@ export const FAMILY_RENDER: Record<ChainFamily, FamilyRenderHooks> = {
       const energy = asObj(d.energy);
       const bandwidth = asObj(d.bandwidth);
       return [
-        ["Energy price", `${formatInt(energy.currentSunPerUnit)} SUN / unit    (current)`],
-        ["Bandwidth price", `${formatInt(bandwidth.currentSunPerUnit)} SUN / unit  (current)`],
+        ["Energy price", `${formatInt(energy.currentSunPerUnit)} sun / unit    (current)`],
+        ["Bandwidth price", `${formatInt(bandwidth.currentSunPerUnit)} sun / unit  (current)`],
         ["Memo fee", `${formatSun(d.memoFeeSun)} ${symbol}`],
       ];
     },

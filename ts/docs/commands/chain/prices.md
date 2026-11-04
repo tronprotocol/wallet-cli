@@ -30,8 +30,8 @@ wallet-cli chain prices --network nile
 ```
 
 ```console
-Energy price     100 SUN / unit    (current)
-Bandwidth price  1,000 SUN / unit  (current)
+Energy price     100 sun / unit    (current)
+Bandwidth price  1,000 sun / unit  (current)
 Memo fee         1 TRX
 ```
 

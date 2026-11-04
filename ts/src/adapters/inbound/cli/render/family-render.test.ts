@@ -240,7 +240,7 @@ describe("FAMILY_RENDER chainPricesRows", () => {
       "TRX",
     );
 
-    expect(rows[0]![1]).toContain("100 SUN / unit");
+    expect(rows[0]![1]).toContain("100 sun / unit");
     expect(rows).toContainEqual(["Memo fee", "1 TRX"]);
   });
 });
