@@ -51,7 +51,7 @@ This command is interactive. In text mode the receipt lists the re-encrypted sof
 
 ## Exit status
 
-`0` changed · `1` execution failure (`auth_failed`; `no_software_wallet` — nothing to re-encrypt; `invalid_value` — a referenced encrypted wallet blob is missing; `io_error` — the message states whether the old or new password is in effect) · `2` usage error (`tty_required` — no TTY for interactive input; `invalid_value` — the new password equals the current one; `aborted` — confirmation declined).
+`0` changed · `1` execution failure (`aborted` — Ctrl-C at a prompt; nothing is changed; `auth_failed`; `no_software_wallet` — nothing to re-encrypt; `invalid_value` — a referenced encrypted wallet blob is missing; `io_error` — the message states whether the old or new password is in effect) · `2` usage error (`tty_required` — no TTY for interactive input; `invalid_value` — the new password equals the current one; `aborted` — confirmation declined).
 
 ## See also
 

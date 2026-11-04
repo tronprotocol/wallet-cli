@@ -59,7 +59,7 @@ Requires an account, even for an endpoint that turns out to be free. The master 
 | `--scheme <exact\|exact_gasfree>` | Accept only routes using this scheme |
 | `--gasfree-relay <official\|gasfree\|url>` | Source of GasFree account data for `exact_gasfree` (default `official`); a URL must be HTTPS with no credentials, query, or fragment |
 | `--max-gasfree-fee <n>` | Highest GasFree fee to authorize, in whole tokens; excludes `--max-gasfree-fee-raw` |
-| `--max-gasfree-fee-raw <n>` | The same cap in smallest units |
+| `--max-gasfree-fee-raw <n>` | The same cap in smallest units: a positive uint256, like `--max-raw-amount` (`invalid_amount` otherwise, before any request) |
 | `--out <path>` | Write the response body to a new file instead of `data.response`; an existing file is refused (`output_exists`) before any request is sent, so it is never overwritten and never paid for |
 | `--dry-run` | Read the challenge and report the selected route, without signing |
 | `--password-stdin` | Master password from stdin |

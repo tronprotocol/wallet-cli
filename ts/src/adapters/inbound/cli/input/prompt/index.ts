@@ -133,7 +133,7 @@ export class Prompter {
       this.#render(o.label, items, idx);
       for (;;) {
         const k = await this.#readKey();
-        if (k.ctrl && k.name === "c") throw new ExecutionError("aborted", "cancelled");
+        if (k.ctrl && k.name === "c") throw promptAborted();
         if (k.name === "up") idx = Math.max(0, idx - 1);
         else if (k.name === "down") {
           if (idx === items.length - 1 && o.loadMore) {
@@ -163,6 +163,10 @@ export class Prompter {
     this.#renderedSelectLines = frame.length;
     this.be.write(`${frame.join("\n")}\n`);
   }
+}
+
+function promptAborted(): ExecutionError {
+  return new ExecutionError("aborted", "cancelled at the prompt");
 }
 
 function color(kind: "cyan" | "red" | "yellow" | "green", s: string): string {
@@ -247,13 +251,14 @@ export class TtyBackend implements PromptBackend {
     const input = this.#stream();
     if (!hidden) {
       const rl = readline.createInterface({ input, output: process.stderr, terminal: true });
-      // Handle raw-mode Ctrl-C; otherwise readline closes without resolving the question.
-      rl.on("SIGINT", () => {
-        rl.close();
-        process.stderr.write("\n");
-        process.exit(130);
-      });
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
+        // Handle raw-mode Ctrl-C; otherwise readline closes without resolving the question.
+        rl.on("SIGINT", () => {
+          rl.close();
+          input.pause();
+          process.stderr.write("\n");
+          reject(promptAborted());
+        });
         rl.question(prompt, (ans) => {
           rl.close();
           input.pause();
@@ -261,16 +266,19 @@ export class TtyBackend implements PromptBackend {
         });
       });
     }
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       process.stderr.write(prompt);
       input.setRawMode(true);
       input.resume();
       let buf = "";
-      const finish = (val: string): void => {
+      const stop = (): void => {
         input.setRawMode(false);
         input.off("data", onData);
         input.pause();
         process.stderr.write("\n");
+      };
+      const finish = (val: string): void => {
+        stop();
         resolve(val);
       };
       const onData = (d: Buffer): void => {
@@ -278,8 +286,8 @@ export class TtyBackend implements PromptBackend {
           const code = ch.charCodeAt(0);
           if (ch === "\r" || ch === "\n") return finish(buf);
           if (code === 3) {
-            process.stderr.write("\n");
-            process.exit(130);
+            stop();
+            return reject(promptAborted());
           } // Ctrl-C
           if (code === 4) return finish(buf); // Ctrl-D
           if (code === 127 || code === 8) {

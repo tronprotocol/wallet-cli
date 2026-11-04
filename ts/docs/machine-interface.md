@@ -214,7 +214,7 @@ Each entry is an object, not a bare string:
 
 On the submit path, a `timeout`, `rpc_error` or `invalid_node_response` carries `error.details.outcome: "unknown"` and `error.details.txId`: the id of the signed transaction, computed locally. Look it up with `tx status` before sending again. Text output shows it too. This applies when the local id is available; no id is invented. Definite node rejections and failures before submission (including expiry, authorization, validation and dry-run checks) gain neither field.
 
-That index is the machine-readable catalog this build exposes. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code absent from `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and two strings (`invalid_value`, `aborted`) appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+That index is the machine-readable catalog this build exposes. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code absent from `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and two strings (`invalid_value`, `aborted`) appear under either exit code depending on where they are raised (`aborted` is exit `1` for Ctrl-C at an interactive prompt and exit `2` for a declined confirmation) — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 

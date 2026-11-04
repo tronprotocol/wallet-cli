@@ -1,6 +1,7 @@
 import { baiRechargeText, baiUsageText, baiRecordsText, baiOrdersText } from "../render/bai.js";
 import {
   assertBaiRechargeMinimum,
+  assertBaiRechargePrecision,
   baiRechargeAmount,
 } from "../../../../domain/bai/recharge-policy.js";
 import { integerLiteral, rawPaymentAmount, paymentAmount } from "../schemas/payment-values.js";
@@ -103,10 +104,17 @@ function spelledWarning<T extends { warning?: string | UserMessage }>(result: T)
 export function baiRechargeBinding(service: BaiService): FamilyBinding {
   return {
     refine: (input, ctx) => {
-      // Without a token the network decides the default, so the recharge itself checks the minimum.
-      if (input.token === undefined) return;
+      let amount: ReturnType<typeof baiRechargeAmount>;
       try {
-        assertBaiRechargeMinimum(input.token, baiRechargeAmount(input.amount));
+        amount = baiRechargeAmount(input.amount);
+      } catch {
+        // The amount schema reports it.
+        return;
+      }
+      try {
+        // Without a token the network decides the default, so the recharge itself checks the minimum.
+        if (input.token !== undefined) assertBaiRechargeMinimum(input.token, amount);
+        assertBaiRechargePrecision(amount);
       } catch (error) {
         ctx.addIssue({
           code: "custom",

@@ -12,7 +12,11 @@ import { BaiRechargeFlow, reportBaiTransaction } from "./bai-recharge-flow.js";
 import { requireBaiChain, type BaiWalletBinding } from "./bai-wallet-binding.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
 import { errorMessage, inputRef, UsageError } from "../../domain/errors/index.js";
-import { assertBaiRechargeMinimum, baiRechargeAmount } from "../../domain/bai/recharge-policy.js";
+import {
+  assertBaiRechargeMinimum,
+  assertBaiRechargePrecision,
+  baiRechargeAmount,
+} from "../../domain/bai/recharge-policy.js";
 import type { X402RoundtripPort, X402ServeInput } from "../ports/x402-server.js";
 import { baiPaymentResult } from "../services/bai-payment-result.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
@@ -74,6 +78,7 @@ export class BaiService {
   ) {
     const amount = baiRechargeAmount(input.amount);
     assertBaiRechargeMinimum(input.token, amount);
+    assertBaiRechargePrecision(amount);
     const chain = requireBaiChain(network);
     if (!input.apiKey) {
       throw new UsageError(

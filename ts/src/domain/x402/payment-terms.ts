@@ -25,8 +25,12 @@ export function isPaymentDecimals(decimals: number): boolean {
 }
 
 // A positive uint256 in base units.
+export function isPaymentRawAmount(raw: string): boolean {
+  return /^\d{1,78}$/.test(raw) && BigInt(raw) > 0n && BigInt(raw) < UINT256_LIMIT;
+}
+
 export function paymentRawAmount(raw: string, field: string): BaseUnits {
-  if (!/^\d{1,78}$/.test(raw) || BigInt(raw) <= 0n || BigInt(raw) >= UINT256_LIMIT)
+  if (!isPaymentRawAmount(raw))
     throw new UsageError(
       "invalid_amount",
       errorMessage`${inputRef(field)} must be a positive uint256 in base units`,

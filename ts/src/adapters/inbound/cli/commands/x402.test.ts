@@ -74,6 +74,28 @@ describe("x402 command surface", () => {
     ).toBe(false);
   });
 
+  it.each([
+    ["0", false],
+    [(1n << 256n).toString(), false],
+    ["1", true],
+    [((1n << 256n) - 1n).toString(), true],
+  ])("validates --max-gasfree-fee-raw %s like --max-raw-amount", (value, valid) => {
+    const registry = new CommandRegistry();
+    registerX402Commands(registry, service());
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    const base = { url: "https://example.test", method: "GET", header: [] };
+    const fee = neutralInputSchema(pay).safeParse({ ...base, maxGasfreeFeeRaw: value });
+    const raw = neutralInputSchema(pay).safeParse({ ...base, maxRawAmount: value, token: "USDT" });
+    expect(fee.success).toBe(valid);
+    expect(raw.success).toBe(valid);
+    if (!valid) {
+      expect(fee.error!.issues[0]).toMatchObject({
+        path: ["maxGasfreeFeeRaw"],
+        params: { errorCode: "invalid_amount" },
+      });
+    }
+  });
+
   it("rejects conflicting GasFree fee ceilings", () => {
     const registry = new CommandRegistry();
     registerX402Commands(registry, service());

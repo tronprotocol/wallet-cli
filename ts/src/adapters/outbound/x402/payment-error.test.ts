@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { exitCodeOf } from "../../inbound/cli/output/errors.js";
 import {
   sdkPaymentError,
   providerPaymentError,
@@ -104,6 +105,32 @@ it.each([
     details: { phase: "sign", retryPayment: false },
   });
 });
+
+it.each([
+  ["a body reason", "DEADLINE_OR_CLOCK_SKEW", { reason: "DEADLINE_OR_CLOCK_SKEW" }],
+  ["a body code", "DEADLINE_OR_CLOCK_SKEW", { code: "DEADLINE_OR_CLOCK_SKEW", httpStatus: 502 }],
+  [
+    "a settlement errorReason",
+    "DEADLINE_OR_CLOCK_SKEW",
+    { success: false, errorReason: "DEADLINE_OR_CLOCK_SKEW", transaction: "ab".repeat(32) },
+  ],
+  ["a code beside another reason", "invalid_payload", { code: "DEADLINE_OR_CLOCK_SKEW" }],
+] as const)(
+  "classifies a provider's expired authorization (%s) as tx_expired",
+  (_case, reason, evidence) => {
+    for (const phase of ["verify", "settle"] as const) {
+      const error = providerPaymentError(reason, phase, evidence);
+      expect(error).toMatchObject({
+        code: "tx_expired",
+        details: { phase, paymentStatus: "unknown", outcome: "unknown", retryPayment: false },
+      });
+      expect(exitCodeOf(error)).toBe(1);
+    }
+    expect(providerPaymentError(reason, "settle", evidence).details).toMatchObject(
+      "transaction" in evidence ? { candidateTxHash: "ab".repeat(32) } : {},
+    );
+  },
+);
 
 it.each(["challenge", "create_payment", "payment_request", "verify", "settle"] as const)(
   "maps %s rate limits without authorizing repayment",

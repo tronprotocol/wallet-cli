@@ -349,6 +349,8 @@ function checkedLimits(input: X402PayRequest, facts: X402PaymentFacts): BaseUnit
     throw new UsageError("invalid_amount", errorMessage`${inputRef("maxAmount")} must be positive`);
   if (input.maxAmount !== undefined && !/[1-9]/.test(input.maxAmount))
     throw new UsageError("invalid_amount", errorMessage`${inputRef("maxAmount")} must be positive`);
+  if (input.maxGasfreeFeeRaw !== undefined)
+    paymentRawAmount(input.maxGasfreeFeeRaw, "maxGasfreeFeeRaw");
   if (input.maxRawAmount === undefined) return undefined;
   const limit = paymentRawAmount(input.maxRawAmount, "maxRawAmount");
   // Pin raw limits to a token so the seller cannot choose their units.

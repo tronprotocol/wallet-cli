@@ -26,6 +26,19 @@ export function assertBaiRechargeMinimum(token: string, amount: string): void {
   }
 }
 
+// B.AI accepts recharge amounts with at most this many decimal places, whatever the token.
+const MAX_RECHARGE_DECIMALS = 6;
+
+export function assertBaiRechargePrecision(amount: BaiRechargeAmount): void {
+  const fraction = amount.split(".")[1] ?? "";
+  if (fraction.length > MAX_RECHARGE_DECIMALS) {
+    throw new UsageError(
+      "invalid_amount",
+      `Recharge amount may have at most ${MAX_RECHARGE_DECIMALS} decimal places; no preorder or payment was sent`,
+    );
+  }
+}
+
 declare const rechargeAmount: unique symbol;
 
 // Positive decimal text in whole units of the recharge token.

@@ -161,3 +161,22 @@ it.each([
   const command = registry.resolveNeutral(["bai", "report-recharge"])!;
   expect(command.input.safeParse({ chain, txHash }).success).toBe(valid);
 });
+
+it.each([undefined, "USDT"])(
+  "refuses more than 6 decimal places at the command boundary (token %s)",
+  (token) => {
+    const registry = new CommandRegistry();
+    registerBaiCommands(registry, service());
+    const command = registry.resolveChain(["bai", "recharge"])!;
+    const issues: unknown[] = [];
+    for (const family of ["evm", "tron"] as const)
+      command.families[family]!.refine!(
+        { amount: "1.0000001", token } as never,
+        {
+          addIssue: (issue: unknown) => issues.push(issue),
+        } as never,
+      );
+    expect(issues).toHaveLength(2);
+    expect(issues[0]).toMatchObject({ path: ["amount"], params: { errorCode: "invalid_amount" } });
+  },
+);

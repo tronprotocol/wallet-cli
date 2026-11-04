@@ -9284,8 +9284,7 @@
           },
           "maxGasfreeFeeRaw": {
             "description": "maximum GasFree relay fee in smallest units",
-            "type": "string",
-            "pattern": "^\\d+$"
+            "type": "string"
           }
         },
         "required": [
@@ -9521,8 +9520,7 @@
           },
           "maxGasfreeFeeRaw": {
             "description": "maximum GasFree relay fee in smallest units",
-            "type": "string",
-            "pattern": "^\\d+$"
+            "type": "string"
           }
         },
         "required": [

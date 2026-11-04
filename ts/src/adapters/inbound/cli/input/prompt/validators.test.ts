@@ -11,6 +11,19 @@ describe("isValidPrivateKeyHex", () => {
     expect(isValidPrivateKeyHex("a".repeat(63))).toBe(false);
     expect(isValidPrivateKeyHex("z".repeat(64))).toBe(false);
   });
+  it.each([
+    ["zero", "0".repeat(64)],
+    ["the curve order n", "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"],
+    ["above n", "f".repeat(64)],
+  ])("rejects a key out of range for secp256k1 (%s)", (_case, key) => {
+    expect(isValidPrivateKeyHex(key)).toBe(false);
+    expect(isValidPrivateKeyHex(`0x${key}`)).toBe(false);
+  });
+  it("accepts n - 1", () => {
+    expect(
+      isValidPrivateKeyHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"),
+    ).toBe(true);
+  });
 });
 
 describe("isValidMnemonic", () => {

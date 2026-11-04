@@ -70,6 +70,17 @@ function fixture(failure?: "prepare" | "resolve" | "pay") {
 }
 
 describe("X402Service", () => {
+  it.each(["0", (1n << 256n).toString()])(
+    "refuses a GasFree raw fee ceiling of %s before any request",
+    async (maxGasfreeFeeRaw) => {
+      const f = fixture();
+      await expect(
+        f.service.pay(scope, network, { ...input, maxGasfreeFeeRaw }),
+      ).rejects.toMatchObject({ code: "invalid_amount" });
+      expect(f.request).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([false, true])("selects the operation in application (dryRun=%s)", async (dryRun) => {
     const f = fixture();
     await expect(f.service.pay(scope, network, { ...input, dryRun })).resolves.toMatchObject(

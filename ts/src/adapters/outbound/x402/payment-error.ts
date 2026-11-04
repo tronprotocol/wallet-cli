@@ -43,11 +43,34 @@ const reasons: Record<string, () => TransportError> = {
     new TransportError("insufficient_balance", "The payment account has insufficient funds"),
 };
 
+const CLOCK_SKEW = /\bDEADLINE_OR_CLOCK_SKEW\b/;
+
+function expiredAuthorization(phase?: PaymentPhase, evidence?: Record<string, unknown>) {
+  return new TransportError(
+    "tx_expired",
+    "Payment authorization expired or the clock is out of sync; reconcile before paying again",
+    {
+      ...(phase ? { phase } : {}),
+      retryPayment: false,
+      paymentStatus: "unknown",
+      outcome: "unknown",
+      ...candidateEvidence(evidence),
+    },
+  );
+}
+
 export function providerPaymentError(
   reason: unknown,
   phase: "verify" | "settle",
   evidence?: Record<string, unknown>,
 ) {
+  if (
+    [reason, evidence?.reason, evidence?.code, evidence?.errorReason].some(
+      (value) => typeof value === "string" && CLOCK_SKEW.test(value),
+    )
+  ) {
+    return expiredAuthorization(phase, evidence);
+  }
   const key = reason === "insufficient_balance" ? "insufficient_funds" : reason;
   const known =
     typeof key === "string" && Object.hasOwn(reasons, key) ? reasons[key]!() : undefined;
@@ -107,18 +130,9 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
       record?.cause?.code,
       cause,
       (error as { cause?: { message?: string } })?.cause?.message,
-    ].some((value) => typeof value === "string" && /\bDEADLINE_OR_CLOCK_SKEW\b/.test(value))
+    ].some((value) => typeof value === "string" && CLOCK_SKEW.test(value))
   ) {
-    return new TransportError(
-      "tx_expired",
-      "Payment authorization expired or the clock is out of sync; reconcile before paying again",
-      {
-        ...(phase ? { phase } : {}),
-        retryPayment: false,
-        paymentStatus: "unknown",
-        outcome: "unknown",
-      },
-    );
+    return expiredAuthorization(phase);
   }
   const status =
     record?.response?.status ??

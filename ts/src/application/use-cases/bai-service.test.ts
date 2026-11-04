@@ -109,6 +109,22 @@ it.each(["0", "0.000", "-1", "1e3", "9007199254740992", "0.5"])(
   },
 );
 
+it.each([
+  ["eip155:56", "USDT", "1.0000001"],
+  ["eip155:8453", "USDC", "2.1234567"],
+  ["tron:728126428", "TRX", "15.0000001"],
+])("rejects more than 6 decimal places on %s %s before any request", async (id, token, amount) => {
+  const resolveAddress = vi.fn();
+  await expect(
+    new BaiService(api()).recharge(
+      { deadline: NO_DEADLINE, resolveAddress } as never,
+      { id, family: id.startsWith("tron") ? "tron" : "evm" } as never,
+      { amount, token, apiKey: "key", dryRun: true },
+    ),
+  ).rejects.toMatchObject({ code: "invalid_amount" });
+  expect(resolveAddress).not.toHaveBeenCalled();
+});
+
 it("names the offset and limit inputs when the page offset is unaligned", async () => {
   const error = await new BaiService(api())
     .usageList(NO_DEADLINE, { limit: 20, offset: 5, sort: "desc" })

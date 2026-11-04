@@ -55,9 +55,7 @@ const payFields = z.object({
     .regex(/^\d+(?:\.\d+)?$/)
     .optional()
     .describe("maximum GasFree relay fee in whole tokens"),
-  maxGasfreeFeeRaw: z
-    .string()
-    .regex(/^\d+$/)
+  maxGasfreeFeeRaw: rawPaymentAmount
     .optional()
     .describe("maximum GasFree relay fee in smallest units"),
 });
