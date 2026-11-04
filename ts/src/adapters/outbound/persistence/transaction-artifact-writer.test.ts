@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { lstatSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { SecureTransactionArtifactWriter } from "./transaction-artifact-writer.js";
@@ -28,5 +36,16 @@ describe("SecureTransactionArtifactWriter", () => {
     expect(() => new SecureTransactionArtifactWriter().write(link, "abcd")).toThrowError(
       /symbolic-link/,
     );
+  });
+
+  it("reports a directory it cannot create as io_error and writes nothing", () => {
+    const dir = mkdtempSync(join(tmpdir(), "wallet-cli-tx-"));
+    dirs.push(dir);
+    writeFileSync(join(dir, "file"), "");
+    const path = join(dir, "file", "sub", "signed.hex");
+    expect(() => new SecureTransactionArtifactWriter().write(path, "abcd")).toThrowError(
+      expect.objectContaining({ code: "io_error" }),
+    );
+    expect(existsSync(path)).toBe(false);
   });
 });

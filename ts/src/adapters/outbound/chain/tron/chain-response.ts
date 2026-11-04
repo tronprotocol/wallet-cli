@@ -115,10 +115,13 @@ export function parseTronBlockResponse(text: string): Types.Block {
 export function tronBlock(block: Types.Block): TronBlock | null {
   if (!block || typeof block !== "object" || !("blockID" in block)) return null;
   const header = block.block_header?.raw_data;
+  if (!header || typeof header !== "object") {
+    throw new ChainError("invalid_node_response", "the node returned a block without a header");
+  }
   // Protobuf JSON omits zero values; only the genesis block has height and timestamp 0.
   return {
-    number: safeNodeInteger(header?.number ?? 0, "block number"),
-    timestampMs: safeNodeInteger(header?.timestamp ?? 0, "block timestamp"),
+    number: safeNodeInteger(header.number ?? 0, "block number"),
+    timestampMs: safeNodeInteger(header.timestamp ?? 0, "block timestamp"),
     transactionCount: Array.isArray(block.transactions) ? block.transactions.length : 0,
     raw: block as unknown as TronRawBlock,
   };

@@ -286,13 +286,15 @@ export const SunSwapFormatters = {
 
   // Symbols can be impersonated; addresses identify tokens.
   sunswapPrice: (value: PriceView): string =>
-    table(
-      ["Symbol", "Address", "Price (USD)", "Quoted at (UTC)"],
-      value.prices.map((price) => [
-        value.view?.symbols?.[price.address] ?? EMPTY,
-        price.address,
-        `$${formatUsdPrice(price.priceUsd)}`,
-        price.quotedAt === "" ? EMPTY : price.quotedAt,
-      ]),
-    ),
+    value.prices.length === 0
+      ? "(none)"
+      : table(
+          ["Symbol", "Address", "Price (USD)", "Quoted at (UTC)"],
+          value.prices.map((price) => [
+            value.view?.symbols?.[price.address] ?? EMPTY,
+            price.address,
+            `$${formatUsdPrice(price.priceUsd)}`,
+            price.quotedAt === "" ? EMPTY : price.quotedAt,
+          ]),
+        ),
 };

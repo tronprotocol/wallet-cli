@@ -61,8 +61,10 @@ export const StakeFormatters = {
         "Max delegatable",
         kv(
           [
-            ["Energy", `${trx(max.energy)}`],
-            ["Bandwidth", `${trx(max.bandwidth)}`],
+            ...(max.energy === undefined ? [] : [["Energy", `${trx(max.energy)}`] as Pair]),
+            ...(max.bandwidth === undefined
+              ? []
+              : [["Bandwidth", `${trx(max.bandwidth)}`] as Pair]),
           ],
           "  ",
         ),

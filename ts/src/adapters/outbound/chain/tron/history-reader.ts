@@ -25,6 +25,8 @@ import {
   type DispatchCheck,
 } from "../../../../application/contracts/deadline.js";
 import { withDispatchCheck } from "../../http/dispatch-context.js";
+import type { TronAsset } from "../../../../application/ports/chain/tron/tron-gateway.js";
+import { assertUsableAsset, parseTronAssetResponse } from "./asset-response.js";
 
 export class TronGridHistoryReader implements HistoryPort {
   async get(
@@ -42,14 +44,16 @@ export class TronGridHistoryReader implements HistoryPort {
     }
     const resource = query.only === "token" ? "transactions/trc20" : "transactions";
     const path = `/v1/accounts/${encodeURIComponent(address)}/${resource}?limit=${query.limit}&visible=true`;
+    const transport = new FetchHttpTransport(networkHttpConfig(network));
     let text: string;
     try {
-      const transport = new FetchHttpTransport(networkHttpConfig(network));
       text = await withDispatchCheck(check, () => transport.requestText({ method: "GET", path }));
     } catch (error) {
       throw historyTransportError(error);
     }
-    const records = historyRecords(text).map((record) => this.normalize(record, address));
+    const raw = historyRecords(text);
+    const assets = await trc10Assets(transport, raw, check);
+    const records = raw.map((record) => this.normalize(record, address, assets));
     return {
       address,
       only: query.only ?? "all",
@@ -58,7 +62,7 @@ export class TronGridHistoryReader implements HistoryPort {
     };
   }
 
-  private normalize(raw: unknown, owner: string): TronHistoryRecord {
+  private normalize(raw: unknown, owner: string, assets: Trc10Assets): TronHistoryRecord {
     const record = raw as any;
     if (record?.raw_data?.contract) {
       const contract = record.raw_data.contract[0] ?? {};
@@ -66,14 +70,12 @@ export class TronGridHistoryReader implements HistoryPort {
       const type = String(contract.type ?? "").replace(/Contract$/, "") || "unknown";
       const from = tronHexToBase58(value.owner_address);
       const to = tronHexToBase58(value.to_address ?? value.contract_address);
-      const hasTrx = value.amount !== undefined;
       const result = record.ret?.[0]?.contractRet;
       return {
         txId: record.txID,
         time: record.block_timestamp,
         type,
-        amount: hasTrx ? fromBaseUnits(String(value.amount), FAMILIES.tron.nativeDecimals) : "",
-        symbol: hasTrx ? "TRX" : undefined,
+        ...transferAmount(contract.type, value, assets),
         from,
         to,
         counterparty: from === owner ? to : from,
@@ -95,6 +97,66 @@ export class TronGridHistoryReader implements HistoryPort {
       status: "ok",
     };
   }
+}
+
+type Trc10Assets = ReadonlyMap<string, TronAsset | undefined>;
+
+const TRC10_ID = /^[0-9]+$/;
+
+// TransferAssetContract moves a TRC10 asset; every other `amount` is SUN.
+function transferAmount(
+  contractType: unknown,
+  value: { amount?: unknown; asset_name?: unknown },
+  assets: Trc10Assets,
+): Pick<TronHistoryRecord, "amount" | "rawAmount" | "assetId" | "symbol"> {
+  if (value.amount === undefined) return { amount: "" };
+  const raw = String(value.amount);
+  if (contractType !== "TransferAssetContract") {
+    return { amount: fromBaseUnits(raw, FAMILIES.tron.nativeDecimals), symbol: "TRX" };
+  }
+  const name = String(value.asset_name ?? "");
+  if (!TRC10_ID.test(name))
+    return { amount: "", rawAmount: raw, ...(name ? { symbol: name } : {}) };
+  const asset = assets.get(name);
+  const symbol = asset?.abbr || asset?.name;
+  return {
+    amount: asset ? fromBaseUnits(raw, asset.precision ?? 0) : "",
+    rawAmount: raw,
+    assetId: name,
+    ...(symbol ? { symbol } : {}),
+  };
+}
+
+// Metadata of the TRC10 assets the page transfers; an asset that cannot be read maps to undefined.
+async function trc10Assets(
+  transport: FetchHttpTransport,
+  records: unknown[],
+  check: DispatchCheck,
+): Promise<Trc10Assets> {
+  const ids = new Set<string>();
+  for (const record of records) {
+    const contract = (record as any)?.raw_data?.contract?.[0];
+    const name = String(contract?.parameter?.value?.asset_name ?? "");
+    if (contract?.type === "TransferAssetContract" && TRC10_ID.test(name)) ids.add(name);
+  }
+  const entries = await Promise.all(
+    [...ids].map(async (id): Promise<[string, TronAsset | undefined]> => {
+      try {
+        const text = await withDispatchCheck(check, () =>
+          transport.requestText({
+            method: "POST",
+            path: "/wallet/getassetissuebyid",
+            body: JSON.stringify({ value: id }),
+          }),
+        );
+        return [id, assertUsableAsset(parseTronAssetResponse(text), id)];
+      } catch (error) {
+        if (error instanceof DeadlineExpiredError) throw error;
+        return [id, undefined];
+      }
+    }),
+  );
+  return new Map(entries);
 }
 
 // Only a missing endpoint is "not supported"; other failures keep their retryable codes.

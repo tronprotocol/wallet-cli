@@ -53,7 +53,8 @@ export interface StakeInfoView {
 export interface StakeDelegatedView {
   address: string;
   direction: "out" | "in";
-  canDelegateMaxSun?: { energy: string; bandwidth: string };
+  // Only the selected resource's cap when the query names one.
+  canDelegateMaxSun?: Partial<Record<Resource, string>>;
   delegations: Array<{
     receiver?: string;
     from?: string;
@@ -139,14 +140,17 @@ export class TronStakeService {
         .map((b) => ({ [key]: counterparty, ...b }));
     });
     if (!out) return { address, direction: input.direction, delegations: rows };
-    const [energy, bandwidth] = await Promise.all([
-      gateway.getCanDelegatedMaxSize(address, "ENERGY"),
-      gateway.getCanDelegatedMaxSize(address, "BANDWIDTH"),
-    ]);
+    const resources = input.resource ? [input.resource] : (["energy", "bandwidth"] as const);
+    const caps = await Promise.all(
+      resources.map(
+        async (resource) =>
+          [resource, await gateway.getCanDelegatedMaxSize(address, toRpcCode(resource))] as const,
+      ),
+    );
     return {
       address,
       direction: input.direction,
-      canDelegateMaxSun: { energy, bandwidth },
+      canDelegateMaxSun: Object.fromEntries(caps),
       delegations: rows,
     };
   }

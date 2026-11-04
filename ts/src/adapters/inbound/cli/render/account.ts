@@ -139,10 +139,20 @@ function historyRow(r: Obj): string[] {
   return [
     formatTime(r.time),
     String(r.type ?? ""),
-    `${formatScalar(r.amount ?? "")}${r.symbol ? ` ${String(r.symbol)}` : ""}`,
+    historyAmount(r),
     String(r.counterparty ?? ""),
     (HISTORY_STATUS[String(r.status)] ?? unknown)(),
   ];
+}
+
+function historyAmount(r: Obj): string {
+  const unit = r.symbol ? String(r.symbol) : r.assetId ? `TRC10 ${String(r.assetId)}` : "";
+  const amount = r.amount
+    ? formatScalar(r.amount)
+    : r.rawAmount
+      ? `${formatScalar(r.rawAmount)} base units of`
+      : "";
+  return [amount, unit].filter(Boolean).join(" ");
 }
 
 function acct(ctx: TextRenderContext, address: unknown): string {

@@ -60,7 +60,7 @@ Base fee      1.119025 gwei
 
 `data.block` is the raw block as returned by the node, unmodified — a TRON block object on TRON, an `eth_getBlockByNumber` result on EVM. Its exact shape follows the node's block structure; the key fields are below (large hashes and the full transaction list are elided as `…` above). On EVM, `data` also carries the block's decoded fields beside `data.block`.
 
-TRON also reports a normalized summary beside `block`:
+TRON also reports a normalized summary beside `block`. A block without `block_header.raw_data` fails with `invalid_node_response`; within the header, an omitted `number` or `timestamp` reads as `0` (the genesis block):
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -98,7 +98,7 @@ EVM decoded fields, beside `data.block`. A block without a number or timestamp f
 
 ## Exit status
 
-`0` success · `1` execution failure · `2` usage error. See [machine-interface](../machine-interface.md).
+`0` success · `1` execution failure (`invalid_node_response` — a block without its header or decoded fields) · `2` usage error. See [machine-interface](../machine-interface.md).
 
 ## See also
 

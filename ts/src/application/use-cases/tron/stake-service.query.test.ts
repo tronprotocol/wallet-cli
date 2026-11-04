@@ -89,6 +89,25 @@ describe("TronStakeService.delegated", () => {
       ],
     });
   });
+  it.each(["energy", "bandwidth"] as const)(
+    "out with resource %s: reads and returns only that resource's cap",
+    async (resource) => {
+      const reads: string[] = [];
+      const gateway = {
+        getDelegatedIndexV2: async () => ({ fromAccounts: [], toAccounts: [record.to] }),
+        getDelegatedResourceV2: async () => [record],
+        getCanDelegatedMaxSize: async (_a: string, r: string) => {
+          reads.push(r);
+          return r === "ENERGY" ? "900000000" : "300000000";
+        },
+      };
+      const view = await svc(gateway).delegated(scope(OWNER), net, { direction: "out", resource });
+      expect(view.canDelegateMaxSun).toEqual(
+        resource === "energy" ? { energy: "900000000" } : { bandwidth: "300000000" },
+      );
+      expect(reads).toEqual([resource.toUpperCase()]);
+    },
+  );
   it("in: rows keyed by `from`, no canDelegateMaxSun, resource filter applies", async () => {
     const gateway = {
       getDelegatedIndexV2: async () => ({ fromAccounts: [record.from], toAccounts: [] }),

@@ -12,7 +12,12 @@ export interface TronHistoryRecord {
   txId?: string;
   time?: number;
   type: string;
+  // Empty for a TRC10 transfer whose asset precision is unknown.
   amount: string;
+  // TRC10 transfers: the amount in the asset's base units.
+  rawAmount?: string;
+  // TRC10 transfers: the asset id.
+  assetId?: string;
   symbol?: string;
   from?: string;
   to?: string;

@@ -78,3 +78,112 @@ describe("TronGridHistoryReader failures", () => {
     await expect(read()).resolves.toMatchObject({ count: 0, records: [] });
   });
 });
+
+describe("TronGridHistoryReader TRC10 transfers", () => {
+  const OWNER = "TEPk9tW9ngsUv7jdQrDr8kh3GNVHm1X6Kd";
+  const OWNER_HEX = "41303b40e232f4394f7715db3b133155a628a0b689";
+  const TO_HEX = "419783744f5a16e0597cf421335550bf1fd903cd03";
+  const page = (asset_name: string) =>
+    JSON.stringify({
+      data: [
+        {
+          txID: "aa".repeat(32),
+          block_timestamp: 1,
+          ret: [{ contractRet: "SUCCESS" }],
+          raw_data: {
+            contract: [
+              {
+                type: "TransferAssetContract",
+                parameter: {
+                  value: {
+                    amount: 1000000,
+                    asset_name,
+                    owner_address: OWNER_HEX,
+                    to_address: TO_HEX,
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          txID: "bb".repeat(32),
+          block_timestamp: 2,
+          ret: [{ contractRet: "SUCCESS" }],
+          raw_data: {
+            contract: [
+              {
+                type: "TransferContract",
+                parameter: {
+                  value: { amount: 2000000, owner_address: OWNER_HEX, to_address: TO_HEX },
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+  function answers(history: string, asset: (body: string) => Response) {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL, init?: RequestInit) => {
+        const path = new URL(String(url)).pathname;
+        calls.push(path);
+        if (path === "/wallet/getassetissuebyid") return asset(String(init?.body));
+        return new Response(history, { status: 200 });
+      }),
+    );
+    return calls;
+  }
+
+  const readOwner = (only?: "native") =>
+    new TronGridHistoryReader().get(
+      network,
+      OWNER,
+      { limit: 20, ...(only ? { only } : {}) },
+      NO_CHECK,
+    );
+
+  it.each([undefined, "native"] as const)(
+    "reports the asset and its units, never TRX (only=%s)",
+    async (only) => {
+      const calls = answers(page("1007445"), () =>
+        Response.json({
+          id: "1007445",
+          name: "tenergy.dev",
+          abbr: "TEN",
+          precision: 6,
+          trx_num: 1,
+          num: 1,
+        }),
+      );
+      const result = await readOwner(only);
+      expect(result.records[0]).toMatchObject({
+        type: "TransferAsset",
+        amount: "1",
+        rawAmount: "1000000",
+        symbol: "TEN",
+        assetId: "1007445",
+      });
+      expect(result.records[1]).toMatchObject({ type: "Transfer", amount: "2", symbol: "TRX" });
+      expect(calls.filter((path) => path === "/wallet/getassetissuebyid")).toHaveLength(1);
+    },
+  );
+
+  it("keeps the raw amount and no symbol when the asset metadata cannot be read", async () => {
+    answers(page("1007445"), () => new Response("down", { status: 500 }));
+    const record = (await readOwner()).records[0]!;
+    expect(record).toMatchObject({ amount: "", rawAmount: "1000000", assetId: "1007445" });
+    expect(record.symbol).toBeUndefined();
+  });
+
+  it("names a pre-id asset by its name without a lookup", async () => {
+    const calls = answers(page("Star"), () => Response.json({}));
+    const record = (await readOwner()).records[0]!;
+    expect(record).toMatchObject({ amount: "", rawAmount: "1000000", symbol: "Star" });
+    expect(record).not.toHaveProperty("assetId");
+    expect(calls).not.toContain("/wallet/getassetissuebyid");
+  });
+});

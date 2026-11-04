@@ -43,6 +43,10 @@ describe("sunswap price table", () => {
     const out = render([{ address: WIN, priceUsd: "0", quotedAt: "2026-09-15 08:20" }]);
     expect(out).toContain("$0.0000");
   });
+
+  it("says (none) rather than printing an empty table", () => {
+    expect(render([])).toBe("(none)");
+  });
 });
 
 const token = (over: Record<string, unknown> = {}) => ({

@@ -213,6 +213,17 @@ describe("stake/chain TRX amount formatting", () => {
   });
 });
 
+describe("stakeDelegated formatter", () => {
+  it("shows only the cap the result carries", () => {
+    const out = TextFormatters.stakeDelegated(
+      { direction: "out", canDelegateMaxSun: { energy: "1000000" }, delegations: [] },
+      ctx(),
+    );
+    expect(out).toMatch(/Energy\s+1 TRX/);
+    expect(out).not.toContain("Bandwidth");
+  });
+});
+
 describe("chainParams formatter", () => {
   it("shows the unit the result carries and none for a unitless parameter", () => {
     const out = TextFormatters.chainParams({
@@ -968,6 +979,35 @@ describe("accountHistory formatter", () => {
     expect(row("unknown")).not.toContain("✅");
     expect(row("ok")).toContain("✅");
     expect(row("failed")).toContain("❌");
+  });
+
+  it("names a TRC10 transfer by its asset, in base units when its precision is unknown", () => {
+    const out = TextFormatters.accountHistory(
+      {
+        address: "TXaddr",
+        records: [
+          {
+            type: "TransferAsset",
+            amount: "1",
+            rawAmount: "1000000",
+            assetId: "1007445",
+            symbol: "TEN",
+            status: "ok",
+          },
+          {
+            type: "TransferAsset",
+            amount: "",
+            rawAmount: "1000000",
+            assetId: "1007445",
+            status: "ok",
+          },
+        ],
+      },
+      ctx(),
+    ).split("\n");
+    expect(out[3]).toContain("1 TEN");
+    expect(out[4]).toContain("1000000 base units of TRC10 1007445");
+    expect(out.join("\n")).not.toContain("TRX");
   });
 });
 

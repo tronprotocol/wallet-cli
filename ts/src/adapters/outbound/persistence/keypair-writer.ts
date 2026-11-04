@@ -25,7 +25,14 @@ export class SecureKeypairWriter implements KeypairWriter {
 
   #writeTo(path: string, value: unknown): string {
     const target = resolve(path);
-    mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+    try {
+      mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+    } catch {
+      throw new ExecutionError(
+        "io_error",
+        `could not create keypair directory: ${dirname(target)}`,
+      );
+    }
     let descriptor: number | undefined;
     let created = false;
     try {

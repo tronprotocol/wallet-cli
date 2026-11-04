@@ -123,11 +123,24 @@ describe("tronBlock", () => {
   });
 
   it("treats omitted header values as genesis zeros", () => {
-    expect(tronBlock({ blockID: "00" } as Types.Block)).toMatchObject({
+    const genesis = parseTronBlockResponse(
+      '{"blockID": "00", "block_header": {"raw_data": {"parentHash": "e5"}, "witness_signature": "00"}}',
+    );
+    expect(tronBlock(genesis)).toMatchObject({
       number: 0,
       timestampMs: 0,
       transactionCount: 0,
     });
+  });
+
+  it.each([
+    ["no header", '{"blockID": "00"}'],
+    ["a header without raw_data", '{"blockID": "00", "block_header": {}}'],
+    ["a non-object header", '{"blockID": "00", "block_header": "x"}'],
+  ])("rejects a block with %s as invalid_node_response", (_case, text) => {
+    expect(() => tronBlock(parseTronBlockResponse(text))).toThrow(
+      expect.objectContaining({ code: "invalid_node_response" }),
+    );
   });
 
   it("returns null for a height the node does not hold", () => {

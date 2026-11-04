@@ -29,6 +29,22 @@ function root(): string {
 }
 
 describe("SecureKeypairWriter", () => {
+  it("reports a directory it cannot create as io_error and writes nothing", () => {
+    const directory = root();
+    const blocker = join(directory, "file");
+    writeFileSync(blocker, "");
+    const path = join(blocker, "sub", "key.json");
+    let caught: unknown;
+    try {
+      new SecureKeypairWriter(directory).write({ out: path }, { privateKey: "secret" });
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toMatchObject({ code: "io_error" });
+    expect(exitCodeOf(caught as UsageError)).toBe(1);
+    expect(existsSync(path)).toBe(false);
+  });
+
   it("creates a new durable 0600 JSON artifact", () => {
     const directory = root();
     const path = join(directory, "nested", "key.json");

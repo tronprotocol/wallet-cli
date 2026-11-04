@@ -13,6 +13,7 @@ describe("TronRpcClient.getBlock", () => {
         new Response(
           `{
         "blockID": "abc",
+        "block_header": {"raw_data": {"number": 69628067}},
         "transactions": [{
           "raw_data": {
             "timestamp": 1785393457166367900

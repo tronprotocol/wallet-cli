@@ -14,7 +14,7 @@ wallet-cli account history [--limit <n>] [--only <native|token>] [options]
 
 Lists recent activity touching the account, newest first. History is served by **TronGrid**, not plain node RPC — on networks/endpoints without TronGrid this command fails while `balance`/`info` still work.
 
-`--only token` selects TronGrid's TRC20 transfer endpoint. `--only native` selects the general transactions endpoint and does not post-filter its records, so it can include non-native contract activity; omitting `--only` queries that same endpoint. Do not read `only: "native"` in the JSON as proof that every record is a TRX transfer.
+`--only token` selects TronGrid's TRC20 transfer endpoint. `--only native` selects the general transactions endpoint and does not post-filter its records, so it can include non-native contract activity, such as TRC10 transfers (reported in the asset's own units, never as TRX); omitting `--only` queries that same endpoint. Do not read `only: "native"` in the JSON as proof that every record is a TRX transfer.
 
 ## Options
 
@@ -57,8 +57,10 @@ wallet-cli account history --limit 2 --network nile -o json
 | `records[].txId` | string | Feed to [`tx info`](../tx/info.md) for detail |
 | `records[].time` | number | Epoch ms |
 | `records[].type` | string | Transaction type (e.g. `Transfer`, `CreateSmart`) |
-| `records[].amount` | string | Transfer amount; empty when not a value transfer |
-| `records[].symbol` | string | Asset symbol (e.g. `TRX`) |
+| `records[].amount` | string | Transfer amount in `symbol` units; empty when not a value transfer, or for a TRC10 transfer whose asset metadata could not be read |
+| `records[].rawAmount` | string | TRC10 transfers (`type: "TransferAsset"`) only: the amount in the asset's base units |
+| `records[].assetId` | string | TRC10 transfers only: the asset id |
+| `records[].symbol` | string | Asset symbol: `TRX`, or a TRC10 asset's abbreviation or name when known (absent otherwise) |
 | `records[].from` / `to` / `counterparty` | string | Addresses (may be empty per type) |
 | `records[].status` | string | `ok`, `failed`, or `unknown` when the record carries no execution result |
 
