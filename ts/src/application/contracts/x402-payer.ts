@@ -74,7 +74,8 @@ export interface Permit2ApproveRequest {
   readonly requiredAllowance: string;
   // Current on-chain allowance in base units.
   readAllowance(): Promise<string>;
-  // Receives the approval's transaction id once it was broadcast, before its confirmation.
+  // Receives the approval's transaction id when its broadcast request is dispatched, before the
+  // node answers.
   onSubmitted(txId: string): void;
   // Receives the approval once it is confirmed, before the allowance is read.
   onConfirmed(approval: SignedApproval): void;

@@ -58,7 +58,7 @@ import {
   inputRef,
   TransportError,
   UsageError,
-  type CliError,
+  CliError,
 } from "../../../domain/errors/index.js";
 import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import {
@@ -469,6 +469,9 @@ export class X402PaymentClient implements X402PaymentPort {
       recordApprovalSubmitted: (txId) => {
         authorization.approvalSubmitted = txId;
       },
+      recordApprovalFailure: (error) => {
+        authorization.approvalFailure = error;
+      },
     });
     // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
     let creationError: unknown;
@@ -591,6 +594,7 @@ interface SchemeContext {
   readonly relay: ReturnType<typeof gasfreeRelayClient>;
   readonly recordApproval: (approval: SignedApproval) => void;
   readonly recordApprovalSubmitted: (txId: string) => void;
+  readonly recordApprovalFailure: (error: unknown) => void;
 }
 
 interface FamilyIntegration {
@@ -620,7 +624,17 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
   tron: {
     async registerSchemes(
       client,
-      { network, check, bridge, payer, approver, relay, recordApproval, recordApprovalSubmitted },
+      {
+        network,
+        check,
+        bridge,
+        payer,
+        approver,
+        relay,
+        recordApproval,
+        recordApprovalSubmitted,
+        recordApprovalFailure,
+      },
     ) {
       const x402Network = toX402Network(network);
       // SDK metadata is keyed by symbol: use an internal alias to retain exact's USDD entry.
@@ -669,14 +683,19 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
           if (strategy === "unsupported") throw new Error("approval_asset_unsupported");
           if (current !== 0n && strategy === "zero-first")
             throw new Error("approval_reset_required");
-          await approver.approve({
-            token,
-            spender,
-            requiredAllowance: amount.toString(),
-            readAllowance,
-            onSubmitted: recordApprovalSubmitted,
-            onConfirmed: recordApproval,
-          });
+          await approver
+            .approve({
+              token,
+              spender,
+              requiredAllowance: amount.toString(),
+              readAllowance,
+              onSubmitted: recordApprovalSubmitted,
+              onConfirmed: recordApproval,
+            })
+            .catch((error: unknown) => {
+              recordApprovalFailure(error);
+              throw error;
+            });
           return true;
         },
       };
@@ -712,8 +731,10 @@ interface PaymentAuthorization {
   sent: boolean;
   // Signed Permit2 approval and SDK progress.
   approval?: SignedApproval & { status: "confirmed" | "exported" };
-  // Transaction id of a Permit2 approval that was broadcast.
+  // Transaction id of a Permit2 approval whose broadcast request was dispatched.
   approvalSubmitted?: string;
+  // The approver's own failure, once it ended.
+  approvalFailure?: unknown;
   requirement?: { asset: string; amount: string };
 }
 
@@ -735,14 +756,20 @@ function paidAmount(
   };
 }
 
-// A broadcast approval that never confirmed may still land, so a failure that does not carry the
-// approval's own outcome reports its txId as outcome unknown.
+// A dispatched approval that never confirmed may still land. The deadline can end the payment
+// before the approver answers, so the approver's own failure, when it arrived, decides: one without
+// the txId (a definite rejection) adds nothing, one with it is reported; none yet is outcome unknown.
 function withApproval(error: CliError, authorization: PaymentAuthorization): CliError {
-  const { approval, approvalSubmitted: txId } = authorization;
+  const { approval, approvalSubmitted: txId, approvalFailure } = authorization;
   if (approval) return withErrorDetails(error, { ...error.details, approval });
   if (txId === undefined) return error;
   const details = (error.details ?? {}) as Record<string, unknown>;
   if (details.txId === txId) return error;
+  if (approvalFailure instanceof CliError) {
+    const own = (approvalFailure.details ?? {}) as Record<string, unknown>;
+    if (own.txId !== txId) return error;
+    return withErrorDetails(approvalFailure, { ...details, ...own });
+  }
   const evidence = { ...details, txId, outcome: "unknown" };
   if (error instanceof DeadlineExpiredError) {
     return new ChainError(

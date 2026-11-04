@@ -127,7 +127,8 @@ function transferAmount(
   };
 }
 
-// Metadata of the TRC10 assets the page transfers; an asset that cannot be read maps to undefined.
+// Metadata of the TRC10 assets the page transfers; an asset that cannot be read maps to undefined,
+// unless the command deadline ended the read: a read past the deadline returns no partial result.
 async function trc10Assets(
   transport: FetchHttpTransport,
   records: unknown[],
@@ -151,7 +152,7 @@ async function trc10Assets(
         );
         return [id, assertUsableAsset(parseTronAssetResponse(text), id)];
       } catch (error) {
-        if (error instanceof DeadlineExpiredError) throw error;
+        if (check.signal.aborted) throw historyTransportError(error);
         return [id, undefined];
       }
     }),

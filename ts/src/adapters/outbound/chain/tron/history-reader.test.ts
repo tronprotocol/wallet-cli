@@ -179,6 +179,29 @@ describe("TronGridHistoryReader TRC10 transfers", () => {
     expect(record.symbol).toBeUndefined();
   });
 
+  it("fails timeout when the command deadline ends an asset lookup that was sent", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string | URL, init?: RequestInit) => {
+        if (new URL(String(url)).pathname !== "/wallet/getassetissuebyid") {
+          return Promise.resolve(new Response(page("1007445"), { status: 200 }));
+        }
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "TimeoutError")),
+          );
+        });
+      }),
+    );
+    const pending = new TronGridHistoryReader().get(
+      network,
+      OWNER,
+      { limit: 20 },
+      expiringCheck(30),
+    );
+    await expect(pending).rejects.toMatchObject({ code: "timeout" });
+  });
+
   it("names a pre-id asset by its name without a lookup", async () => {
     const calls = answers(page("Star"), () => Response.json({}));
     const record = (await readOwner()).records[0]!;

@@ -17,6 +17,8 @@ import type {
   X402PaymentFacts,
 } from "../contracts/x402-payer.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
+import type { Broadcaster } from "../ports/chain/broadcaster.js";
+import { localTxId } from "../services/broadcast-identity.js";
 import type { TronContractParameter } from "../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../services/pipeline/index.js";
 import { resolveTronAccount } from "../services/tron/tron-account.js";
@@ -69,22 +71,31 @@ export class X402Permit2Approvals {
     ];
     const approvalScope = waitingScope(scope);
     scope.emit({ type: "activity", message: "Sending the one-time Permit2 approval…" });
-    const confirm = tronConfirmation(gateway, approvalScope);
+    // The approval may have been sent once its broadcast passes the dispatch check: the adapter runs
+    // the check right before the request leaves. Earlier failures leave nothing sent.
+    const broadcaster: Broadcaster = {
+      broadcast: (signed, check) =>
+        gateway.broadcast(signed, {
+          signal: check.signal,
+          assertDispatchable: () => {
+            check.assertDispatchable();
+            const txId = localTxId(signed);
+            if (txId !== undefined) request.onSubmitted(txId);
+          },
+        }),
+    };
     let outcome: TxOutcome;
     try {
       outcome = await this.pipeline.runTron({
         ctx: approvalScope,
         net: network,
         account: scope.activeAccount,
-        broadcaster: gateway,
+        broadcaster,
         mode: "broadcast",
         permissionId: 0,
         ...tronTransactionHooks(gateway, this.now),
         preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer, this.now()),
-        confirm: (txId, signed) => {
-          request.onSubmitted(txId);
-          return confirm(txId, signed);
-        },
+        confirm: tronConfirmation(gateway, approvalScope),
         confirmationRequired: true,
         build: (from) =>
           gateway.triggerSmartContract(from, request.token, APPROVE, parameters, {
