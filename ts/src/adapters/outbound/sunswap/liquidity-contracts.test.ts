@@ -7,6 +7,7 @@ import { AbiCoder, Interface } from "ethers";
 import { TickMath } from "@sun-protocol/sun-sdk-sunswap-v3";
 import { SunSwapLiquidityContracts } from "./liquidity-contracts.js";
 import { CliError, inputRef } from "../../../domain/errors/index.js";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
 import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 import { parseTronTxInfo } from "../chain/tron/tron-responses.js";
 import { readPosition } from "../../../application/use-cases/sunswap/position-read.js";
@@ -86,6 +87,27 @@ describe("tokenFacts", () => {
       decimals: 6,
       symbol: "USDT",
     });
+  });
+});
+
+describe("tokenName", () => {
+  const failing = (error: Error) =>
+    ({
+      get: () => ({
+        triggerConstantContract: async () => {
+          throw error;
+        },
+      }),
+    }) as unknown as ChainGatewayProvider;
+
+  it("omits a name the token cannot give", async () => {
+    const port = new SunSwapLiquidityContracts(failing(new Error("REVERT")));
+    await expect(port.tokenName(NILE, USDT, NO_CHECK)).resolves.toBeUndefined();
+  });
+
+  it("fails timeout when the command deadline stopped the read", async () => {
+    const port = new SunSwapLiquidityContracts(failing(new DeadlineExpiredError()));
+    await expect(port.tokenName(NILE, USDT, NO_CHECK)).rejects.toMatchObject({ code: "timeout" });
   });
 });
 

@@ -1,5 +1,8 @@
 // Read token decimals on chain; keep monetary values as decimal strings or BigInt.
-import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import {
+  DeadlineExpiredError,
+  type DispatchCheck,
+} from "../../../application/contracts/deadline.js";
 import {
   checkedTokenDecimals,
   baseUnitAmount,
@@ -198,7 +201,7 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
     };
   }
 
-  // TRC-20 name is optional; a failed display-only read returns undefined.
+  // TRC-20 name is optional; a failed display-only read returns undefined unless the deadline stopped it.
   async tokenName(
     network: NetworkDescriptor,
     address: string,
@@ -206,7 +209,8 @@ export class SunSwapLiquidityContracts implements LiquidityPort {
   ): Promise<string | undefined> {
     try {
       return decodeString(await this.#read(check, network, address, "name()", [])) || undefined;
-    } catch {
+    } catch (error) {
+      if (error instanceof DeadlineExpiredError || check.signal.aborted) throw error;
       return undefined;
     }
   }

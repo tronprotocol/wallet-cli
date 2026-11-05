@@ -7,6 +7,7 @@ import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { WalletError } from "../../../domain/errors/index.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
 
@@ -123,6 +124,30 @@ describe("TronVoteService.cast", () => {
     expect(result).toMatchObject({ stage: "submitted", txId: "txid" });
     expect(result).not.toHaveProperty("maintenanceIntervalMs");
   });
+});
+
+describe("TronVoteService.cast maintenance interval at the deadline", () => {
+  it.each([
+    ["plan", true],
+    ["built", true],
+    ["signed", true],
+    ["submitted", false],
+  ])(
+    "%s vote: deadline expiry during the interval read fails the command = %s",
+    async (stage, fails) => {
+      const svc = service(
+        {
+          getAccountResources: async () => votingPower(1000, 0),
+          buildVoteWitness: async () => ({}) as never,
+          getChainParameters: () => Promise.reject(new DeadlineExpiredError()),
+        },
+        { runTron: async () => ({ stage, txId: "txid" }) as never },
+      );
+      const cast = svc.cast(scope, NET, { for: [`${SR1}=1`] });
+      if (fails) await expect(cast).rejects.toMatchObject({ code: "timeout" });
+      else await expect(cast).resolves.not.toHaveProperty("maintenanceIntervalMs");
+    },
+  );
 });
 
 describe("TronVoteService.list/status", () => {

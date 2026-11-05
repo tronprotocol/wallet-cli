@@ -1,4 +1,8 @@
-import { requestDispatchCheck, unlessDeadline } from "../../services/command-deadline.js";
+import {
+  endedByDeadline,
+  requestDispatchCheck,
+  unlessDeadline,
+} from "../../services/command-deadline.js";
 import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
@@ -26,13 +30,19 @@ import { tronTransactionHooks } from "./multisig-authorization.js";
 
 const BROKERAGE_CONCURRENCY = 8;
 
-// Runs after the vote may have been sent, so any failure, deadline expiry included, omits the value.
-async function readMaintenanceIntervalMs(gateway: TronGateway): Promise<number | undefined> {
+// After the vote may have been sent, any failure, deadline expiry included, omits the value; before
+// that, deadline expiry still fails the command.
+async function readMaintenanceIntervalMs(
+  gateway: TronGateway,
+  deadline: ExecutionDeadline,
+  sent: boolean,
+): Promise<number | undefined> {
   try {
     const parameters = await gateway.getChainParameters();
     const value = parameters.find((entry) => entry.key === "getMaintenanceTimeInterval")?.value;
     return value !== undefined && value > 0 ? value : undefined;
-  } catch {
+  } catch (error) {
+    if (!sent && endedByDeadline(error, deadline)) throw error;
     return undefined;
   }
 }
@@ -116,7 +126,9 @@ export class TronVoteService {
         note: "voting uses bandwidth only",
       }),
     });
-    const maintenanceIntervalMs = await readMaintenanceIntervalMs(gateway);
+    const sent =
+      outcome.stage !== "plan" && outcome.stage !== "built" && outcome.stage !== "signed";
+    const maintenanceIntervalMs = await readMaintenanceIntervalMs(gateway, scope.deadline, sent);
     return {
       kind: "vote-cast" as const,
       ...outcomeData(outcome),
