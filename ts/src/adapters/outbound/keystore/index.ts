@@ -560,7 +560,7 @@ export class Keystore {
     return join(this.root, dir, `${id}.json`);
   }
   #writeBlob(dir: "vaults" | "keys", blob: { id: string }): void {
-    mkdirSync(join(this.root, dir), { recursive: true });
+    mkdirSync(join(this.root, dir), { recursive: true, mode: 0o700 });
     this.store.writeJson(this.#blobPath(dir, blob.id), blob);
   }
   // Runs after the index no longer references the blob; false means the secret file remains.

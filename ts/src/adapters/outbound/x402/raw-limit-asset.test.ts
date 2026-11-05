@@ -30,6 +30,7 @@ afterEach(() => {
 const BSC_USDT = "0x55d398326f99059fF775485246999027B3197955"; // 18 decimals
 const BSC_BTCB = "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"; // 18 decimals, not registered
 const TRON_USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // 6 decimals
+const TRON_USDD = "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz"; // 18 decimals
 const ONE_E18 = "1000000000000000000";
 
 const scope = {
@@ -48,11 +49,16 @@ interface Outcome {
   paidRequests: number;
 }
 
-function seller(requirement: Record<string, unknown>, out: Outcome): typeof fetch {
+function seller(
+  requirements: Record<string, unknown> | Record<string, unknown>[],
+  out: Outcome,
+): typeof fetch {
   const challenge = {
     x402Version: 2,
     resource: { url: "https://seller.example" },
-    accepts: [{ maxTimeoutSeconds: 300, ...requirement }],
+    accepts: [requirements]
+      .flat()
+      .map((requirement) => ({ maxTimeoutSeconds: 300, ...requirement })),
   };
   return async (request, init) => {
     out.requests++;
@@ -135,7 +141,11 @@ async function payEvm(asset: string, input: Partial<X402PayRequest>): Promise<Ou
   return out;
 }
 
-async function payTron(amount: string, input: Partial<X402PayRequest>): Promise<Outcome> {
+async function payTron(
+  amount: string,
+  input: Partial<X402PayRequest>,
+  offers?: Record<string, unknown>[],
+): Promise<Outcome> {
   const key = Wallet.createRandom().privateKey;
   const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
   // Sufficient Permit2 allowance avoids approval signing.
@@ -162,7 +172,7 @@ async function payTron(amount: string, input: Partial<X402PayRequest>): Promise<
     }),
   } as unknown as SignerResolver;
   const fetcher = seller(
-    {
+    offers ?? {
       scheme: "exact",
       network: "tron:0x2b6653dc",
       amount,
@@ -274,5 +284,39 @@ describe("x402 raw payment limit pinning", () => {
     const out = await payEvm(BSC_BTCB, { maxRawAmount: ONE_E18, asset: BSC_BTCB });
     expect(out.error).toBeUndefined();
     expect(out.result?.payment).toEqual({ asset: BSC_BTCB, rawAmount: ONE_E18 });
+  });
+});
+
+describe("x402 whole-token payment limit binding", () => {
+  const offer = (asset: string, amount: string, extra: Record<string, unknown> = {}) => ({
+    scheme: "exact",
+    network: "tron:0x2b6653dc",
+    amount,
+    asset,
+    payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+    extra: { assetTransferMethod: "permit2", ...extra },
+  });
+
+  it("refuses another asset when the SDK drops the offer the limit was converted for", async () => {
+    // The SDK filters an unknown paymentFlow before the policy runs; the inspection does not.
+    const out = await payTron("", { maxAmount: "1" }, [
+      offer(TRON_USDD, ONE_E18, { paymentFlow: "deferred" }),
+      offer(TRON_USDT, "5000000000"),
+    ]);
+    expect(out.error).toMatchObject({
+      code: "no_matching_requirement",
+      details: { paymentStatus: "not_sent" },
+    });
+    expect(out.typedData).toHaveLength(0);
+    expect(out.txs).toHaveLength(0);
+    expect(out.paidRequests).toBe(0);
+  });
+
+  it.each([{}, { token: "USDT" }])("pays a single offer within the limit with %j", async (pin) => {
+    const out = await payTron("1000000", { maxAmount: "1", ...pin });
+    expect(out.error).toBeUndefined();
+    expect(out.typedData).toHaveLength(1);
+    expect(out.paidRequests).toBe(1);
+    expect(out.result).toMatchObject({ payment: { asset: TRON_USDT, rawAmount: "1000000" } });
   });
 });

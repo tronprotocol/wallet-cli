@@ -4,6 +4,7 @@ import { DeadlineExpiredError } from "../contracts/deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import { CommandDeadline } from "./command-deadline.js";
 import { submitAndStage } from "./submit-and-stage.js";
+import { broadcastResult } from "../../adapters/outbound/chain/tron/chain-response.js";
 
 function scope(wait: boolean | undefined) {
   const warn = vi.fn();
@@ -40,6 +41,23 @@ describe("submitAndStage", () => {
         assertDispatchable: expect.any(Function),
       }),
     );
+  });
+
+  it("reports the txId in details when the node message naming it is redacted", async () => {
+    const { s } = scope(false);
+    const error = await submitAndStage(
+      "tron",
+      s,
+      TX1,
+      async () => broadcastResult({ code: "OTHER_ERROR", message: `cannot process ${TX1}` }, TX1),
+      async () => confirmed,
+    ).catch((e: unknown) => e);
+
+    expect(error).toMatchObject({
+      code: "rpc_error",
+      details: { txId: TX1, outcome: "unknown" },
+    });
+    expect((error as Error).message).not.toContain(TX1);
   });
 
   it("does not wait without an id and says so", async () => {

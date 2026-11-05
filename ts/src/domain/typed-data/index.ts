@@ -72,7 +72,8 @@ function typeClosure(
 ): Record<string, TypedDataField[]> {
   const seen = new Set<string>();
   const walk = (name: string): void => {
-    const fields = types[name];
+    // Type names come from the payload, so inherited members such as `constructor` are not types.
+    const fields = Object.hasOwn(types, name) ? types[name] : undefined;
     if (fields === undefined || seen.has(name)) return; // Stop at primitives and cycles.
     seen.add(name);
     for (const f of fields) walk(elementType(f.type));
@@ -139,7 +140,7 @@ export function normalizeTypedData(raw: unknown): TypedDataPayload {
   if (primaryType !== undefined && typeof primaryType !== "string") {
     throw new UsageError("invalid_payload", "typed data `primaryType` must be a string");
   }
-  if (typeof primaryType === "string" && !(primaryType in structs)) {
+  if (typeof primaryType === "string" && !Object.hasOwn(structs, primaryType)) {
     throw new UsageError(
       "invalid_value",
       `typed data \`primaryType\` "${primaryType}" is not declared in types`,

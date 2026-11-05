@@ -249,7 +249,9 @@ describe("payer limits", () => {
     const f = limited("1000000", 6);
     await f.service.pay(scope, network, { ...input, maxAmount: "1" });
     expect(f.pay).toHaveBeenCalledWith(
-      expect.objectContaining({ limits: { maxRawAmount: "1000000", gasfreeFeeCapped: false } }),
+      expect.objectContaining({
+        limits: { maxRawAmount: "1000000", limitAsset: "0xasset", gasfreeFeeCapped: false },
+      }),
     );
     expect((f.request.mock.calls[0] as unknown[])[2]).not.toHaveProperty("maxAmount");
   });

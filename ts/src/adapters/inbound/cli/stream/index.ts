@@ -6,6 +6,7 @@ import type {
   WarningItem,
 } from "../contracts/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
+import { escapeControls } from "../render/scalars.js";
 
 export class StreamManager implements IStreamManager {
   #resultWritten = false;
@@ -32,15 +33,16 @@ export class StreamManager implements IStreamManager {
     if (level === "warn") {
       this.#warnings.push(msg);
       if (this.output === "text")
-        this.err(`warning: ${typeof msg === "string" ? msg : msg.message}\n`);
+        this.err(`warning: ${escapeControls(typeof msg === "string" ? msg : msg.message)}\n`);
       return;
     }
     if (level === "debug" && !this.verbose) return;
-    this.err(`${typeof msg === "string" ? msg : msg.message}\n`);
+    this.err(`${escapeControls(typeof msg === "string" ? msg : msg.message)}\n`);
   }
 
   errorLine(msg: string): void {
-    this.err(msg.endsWith("\n") ? msg : msg + "\n");
+    const line = escapeControls(msg);
+    this.err(line.endsWith("\n") ? line : line + "\n");
   }
 
   // Progress must reach stderr even when verbose output is disabled.

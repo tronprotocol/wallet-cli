@@ -259,7 +259,7 @@ const signFields = z.object({
     .string()
     .min(1)
     .optional()
-    .describe("atomically write co-signed transaction hex to this file"),
+    .describe("write co-signed transaction hex to this new file; an existing path is refused"),
 });
 
 export const txSignSpec: ChainSpec = {

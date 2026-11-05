@@ -233,7 +233,7 @@ Common codes at exit **2** (usage — fix the call):
 | `unsupported_network_capability` | The selected network does not offer what this command needs |
 | `limit_exceeded` | A bounded input (file size, list length, page size) was over its limit |
 | `unknown_command` | No such command |
-| `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
+| `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`, `tx sign --out`). Deterministic — retrying the same path always fails |
 | `file_not_found` | An input file named by a flag does not exist (`contract deploy --artifact` / `--code-file`, `contract create2 --code-file`) |
 | `keystore_not_found` | `import keystore`: no file at the given path |
 | `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, an unsupported cipher/KDF, or a payload that is not a 32-byte private key |

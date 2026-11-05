@@ -455,9 +455,16 @@ export class X402PaymentClient implements X402PaymentPort {
     if (limits.maxRawAmount !== undefined) {
       client.setSpendControls(false);
     }
-    client.registerPolicy((_version, requirements) =>
-      selectMatching(requirements, network, input, limits.maxRawAmount),
-    );
+    // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
+    let creationError: unknown;
+    client.registerPolicy((_version, requirements) => {
+      try {
+        return selectMatching(requirements, network, input, limits);
+      } catch (error) {
+        creationError = error;
+        throw error;
+      }
+    });
     await family.registerSchemes(client, {
       network,
       check,
@@ -473,8 +480,6 @@ export class X402PaymentClient implements X402PaymentPort {
         authorization.approvalFailure = error;
       },
     });
-    // Preserve typed wallet/SDK errors before x402-fetch wraps them in a plain Error.
-    let creationError: unknown;
     client.onPaymentCreationFailure(async ({ error }) => {
       creationError = sdkPaymentError(error, "create_payment");
     });
@@ -851,14 +856,16 @@ function selectMatching<T extends OfferedRequirement>(
   requirements: T[],
   network: NetworkDescriptor,
   input: X402PaymentRequest,
-  maxRawAmount?: string,
+  limits: Pick<X402PayerLimits, "maxRawAmount" | "limitAsset"> = {},
 ): T[] {
+  const { maxRawAmount, limitAsset } = limits;
   const expectedNetwork = toX402Network(network);
   const matching = requirements.filter((requirement) => {
     if (!sameX402Network(requirement.network, expectedNetwork)) return false;
     if (!supportsScheme(network.family, requirement.scheme)) return false;
     if (input.scheme && requirement.scheme !== input.scheme) return false;
     if (input.asset && !sameAddress(network.family, requirement.asset, input.asset)) return false;
+    if (limitAsset && !sameAddress(network.family, requirement.asset, limitAsset)) return false;
     if (
       input.token &&
       tokenSymbol(network.id, requirement.asset, requirement.scheme) !== input.token.toUpperCase()

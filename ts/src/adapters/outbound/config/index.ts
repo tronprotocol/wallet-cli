@@ -1,7 +1,7 @@
 import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parse as parseYaml } from "yaml";
+import { parseDocument } from "yaml";
 import type { Config, NetworkDescriptor, OutputMode } from "../../../domain/types/index.js";
 import type { NetworkRegistry as INetworkRegistry } from "../../../application/ports/network-registry.js";
 import { errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
@@ -85,8 +85,8 @@ export class ConfigLoader {
         // Canonical targets must stop folding to prevent an alias from redirecting a builtin network.
         for (const [alias, target] of Object.entries(aliases)) {
           const key = target.toLowerCase();
-          if (networks[key] !== undefined) continue;
-          const forwarded = aliases[key];
+          if (ownValue(networks, key) !== undefined) continue;
+          const forwarded = ownValue(aliases, key);
           if (forwarded !== undefined && forwarded !== target) aliases[alias] = forwarded;
         }
       }
@@ -95,7 +95,7 @@ export class ConfigLoader {
         for (const [key, d] of Object.entries(
           raw.networks as Record<string, Record<string, unknown>>,
         )) {
-          const id = aliases[key.toLowerCase()] ?? key;
+          const id = ownValue(aliases, key.toLowerCase()) ?? key;
           const claimedBy = seen.get(id);
           if (claimedBy !== undefined) {
             throw new UsageError(
@@ -104,7 +104,7 @@ export class ConfigLoader {
             );
           }
           seen.set(id, key);
-          const base = networks[id] ?? {};
+          const base = ownValue(networks, id) ?? {};
           const own = { ...d, ...validConnectionFields(id, d) };
           networks[id] = validNetwork(id, { ...base, ...own, ...mergedFeatureBlocks(base, d), id });
         }
@@ -255,6 +255,11 @@ function isHttpUrl(value: string): boolean {
   }
 }
 
+// Names come from argv and config.yaml, so inherited members such as `constructor` must not match.
+function ownValue<T>(record: Record<string, T>, key: string): T | undefined {
+  return Object.hasOwn(record, key) ? record[key] : undefined;
+}
+
 // Do not expose YAML or OS errors: they can contain credentials.
 function readConfigDocument(path: string) {
   let text: string;
@@ -263,10 +268,23 @@ function readConfigDocument(path: string) {
   } catch {
     throw new UsageError("invalid_config", `config.yaml cannot be read: ${path}`);
   }
+  return parseConfigYaml(text, path);
+}
+
+// parseDocument records YAML warnings instead of emitting them; they are not shown because they quote the source line.
+export function parseConfigYaml(text: string, path: string) {
+  const invalid = () => new UsageError("invalid_config", `config.yaml is not valid YAML: ${path}`);
+  let document: ReturnType<typeof parseDocument>;
   try {
-    return parseYaml(text) ?? {};
+    document = parseDocument(text);
   } catch {
-    throw new UsageError("invalid_config", `config.yaml is not valid YAML: ${path}`);
+    throw invalid();
+  }
+  if (document.errors.length > 0) throw invalid();
+  try {
+    return document.toJS() ?? {};
+  } catch {
+    throw invalid();
   }
 }
 
@@ -323,7 +341,7 @@ export class NetworkRegistry implements INetworkRegistry {
     const direct = this.#byId.get(key);
     if (direct) return { ...direct };
 
-    const target = this.config.aliases[key];
+    const target = ownValue(this.config.aliases, key);
     if (target === undefined) {
       throw new UsageError("unsupported_network", `unknown network: ${id}`);
     }

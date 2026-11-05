@@ -155,7 +155,9 @@ export class X402Service {
         guard: processBroadcastGuard,
         submit: submitDispatchCheck(scope.deadline),
         limits: {
-          ...(limit === undefined ? {} : { maxRawAmount: limit }),
+          ...(limit === undefined
+            ? {}
+            : { maxRawAmount: limit, limitAsset: resource.inspection.selected.asset }),
           gasfreeFeeCapped: maxGasfreeFee !== undefined || maxGasfreeFeeRaw !== undefined,
         },
       });

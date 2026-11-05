@@ -81,7 +81,7 @@ export class AtomicFileStore {
     const staged: Array<{ tmp: string; path: string }> = [];
     try {
       for (const { path, value } of entries) {
-        mkdirSync(dirname(path), { recursive: true });
+        mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
         const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
         staged.push({ tmp, path });
         writeFileSync(tmp, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
@@ -197,7 +197,7 @@ export class AtomicFileStore {
     try {
       this.writeJson(journalPath, { version: 1, state: "staged", files } satisfies Journal);
       for (const { path, value } of entries) {
-        mkdirSync(dirname(path), { recursive: true });
+        mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
         writeFileSync(stagedPath(path), JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
         this.fsyncFile(stagedPath(path));
       }
@@ -316,7 +316,7 @@ export class AtomicFileStore {
     const tmp = `${path}.${process.pid}.${this.#counter++}.tmp`;
     let published = false;
     try {
-      mkdirSync(dirname(path), { recursive: true });
+      mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
       writeFileSync(tmp, text, { mode: 0o600 });
       this.fsyncFile(tmp);
       renameSync(tmp, path);
@@ -341,7 +341,7 @@ export class AtomicFileStore {
 
   withLock<T>(path: string, fn: () => T, opts: { timeoutMs?: number; staleMs?: number } = {}): T {
     const lock = `${path}.lock`;
-    mkdirSync(dirname(path), { recursive: true });
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     const lockWaitMs = opts.timeoutMs ?? 5000;
     const remainingMs = this.deadline?.remainingMs() ?? Number.POSITIVE_INFINITY;
     const waitUntil = Date.now() + Math.min(lockWaitMs, remainingMs);

@@ -64,3 +64,11 @@ describe("address generate --out documents its default location", () => {
     expect(out).not.toMatch(/\[optional, default:/);
   });
 });
+
+describe("address generate help states when the secret is printed", () => {
+  it("names --print-secret as the way the private key reaches the output", () => {
+    const help = helpFor(["address", "generate"]).replace(/\s+/g, " ");
+    expect(help).not.toContain("never printed");
+    expect(help).toContain("`--print-secret` prints it");
+  });
+});

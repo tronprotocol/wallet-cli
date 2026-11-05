@@ -41,6 +41,8 @@ export interface X402PaymentRequest {
 export interface X402PayerLimits {
   // Absent leaves the SDK's built-in spend control in force.
   readonly maxRawAmount?: BaseUnits;
+  // The asset `maxRawAmount` was converted for; a requirement in any other asset is refused.
+  readonly limitAsset?: string;
   // The payer signer enforces the GasFree fee ceiling; this only records that one is set.
   readonly gasfreeFeeCapped: boolean;
 }

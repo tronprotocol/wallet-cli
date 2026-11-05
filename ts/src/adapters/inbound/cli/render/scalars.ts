@@ -146,12 +146,19 @@ const INVISIBLE_FORMATTING = new RegExp(
   "g",
 );
 
+const markInvisible = (c: string) =>
+  `<U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}>`;
+
 // Sanitize text frames by stripping controls and marking invisible formatting characters.
 export function sanitizeText(s: string): string {
+  return s.replace(CONTROL_BYTES, "").replace(INVISIBLE_FORMATTING, markInvisible);
+}
+
+// Terminal controls other than newline and tab, shown as `\xNN` so stderr cannot drive the terminal.
+const TERMINAL_CONTROLS = new RegExp("[\\u0000-\\u0008\\u000B-\\u001F\\u007F-\\u009F]", "g");
+
+export function escapeControls(s: string): string {
   return s
-    .replace(CONTROL_BYTES, "")
-    .replace(
-      INVISIBLE_FORMATTING,
-      (c) => `<U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}>`,
-    );
+    .replace(TERMINAL_CONTROLS, (c) => `\\x${c.charCodeAt(0).toString(16).padStart(2, "0")}`)
+    .replace(INVISIBLE_FORMATTING, markInvisible);
 }

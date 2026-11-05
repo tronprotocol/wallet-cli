@@ -1,11 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   renameSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -364,5 +366,26 @@ describe("AtomicFileStore.withLock under the command deadline", () => {
     expect(() => new AtomicFileStore(deadline).withLock(path, fn)).toThrow(DeadlineExpiredError);
     expect(fn).not.toHaveBeenCalled();
     expect(existsSync(`${path}.lock`)).toBe(false);
+  });
+});
+
+describe.skipIf(process.platform === "win32")("AtomicFileStore directory mode", () => {
+  it("creates missing wallet directories owner-only", () => {
+    const base = mkdtempSync(join(tmpdir(), "fs-"));
+    const root = join(base, "home");
+    const store = new AtomicFileStore();
+    store.writeJsonAll([{ path: join(root, "vaults", "v.json"), value: 1 }]);
+    store.withLock(join(root, "keys", "k.json"), () => undefined);
+    store.writeText(join(root, "books", "b.json"), "{}");
+
+    for (const dir of [root, join(root, "vaults"), join(root, "keys"), join(root, "books")])
+      expect(statSync(dir).mode & 0o777).toBe(0o700);
+  });
+
+  it("leaves the mode of an existing directory unchanged", () => {
+    const root = mkdtempSync(join(tmpdir(), "fs-"));
+    chmodSync(root, 0o755);
+    new AtomicFileStore().writeText(join(root, "a.json"), "{}");
+    expect(statSync(root).mode & 0o777).toBe(0o755);
   });
 });

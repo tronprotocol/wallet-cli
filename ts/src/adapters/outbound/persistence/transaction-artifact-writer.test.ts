@@ -18,24 +18,37 @@ afterEach(() => {
 });
 
 describe("SecureTransactionArtifactWriter", () => {
-  it("atomically writes a newline-terminated 0644 artifact", () => {
+  it("writes a newline-terminated 0600 artifact", () => {
     const dir = mkdtempSync(join(tmpdir(), "wallet-cli-tx-"));
     dirs.push(dir);
     const path = join(dir, "signed.hex");
     new SecureTransactionArtifactWriter().write(path, "abcd");
     expect(readFileSync(path, "utf8")).toBe("abcd\n");
-    if (process.platform !== "win32") expect(lstatSync(path).mode & 0o777).toBe(0o644);
+    if (process.platform !== "win32") expect(lstatSync(path).mode & 0o777).toBe(0o600);
   });
 
-  it("refuses to replace a symbolic link", () => {
+  it("refuses an existing file with output_exists and leaves it unchanged", () => {
+    const dir = mkdtempSync(join(tmpdir(), "wallet-cli-tx-"));
+    dirs.push(dir);
+    const path = join(dir, "signed.hex");
+    writeFileSync(path, "keep", { mode: 0o600 });
+    expect(() => new SecureTransactionArtifactWriter().write(path, "abcd")).toThrowError(
+      expect.objectContaining({ code: "output_exists" }),
+    );
+    expect(readFileSync(path, "utf8")).toBe("keep");
+    if (process.platform !== "win32") expect(lstatSync(path).mode & 0o777).toBe(0o600);
+  });
+
+  it("refuses to follow a symbolic link, even a dangling one", () => {
     const dir = mkdtempSync(join(tmpdir(), "wallet-cli-tx-"));
     dirs.push(dir);
     const target = join(dir, "target");
     const link = join(dir, "signed.hex");
     symlinkSync(target, link);
     expect(() => new SecureTransactionArtifactWriter().write(link, "abcd")).toThrowError(
-      /symbolic-link/,
+      expect.objectContaining({ code: "output_exists" }),
     );
+    expect(existsSync(target)).toBe(false);
   });
 
   it("reports a directory it cannot create as io_error and writes nothing", () => {

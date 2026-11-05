@@ -1,8 +1,8 @@
-// Redacts URL credentials, home paths, and 0/0x-prefixed long hex; does not detect mnemonics.
+// Redacts URL credentials, home paths, 0x-prefixed long hex, and bare key-length hex; does not detect mnemonics.
 
 // Capture only the scheme and host; discard credentials, port, path, query, and fragment.
 const URL_RE = /\b([a-z][a-z0-9+.-]*):\/\/(?:[^/@\s]*@)?([^/:\s?#]+)(?::\d+)?(?:[/?#][^\s]*)?/gi;
-const HEX_RE = /\b0x?[0-9a-fA-F]{40,}\b/g;
+const HEX_RE = /\b(?:0[xX][0-9a-fA-F]{40,}|[0-9a-fA-F]{64,})\b/g;
 
 let homeDirectory = "";
 

@@ -35,6 +35,23 @@ describe("StreamManager", () => {
     expect(err).toEqual(["hello\n"]);
   });
 
+  it("shows terminal controls in stderr text as visible escapes", () => {
+    const { sm, err } = capture("text", true);
+    const hostile = "a\u001b]0;PWNED\u0007\u001b[2J\u009b\u007f\tb\nc\u202e";
+    sm.diagnostic("warn", hostile);
+    sm.diagnostic("debug", hostile);
+    sm.errorLine(hostile);
+    const shown = "a\\x1b]0;PWNED\\x07\\x1b[2J\\x9b\\x7f\tb\nc<U+202E>";
+    expect(err).toEqual([`warning: ${shown}\n`, `${shown}\n`, `${shown}\n`]);
+  });
+
+  it("keeps warnings verbatim for the JSON envelope", () => {
+    const { sm, err } = capture("json");
+    sm.diagnostic("warn", "a\u001b[2J");
+    expect(sm.warnings()).toEqual(["a\u001b[2J"]);
+    expect(err).toEqual([]);
+  });
+
   it("debug diagnostics need verbose", () => {
     const v = capture("text", false);
     v.sm.diagnostic("debug", "d");

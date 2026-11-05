@@ -36,6 +36,13 @@ export class CryptoEnvelope {
 
   static decrypt(blob: KeystoreBlob, password: string): Bytes {
     const c = blob.crypto;
+    // A shorter derived key leaves the MAC independent of the password; the writer always uses KDF.dklen.
+    if (c.kdfparams.dklen !== KDF.dklen) {
+      throw new ExecutionError(
+        "encoding_error",
+        `wallet file declares an unsupported derived key length ${String(c.kdfparams.dklen)}; expected ${KDF.dklen}`,
+      );
+    }
     const dk = Web3Crypto.scryptKey(password, hexToBytes(c.kdfparams.salt), c.kdfparams);
     const ciphertext = hexToBytes(c.ciphertext);
     if (bytesToHex(mac(dk, ciphertext)) !== c.mac) {

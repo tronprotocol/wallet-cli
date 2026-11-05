@@ -22,7 +22,7 @@ export class SecureBackupWriter implements BackupWriter {
     const path = resolve(requestedPath ?? `${accountId}-${this.now()}.${EXTENSION[format]}`);
     const content = `${JSON.stringify(payload, null, 2)}\n`;
     try {
-      mkdirSync(dirname(path), { recursive: true });
+      mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     } catch {
       throw new ExecutionError("io_error", `could not create backup directory: ${dirname(path)}`);
     }

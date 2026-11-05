@@ -96,6 +96,30 @@ describe("normalizeTypedData", () => {
     ).toThrow(/not declared in types/);
   });
 
+  it.each(["toString", "constructor", "hasOwnProperty"])(
+    "rejects the inherited member %s as an undeclared primaryType",
+    (primaryType) => {
+      expect(() =>
+        normalizeTypedData({ domain: DOMAIN, types: TYPES, primaryType, message: {} }),
+      ).toThrow(
+        expect.objectContaining({
+          code: "invalid_value",
+          message: expect.stringMatching(/not declared in types/),
+        }),
+      );
+    },
+  );
+
+  it("treats a field typed as an inherited member name as a non-struct type", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: { Mail: [{ name: "a", type: "constructor" }] },
+      primaryType: "Mail",
+      message: {},
+    });
+    expect(Object.keys(p.types)).toEqual(["Mail"]);
+  });
+
   const NESTED = {
     Outer: [
       { name: "who", type: "address" },

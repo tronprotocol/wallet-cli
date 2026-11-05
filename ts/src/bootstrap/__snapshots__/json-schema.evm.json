@@ -2637,7 +2637,7 @@
             "type": "boolean"
           },
           "out": {
-            "description": "atomically write co-signed transaction hex to this file",
+            "description": "write co-signed transaction hex to this new file; an existing path is refused",
             "type": "string",
             "minLength": 1
           }

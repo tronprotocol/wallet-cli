@@ -78,6 +78,15 @@ describe("NetworkRegistry.resolve case-insensitivity", () => {
   it("still rejects genuinely unknown networks", () => {
     expect(() => registry().resolve("dogechain")).toThrow(/unknown network/);
   });
+
+  it.each(["constructor", "__proto__", "toString"])(
+    "rejects the inherited object member %s as an unknown network",
+    (name) => {
+      expect(() => registry().resolve(name)).toThrow(
+        expect.objectContaining({ code: "unsupported_network" }),
+      );
+    },
+  );
 });
 
 describe("ConfigLoader TronLink credentials", () => {
@@ -162,6 +171,22 @@ describe("ConfigLoader unreadable/malformed config", () => {
     expect((thrown as Error).message).toMatch(/not valid YAML/);
     expect((thrown as Error).message).not.toContain("SUPERSECRET123");
     expect((thrown as Error).message).not.toContain("bad: [1,2");
+  });
+
+  it("loads a config with a YAML warning without printing the line that holds a credential", () => {
+    const env = envWithConfig(
+      "defaultNetwork: nile\nbaiApiKey: !unknowntag FAKE-KEY-0000\n",
+      0o600,
+    );
+    const emitted: unknown[] = [];
+    const onWarning = (warning: unknown) => emitted.push(warning);
+    process.on("warning", onWarning);
+    try {
+      expect(ConfigLoader.load(env).defaultNetwork).toBe("nile");
+    } finally {
+      process.off("warning", onWarning);
+    }
+    expect(emitted).toEqual([]);
   });
 
   it("classifies a config path that cannot be read as a file", () => {
