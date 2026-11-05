@@ -66,7 +66,8 @@ export function selectFloor(
         errorMessage`${inputRef("minOut")} must be a whole number in the token's smallest unit`,
       );
     }
-    return { kind: "min-out", amount: minOut.trim() };
+    // Canonical digits, so the floor compares equal to the value encoded on chain.
+    return { kind: "min-out", amount: BigInt(minOut.trim()).toString() };
   }
   return { kind: "slippage", bips: slippageToBips(slippage ?? fallback) };
 }

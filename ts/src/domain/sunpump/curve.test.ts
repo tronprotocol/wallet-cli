@@ -66,6 +66,13 @@ describe("selectFloor", () => {
     });
   });
 
+  it.each([
+    ["034000000", "34000000"],
+    ["00", "0"],
+  ])("returns the minimum %s as canonical digits", (given, canonical) => {
+    expect(selectFloor(undefined, given)).toEqual({ kind: "min-out", amount: canonical });
+  });
+
   it("refuses a minimum that is not whole base units", () => {
     expect(() => selectFloor(undefined, "1.5")).toThrow(/whole number/);
   });

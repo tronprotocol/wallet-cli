@@ -19,13 +19,13 @@ export interface RouterExecutionPort {
   // Chain time in Unix seconds, shared with the encoder so deadline checks use the same clock.
   transactionTime(network: NetworkDescriptor, check: DispatchCheck): Promise<number>;
 
-  // Derives the floor from slippageBips; callers must verify it in the encoded call.
+  // Encodes amountOutMinimum (tokenOut base units) as the floor; callers must verify it in the encoded call.
   buildSwapCall(
     network: NetworkDescriptor,
     input: {
       // RouterRoute.source, unchanged and opaque to callers.
       readonly route: unknown;
-      readonly slippageBips: number;
+      readonly amountOutMinimum: string;
       readonly recipient: string;
       readonly validForSeconds: number;
       readonly feeLimitSun: Sun;

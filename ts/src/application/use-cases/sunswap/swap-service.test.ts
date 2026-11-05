@@ -66,7 +66,11 @@ function permitTypedData(): TypedDataPayload {
   };
 }
 
-function routerCall(callValue = "0", recipientHex = OWNER_HEX): Record<string, unknown> {
+function routerCall(
+  callValue = "0",
+  recipientHex = OWNER_HEX,
+  floor = BEST_FLOOR,
+): Record<string, unknown> {
   const word = (value: string) => BigInt(value).toString(16).padStart(64, "0");
   return {
     target: UNIVERSAL_ROUTER,
@@ -78,7 +82,7 @@ function routerCall(callValue = "0", recipientHex = OWNER_HEX): Record<string, u
       {
         type: "bytes[]",
         value: [
-          `0x${word("100000000")}${word(BEST_FLOOR)}${word(`0x${recipientHex}`)}${word(String(NOW + 3600))}`,
+          `0x${word("100000000")}${word(floor)}${word(`0x${recipientHex}`)}${word(String(NOW + 3600))}`,
         ],
       },
       { type: "uint256", value: String(NOW + 1800) },
@@ -415,6 +419,36 @@ describe("the curve branch", () => {
     ]);
   });
 
+  it("takes --min-out as the floor and publishes no slippage", async () => {
+    const { service, scope, port } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      minOut: "1000",
+      dryRun: true,
+    })) as Record<string, unknown>;
+    expect(result.amountOutMinimum).toBe("1000");
+    expect(result).not.toHaveProperty("slippage");
+    expect(port.buyPayload).toHaveBeenCalledWith(
+      NETWORK,
+      expect.objectContaining({ minTokenAmount: "1000" }),
+    );
+  });
+
+  it("refuses a --min-out above the curve's quote before building anything", async () => {
+    const { service, scope, gateway } = makeHarness();
+    await expect(
+      service.swap(scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: TOKEN,
+        amountIn: "1",
+        minOut: "25125337148664452174595",
+      }),
+    ).rejects.toMatchObject({ code: "slippage_exceeded" });
+    expect(gateway.triggerSmartContract).not.toHaveBeenCalled();
+  });
+
   it("floors at swap's 0.5%, not sunpump's 5%", async () => {
     const { service, scope } = makeHarness();
     const result = (await service.swap(scope, NETWORK, {
@@ -724,6 +758,20 @@ describe("the router branch", () => {
     ).rejects.toMatchObject({ code: "no_matching_route" });
   });
 
+  it("stops with no_matching_route before any account read when executing", async () => {
+    const harness = launched();
+    vi.mocked(harness.router.routes).mockResolvedValueOnce([]);
+    await expect(
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: "USDT",
+        amountIn: "100",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "no_matching_route" });
+    expect(harness.gateway.getAccount).not.toHaveBeenCalled();
+  });
+
   it("refuses --build-only when the swap spends a token", async () => {
     const harness = launched();
     await expect(
@@ -827,6 +875,79 @@ describe("sending a router swap", () => {
     expect(result.amountOutMinimum).toBe(BEST_FLOOR);
     expect(result.amountOutExpected).toBe(String(BEST_OUT));
     expect(result.slippage).toBe("0.005");
+  });
+
+  it("asks the encoder for the floor it publishes", async () => {
+    const harness = sending();
+    await sell(harness);
+    expect(vi.mocked(harness.routerExec.buildSwapCall).mock.calls[0]![1]).toMatchObject({
+      amountOutMinimum: BEST_FLOOR,
+    });
+  });
+
+  it("encodes --min-out as the floor and publishes no slippage", async () => {
+    const harness = sending();
+    const minOut = "34000000";
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce(
+      routerCall("0", SIGNING_OWNER_HEX, minOut) as never,
+    );
+    const result = await sell(harness, { minOut });
+    expect(vi.mocked(harness.routerExec.buildSwapCall).mock.calls[0]![1]).toMatchObject({
+      amountOutMinimum: minOut,
+    });
+    expect(result.stage).toBe("confirmed");
+    expect(result.amountOutMinimum).toBe(minOut);
+    expect(result).not.toHaveProperty("slippage");
+  });
+
+  it("encodes a --min-out given with leading zeros by its numeric value", async () => {
+    const harness = sending();
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce(
+      routerCall("0", SIGNING_OWNER_HEX, "34000000") as never,
+    );
+    const result = await sell(harness, { minOut: "034000000" });
+    expect(result.stage).toBe("confirmed");
+    expect(result.amountOutMinimum).toBe("34000000");
+  });
+
+  it("refuses --min-out beside slippage", async () => {
+    const harness = sending();
+    await expect(sell(harness, { minOut: "1", slippage: "0.01" })).rejects.toMatchObject({
+      code: "invalid_option",
+    });
+  });
+
+  it.each([
+    ["send", {}],
+    ["dry-run", { dryRun: true }],
+  ])(
+    "refuses a --min-out above the quote before approving or signing (%s)",
+    async (_mode, flags) => {
+      const harness = sending();
+      const minOut = String(BEST_OUT + 1n);
+      await expect(sell(harness, { minOut, ...flags })).rejects.toMatchObject({
+        code: "slippage_exceeded",
+        details: { amountOutExpected: String(BEST_OUT), amountOutMinimum: minOut },
+      });
+      expect(harness.permits.planPermit).not.toHaveBeenCalled();
+      expect(harness.signTypedData).not.toHaveBeenCalled();
+      expect(harness.gateway.triggerSmartContract).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses a --min-out above the quote under --build-only", async () => {
+    const harness = sending();
+    await expect(
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: "USDT",
+        amountIn: "100",
+        buildOnly: true,
+        minOut: String(BEST_OUT + 1n),
+      }),
+    ).rejects.toMatchObject({ code: "slippage_exceeded" });
+    expect(harness.routerExec.buildSwapCall).not.toHaveBeenCalled();
+    expect(harness.gateway.triggerSmartContract).not.toHaveBeenCalled();
   });
 
   it("encodes the call only after the permit is signed", async () => {

@@ -132,7 +132,7 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
     network: NetworkDescriptor,
     input: {
       readonly route: unknown;
-      readonly slippageBips: number;
+      readonly amountOutMinimum: string;
       readonly recipient: string;
       readonly validForSeconds: number;
       readonly feeLimitSun: string;
@@ -143,9 +143,10 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
     const context = this.#context(network, input.recipient, check);
     const data: Record<string, unknown> = {
       network: sdkNetworkName(network),
-      route: input.route,
+      // The materializer floors amountOutRaw by slippageBips, so zero bips encodes this minimum exactly.
+      route: { ...(input.route as object), amountOutRaw: input.amountOutMinimum },
       // The materializer parses slippageBips with BigInt.
-      slippageBips: String(input.slippageBips),
+      slippageBips: "0",
       transactionValidForSeconds: input.validForSeconds,
       recipient: input.recipient,
       // Omitting this uses the encoder default of 500 TRX.

@@ -67,7 +67,10 @@ export class SunSwapRouterApi implements RouterPort {
       );
     }
     const wire = Array.isArray(response.data) ? (response.data as WireRoute[]) : [];
-    return wire.map((route) => normalise(route, request));
+    // A zero quote is no route; it would encode a zero minimum output.
+    return wire
+      .map((route) => normalise(route, request))
+      .filter((route) => !/^0+$/.test(route.amountOutRaw));
   }
 }
 

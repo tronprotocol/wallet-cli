@@ -34,7 +34,7 @@ export interface RouterRoute {
 }
 
 export interface RouterPort {
-  // Unsorted, unfiltered candidates; amountInRaw must be base units.
+  // Unsorted candidates, without routes that quote zero output; amountInRaw must be base units.
   routes(
     network: NetworkDescriptor,
     request: { fromToken: string; toToken: string; amountInRaw: string },

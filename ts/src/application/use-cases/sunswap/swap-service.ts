@@ -53,7 +53,7 @@ import {
   bipsToSlippage,
   DEFAULT_SWAP_SLIPPAGE,
   LAUNCHPAD_STATE,
-  slippageToBips,
+  selectFloor,
 } from "../../../domain/sunpump/curve.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 
@@ -73,6 +73,8 @@ export interface SwapInput extends TransactionModeInput {
   // Whole input tokens.
   readonly amountIn: string;
   readonly slippage?: string;
+  // tokenOut base units; excludes slippage.
+  readonly minOut?: string;
   readonly quote?: boolean;
   readonly all?: boolean;
   readonly feeLimit?: Sun;
@@ -204,8 +206,10 @@ export class SunSwapSwapService {
     if (transactionRequiresSigner(input)) this.routerTx.assertCanSign(scope);
     const owner = resolveTronAccount(scope);
     await this.#assertCovers(scope.deadline, network, owner, tokenIn, spending);
-    const bips = slippageToBips(input.slippage ?? DEFAULT_SWAP_SLIPPAGE);
-    const minimumOut = lowerBySlippage(chosen.amountOutRaw, bips);
+    const floor = selectFloor(input.slippage, input.minOut, DEFAULT_SWAP_SLIPPAGE);
+    const minimumOut =
+      floor.kind === "min-out" ? floor.amount : lowerBySlippage(chosen.amountOutRaw, floor.bips);
+    assertQuoteMeetsFloor(chosen.amountOutRaw, minimumOut);
     const feeLimit = input.feeLimit ?? DEFAULT_FEE_LIMIT_SUN;
 
     const view: Record<string, unknown> = {
@@ -226,7 +230,7 @@ export class SunSwapSwapService {
       priceImpactPercent: chosen.priceImpactPercent,
       priceImpactEstimated: true,
       amountOutMinimum: minimumOut,
-      slippage: bipsToSlippage(bips),
+      ...(floor.kind === "slippage" ? { slippage: bipsToSlippage(floor.bips) } : {}),
     };
 
     // Native TRX travels as call value and needs no permit signature.
@@ -236,7 +240,6 @@ export class SunSwapSwapService {
         network,
         chosen,
         owner,
-        bips,
         minimumOut,
         feeLimit,
         {
@@ -268,7 +271,7 @@ export class SunSwapSwapService {
         [{ facts: tokenIn, amount: spending.amountIn }],
       );
       const encode = () =>
-        this.#encode(scope.deadline, network, chosen, owner, bips, minimumOut, feeLimit, {
+        this.#encode(scope.deadline, network, chosen, owner, minimumOut, feeLimit, {
           amountIn: spending.amountIn,
           nativeIn: false,
         });
@@ -342,7 +345,6 @@ export class SunSwapSwapService {
           network,
           chosen,
           owner,
-          bips,
           minimumOut,
           feeLimit,
           {
@@ -434,7 +436,6 @@ export class SunSwapSwapService {
     network: NetworkDescriptor,
     chosen: RouterRoute,
     owner: string,
-    bips: number,
     minimumOut: string,
     feeLimit: Sun,
     spending: {
@@ -447,7 +448,7 @@ export class SunSwapSwapService {
       network,
       {
         route: chosen.source,
-        slippageBips: bips,
+        amountOutMinimum: minimumOut,
         recipient: owner,
         validForSeconds: SWAP_VALID_SECONDS,
         feeLimitSun: feeLimit,
@@ -722,13 +723,15 @@ export class SunSwapSwapService {
       tradingFee: quoted.feeSun,
     };
 
-    const bips = slippageToBips(input.slippage ?? DEFAULT_SWAP_SLIPPAGE);
-    const minimum = this.launchpad.applyFloor(expected, bips);
+    const floor = selectFloor(input.slippage, input.minOut, DEFAULT_SWAP_SLIPPAGE);
+    const minimum =
+      floor.kind === "min-out" ? floor.amount : this.launchpad.applyFloor(expected, floor.bips);
+    assertQuoteMeetsFloor(expected, minimum);
     const priced = {
       ...view,
       amountOutExpected: expected,
       amountOutMinimum: minimum,
-      slippage: bipsToSlippage(bips),
+      ...(floor.kind === "slippage" ? { slippage: bipsToSlippage(floor.bips) } : {}),
     };
 
     const owner = resolveTronAccount(scope);
@@ -863,6 +866,16 @@ export class SunSwapSwapService {
       },
     );
   }
+}
+
+// A floor above the quote must revert on chain; refuse before any approval or signature.
+function assertQuoteMeetsFloor(expected: string, minimum: string): void {
+  if (BigInt(expected) >= BigInt(minimum)) return;
+  throw new ChainError(
+    "slippage_exceeded",
+    errorMessage`the quoted output ${expected} is below ${inputRef("minOut")} ${minimum}, in the output token's base units`,
+    { amountOutExpected: expected, amountOutMinimum: minimum },
+  );
 }
 
 // Check the SDK's permit domain against the independent network descriptor.

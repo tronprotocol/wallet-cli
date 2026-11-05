@@ -8,10 +8,22 @@ const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const planRouterPermit2Authorization = vi.fn();
 
-vi.mock("@sun-protocol/sun-sdk-protocols", async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  planRouterPermit2Authorization: (...args: unknown[]) => planRouterPermit2Authorization(...args),
-}));
+// Encode with the real materializer; only its chain clock is fixed.
+const CHAIN_TIME_MS = 1_700_000_000_000;
+
+vi.mock("@sun-protocol/sun-sdk-protocols", async (importOriginal) => {
+  const sdk = await importOriginal<typeof import("@sun-protocol/sun-sdk-protocols")>();
+  return {
+    ...sdk,
+    planRouterPermit2Authorization: (...args: unknown[]) => planRouterPermit2Authorization(...args),
+    materializeUniversalRouterAction: (context: object, action: never, completed: never) =>
+      sdk.materializeUniversalRouterAction(
+        { ...context, getTransactionTime: async () => CHAIN_TIME_MS } as never,
+        action,
+        completed,
+      ),
+  };
+});
 
 const { SunSwapRouterPlanner } = await import("./router-plan.js");
 
@@ -77,5 +89,40 @@ describe("SunSwapRouterPlanner.planPermit typed data", () => {
       code: "provider_error",
       message: expect.stringMatching(/^the Permit2 planner returned malformed typed data: /),
     });
+  });
+});
+
+describe("SunSwapRouterPlanner.buildSwapCall floor", () => {
+  const TRX = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+  const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
+  const ROUTE = {
+    amountIn: "1",
+    amountInRaw: "1000000",
+    amountOut: "0.343446",
+    amountOutRaw: "343446",
+    tokens: [TRX, USDT],
+    symbols: ["TRX", "USDT"],
+    poolFees: ["0", "0"],
+    poolVersions: ["v2"],
+    poolKeys: [],
+    stepAmountsOut: ["343446"],
+  };
+
+  it("encodes the requested minimum exactly, not one derived from the quote", async () => {
+    const call = await new SunSwapRouterPlanner(gateways).buildSwapCall(
+      NILE,
+      {
+        route: ROUTE,
+        amountOutMinimum: "300001",
+        recipient: TRX,
+        validForSeconds: 1800,
+        feeLimitSun: "100000000",
+      },
+      NO_CHECK,
+    );
+
+    const inputs = (call.parameters[1]!.value as string[]).join("");
+    expect(inputs).toContain(BigInt(300001).toString(16).padStart(64, "0"));
+    expect(inputs).not.toContain(BigInt(343446).toString(16).padStart(64, "0"));
   });
 });

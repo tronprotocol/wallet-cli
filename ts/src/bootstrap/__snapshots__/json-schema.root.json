@@ -7622,7 +7622,11 @@
             "type": "boolean"
           },
           "slippage": {
-            "description": "tolerance as a decimal, e.g. 0.005 for 0.5% [default 0.005]",
+            "description": "tolerance as a decimal, e.g. 0.005 for 0.5%; excludes --min-out [default 0.005]",
+            "type": "string"
+          },
+          "minOut": {
+            "description": "least to accept, in tokenOut's smallest unit; excludes --slippage",
             "type": "string"
           },
           "feeLimit": {

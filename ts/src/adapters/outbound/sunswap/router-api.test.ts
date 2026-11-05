@@ -112,6 +112,27 @@ describe("SunSwapRouterApi request binding", () => {
   });
 });
 
+describe("SunSwapRouterApi zero quotes", () => {
+  it.each(["0", "000"])("drops a route quoting %s output", async (amountOutRaw) => {
+    await expect(
+      apiServing(() => routeResponse({ ...ROUTE, amountOutRaw })).routes(
+        MAINNET,
+        REQUEST,
+        NO_CHECK,
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it("keeps the routes that quote an output", async () => {
+    const response = new Response(
+      JSON.stringify({ code: 0, data: [{ ...ROUTE, amountOutRaw: "0" }, ROUTE] }),
+      { status: 200 },
+    );
+    const routes = await apiServing(() => response).routes(MAINNET, REQUEST, NO_CHECK);
+    expect(routes.map((route) => route.amountOutRaw)).toEqual([ROUTE.amountOutRaw]);
+  });
+});
+
 describe("SunSwapRouterApi error mapping", () => {
   it("maps HTTP 429 to provider_rate_limited and carries Retry-After", async () => {
     const api = apiServing(
