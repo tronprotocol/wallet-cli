@@ -1558,7 +1558,11 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async getContractMetadata(address: string): Promise<TronContractMetadata> {
     const [contract, info] = await Promise.all([
       this.getContract(address),
-      this.getContractInfo(address).catch(() => undefined),
+      // A call the command deadline stopped still fails; any other info failure only omits it.
+      this.getContractInfo(address).catch((e: unknown) => {
+        if (e instanceof DeadlineExpiredError || activeDispatch()?.check.signal.aborted) throw e;
+        return undefined;
+      }),
     ]);
     // getContract determines existence; getContractInfo is optional metadata.
     if (!isDeployedContract(contract)) {

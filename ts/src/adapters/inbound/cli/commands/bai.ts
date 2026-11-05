@@ -10,7 +10,7 @@ import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/i
 import type { CommandRegistry } from "../registry/index.js";
 import type { BaiService } from "../../../../application/use-cases/bai-service.js";
 import { isBaiTxHash } from "../../../../domain/bai/chains.js";
-import { isUserMessage, type UserMessage } from "../../../../domain/errors/index.js";
+import { isUserMessage } from "../../../../domain/errors/index.js";
 import { cliMessage } from "../output/errors.js";
 import { defaultToken } from "../../../../application/services/default-token.js";
 
@@ -95,8 +95,8 @@ export const baiRechargeSpec: ChainSpec = {
 };
 
 // The result's warning field is a string; follow-up commands are spelled for the CLI.
-function spelledWarning<T extends { warning?: string | UserMessage }>(result: T) {
-  return isUserMessage(result.warning)
+function spelledWarning<T extends object>(result: T) {
+  return "warning" in result && isUserMessage(result.warning)
     ? { ...result, warning: cliMessage(result.warning).message }
     : result;
 }
@@ -200,7 +200,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
         type: "activity",
         message: "Submitting the existing transaction hash to B.AI; no new payment will be sent…",
       });
-      return service.rechargeReport(ctx.deadline, input);
+      return spelledWarning(await service.rechargeReport(ctx.deadline, input));
     },
   } satisfies CommandDefinition);
 

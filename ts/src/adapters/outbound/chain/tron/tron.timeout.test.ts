@@ -26,6 +26,22 @@ describe("TronRpcClient command deadline", () => {
     await expect(client.getContractMetadata(ADDR)).rejects.toMatchObject({ code: "not_found" });
   });
 
+  it("getContractMetadata times out when the deadline stops the optional info read", async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
+    tronweb.trx.getContract = (() => Promise.resolve({ bytecode: "60" })) as never;
+    tronweb.trx.getContractInfo = (() => new Promise(() => {})) as never;
+    await expect(
+      withDispatchCheck(expiringCheck(20), () => client.getContractMetadata(ADDR)),
+    ).rejects.toMatchObject({ code: "timeout" });
+  });
+
+  it("getContractMetadata omits info when the optional info read fails", async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
+    tronweb.trx.getContract = (() => Promise.resolve({ bytecode: "60" })) as never;
+    tronweb.trx.getContractInfo = (() => Promise.reject(new Error("unsupported"))) as never;
+    await expect(client.getContractMetadata(ADDR)).resolves.toBeDefined();
+  });
+
   it("aborts a sent getAccount request with the deadline and reports timeout", async () => {
     vi.stubGlobal(
       "fetch",

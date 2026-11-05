@@ -150,6 +150,27 @@ it("spells the follow-up command in the recharge result's warning and keeps it a
   expect(Object.keys(result as object)).toEqual(["creditStatus", "warning", "payer"]);
 });
 
+it("spells the follow-up command in the report result's warning and keeps it a string", async () => {
+  const registry = new CommandRegistry();
+  const rechargeReport = vi.fn(async () => ({
+    creditStatus: "unconfirmed",
+    code: "timeout",
+    warning: errorMessage`report it with \`${followUp("bai-report-recharge")}\``,
+  }));
+  registerBaiCommands(registry, { ...service(), rechargeReport } as unknown as BaiService);
+  const command = registry.resolveNeutral(["bai", "report-recharge"])!;
+  const result = await command.run(
+    { emit: vi.fn(), deadline: {} } as never,
+    undefined as never,
+    command.input.parse({ chain: "base", txHash: `0x${"a".repeat(64)}` }),
+  );
+  expect(result).toEqual({
+    creditStatus: "unconfirmed",
+    code: "timeout",
+    warning: "report it with `bai report-recharge`",
+  });
+});
+
 it.each([
   ["tron", "a".repeat(64), true],
   ["tron", `0x${"a".repeat(64)}`, false],
