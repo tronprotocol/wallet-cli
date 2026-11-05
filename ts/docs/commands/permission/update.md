@@ -131,6 +131,10 @@ After confirmation, `permission_postcheck_unavailable` says the read-back failed
 
 On a multi-sig account, a submission whose accumulated signature weight is below the permission threshold is refused **after signing and before broadcasting** with `not_authorized` (`signature threshold is not reached; missing N weight`) — nothing is sent and no fee is burned. Collect the remaining signatures through `--sign-only` + [`tx sign`](../tx/sign.md) and submit with [`tx broadcast`](../tx/broadcast.md) instead. `--sign-only` and `--build-only` still return a partial signature, which is how a co-signing flow starts.
 
+## Known limitations
+
+**Ledger TRON app 0.7.7 – 0.8.1.** The device refuses some permission updates, and the command fails with `ledger_unsupported`. This happens when the update is just long enough to need one more transfer to the device. Shorten a permission `name` in the structure by a few characters and try again.
+
 ## See also
 
 [`permission show`](show.md) · [`tx sign`](../tx/sign.md) · [`tx broadcast`](../tx/broadcast.md) · [`tx multisig`](../tx/multisig.md) · [Security](../../concepts/security.md)

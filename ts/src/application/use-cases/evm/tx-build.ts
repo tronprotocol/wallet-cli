@@ -9,6 +9,8 @@ import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
 import { resolveGasLimit } from "../../services/evm/evm-gas-estimate.js";
 import type { EvmGateway } from "../../ports/chain/evm/evm-gateway.js";
 import type { Wei } from "../../../domain/amounts/index.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
+import { unlessDeadline } from "../../services/command-deadline.js";
 
 export interface EvmGasInput {
   gasLimit?: string;
@@ -25,6 +27,7 @@ export interface EvmCall {
 }
 
 export interface EvmBuildRequest {
+  deadline: ExecutionDeadline;
   gateway: EvmGateway;
   network: NetworkDescriptor;
   from: string;
@@ -54,17 +57,19 @@ function invalidInteger(message: string) {
 }
 
 export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmBuildResult> {
-  const { gateway, network, from, call, input, dryRun } = request;
+  const { deadline, gateway, network, from, call, input, dryRun } = request;
   // With an explicit nonce, the pending read only supplies a gap warning and is optional.
   const [pendingNonce, fee, latestNonce] = await Promise.all([
     // Pending count includes unmined transactions so new sends queue behind them.
     input.nonce === undefined
       ? gateway.getTransactionCount(from, "pending")
-      : gateway.getTransactionCount(from, "pending").catch(() => undefined),
+      : gateway
+          .getTransactionCount(from, "pending")
+          .catch(unlessDeadline(deadline, () => undefined)),
     gateway.feeData(),
     // Compare with mined count: a nonce below pending can be a valid replacement.
     dryRun === true && input.nonce !== undefined
-      ? gateway.getTransactionCount(from, "latest").catch(() => undefined)
+      ? gateway.getTransactionCount(from, "latest").catch(unlessDeadline(deadline, () => undefined))
       : undefined,
   ]);
   const nonce = input.nonce === undefined ? (pendingNonce as string) : String(input.nonce);

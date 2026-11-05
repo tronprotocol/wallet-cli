@@ -283,6 +283,27 @@ describe("position-info — a USD figure is a claim", () => {
     expect("lpBalanceUsd" in out.position).toBe(false);
     expect(warnings).toEqual([expect.objectContaining({ code: "sunswap_prices_unavailable" })]);
   });
+
+  it("fails with timeout when the deadline ends the price read", async () => {
+    const { scope } = warnScope();
+    let now = 0;
+    const deadline = new CommandDeadline(1_000, 0, { now: () => now });
+    const market = makeMarket({
+      prices: vi.fn(async () => {
+        now = 1_000;
+        throw new ChainError("timeout", "HTTP request timed out or was aborted");
+      }),
+    } as unknown as Partial<MarketDataPort>);
+    const out = new SunSwapPositionInfoService(makeV4Port(), market).positionInfo(
+      deadline,
+      scope,
+      TRON,
+      { protocol: "V4", positionId: "88" },
+    );
+
+    await expect(out).rejects.toMatchObject({ code: "timeout" });
+    deadline.dispose();
+  });
 });
 
 describe("position-info — unclaimed fees", () => {

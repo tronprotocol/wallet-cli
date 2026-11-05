@@ -1,4 +1,4 @@
-import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
@@ -353,6 +353,7 @@ export class SunSwapPositionInfoService {
       }
       return empty;
     } catch (error) {
+      if (endedByDeadline(error, deadline)) throw error;
       scope.warn({
         code: "sunswap_prices_unavailable",
         message: `the USD prices for this position could not be read, so it is reported without any USD value: ${redactErrorMessage(

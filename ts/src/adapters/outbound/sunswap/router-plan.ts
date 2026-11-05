@@ -19,9 +19,10 @@ import type {
 import type { ContractParameter } from "../../../application/contracts/tron/tron-contract-call.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
-import { ChainError, ExecutionError, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, CliError, ExecutionError, UsageError } from "../../../domain/errors/index.js";
 import { normalizeTypedData } from "../../../domain/typed-data/index.js";
 import { readOnlySdkRuntime, sdkNetworkName } from "./sdk-runtime.js";
+import { createTimedFetch } from "../http/timed-fetch.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 
 const MATERIALIZATION = "universal-router-swap";
@@ -91,6 +92,7 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
         },
       });
     } catch (error) {
+      if (error instanceof CliError) throw error;
       throw new ChainError(
         "provider_error",
         `could not plan the Permit2 authorization for this swap: ${message(error)}`,
@@ -172,6 +174,7 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
           : [{ action: { id: SIGNATURE_ACTION } as never, result: input.permit.signature }],
       );
     } catch (error) {
+      if (error instanceof CliError) throw error;
       throw new ChainError("provider_error", `could not encode the router call: ${message(error)}`);
     }
 
@@ -210,10 +213,13 @@ export class SunSwapRouterPlanner implements RouterExecutionPort, Permit2Port {
     const context = createProtocolsContext({
       network: sdkNetworkName(network) as never,
       runtime: readOnlySdkRuntime(this.gateways, network, ZERO_READER, check),
+      // The SDK sends the clock request with its own fetch, outside the TRON gateway.
+      fetchImpl: createTimedFetch({ check }),
     });
     try {
       return await context.getTransactionTime();
     } catch (error) {
+      if (error instanceof CliError) throw error;
       throw new ChainError(
         "provider_error",
         `could not read the chain's transaction time, which a swap's deadline is measured against: ${message(error)}`,

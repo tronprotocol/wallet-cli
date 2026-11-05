@@ -247,6 +247,7 @@ export class EvmTransactionService {
       : { to, value: transfer.rawAmount };
 
     const built = await buildEvmUnsignedTx({
+      deadline: scope.deadline,
       gateway,
       network,
       from,

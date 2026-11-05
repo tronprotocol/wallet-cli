@@ -133,6 +133,20 @@ describe("EvmChainService.node", () => {
     expect(out.lagBlocks).toBeNull();
   });
 
+  it("fails with timeout when the deadline ends an optional read", async () => {
+    let now = 0;
+    const deadline = new CommandDeadline(1_000, 0, { now: () => now });
+    const out = service({
+      get finalized() {
+        now = 1_000;
+        return new ChainError("timeout", "eth_getBlockByNumber timed out");
+      },
+    }).node(deadline, net);
+
+    await expect(out).rejects.toMatchObject({ code: "timeout" });
+    deadline.dispose();
+  });
+
   it("still reports the head when the optional calls all fail", async () => {
     const out = await service({
       peerCount: new ChainError("rpc_error", "no"),

@@ -1342,4 +1342,27 @@ describe("EvmTransactionService.send --dry-run — an explicit nonce the chain h
     });
     await expect(send(service, { dryRun: true, nonce: 9 })).resolves.toBeDefined();
   });
+
+  it.each(["pending", "latest"])(
+    "fails with timeout when the deadline ends the %s nonce read",
+    async (ended) => {
+      const { service, gateway } = nonceHarness({ latest: "10", pending: "12" });
+      let now = 0;
+      const deadline = new CommandDeadline(1_000, 0, { now: () => now });
+      gateway.getTransactionCount.mockImplementation(async (_a: string, block: string) => {
+        if (block !== ended) return block === "latest" ? "10" : "12";
+        now = 1_000;
+        throw new ChainError("timeout", "eth_getTransactionCount timed out");
+      });
+      const out = service.send({ ...scope(), deadline }, SEPOLIA, {
+        to: RECEIVER,
+        amount: "1",
+        dryRun: true,
+        nonce: 10,
+      } as never);
+
+      await expect(out).rejects.toMatchObject({ code: "timeout" });
+      deadline.dispose();
+    },
+  );
 });

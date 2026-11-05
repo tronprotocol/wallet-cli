@@ -136,6 +136,7 @@ export class EvmContractService {
       estimate: async () => plan,
       build: async (from) => {
         const built = await buildEvmUnsignedTx({
+          deadline: scope.deadline,
           gateway,
           network,
           from,

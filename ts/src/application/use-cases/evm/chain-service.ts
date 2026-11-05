@@ -1,4 +1,4 @@
-import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { endpointHost, type NetworkDescriptor } from "../../../domain/types/index.js";
 import { evmFeeMode } from "../../../domain/evm/evm-gas.js";
@@ -15,10 +15,11 @@ function decimal(value: unknown): number | null {
   }
 }
 
-async function optional<T>(read: () => Promise<T>): Promise<T | null> {
+async function optional<T>(deadline: ExecutionDeadline, read: () => Promise<T>): Promise<T | null> {
   try {
     return await read();
-  } catch {
+  } catch (error) {
+    if (endedByDeadline(error, deadline)) throw error;
     return null;
   }
 }
@@ -50,13 +51,13 @@ export class EvmChainService {
   async node(deadline: ExecutionDeadline, network: NetworkDescriptor) {
     const gateway = this.gateways.get(network, "evm", requestDispatchCheck(deadline));
     const [version, syncing, peers, head, finalized, chainId] = await Promise.all([
-      optional(() => gateway.clientVersion()),
-      optional(() => gateway.syncing()),
-      optional(() => gateway.peerCount()),
+      optional(deadline, () => gateway.clientVersion()),
+      optional(deadline, () => gateway.syncing()),
+      optional(deadline, () => gateway.peerCount()),
       gateway.getBlock(),
-      optional(() => gateway.getBlock("finalized")),
+      optional(deadline, () => gateway.getBlock("finalized")),
       // Query the node’s chain ID so callers can compare it with configuration.
-      optional(() => gateway.chainId()),
+      optional(deadline, () => gateway.chainId()),
     ]);
 
     if (head === null) {

@@ -17,7 +17,7 @@ import {
   DeadlineExpiredError,
   type DispatchCheck,
 } from "../../../../application/contracts/deadline.js";
-import { withDispatchCheck } from "../../http/dispatch-context.js";
+import { activeDispatch, withDispatchCheck } from "../../http/dispatch-context.js";
 import type {
   DeployConstructorArgs,
   EvmBlockView,
@@ -145,7 +145,11 @@ export class EvmRpcClient implements EvmGateway {
     const [head, gasPrice, priority] = await Promise.all([
       this.#rawBlock("latest"),
       this.#call("eth_gasPrice", []),
-      this.#call("eth_maxPriorityFeePerGas", []).catch(() => undefined),
+      // Unsupported nodes give no tip; a call the command deadline stopped still fails.
+      this.#call("eth_maxPriorityFeePerGas", []).catch((e: unknown) => {
+        if (e instanceof DeadlineExpiredError || activeDispatch()?.check.signal.aborted) throw e;
+        return undefined;
+      }),
     ]);
     const baseFee = head?.baseFeePerGas;
     return {

@@ -2,7 +2,10 @@ import {
   CommandDeadline,
   requestDispatchCheck,
 } from "../../../application/services/command-deadline.js";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
+import { ChainError } from "../../../domain/errors/index.js";
+import { expiredCheck } from "../http/__test-support__/dispatch.js";
 
 const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
@@ -92,6 +95,31 @@ describe("SunSwapRouterPlanner.planPermit typed data", () => {
   });
 });
 
+describe("SunSwapRouterPlanner.planPermit SDK failures", () => {
+  beforeEach(() => {
+    planRouterPermit2Authorization.mockReset();
+  });
+
+  it.each([
+    ["before its request was sent", new DeadlineExpiredError()],
+    ["after its request was sent", new ChainError("timeout", "the node did not answer in time")],
+  ])("keeps a deadline failure %s as timeout", async (_label, error) => {
+    planRouterPermit2Authorization.mockRejectedValue(error);
+
+    await expect(
+      new SunSwapRouterPlanner(gateways).planPermit(NILE, INPUT, NO_CHECK),
+    ).rejects.toMatchObject({ code: "timeout" });
+  });
+
+  it("reports an unclassified SDK error as provider_error", async () => {
+    planRouterPermit2Authorization.mockRejectedValue(new Error("boom"));
+
+    await expect(
+      new SunSwapRouterPlanner(gateways).planPermit(NILE, INPUT, NO_CHECK),
+    ).rejects.toMatchObject({ code: "provider_error" });
+  });
+});
+
 describe("SunSwapRouterPlanner.buildSwapCall floor", () => {
   const TRX = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
   const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
@@ -124,5 +152,35 @@ describe("SunSwapRouterPlanner.buildSwapCall floor", () => {
     const inputs = (call.parameters[1]!.value as string[]).join("");
     expect(inputs).toContain(BigInt(300001).toString(16).padStart(64, "0"));
     expect(inputs).not.toContain(BigInt(343446).toString(16).padStart(64, "0"));
+  });
+});
+
+describe("SunSwapRouterPlanner.transactionTime clock request", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function timeService() {
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: 0, data: { serverTimeStamp: CHAIN_TIME_MS } })),
+    );
+    vi.stubGlobal("fetch", fetch);
+    return fetch;
+  }
+
+  it("reads the chain time from the time service", async () => {
+    const fetch = timeService();
+
+    await expect(new SunSwapRouterPlanner(gateways).transactionTime(NILE, NO_CHECK)).resolves.toBe(
+      CHAIN_TIME_MS / 1000,
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends no clock request once the command deadline has passed", async () => {
+    const fetch = timeService();
+
+    await new SunSwapRouterPlanner(gateways).transactionTime(NILE, expiredCheck());
+
+    expect(fetch).not.toHaveBeenCalled();
   });
 });
