@@ -173,8 +173,9 @@ function serveRefinement(value: { asset?: string; decimals?: number }, ctx: z.Re
   if (value.decimals !== undefined && value.asset === undefined) {
     ctx.addIssue({
       code: "custom",
-      message: "--decimals requires --asset",
       params: { errorCode: "invalid_option" },
+      path: ["decimals"],
+      message: "requires --asset",
     });
   }
 }

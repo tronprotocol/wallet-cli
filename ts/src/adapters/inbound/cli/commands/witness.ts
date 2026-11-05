@@ -22,7 +22,7 @@ const witnessUrl = z
 const witnessWriteBase = {
   network: "optional" as const,
   wallet: "optional" as const,
-  auth: "required" as const,
+  auth: "conditional" as const,
   broadcasts: true,
   capability: "witness.manage",
   exclusive: [txModeExclusive],

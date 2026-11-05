@@ -2678,7 +2678,7 @@
       "summary": "Clear a contract's on-chain ABI",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "contract.governance",
@@ -3128,7 +3128,7 @@
       "summary": "Set the deployer's energy cap",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "contract.governance",
@@ -3218,7 +3218,7 @@
       "summary": "Set the caller-paid resource share",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "contract.governance",
@@ -4191,7 +4191,7 @@
       "summary": "Approve or un-approve a proposal",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "proposal.write",
@@ -4284,7 +4284,7 @@
       "summary": "Create a chain-parameter proposal",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "proposal.write",
@@ -4374,7 +4374,7 @@
       "summary": "Delete a proposal during its voting window",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "proposal.write",
@@ -5852,11 +5852,11 @@
             "description": "protocol version: V2, V3 or V4"
           },
           "token0": {
-            "description": "one side of the pair, symbol or contract address; on V3, TRX is wrapped to WTRX (not for --position-id)",
+            "description": "one side of the pair, symbol or contract address; on V3, TRX is wrapped to WTRX; with --position-id: refused on V3, required on V4",
             "type": "string"
           },
           "token1": {
-            "description": "the other side of the pair, same rules (not for --position-id)",
+            "description": "the other side of the pair, same rules",
             "type": "string"
           },
           "positionId": {
@@ -7658,7 +7658,7 @@
       "summary": "Register as a super representative candidate",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "witness.manage",
@@ -7743,7 +7743,7 @@
       "summary": "Set the SR reward brokerage percentage",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "witness.manage",
@@ -7829,7 +7829,7 @@
       "summary": "Update an SR candidate URL",
       "requires": {
         "network": "optional",
-        "auth": "required",
+        "auth": "conditional",
         "wallet": "optional"
       },
       "capability": "witness.manage",

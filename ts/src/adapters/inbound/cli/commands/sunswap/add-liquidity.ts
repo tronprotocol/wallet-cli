@@ -29,12 +29,9 @@ const fields = z.object({
     .string()
     .optional()
     .describe(
-      "one side of the pair, symbol or contract address; on V3, TRX is wrapped to WTRX (not for --position-id)",
+      "one side of the pair, symbol or contract address; on V3, TRX is wrapped to WTRX; with --position-id: refused on V3, required on V4",
     ),
-  token1: z
-    .string()
-    .optional()
-    .describe("the other side of the pair, same rules (not for --position-id)"),
+  token1: z.string().optional().describe("the other side of the pair, same rules"),
   positionId: z
     .string()
     .optional()

@@ -253,7 +253,7 @@ async function executeChainCommand(
   await gapFillRequiredFields(executionSpec, argv, deps.prompter, () =>
     deps.accounts.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
   );
-  const input = parseInputSchema(effectiveInput, argv);
+  const input = parseInputSchema(effectiveInput, argv, spec.positionals);
 
   const ctx = buildExecutionContext(globals, deps);
   if (spec.wallet !== "none") void ctx.activeAccount;
@@ -554,7 +554,7 @@ function assertWaitIntentApplies(
 }
 
 function parseInput(cmd: CommandDefinition, argv: any): unknown {
-  return parseInputSchema(neutralInputSchema(cmd), argv);
+  return parseInputSchema(neutralInputSchema(cmd), argv, cmd.positionals);
 }
 
 // The validation schema of a family-neutral command, including its exclusive groups.
@@ -575,17 +575,22 @@ export function chainInputSchema(
   };
 }
 
-export function parseInputSchema(schema: ZodType, argv: any): unknown {
+export function parseInputSchema(
+  schema: ZodType,
+  argv: any,
+  positionals: readonly { field: string; placeholder?: string }[] = [],
+): unknown {
   const result = schema.safeParse(argv);
   if (result.success) return result.data;
   const issue = result.error.issues[0]!;
   const key = issue.path[0];
-  const field = issue.path.join(".") || "input";
+  // A positional is named as its usage line shows it.
+  const name = (part: PropertyKey) =>
+    positionals.find((p) => p.field === part)?.placeholder ?? String(part);
+  const field =
+    issue.path.map((part, i) => (i === 0 ? name(part) : String(part))).join(".") || "input";
   if (issue.code === "invalid_type" && key !== undefined && argv[key] === undefined) {
-    throw new UsageError(
-      "missing_option",
-      `missing required option --${camelToKebab(String(key))}`,
-    );
+    throw new UsageError("missing_option", `missing required option --${camelToKebab(name(key))}`);
   }
   // Refines may select only registered usage-error codes; other codes fall back to invalid_value.
   const declared = (issue as { params?: { errorCode?: unknown } }).params?.errorCode;

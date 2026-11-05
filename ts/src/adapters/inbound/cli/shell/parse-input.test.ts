@@ -54,6 +54,17 @@ describe("parseInputSchema", () => {
     );
   });
 
+  it("names a positional by its placeholder", () => {
+    const positional = z.object({ token: z.string().min(2) });
+    const positionals = [{ field: "token", placeholder: "address" }];
+    expect(() => parseInputSchema(positional, {}, positionals)).toThrowError(
+      "missing required option --address",
+    );
+    expect(() => parseInputSchema(positional, { token: "x" }, positionals)).toThrowError(
+      /^invalid --address:/,
+    );
+  });
+
   it("refuses a declared code whose dictionary exit is not a usage exit", () => {
     expect(() => parseInputSchema(schema, { a: "rpc" })).toThrowError(
       expect.objectContaining({ code: "invalid_value" }),
