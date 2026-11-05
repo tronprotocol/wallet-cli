@@ -224,9 +224,19 @@ export class EvmTransactionService {
     network: NetworkDescriptor,
     from: string,
     to: string,
-    transfer: { contract?: string; rawAmount: string },
+    transfer: { contract?: string; rawAmount: string; symbol?: string },
     input: EvmSendInput,
   ): Promise<{ tx: EvmUnsignedTx; fee: EvmFeeReport }> {
+    // Checked before the gas estimate, so every mode reports a short token balance as such.
+    if (transfer.contract) {
+      const held = await gateway.getErc20Balance(transfer.contract, from);
+      if (BigInt(held) < BigInt(transfer.rawAmount)) {
+        throw new ChainError(
+          "insufficient_token_balance",
+          `this transfer needs ${transfer.rawAmount} of ${transfer.symbol ?? transfer.contract} in base units and the account holds ${held}`,
+        );
+      }
+    }
     // ERC20 recipient and amount belong in calldata; native value must be zero.
     const call = transfer.contract
       ? {

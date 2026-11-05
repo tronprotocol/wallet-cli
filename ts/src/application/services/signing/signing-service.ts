@@ -1,4 +1,5 @@
-// The only path to a signature: checks the payload's chain identity against the named network first.
+// The only path to a signature: checks the payload's chain identity against the named network first,
+// and that a device signature recovers to the signing account over the payload it was sent.
 import type {
   NetworkDescriptor,
   SignedTx,
@@ -16,6 +17,7 @@ import {
   assertTronReferenceBlock,
   assertTypedDataChain,
 } from "./chain-identity.js";
+import { assertSignedBy, type SignatureDigests, type SignedPayload } from "./signature-check.js";
 import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
 import { endedByDeadline, requestDispatchCheck, untilDeadline } from "../command-deadline.js";
 
@@ -78,16 +80,46 @@ export class SigningService {
   ): Promise<SignedTx | string | TypedDataSignature> {
     await this.#assertChainIdentity(scope, request);
     const { signer, payload } = request;
-    return deviceBounded<SignedTx | string | TypedDataSignature>(signer, scope, (opts) => {
+    const signed = await deviceBounded<SignedPayload>(signer, scope, async (opts) => {
       switch (payload.kind) {
         case "transaction":
-          return signer.sign(payload.transaction, opts);
+          return {
+            kind: "transaction",
+            sent: payload.transaction,
+            result: await signer.sign(payload.transaction, opts),
+          };
         case "message":
-          return signer.signMessage(payload.message, opts);
+          return {
+            kind: "message",
+            sent: payload.message,
+            result: await signer.signMessage(payload.message, opts),
+          };
         case "typed-data":
-          return signer.signTypedData(payload.typedData, opts);
+          return {
+            kind: "typed-data",
+            sent: payload.typedData,
+            result: await signer.signTypedData(payload.typedData, opts),
+          };
       }
     });
+    // A device reply arrives over a shared transport, so it is checked before anything uses it.
+    if (signer.kind === "device") {
+      assertSignedBy(
+        this.#digests(scope, request.network),
+        request.network,
+        signer.address,
+        signed,
+      );
+    }
+    return signed.result;
+  }
+
+  #digests(scope: SigningScope, network: NetworkDescriptor): SignatureDigests {
+    const check = requestDispatchCheck(scope.deadline);
+    return {
+      tron: () => this.gateways.get(network, "tron", check),
+      evm: () => this.gateways.get(network, "evm", check),
+    };
   }
 
   async #assertChainIdentity(scope: SigningScope, request: SignRequest): Promise<void> {

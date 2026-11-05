@@ -228,8 +228,24 @@ export class TronStakeService {
     network: NetworkDescriptor,
     input: Omit<StakeDelegateInput, "lock" | "lockPeriod">,
   ) {
-    return this.transact("stake-undelegate", scope, network, input, (gateway, owner) => {
+    return this.transact("stake-undelegate", scope, network, input, async (gateway, owner) => {
       this.assertDifferentReceiver(owner, input.receiver);
+      // Check the delegation during build so dry runs detect an amount above it too.
+      const records = await gateway.getDelegatedResourceV2(owner, input.receiver);
+      const delegated = records.reduce(
+        (sum, rec) =>
+          sum +
+          BigInt(
+            input.resource === "energy" ? rec.balanceForEnergySun : rec.balanceForBandwidthSun,
+          ),
+        0n,
+      );
+      if (BigInt(input.amountSun) > delegated) {
+        throw new ChainError(
+          "insufficient_stake",
+          `cannot reclaim ${input.amountSun} SUN: only ${delegated} SUN of ${input.resource} is delegated to ${input.receiver}`,
+        );
+      }
       return gateway.buildUndelegateResource(
         owner,
         input.amountSun,

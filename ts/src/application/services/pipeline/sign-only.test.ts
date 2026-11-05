@@ -1,4 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+// Fake device signers return placeholder signatures; signing-service.test.ts covers the check.
+vi.mock("../signing/signature-check.js", () => ({ assertSignedBy: () => {} }));
+
 import { TxPipeline } from "./index.js";
 import type { SignerResolver } from "../signer/index.js";
 import type { Signer, UnsignedTx } from "../../../domain/types/index.js";

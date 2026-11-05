@@ -2,6 +2,7 @@ import {
   Interface,
   type InterfaceAbi,
   Transaction,
+  TypedDataEncoder,
   getCreateAddress,
   toUtf8String,
   type TransactionLike,
@@ -43,6 +44,7 @@ import type {
   EvmUnsignedTx,
   NetworkDescriptor,
   SignedTx,
+  TypedDataPayload,
   UnsignedTx,
 } from "../../../../domain/types/index.js";
 import { isTxHash } from "../../../../domain/family/index.js";
@@ -331,6 +333,31 @@ export class EvmRpcClient implements EvmGateway {
 
   transactionChainId(tx: UnsignedTx): string | undefined {
     return evmTransactionChainId(tx);
+  }
+
+  unsignedTransactionHash(tx: UnsignedTx): string {
+    try {
+      return Transaction.from(tx as TransactionLike).unsignedHash;
+    } catch (e) {
+      throw new UsageError(
+        "invalid_payload",
+        `EVM transaction could not be encoded: ${(e as Error).message}`,
+      );
+    }
+  }
+
+  signedTransactionParts(raw: string): { unsignedHash: string; signature: string } | undefined {
+    try {
+      const parsed = Transaction.from(raw);
+      if (parsed.signature === null) return undefined;
+      return { unsignedHash: parsed.unsignedHash, signature: parsed.signature.serialized };
+    } catch {
+      return undefined;
+    }
+  }
+
+  typedDataDigest(payload: TypedDataPayload): string {
+    return evmTypedDataDigest(payload);
   }
 
   encodeFunctionCall(signature: string, params: Array<{ type: string; value: unknown }>): string {
@@ -696,6 +723,21 @@ export function decodeEvmRawTransaction(hex: string): EvmRawTransaction {
     ...(signed ? { hash: parsed.hash!, serialized: parsed.serialized } : {}),
     transaction: JSON.parse(JSON.stringify(parsed.toJSON())) as EvmUnsignedTx,
   };
+}
+
+// ethers derives EIP712Domain from domain and rejects a duplicate types entry.
+export function evmTypedDataDigest(payload: TypedDataPayload): string {
+  const structTypes = Object.fromEntries(
+    Object.entries(payload.types).filter(([name]) => name !== "EIP712Domain"),
+  );
+  try {
+    return TypedDataEncoder.hash(payload.domain as never, structTypes, payload.message);
+  } catch (e) {
+    throw new UsageError(
+      "invalid_payload",
+      `typed data could not be hashed: ${(e as Error).message}`,
+    );
+  }
 }
 
 export function evmTransactionChainId(tx: UnsignedTx): string | undefined {

@@ -10,6 +10,7 @@ import type {
   SignedTx,
   TronProtocolValue,
   TronTransactionArtifact,
+  TypedDataPayload,
   UnsignedTx,
 } from "../../../../domain/types/index.js";
 import type { RpcResourceCode } from "../../../../domain/tron/resources/index.js";
@@ -663,6 +664,21 @@ export class TronRpcClient implements TronGateway, Broadcaster {
       );
     });
   }
+  typedDataDigest(payload: TypedDataPayload): string {
+    try {
+      return tronUtils.typedData.TypedDataEncoder.hash(
+        payload.domain as never,
+        payload.types as never,
+        payload.message,
+      );
+    } catch (e) {
+      throw new UsageError(
+        "invalid_payload",
+        `typed data could not be hashed: ${(e as Error).message}`,
+      );
+    }
+  }
+
   async referenceBlockStatus(transaction: UnsignedTx): Promise<TronReferenceBlockStatus> {
     const raw = (transaction as { raw_data?: Record<string, unknown> } | null)?.raw_data;
     const refBytes = raw?.ref_block_bytes;

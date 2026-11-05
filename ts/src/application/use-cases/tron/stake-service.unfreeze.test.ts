@@ -120,3 +120,52 @@ describe("TronStakeService.freeze pre-flight", () => {
     expect(result).toMatchObject({ kind: "stake-freeze", txId: "0xdeadbeef" });
   });
 });
+
+describe("TronStakeService.undelegate pre-flight", () => {
+  const RECEIVER = "TML5f7kUCYNYk8xiVPbHrVbJEbL2cnFf4e";
+  const delegation = (energySun: string, bandwidthSun = "0") => [
+    {
+      from: OWNER,
+      to: RECEIVER,
+      balanceForEnergySun: energySun,
+      balanceForBandwidthSun: bandwidthSun,
+      expireTimeForEnergy: null,
+      expireTimeForBandwidth: null,
+    },
+  ];
+
+  it("rejects an amount above what is delegated to the receiver for that resource", async () => {
+    const buildUndelegateResource = vi.fn();
+    const getDelegatedResourceV2 = vi.fn(async () => delegation("1000000", "9000000"));
+    await expect(
+      svc({ getDelegatedResourceV2, buildUndelegateResource }).undelegate(scope, net, {
+        amountSun: "1000001",
+        resource: "energy",
+        receiver: RECEIVER,
+      }),
+    ).rejects.toMatchObject({ code: "insufficient_stake" });
+    expect(getDelegatedResourceV2).toHaveBeenCalledWith(OWNER, RECEIVER);
+    expect(buildUndelegateResource).not.toHaveBeenCalled();
+  });
+
+  it("rejects when nothing is delegated to the receiver", async () => {
+    const buildUndelegateResource = vi.fn();
+    await expect(
+      svc({ getDelegatedResourceV2: async () => [], buildUndelegateResource }).undelegate(
+        scope,
+        net,
+        { amountSun: "1", resource: "bandwidth", receiver: RECEIVER },
+      ),
+    ).rejects.toMatchObject({ code: "insufficient_stake" });
+    expect(buildUndelegateResource).not.toHaveBeenCalled();
+  });
+
+  it("proceeds when the amount equals the delegation", async () => {
+    const buildUndelegateResource = vi.fn(async () => ({ txID: "tx" }));
+    await svc({
+      getDelegatedResourceV2: async () => delegation("0", "2000000"),
+      buildUndelegateResource,
+    }).undelegate(scope, net, { amountSun: "2000000", resource: "bandwidth", receiver: RECEIVER });
+    expect(buildUndelegateResource).toHaveBeenCalledWith(OWNER, "2000000", "BANDWIDTH", RECEIVER);
+  });
+});

@@ -3,6 +3,7 @@ import type {
   BroadcastResult,
   RawNodePayload,
   TronFeeReport,
+  TypedDataPayload,
   TronProtocolValue,
   TronTransactionArtifact,
   UnsignedTx,
@@ -356,6 +357,8 @@ export interface TronGateway extends Broadcaster {
   getHeadBlock(): Promise<TronHeadBlock>;
   // TAPOS: whether this node holds the block the transaction references; reads the head block.
   referenceBlockStatus(transaction: UnsignedTx): Promise<TronReferenceBlockStatus>;
+  // 0x hex TIP-712 digest a signature over payload commits to; computed locally.
+  typedDataDigest(payload: TypedDataPayload): string;
   getTransactionById(txid: string): Promise<TronTx>;
   getTransactionInfoById(txid: string): Promise<TronTxInfo>;
   // Net base units received, verified from transaction logs or internal native transfers.

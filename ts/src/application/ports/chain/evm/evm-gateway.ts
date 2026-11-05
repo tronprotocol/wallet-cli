@@ -2,6 +2,7 @@ import type {
   EvmReceipt,
   EvmUnsignedTx,
   NodeJson,
+  TypedDataPayload,
   UnsignedTx,
 } from "../../../../domain/types/index.js";
 import type { Erc20Transfer } from "../../../../domain/evm/index.js";
@@ -43,6 +44,12 @@ export interface EvmGateway extends NativeBalanceReader<Wei>, Broadcaster {
   decodeRawTransaction(hex: string): EvmRawTransaction;
   // Decimal chain id an unsigned transaction names; undefined when it names none.
   transactionChainId(tx: UnsignedTx): string | undefined;
+  // 0x hex digest a signature over the unsigned transaction commits to; computed locally.
+  unsignedTransactionHash(tx: UnsignedTx): string;
+  // Digest and 65-byte r || s || v signature of a signed serialization; undefined when it is not signed.
+  signedTransactionParts(raw: string): { unsignedHash: string; signature: string } | undefined;
+  // 0x hex EIP-712 digest a signature over payload commits to; computed locally.
+  typedDataDigest(payload: TypedDataPayload): string;
   // alreadyKnown means the signed transaction is already in the mempool.
   sendRawTransaction(
     raw: string,

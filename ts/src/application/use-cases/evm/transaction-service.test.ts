@@ -61,6 +61,7 @@ function harness(over: Partial<Record<string, unknown>> = {}) {
     getErc20Metadata: vi.fn(
       async () => (over.metadata as object) ?? { symbol: "TKN", decimals: 6 },
     ),
+    getErc20Balance: vi.fn(async () => (over.tokenBalance as string) ?? "10".repeat(20)),
   };
   const built: Record<string, unknown>[] = [];
   const pipeline = {
@@ -257,6 +258,35 @@ describe("EvmTransactionService.send — ERC-20 transfer", () => {
     } as never);
 
     expect(gateway.encodeErc20Transfer).toHaveBeenCalledWith(RECEIVER, "5000000");
+  });
+
+  it.each([{ dryRun: true }, { buildOnly: true }, { signOnly: true }, {}])(
+    "refuses a transfer above the token balance before estimating gas (%o)",
+    async (mode) => {
+      const { service, gateway, built } = harness({ tokenBalance: "4999999" });
+      await expect(
+        service.send(scope(), SEPOLIA, {
+          to: RECEIVER,
+          contract: USDT,
+          amount: "5",
+          decimals: 6,
+          ...mode,
+        } as never),
+      ).rejects.toMatchObject({ code: "insufficient_token_balance" });
+      expect(gateway.getErc20Balance).toHaveBeenCalledWith(USDT, OWNER);
+      expect(gateway.estimateGas).not.toHaveBeenCalled();
+      expect(built).toEqual([]);
+    },
+  );
+
+  it("keeps the error of a failed token balance read", async () => {
+    const failure = Object.assign(new Error("node down"), { code: "rpc_error" });
+    const { service, gateway } = harness();
+    gateway.getErc20Balance.mockRejectedValueOnce(failure);
+    await expect(
+      service.send(scope(), SEPOLIA, { to: RECEIVER, contract: USDT, rawAmount: "1" } as never),
+    ).rejects.toBe(failure);
+    expect(gateway.estimateGas).not.toHaveBeenCalled();
   });
 
   it("refuses a token transfer whose decimals it could not establish", async () => {

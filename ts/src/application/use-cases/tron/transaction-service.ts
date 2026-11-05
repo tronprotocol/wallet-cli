@@ -76,23 +76,26 @@ export class TronTransactionService {
       ...tronTransactionHooks(gateway, this.now),
       preflight: null,
       confirm: tronConfirmation(gateway, scope),
-      build: (from) =>
-        resolved.contract
-          ? gateway.buildTrc20Transfer(
+      build: async (from) => {
+        if (resolved.contract) {
+          await assertTokenBalance(gateway, resolved.contract, from, resolved);
+          return gateway.buildTrc20Transfer(
+            from,
+            recipient.address,
+            resolved.contract,
+            resolved.rawAmount,
+            input.feeLimit,
+          );
+        }
+        return resolved.assetId
+          ? gateway.buildTrc10Transfer(
               from,
               recipient.address,
-              resolved.contract,
+              resolved.assetId,
               resolved.rawAmount,
-              input.feeLimit,
             )
-          : resolved.assetId
-            ? gateway.buildTrc10Transfer(
-                from,
-                recipient.address,
-                resolved.assetId,
-                resolved.rawAmount,
-              )
-            : gateway.buildNativeTransfer(from, recipient.address, resolved.rawAmount),
+          : gateway.buildNativeTransfer(from, recipient.address, resolved.rawAmount);
+      },
       estimate: () =>
         resolved.contract
           ? gateway.estimateResources(
@@ -316,4 +319,20 @@ function executionStatus(
   if (info?.execution === "failed") return info.failureReason!.toLowerCase();
   if (info?.execution === "success") return "success";
   return transactionResult?.toLowerCase();
+}
+
+// Checked during build, before the energy estimate, so every mode reports a short balance as such.
+async function assertTokenBalance(
+  gateway: TronGateway,
+  contract: string,
+  owner: string,
+  transfer: { rawAmount: string; tokenSymbol?: string },
+): Promise<void> {
+  const held = await gateway.getTrc20Balance(contract, owner);
+  if (BigInt(held) < BigInt(transfer.rawAmount)) {
+    throw new ChainError(
+      "insufficient_token_balance",
+      `this transfer needs ${transfer.rawAmount} of ${transfer.tokenSymbol ?? contract} in base units and the account holds ${held}`,
+    );
+  }
 }

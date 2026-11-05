@@ -159,6 +159,7 @@ describe("TronTransactionService TRC20 --wait", () => {
     const built = { txID: "tx", raw_data: { contract: [{ type: "TriggerSmartContract" }] } };
     const gateway = {
       buildTrc20Transfer: vi.fn(async () => built),
+      getTrc20Balance: vi.fn(async () => "1000000"),
       prepareTransaction: vi.fn((transaction) => transaction),
       encodeTransactionHex: vi.fn(() => "abcd"),
       getTransactionInfoById: vi.fn(async () => parseTronTxInfo({ blockNumber: 7, receipt: {} })),
@@ -187,5 +188,68 @@ describe("TronTransactionService TRC20 --wait", () => {
     });
 
     expect(confirmed).toBeUndefined();
+  });
+});
+
+describe("TronTransactionService TRC20 balance pre-check", () => {
+  const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+
+  function send(
+    getTrc20Balance: () => Promise<string>,
+    mode: "dryRun" | "buildOnly" | "signOnly" | null,
+  ) {
+    const gateway = {
+      getTrc20Balance: vi.fn(getTrc20Balance),
+      buildTrc20Transfer: vi.fn(async () => ({ txID: "tx" })),
+      estimateResources: vi.fn(),
+    };
+    const pipeline = {
+      assertCanSign: vi.fn(),
+      runTron: vi.fn(async (params: TronTxPipelineParams) => {
+        const transaction = await params.build(OWNER);
+        await params.estimate(transaction);
+        return { stage: "plan" as const, tx: transaction, fee: {} };
+      }),
+    } as unknown as TxPipeline;
+    const service = new TronTransactionService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as never,
+      pipeline,
+      { resolve: () => ({ address: RECEIVER }) } as never,
+    );
+    const run = service.send(scope(), NETWORK, {
+      to: RECEIVER,
+      contract: CONTRACT,
+      rawAmount: "1000001",
+      feeLimit: sunAmount("100000000"),
+      ...(mode ? { [mode]: true } : {}),
+    });
+    return { gateway, run };
+  }
+
+  it.each(["dryRun", "buildOnly", "signOnly", null] as const)(
+    "refuses a transfer above the token balance before building or estimating (%s)",
+    async (mode) => {
+      const { gateway, run } = send(async () => "1000000", mode);
+      await expect(run).rejects.toMatchObject({ code: "insufficient_token_balance" });
+      expect(gateway.getTrc20Balance).toHaveBeenCalledWith(CONTRACT, OWNER);
+      expect(gateway.buildTrc20Transfer).not.toHaveBeenCalled();
+      expect(gateway.estimateResources).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps the error of a failed balance read", async () => {
+    const failure = Object.assign(new Error("node down"), { code: "rpc_error" });
+    const { gateway, run } = send(async () => {
+      throw failure;
+    }, "dryRun");
+    await expect(run).rejects.toBe(failure);
+    expect(gateway.buildTrc20Transfer).not.toHaveBeenCalled();
+  });
+
+  it("builds when the balance covers the amount", async () => {
+    const { gateway, run } = send(async () => "1000001", "dryRun");
+    await run;
+    expect(gateway.buildTrc20Transfer).toHaveBeenCalledOnce();
   });
 });
