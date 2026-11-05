@@ -110,7 +110,7 @@ describe("a search needs something to search for", () => {
     const r = run(["sunpump", "token-search", keyword, "-o", "json"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_value");
-    expect(r.json.error.message).toContain("--keyword");
+    expect(r.json.error.message).toContain("<keyword>");
     expect(r.json.error.message).toContain("must not be empty");
   });
 
