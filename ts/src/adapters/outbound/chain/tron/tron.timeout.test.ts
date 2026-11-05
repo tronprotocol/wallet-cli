@@ -39,7 +39,7 @@ describe("TronRpcClient command deadline", () => {
     const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
     tronweb.trx.getContract = (() => Promise.resolve({ bytecode: "60" })) as never;
     tronweb.trx.getContractInfo = (() => Promise.reject(new Error("unsupported"))) as never;
-    await expect(client.getContractMetadata(ADDR)).resolves.toBeDefined();
+    await expect(client.getContractMetadata(ADDR)).resolves.toMatchObject({ info: undefined });
   });
 
   it("aborts a sent getAccount request with the deadline and reports timeout", async () => {
