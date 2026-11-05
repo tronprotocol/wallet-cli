@@ -490,6 +490,7 @@ function tronLinkMultisigRefine(
       code: "custom",
       path: ["hex"],
       message: "--create requires exactly one of --hex or --file",
+      params: { errorCode: "invalid_option" },
     });
   }
   if (!value.create && artifacts !== 0) {
@@ -497,6 +498,7 @@ function tronLinkMultisigRefine(
       code: "custom",
       path: ["hex"],
       message: "--hex/--file are only valid with --create",
+      params: { errorCode: "invalid_option" },
     });
   }
 }

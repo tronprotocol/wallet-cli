@@ -16,6 +16,7 @@ import { GLOBAL_FLAG_SPECS } from "../globals/index.js";
 
 const FOLLOW_UP_COMMANDS: Record<FollowUp, (subject: string | undefined) => string> = {
   "account-list": () => "list",
+  "account-rename": (account) => `rename ${account ?? "<account>"} --label <new>`,
   "asset-info": (name) => `asset info ${name ?? "<name>"}`,
   "bai-report-recharge": () => "bai report-recharge",
   "gasfree-trace": (id) => (id === undefined ? "gasfree trace" : `gasfree trace ${id}`),

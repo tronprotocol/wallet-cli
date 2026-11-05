@@ -98,7 +98,7 @@ EVM decoded fields, beside `data.block`. A block without a number or timestamp f
 
 ## Exit status
 
-`0` success · `1` execution failure (`invalid_node_response` — a block without its header or decoded fields) · `2` usage error. See [machine-interface](../machine-interface.md).
+`0` success · `1` execution failure (`invalid_node_response` — a block without its header or decoded fields) · `2` usage error (`invalid_value` — a block number that is not a non-negative integer, such as `abc`, `1.5` or `-1`; nothing is requested). See [machine-interface](../machine-interface.md).
 
 ## See also
 

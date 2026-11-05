@@ -188,6 +188,10 @@ describe("Ledger transaction signing", () => {
     );
     expect(hashSignSpy).toHaveBeenCalledWith("44'/195'/0'/0/0", (RAW_TX as { txID: string }).txID);
     expect(warning).toHaveBeenCalledWith(expect.stringContaining("falling back to hash signing"));
+    expect(warning).toHaveBeenCalledWith(
+      expect.stringContaining("Verify the transaction on this computer before approving its hash"),
+    );
+    expect(warning).not.toHaveBeenCalledWith(expect.stringContaining("URI"));
     expect(warning.mock.invocationCallOrder[0]).toBeLessThan(
       hashSignSpy.mock.invocationCallOrder[0]!,
     );

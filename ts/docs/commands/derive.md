@@ -14,7 +14,7 @@ wallet-cli derive [--seed-id <wlt_…>] [--account <account>] [--index <n>] [--l
 |---|---|
 | `--seed-id <string>` | seed id of the HD wallet to derive from — the HD group header in `list`. Wins over `--account` when both are given |
 | `--account <string>` | accountId, label, or address of any account in the HD wallet; defaults to the active account |
-| `--index <number>` | explicit HD account index; omit to use the next free index. An index that already exists is not re-derived — that account is made active, `status` comes back `"existing"`, and text output is headed `Selected existing account` instead of `Derived sub-account` |
+| `--index <number>` | explicit HD account index; omit to use the next free index. An index that already exists is not re-derived — that account is made active, `status` comes back `"existing"`, and text output is headed `Selected existing account` instead of `Derived sub-account`. With an existing index, `--label` must be omitted or match the account's label (ignoring case); a different label is refused with `invalid_value` and nothing is written — change a label with [`rename`](rename.md) |
 | `--label <string>` | label for the new account, 1-64 chars; omit to auto-generate. A duplicate label is refused before an account is written |
 | `--password-stdin` | read the master password from stdin (fd 0) |
 
@@ -80,7 +80,7 @@ To derive from another wallet, name any of its accounts with `--account`, or its
 
 ## Exit status
 
-`0` success · `1` execution failure, including `legacy_derivation` and `derivation_mismatch` · `2` usage error, including `seed_not_found`. See [machine-interface](../machine-interface.md).
+`0` success · `1` execution failure, including `legacy_derivation` and `derivation_mismatch` · `2` usage error, including `seed_not_found` and `invalid_value` — a `--label` already used by another account, or a different `--label` for an existing `--index`. See [machine-interface](../machine-interface.md).
 
 ## See also
 

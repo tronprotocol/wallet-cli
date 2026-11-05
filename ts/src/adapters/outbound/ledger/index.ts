@@ -388,7 +388,7 @@ export class Ledger {
               );
             }
             options?.onWarning?.(
-              "Ledger transaction data exceeds the SDK field-size limit; falling back to hash signing. The device cannot display the URI or full transaction details. Verify the transaction on this computer before approving its hash.",
+              "Ledger transaction data exceeds the SDK field-size limit; falling back to hash signing. The device shows only the transaction hash, not the transaction details. Verify the transaction on this computer before approving its hash.",
             );
             // Hash the validated bytes rather than trusting the supplied txID.
             const hash = createHash("sha256")

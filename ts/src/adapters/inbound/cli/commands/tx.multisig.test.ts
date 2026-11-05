@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { TronMultisigCollaborationService } from "../../../../application/use-cases/tron/multisig-collaboration-service.js";
-import { txTronLinkMultisigBinding } from "./tx.js";
+import { txTronLinkMultisigBinding, txTronLinkMultisigSpec } from "./tx.js";
+import { chainInputSchema, parseInputSchema } from "../shell/index.js";
 import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
@@ -49,5 +50,32 @@ describe("tx multisig binding", () => {
     expect(service.list).toHaveBeenCalledWith(NO_DEADLINE, NETWORK, A);
     expect(service.create).not.toHaveBeenCalled();
     expect(service.sign).not.toHaveBeenCalled();
+  });
+});
+
+describe("tx multisig input groups", () => {
+  const schema = chainInputSchema(
+    txTronLinkMultisigSpec,
+    txTronLinkMultisigBinding({} as never),
+  ).input;
+
+  it.each([
+    { create: true, hex: "aabb", file: "tx.hex" },
+    { create: true },
+    { hex: "aabb" },
+    { sign: TX_ID, file: "tx.hex" },
+    { create: true, sign: TX_ID, hex: "aabb" },
+    { create: true, watch: true, hex: "aabb" },
+  ])("reports %j as invalid_option", (input) => {
+    expect(() => parseInputSchema(schema, input)).toThrowError(
+      expect.objectContaining({ code: "invalid_option" }),
+    );
+  });
+
+  it("accepts --create with one transaction source", () => {
+    expect(parseInputSchema(schema, { create: true, file: "tx.hex" })).toMatchObject({
+      create: true,
+      file: "tx.hex",
+    });
   });
 });

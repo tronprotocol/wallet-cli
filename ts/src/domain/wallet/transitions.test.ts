@@ -153,11 +153,48 @@ describe("selectDerivedAccount", () => {
     expect(file.labels["wlt_a.1"]).toBe("savings");
   });
 
-  it("applies an explicit label to an existing slot", () => {
+  it("refuses a different label for an existing slot and points to rename", () => {
+    const wallet = seedWallet("wlt_a", { "0": A0, "1": A1 });
+    const file: WalletsFile = {
+      ...emptyFile(),
+      wallets: [wallet],
+      labels: { "wlt_a.0": "main", "wlt_a.1": "savings" },
+      activeAccount: "wlt_a.0",
+    };
+    expect(() => selectDerivedAccount(file, wallet, 1, undefined, "renamed")).toThrowError(
+      expect.objectContaining({
+        code: "invalid_value",
+        message: expect.stringMatching(
+          /'savings' already exists at index 1.*account-rename savings/,
+        ),
+      }),
+    );
+    expect(file.labels["wlt_a.1"]).toBe("savings");
+    expect(file.activeAccount).toBe("wlt_a.0");
+  });
+
+  it("refuses a label for an existing slot that has none", () => {
     const wallet = seedWallet("wlt_a", { "0": A0, "1": A1 });
     const file: WalletsFile = { ...emptyFile(), wallets: [wallet] };
-    selectDerivedAccount(file, wallet, 1, undefined, "renamed");
-    expect(file.labels["wlt_a.1"]).toBe("renamed");
+    expect(() => selectDerivedAccount(file, wallet, 1, undefined, "renamed")).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
+    expect(file.labels).toEqual({});
+  });
+
+  it("selects an existing slot given its own label, ignoring case", () => {
+    const wallet = seedWallet("wlt_a", { "0": A0, "1": A1 });
+    const file: WalletsFile = {
+      ...emptyFile(),
+      wallets: [wallet],
+      labels: { "wlt_a.1": "Savings" },
+    };
+    expect(selectDerivedAccount(file, wallet, 1, undefined, " savings ")).toEqual({
+      accountId: "wlt_a.1",
+      created: false,
+    });
+    expect(file.labels["wlt_a.1"]).toBe("Savings");
+    expect(file.activeAccount).toBe("wlt_a.1");
   });
 });
 

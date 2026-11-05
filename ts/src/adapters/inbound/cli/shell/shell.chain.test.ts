@@ -18,6 +18,7 @@ import { SecretResolver } from "../input/secret/index.js";
 import { Prompter } from "../input/prompt/index.js";
 import { assertBroadcastAllowed } from "../../../../application/services/broadcast-guard.js";
 import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+import { blockSpec } from "../commands/block.js";
 
 describe("ChainCommandDefinition dispatch", () => {
   it("routes a positional through the selected family binding", async () => {
@@ -378,4 +379,63 @@ describe("--dry-run bars broadcasting", () => {
 
     expect(submitted).toEqual(["sent"]);
   });
+});
+
+describe("block positional", () => {
+  function blockShell() {
+    const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-block-test-"));
+    const prompter = new Prompter({
+      isTTY: () => false,
+      async question() {
+        return "";
+      },
+      async readKey() {
+        return { name: "return" };
+      },
+      write() {},
+      beginRaw() {},
+      endRaw() {},
+    });
+    const streams = new StreamManager("json", false, () => {});
+    const secrets = new SecretResolver(streams, {}, prompter);
+    const keystore = new Keystore(tmpRoot, new AtomicFileStore(), () => secrets.masterPassword());
+    const config = ConfigLoader.load();
+    const networkRegistry = new NetworkRegistry(config);
+    const formatter = createOutputFormatter("json", streams, Date.now());
+    const registry = new CommandRegistry();
+    const run = vi.fn(async () => ({}));
+    registry.addChain(blockSpec, "tron", { run });
+    const cli = buildCli({
+      registry,
+      globals: { output: "json" as const, verbose: false, network: "tron:728126428" },
+      deps: {
+        config,
+        deadline: new CommandDeadline(0),
+        networkRegistry,
+        streams,
+        secrets,
+        accounts: new WalletService(keystore, {} as never, {} as never, {} as never),
+        prompter,
+        formatter,
+      },
+      targetResolver: new TargetResolver({ networkRegistry, keystore }),
+      caps: new CapabilityRegistry(),
+      streams,
+      formatter,
+      session: {} as SessionRef,
+    });
+    return { cli, run };
+  }
+
+  it.each(["abc", "0x10", "1.5"])(
+    "rejects %s as an invalid block number without a request",
+    async (pos) => {
+      const { cli, run } = blockShell();
+      await expect(cli.parseAsync(["block", pos])).rejects.toMatchObject({
+        code: "invalid_value",
+        message: expect.stringContaining("--number"),
+      });
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
 });

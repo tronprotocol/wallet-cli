@@ -131,14 +131,7 @@ export function buildCli(opts: ShellOptions): Argv {
         assembledLeaves[0]?.spec.positionals?.length ? `${group} [args..]` : group,
         assembledLeaves[0]?.spec.summary ?? "",
         (y) => applyCommands(stringGroupTail(y), fieldsOfLogicalGroup(group)),
-        (argv) => {
-          // Treat non-numeric block arguments as unknown subcommands.
-          const pos = (argv as any).args?.[0];
-          if (pos !== undefined && !Number.isFinite(Number(pos))) {
-            throw new UsageError("unknown_command", `unknown command: ${group} ${pos}`);
-          }
-          return dispatchLogical(opts, [group], argv);
-        },
+        (argv) => dispatchLogical(opts, [group], argv),
       );
       continue;
     }

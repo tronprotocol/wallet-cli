@@ -6,6 +6,7 @@ export interface InputRef {
 // A next step the user can take; the inbound adapter names the command that performs it.
 export type FollowUp =
   | "account-list"
+  | "account-rename"
   | "asset-info"
   | "bai-report-recharge"
   | "gasfree-trace"

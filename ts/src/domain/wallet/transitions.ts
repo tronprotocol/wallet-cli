@@ -7,7 +7,7 @@ import type {
   Wallet,
   WalletsFile,
 } from "../types/index.js";
-import { errorMessage, UsageError, WalletError } from "../errors/index.js";
+import { errorMessage, followUp, UsageError, WalletError } from "../errors/index.js";
 import { SOURCE_KINDS } from "../sources/index.js";
 import { accountIndices, accountRefOf, findByAddress, findBySource, firstIndex } from "./index.js";
 import { derivedAccountLabel, labelKey, walletLabel } from "./label.js";
@@ -98,9 +98,21 @@ export function selectDerivedAccount(
   label?: string,
 ): MutationResult {
   const created = derived !== undefined;
-  if (derived) wallet.source.addresses[String(index)] = derived;
   const ref = accountRefOf(wallet, index);
-  if (label !== undefined) assignLabel(file, ref, label);
+  const existing = file.labels[ref];
+  // Only a rename relabels a stored account; the same label, ignoring case, is a no-op.
+  if (
+    !created &&
+    label !== undefined &&
+    (existing === undefined || labelKey(existing) !== labelKey(label))
+  ) {
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`account '${existing ?? ref}' already exists at index ${index}; change its label with \`${followUp("account-rename", existing ?? ref)}\``,
+    );
+  }
+  if (derived) wallet.source.addresses[String(index)] = derived;
+  if (created && label !== undefined) assignLabel(file, ref, label);
   else if (created) {
     assignLabel(file, ref, derivedAccountLabel(file.labels[accountRefOf(wallet, 0)], index));
   }
