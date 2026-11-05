@@ -61,9 +61,10 @@ describe("TronRpcClient constant-call classification", () => {
   });
 
   it("reports a node API error without a message as rpc_error", async () => {
-    await expect(
-      call(answering({ result: { code: "OTHER_ERROR" } })),
-    ).rejects.toMatchObject({ code: "rpc_error", message: expect.stringContaining("OTHER_ERROR") });
+    await expect(call(answering({ result: { code: "OTHER_ERROR" } }))).rejects.toMatchObject({
+      code: "rpc_error",
+      message: expect.stringContaining("OTHER_ERROR"),
+    });
   });
 
   it("reports a non-JSON reply as invalid_node_response", async () => {
