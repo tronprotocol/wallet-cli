@@ -14,7 +14,7 @@ Fetches the complete transaction object and its execution receipt, on TRON and E
 
 The top-level summary is normalized across families; the nested raw objects are not. On TRON they are `transaction` (the node's tx object) and `info` (its execution receipt); on EVM they are `transaction` (the `eth_getTransactionByHash` result) and `receipt`.
 
-Note the failure-mode difference: where `tx status` answers `not_found` with exit 0, `tx info` on an unknown txid is a plain **error** — there is no detail to show. The families differ in both code and exit code: TRON surfaces the node's own refusal as `rpc_error` at exit **1**, while EVM raises `not_found` at exit **2**, treating the lookup as a bad call since the hash addresses nothing. Branch on the exit code first, then on `error.code`.
+Note the failure-mode difference: where `tx status` answers `not_found` with exit 0, `tx info` on an unknown txid is a plain **error** — there is no detail to show. The families differ in the code: TRON surfaces the node's own refusal as `rpc_error`, while EVM raises `not_found`; both exit **1**. Branch on the exit code first, then on `error.code`.
 
 ## Options
 
@@ -55,7 +55,7 @@ wallet-cli tx info --txid 0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48
 {"schema":"wallet-cli.result.v1","success":true,"command":"tx.info","data":{"txid":"0x55b0068ef31bce39bbf5b06d456eaef307fd77f96d85ea291f48c1ae4b900d80","type":"contract-call","from":"0x88878d9250e68C574912f5618ad3b43f675B8888","nonce":342,"to":"0x1b853EbA683A7C0b691256124392F3b922771869","status":"success","blockNumber":11576586,"confirmations":0,"gasUsed":"46231","feeWei":"43850186538","effectiveGasPriceWei":"948493","transaction":{},"receipt":{}},"meta":{"durationMs":455,"warnings":[]},"chain":{"family":"evm","network":"eip155:11155111","chainId":"11155111"}}
 ```
 
-An unknown txid errors out — unlike `tx status`'s `not_found` (exit 0). The code and exit code differ by family (TRON `rpc_error`, exit 1; EVM `not_found`, exit 2):
+An unknown txid errors out — unlike `tx status`'s `not_found` (exit 0). The code differs by family (TRON `rpc_error`; EVM `not_found`), and both exit 1:
 
 ```json
 {"schema":"wallet-cli.result.v1","success":false,"command":"tx.info","error":{"code":"rpc_error","message":"TRON getTransaction failed: Transaction not found"},"meta":{"durationMs":1033,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
@@ -108,7 +108,7 @@ On TRON, a top-level `FAILED` is reported as a failed status; a receipt result o
 
 ## Exit status
 
-`0` found · `1` execution failure — including *not found* on TRON (`rpc_error`) · `2` usage error, including *not found* on EVM (`not_found`).
+`0` found · `1` execution failure — including *not found* (`rpc_error` on TRON, `not_found` on EVM) · `2` usage error.
 
 ## See also
 

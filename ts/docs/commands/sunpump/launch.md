@@ -88,7 +88,7 @@ The token can be read back with [`sunpump token-info`](token-info.md), which sho
 
 ## Exit status
 
-`0` success · `1` execution failure (`provider_error` — the service refused the launch, in its reply or with an HTTP 4xx, including a name or symbol it would not take; `launch_outcome_unknown` — any other failure once the request may have reached the service, so the token may exist; `provider_rate_limited`) · `2` usage error (`missing_option`; `invalid_option` — `--account`, `--wait`, `--no-wait`, or both `--image` and `--image-base64`; `file_not_found`; `invalid_value` — a URL that does not start with `http://` or `https://`, or an image file that cannot be read; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`provider_error` — the service refused the launch, in its reply or with an HTTP 4xx, including a name or symbol it would not take; `launch_outcome_unknown` — any other failure once the request may have reached the service, so the token may exist; `provider_rate_limited`; `timeout` — the time limit ran out before the request was sent) · `2` usage error (`missing_option`; `invalid_option` — `--account`, `--wait`, `--no-wait`, or both `--image` and `--image-base64`; `file_not_found`; `invalid_value` — a URL that does not start with `http://` or `https://`, or an image file that cannot be read; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
 
 ## See also
 

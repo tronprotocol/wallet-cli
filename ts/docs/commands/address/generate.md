@@ -57,6 +57,7 @@ wallet-cli address generate -o json
 | `tron` | string | TRON base58 address |
 | `evm` | string | EVM `0x` address (EIP-55) |
 | `secretFile` | string | Path the private key was written to (absent with `--print-secret`) |
+| `privateKey` | string | The private key, 64 hex characters; only with `--print-secret` |
 
 ## Exit status
 

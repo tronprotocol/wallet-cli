@@ -18,7 +18,7 @@ The `--typed-data` value is EIP-712 / TIP-712 JSON with the shape `{"domain":…
 
 - `EIP712Domain` inside `types` is **ignored** (you may include it or leave it out).
 - `value` is accepted as an alias for `message`.
-- TRON **base58** addresses work in `address` fields, alongside `0x` hex.
+- On TRON networks, **base58** addresses work in `address` fields, alongside `0x` hex.
 
 `primaryType` is optional — it is inferred when omitted. `domain` and `message` must be objects of JSON values; invalid members fail with `invalid_payload`.
 

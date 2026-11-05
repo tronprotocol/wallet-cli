@@ -61,6 +61,7 @@ The error code says what went wrong with the device itself:
 | `ledger_unsupported` | The open app cannot sign this, or is not the right app | Open the right app and check its version |
 | `ledger_setting_required` | A TRON app setting is off | Enable the setting the message names — see [TRON app settings](#tron-app-settings) |
 | `signing_rejected` | You declined on the device | — |
+| `signed_payload_mismatch` | The device's signature does not match the account or the transaction; nothing was sent | — |
 
 On a timeout or cancellation the CLI closes the device without waiting for it; if the next command cannot open it, reconnect it. Approving the device after the command expires does not send a transaction. For a newly built TRON transaction without explicit `--expiration`, device preparation extends validity to at least 10 minutes from preparation, preserving a longer existing expiry. This window is independent of `--timeout`; explicit expiration and protocol bounds still apply, and expiry is checked before and after signing.
 

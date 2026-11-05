@@ -52,7 +52,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
 ⏳ Voted 1,000 TP across 2 witnesses
   Votes   TZ4...=600, TT5...=400
   TxID    e5f...
-  Status  pending — tallied at next maintenance cycle (~6h)
+  Status  pending — tallied at next maintenance cycle (~30m)
 ! Track it: wallet-cli tx info --network tron:3448148188 --txid e5f...
 ```
 
@@ -61,7 +61,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000,"maintenanceIntervalMs":21600000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000,"maintenanceIntervalMs":1800000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 Without `--no-wait`, the command blocks until the vote is confirmed on chain (adds real block / fee):
@@ -76,7 +76,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
   TxID    f8a...
   Block   #84,121,055
   Fee     0 TRX
-  Status  success — tallied at next maintenance cycle (~6h)
+  Status  success — tallied at next maintenance cycle (~30m)
 ```
 
 ## Output

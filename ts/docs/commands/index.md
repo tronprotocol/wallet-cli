@@ -251,7 +251,7 @@ Fee and multi-sig flags are **family-scoped**, so they are not global:
 | Flags | Family | Where |
 |---|---|---|
 | Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast`, GasFree, or the `sunswap` and `sunpump` writes |
-| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy`, `sunswap swap` / `add-liquidity` / `remove-liquidity` / `collect-fees`, and `sunpump buy` / `sell` |
+| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy`, `sunswap swap` / `add-liquidity` / `remove-liquidity` / `collect-fees`, `sunpump buy` / `sell`, and the `8004` writes |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 
 `--permission-id` selects the permission group to sign under (0=owner, 1=witness, 2-9=active) and `--expiration` extends the window for collecting co-signatures. An EVM transaction carries exactly one signature, so neither has a counterpart there: on a portable command they are tagged `(TRON only)` and refused on EVM with `invalid_option`.

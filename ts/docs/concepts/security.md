@@ -23,7 +23,7 @@ Corollary for scripts: source the piped secret from a secret store, not from a t
 
 ## Chain data cannot repaint your terminal
 
-Several fields you read before approving something are written by whoever put them on chain, or by a third-party service — permission names, token names and symbols, co-signer labels. In text mode every output frame is neutralised before it reaches the terminal: ANSI/OSC control bytes are stripped, and invisible formatting characters are replaced by a visible escape such as `<U+202E>`.
+Several fields you read before approving something are written by whoever put them on chain, or by a third-party service — permission names, token names and symbols, co-signer labels. In text mode every output frame is neutralised before it reaches the terminal: ANSI/OSC control bytes are stripped from results and errors and shown as a visible `\xNN` in warnings, and invisible formatting characters are replaced by a visible escape such as `<U+202E>`.
 
 That escape matters. `U+202E` reverses the display order of everything after it, which would let a permission name change how the address or weight printed beside it appears; zero-width characters can make two different names render identically. `<U+200B>` or `<U+202E>` appearing in a name means the underlying string really contains it — a red flag, not a rendering glitch. Ordinary right-to-left text (Arabic, Hebrew) contains no such characters and displays normally.
 

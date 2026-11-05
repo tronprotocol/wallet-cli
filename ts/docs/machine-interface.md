@@ -10,7 +10,7 @@ wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account 
 
 - Always pass `-o json`. Text output is for humans and carries no stability promise.
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
-- Long-running `x402` and `bai` commands also report progress on stderr: `⏳ …` lines in text mode, and one `{"type":"activity","message":"…"}` line per step in JSON mode. They are informational — ignore them or show them to a user, but never parse them for the outcome.
+- Long-running `x402` and `bai` commands also report progress on stderr: `⏳ …` lines in text mode, and one `{"type":"activity","message":"…"}` line per step in JSON mode. Ledger device prompts go there the same way (`{"type":"awaiting_device",…}` in JSON mode). They are informational — ignore them or show them to a user, but never parse them for the outcome.
 - `--timeout <ms>` is one deadline for the whole command; see [Time limit](#time-limit---timeout).
 - A command that submits a transaction waits for its confirmation; `--no-wait` returns after submission. See [Script safety](#script-safety-never-mistake-submitted-for-confirmed).
 - `--network` takes a canonical **CAIP-2** id (`tron:3448148188`, `eip155:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). The namespace is not the chain family: `eip155` addresses the `evm` family. Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
@@ -115,7 +115,7 @@ Schema id: `wallet-cli.result.v1`.
 | ----------------- | ------------------------ | ------------------- | -------------------------------------------------------------------------------- |
 | `schema`          | `"wallet-cli.result.v1"` | always              | Version gate; dispatch on this                                                   |
 | `success`         | boolean                  | always              | Mirrors the exit code (`true` ⇔ 0)                                               |
-| `command`         | string                   | always              | Canonical command id, e.g. `tx.send`, `list`. It names the **operation**, not the words typed: `backup --records` reports `backup.records`, `import keystore` reports `import.keystore` |
+| `command`         | string                   | always              | Canonical command id, e.g. `tx.send`, `list`. It names the **operation**, not the words typed: `backup --records` reports `backup.records`, `import keystore` reports `import.keystore`. Empty (`""`) when the call failed before a command was resolved (`unknown_command`, an unreadable `config.yaml`) |
 | `data`            | object/array             | success only        | Command-specific payload; see each command's reference page                      |
 | `error.code`      | string                   | error only          | Machine-readable; see [error codes](#error-codes)                                |
 | `error.message`   | string                   | error only          | Human-readable; **not** stable — never parse it. When a chain rejection was classified into a code, this reads `<category>: <what the node said>`, so the terminal shows the node's own numbers or revert reason; the same node text is also in `details.nodeMessage` (TRON, redacted) or `details.providerMessage` (TronLink), alongside `details.nodeCode` / `details.providerCode` |
@@ -142,7 +142,7 @@ A listing that accepts an ordering echoes it back as `{orderBy, sort}`, next to 
 
 ### Reading `meta.warnings`
 
-An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md) safety warnings, the post-confirmation checks, the error code that ended a wait for confirmation, `network_not_verified` from a TRON [`tx sign`](commands/tx/sign.md) that contacted no node, `secret_file_not_removed` from a [`delete`](commands/delete.md) that could not remove the encrypted secret file, and `backup_file_not_removed` from a wallet-data upgrade that could not remove its temporary rollback copy (the message names the file); everything else is a bare string. Normalise before display, and never assume a uniform element type:
+An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md) safety warnings, the post-confirmation checks, the error code that ended a wait for confirmation, `network_not_verified` from a TRON [`tx sign`](commands/tx/sign.md) that contacted no node, `secret_file_not_removed` from a [`delete`](commands/delete.md) that could not remove the encrypted secret file, and `backup_file_not_removed` from a wallet-data upgrade that could not remove its temporary rollback copy (the message names the file), and the `sunswap_*` notices of the SunSwap commands (such as `sunswap_scan_truncated`); everything else is a bare string. Normalise before display, and never assume a uniform element type:
 
 ```bash
 # text for humans — works for both forms
@@ -244,7 +244,7 @@ Common codes at exit **2** (usage — fix the call):
 | `token_not_in_book` / `token_is_official` / `token_already_listed` | Token address-book conditions |
 | `unsupported_token` | The selected provider or command does not support that token |
 | `insufficient_voting_power` | The requested votes exceed the account's voting power |
-| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
+| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config <key> --api-key-stdin`) |
 | `unknown_parameter` | No chain parameter by that name or id (`proposal create --set`) |
 | `invalid_asset_name` | A TRC10 name or abbreviation outside 1–32 visible ASCII characters |
 | `migration_required` | Persisted wallet data needs an upgrade this invocation cannot perform, because the master password was unavailable — re-run in a terminal, or pipe it with `--password-stdin`. See [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
@@ -264,7 +264,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
 | `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; an interactive import normally catches it at the prompt and asks again |
-| `token_metadata_unavailable` | Required token metadata could not be read from the selected network. This one crosses exit codes: most sites raise it at exit `1`, but `tx send` on TRON raises it at exit **2** when a contract answers no `decimals()` and the address book has no entry either — there the call itself has to change |
+| `token_metadata_unavailable` | Required token metadata could not be read from the selected network |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `device_not_found` / `device_unavailable` / `device_disconnected` | No Ledger was detected; a Ledger was detected but could not be opened (another app such as Ledger Live may hold it, or USB access is denied); the Ledger disconnected during the operation. See [Ledger](guide/ledger.md#3-when-the-device-doesnt-respond) |
 | `ledger_setting_required` | A setting in the Ledger TRON app must be enabled — **Custom contracts** or **Sign by Hash**; the message names which. See [TRON app settings](guide/ledger.md#tron-app-settings) |
@@ -297,7 +297,7 @@ Common codes at exit **1** (execution — runtime failure):
 | `launchpad_trading_closed` | The token's bonding curve is closed — it is awaiting launch, or it has launched and moved to SunSwap. The message distinguishes the two: one is a wait, the other a redirect to `sunswap swap` |
 | `launch_outcome_unknown` | `sunpump launch`: the create call failed without the service refusing it — a timeout, a 5xx, a dropped connection, or a reply that does not parse or names no token. `error.details.outcome` is `"unknown"`. The token may exist — look it up with `sunpump token-search <symbol>` (`error.details.symbol`) before launching again. `error.details.failure` / `httpStatus` say what went wrong, where known |
 | `insufficient_reserve` | `exchange withdraw`: more than that side of the pair holds |
-| `precision_loss` / `slippage_exceeded` / `exchange_trading_disabled` | Node rejections named from a narrow allowlist — an amount the reserve ratio cannot convert cleanly, a return below the floor, or a network that is not accepting Bancor trades at all |
+| `precision_loss` / `slippage_exceeded` / `exchange_trading_disabled` | Node rejections named from a narrow allowlist — an amount the reserve ratio cannot convert cleanly, a return below the floor (`sunswap swap` also refuses a `--min-out` above the quote with it, before signing), or a network that is not accepting Bancor trades at all |
 | `not_exportable` | The account holds no exportable secret (watch-only or Ledger) — `backup` |
 | `wrong_keystore_password` | `import keystore`: the file's own password is wrong (distinct from `auth_failed`, which is the master password). A file whose `mac` is missing or not hex is `invalid_keystore`, not a wrong password — hex case is not significant |
 | `legacy_derivation` | A seed account uses `m/44'/195'/<index>'/0/0` with index greater than zero, which the CLI refuses to sign as a seed account. Raised when signing as that TRON address, or when `derive` adds an account to its wallet. See [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) |
@@ -381,7 +381,7 @@ Alongside it, an error may carry a scalar list of just the identifiers to retry 
 
 wallet-cli never reads passwords, mnemonics or private keys from argv or from dedicated secret environment variables: arguments and exported values leak into shell history, process listings and CI logs. Two channels only:
 
-1. **stdin flags** — `--password-stdin` for the master password, `--tx-stdin` / `--message-stdin` for large payloads. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
+1. **stdin flags** — `--password-stdin` for the master password, `--tx-stdin` / `--message-stdin` for large payloads, `--api-key-stdin` for the service credentials `config` stores. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
 2. **Interactive TTY prompt** — only on the commands that declare themselves interactive: `create`, the `import` variants, `backup`, `change-password`, and `delete`'s confirmation. Everywhere else a terminal changes nothing: `tx send`, `contract *`, `stake *`, `message sign` and friends never prompt, and a missing master password is `auth_required` (exit `1`) whether or not a TTY is attached.
 
 A shell variable in an example is only a shell-side source for a pipe; wallet-cli does not read it. Keep such variables process-local and short-lived, and do not export them long term.

@@ -44,7 +44,7 @@ The command was malformed — a flag is unknown, missing, conflicting, or has a 
 
 The command, the account, or the transaction does not belong to the selected network's chain family — for example `stake freeze --network sepolia`, or a TRON-only watch-only account used on an EVM network.
 
-- Check which family the command serves: `wallet-cli <command> --help` names it, and [the command reference](commands/index.md#which-commands-run-on-which-networks) lists every TRON-only command.
+- Check which family the command serves: its `families` in `wallet-cli --json-schema` names it, and [the command reference](commands/index.md#which-commands-run-on-which-networks) lists every TRON-only command.
 - Check which network you actually selected — with `--network` omitted it is `config.defaultNetwork`. `wallet-cli config defaultNetwork` shows it.
 - If the account is the mismatch: a seed or private-key account works on both families, but a **watch-only or Ledger account has one address and one family**. `wallet-cli list -o json` shows each account's `addresses` and its `family`.
 
@@ -93,9 +93,9 @@ The node accepted the connection but rejected the request — a TRON API call, o
 
 - *Transaction not found*: wrong `--txid`, wrong `--network` (a Nile txid queried on mainnet), or the tx hasn't propagated yet — retry after a few seconds.
 - *Insufficient balance / bandwidth / energy*: fund the account, or stake for resources (`stake freeze`) — see [Networks](concepts/networks.md) for how resources work; on Nile use the faucet.
-- *TRC20 send reverting* (`execution_reverted`, "TRON constant call reverted"): work through it in this order — (1) **the token balance is too low** for the amount you asked for, by far the most common cause: check it with `token balance --contract <address>`, and remember a TRX faucet does not give you tokens; (2) the recipient or the contract address is wrong; (3) only once both are ruled out, consider raising `--fee-limit` (default 100000000 SUN) — raising it does not fix an insufficient balance, it only lets a genuinely expensive call through.
+- *TRC20 send reverting* (`execution_reverted`, "TRON constant call reverted"): work through it in this order — (1) the recipient or the contract address is wrong; (2) only once that is ruled out, consider raising `--fee-limit` (default 100000000 SUN) — it only lets a genuinely expensive call through. A token balance too low for the amount fails before this, with `insufficient_token_balance`: check it with `token balance --contract <address>`, and remember a TRX faucet does not give you tokens.
 
-- *`Request failed with status code 429`*: the public TronGrid endpoint is rate-limiting you. Space the calls out and retry, or configure an API key with `config networks.<id>.apiKey`. (A 429 from GasFree, TronLink, B.AI, x402, or the SunSwap or SunPump services is `provider_rate_limited` instead.)
+- *`Request failed with status code 429`*: the public TronGrid endpoint is rate-limiting you. Space the calls out and retry, or configure an API key with `config networks.<id>.apiKey --api-key-stdin`. (A 429 from GasFree, TronLink, B.AI, x402, the SunSwap or SunPump services, or `account history` is `provider_rate_limited` instead.)
 
 ## `unsupported_network_capability` (exit 2)
 

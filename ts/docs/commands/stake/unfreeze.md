@@ -85,7 +85,7 @@ echo "$PW" | wallet-cli stake unfreeze --amount-sun 1000000000 --resource energy
 
 ## Exit status
 
-`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`insufficient_stake` — amount exceeds stake for this resource; `watch_only_no_signer`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
 
 ## See also
 

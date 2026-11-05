@@ -44,7 +44,7 @@ wallet-cli use main-1 -o json
 
 | Field | Type | Meaning |
 |---|---|---|
-| `previous` | string | Account id that was active before |
+| `previous` | string \| null | Account id that was active before; `null` when none was |
 | `accountId` | string | Now-active account id |
 | `label` | string | Account label |
 | `type` | string | `seed` / `privateKey` / `watch` / `ledger` |

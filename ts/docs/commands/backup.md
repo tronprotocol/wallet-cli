@@ -43,7 +43,7 @@ With `--records` and no account, nothing is exported: the command lists the **lo
 - `--keystore` and `--out` describe an export, so combining either with `--records` fails rather than being silently ignored.
 - `--from` / `--to` / `--limit` / `--offset` filter the log, so any of them **without** `--records` fails too.
 
-Both are `invalid_value` at exit `2`, and the message names the offending flag — for example `invalid --offset: --offset filters the export log; it needs --records`.
+The first is `invalid_option` and the second `invalid_value`, both at exit `2`, and the message names the offending flag — for example `invalid --offset: --offset filters the export log; it needs --records`.
 
 The positional account is the exception: it means different things in the two forms rather than conflicting with `--records`. `backup main` exports `main`'s secret; `backup main --records` lists `main`'s past exports, exactly as `--account main` would.
 
@@ -182,7 +182,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`account_not_found` — no such account; `output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
+`0` success · `1` execution failure (`aborted` — Ctrl-C at a prompt; nothing is written; `not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`account_not_found` — no such account; `output_exists` — the target file already exists and is never overwritten; `invalid_option` — `--keystore` / `--out` with `--records`; `invalid_value` — a record filter without `--records`, or a bad time / limit / offset).
 
 ## See also
 

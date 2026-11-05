@@ -40,7 +40,7 @@ Three contract types cannot be re-encoded field by field by the bundled decoder 
 | `--file <path>` | **Required** (one of). File containing the transaction hex (prefer this for long hex) |
 | `--transaction <json>` | **Required** (one of). **TRON only.** Unsigned TRON transaction JSON; compatibility path, never checked online |
 | `--offline` | Sign locally without contacting a node; skips the signer-permission and approval-weight checks. Only with `--hex` / `--file`, and only meaningful on TRON — EVM signing contacts no node either way |
-| `--out <path>` | Atomically write the signed transaction to a mode-0644 file — the co-signed protobuf hex on TRON, the signed RLP on EVM. It *adds* a file; the same hex stays in the result body, so a consumer that wants only the summary drops that field itself. Not valid with `--transaction` |
+| `--out <path>` | Write the signed transaction to a new mode-0600 file; an existing path is refused (`output_exists`) — the co-signed protobuf hex on TRON, the signed RLP on EVM. It *adds* a file; the same hex stays in the result body, so a consumer that wants only the summary drops that field itself. Not valid with `--transaction` |
 
 Plus the [global options](../index.md#global-options-every-command) and `--password-stdin` for software accounts.
 
@@ -148,7 +148,7 @@ No `fee` is reported for `--transaction`: nothing was estimated, because the tra
 
 ## Exit status
 
-`0` success · `1` execution failure (`invalid_transaction` — inconsistent TRON payload representations, an unusable payload, or on EVM one that is already signed; `chain_id_mismatch` — the transaction was built for another chain (on TRON, its reference block is not on the selected network); `tx_expired`, `not_authorized` — this account isn't in the group's key list, `already_signed`, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `rpc_error`) · `2` usage error (`invalid_value` — malformed values, `missing_option`; `invalid_option` — missing or conflicting transaction sources, or `--transaction` on an EVM network).
+`0` success · `1` execution failure (`invalid_transaction` — inconsistent TRON payload representations, an unusable payload, or on EVM one that is already signed; `chain_id_mismatch` — the transaction was built for another chain (on TRON, its reference block is not on the selected network); `tx_expired`, `not_authorized` — this account isn't in the group's key list, `already_signed`, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `rpc_error`) · `2` usage error (`invalid_value` — malformed values, `missing_option`; `invalid_option` — missing or conflicting transaction sources, or `--transaction` on an EVM network; `output_exists` — the `--out` path already exists).
 
 ## See also
 

@@ -48,7 +48,7 @@ TRON only:
 | `--call-value-sun <string>` | **Deprecated**, removed next release — native TRX attached to the call, in SUN. Use `--value` |
 | `--fee-limit <string>` | Max energy fee to burn, in SUN (default 100000000) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s; [Ledger exception](../../guide/ledger.md#3-when-the-device-doesnt-respond)) |
 
 EVM only:
 
@@ -138,7 +138,7 @@ The `fee` object is shaped by the network's fee model: `tron-resource` reports t
 
 ## Exit status
 
-`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`, `nonce_too_low` — `--dry-run` with an already-mined `--nonce`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value` — malformed values; `invalid_option` — conflicting modes, or a fee or multi-sig flag scoped to the other family).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`execution_reverted` — the call reverts when estimated, in every mode, `watch_only_no_signer`, `auth_failed`, `nonce_too_low` — `--dry-run` with an already-mined `--nonce`, `rpc_error`, `timeout` — on timeout the tx may still be in flight; check [`tx status`](../tx/status.md)) · `2` usage error (`invalid_value` — malformed values; `invalid_option` — conflicting modes, or a fee or multi-sig flag scoped to the other family).
 
 ## See also
 

@@ -40,7 +40,7 @@ Known keys:
 | `networks` | — | — | Known networks and their configurable fields (read-only as a whole) |
 | `networks.<id>` | — | — | One network's configurable fields; `<id>` may be a canonical id or an alias |
 | `networks.<id>.httpEndpoint` | absolute HTTP(S) URL | per network | The node/RPC endpoint to use; invalid values fail with `invalid_value` |
-| `networks.<id>.apiKeyHeader` | header name | (unset) | HTTP header name, 1–64 characters without spaces, colons or control characters; surrounding whitespace is trimmed, e.g. `TRON-PRO-API-KEY` |
+| `networks.<id>.apiKeyHeader` | header name | (unset) | HTTP header name, 1–64 letters, digits or ``!#$%&'*+-.^_`\|~``; surrounding whitespace is trimmed, e.g. `TRON-PRO-API-KEY` |
 | `networks.<id>.apiKey` | string | (unset) | Credential sent in that header. **Secret** — always rendered masked, set only through `--api-key-stdin` |
 
 `networks` and `aliases` are read-only as a whole; the writable network settings are the three `networks.<id>.…` leaves. Any other sub-key is `invalid_value`, and the error names the ones that are supported.

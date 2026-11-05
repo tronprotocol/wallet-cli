@@ -81,11 +81,13 @@ wallet-cli chain params --network nile -o json
 | `value` | number | Raw chain value, no unit suffix. Absent altogether for a parameter the node reports without one |
 | `unit` | string | Unit of `value` (`sun`, `sun/byte`, `ms`); empty for a flag, a count, or a key wallet-cli does not know |
 
+With `--key`, `data` is that one entry — `key`, `value`, `unit` — not a `params` array.
+
 A parameter value that cannot be represented as a safe integer fails with `provider_error`.
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`not_found` — `--key` doesn't exist; `invalid_value`; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`rpc_error`) · `2` usage error (`unknown_parameter` — `--key` doesn't exist; `invalid_value`; `family_mismatch` on an EVM network).
 
 ## See also
 

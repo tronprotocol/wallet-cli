@@ -98,7 +98,7 @@ The command waits for confirmation by default and reports `stage: "confirmed"` (
 
 ## Exit status
 
-`0` success (submitted, or built/estimated) · `1` execution failure (`position_not_found`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `tx_expired`) · `2` usage error (`missing_option` — no `--protocol` or `--position-id`; `invalid_value` — `V2` or another protocol, a position owed nothing, a position held by another account, a pair or fee that does not match the position; `invalid_option` — a flag outside its protocol, such as `--recipient` on V4; `invalid_address`; `unsupported_network_capability`; `family_mismatch`).
+`0` success (submitted, or built/estimated) · `1` execution failure (`position_not_found`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `tx_expired`) · `2` usage error (`missing_option` — no `--protocol` or `--position-id`, only one of `--token0` / `--token1`, or `--fee` without them; `invalid_value` — `V2` or another protocol, a position owed nothing, a position held by another account, a pair or fee that does not match the position; `invalid_option` — a flag outside its protocol, such as `--recipient` on V4; `invalid_address`; `unsupported_network_capability`; `family_mismatch`).
 
 ## See also
 

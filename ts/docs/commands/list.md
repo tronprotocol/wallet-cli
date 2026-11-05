@@ -72,7 +72,7 @@ The `chain` block echoes the network that was selected for display; the command 
 
 ## Exit status
 
-`0` · `2` usage error. See [machine-interface](../machine-interface.md#exit-codes).
+`0` · `1` execution failure (`encoding_error` — the local wallet file could not be decoded) · `2` usage error. See [machine-interface](../machine-interface.md#exit-codes).
 
 ## See also
 

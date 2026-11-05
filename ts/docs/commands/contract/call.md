@@ -68,7 +68,7 @@ Result  0x0000000000000000000000000000000000000000000000000000000000000000 (raw)
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`, revert) · `2` usage error (`invalid_value` — bad signature or params JSON).
+`0` success · `1` execution failure (`rpc_error`; `execution_reverted` — the call reverted, with `error.details.revertData` when the node returned any; `invalid_node_response` — a malformed reply) · `2` usage error (`invalid_value` — bad signature or params JSON).
 
 ## See also
 
