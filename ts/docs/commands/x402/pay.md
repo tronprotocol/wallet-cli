@@ -50,7 +50,7 @@ Requires an account, even for an endpoint that turns out to be free. The master 
 | `--method <GET\|POST\|PUT\|PATCH\|DELETE>` | HTTP method (default `GET`) |
 | `--header <"Name: value">` | Request header in `Name: value` form; repeat for more |
 | `--body <string>` | Request body; excludes `--body-file`; not with `--method GET` |
-| `--body-file <path>` | Read the request body from a file, or from stdin with `-`; excludes `--body` |
+| `--body-file <path>` | Read the request body from a file, or from stdin with `-`; excludes `--body`; not with `--method GET` |
 | `--max-amount <n>` | Refuse a route priced above this, in whole tokens; excludes `--max-raw-amount` |
 | `--max-raw-amount <n>` | The same limit in smallest units; requires `--token` or `--asset`, since a raw amount has no unit |
 | `--token <symbol>` | Accept only routes paying in this token |
