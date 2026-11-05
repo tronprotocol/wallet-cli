@@ -10,6 +10,28 @@ The repository holds two independent implementations:
   [TypeScript](#typescript-ts) and `ts/README.md`.
 - `java/` — the original REPL-first implementation. See [Java](#java-java).
 
+## Graphify
+
+Use the local code graph when you need to explore: where a symbol is used, how a flow passes through modules,
+or what a change affects. Query it with
+`bash scripts/graphify.sh query "<symbol or question>" --budget 1200` from the repository root.
+Use this wrapper to select the project's pinned Graphify version and disable LLM backends. When you already
+know the file and lines, or need every occurrence of a string, use source search instead.
+
+- Initial setup: `bash scripts/graphify.sh setup` (requires `uv` and Python 3.13).
+- Refresh only before a query, when the graph may be stale (a new session, a branch change, or code edits since
+  the last refresh): `bash scripts/graphify.sh refresh`. Extraction reuses unchanged files. If refresh fails,
+  say the graph is stale and use source search.
+- From `ts/` or `java/`, use `bash ../scripts/graphify.sh` with the same arguments. The wrapper changes
+  to the repository root and updates the shared graph for both implementations.
+- View `graphify-out/graph.html` for communities or `graphify-out/GRAPH_TREE.html` for symbols by file;
+  query data is in `graphify-out/graph.json` and the summary is in
+  `graphify-out/GRAPH_REPORT.md`. These generated files and the local Python environment are git-ignored.
+- The scan covers code and tests in both implementations; `.graphifyignore` excludes generated code,
+  snapshots, build output, and local state. Document semantics are outside this code-only graph.
+- Confirm graph findings in source, especially port-to-adapter wiring in `ts/src/bootstrap/composition.ts`.
+  Architecture rules and automated checks remain authoritative. If Graphify is unavailable, use source search.
+
 ## TypeScript (`ts/`)
 
 A self-contained, agent-first CLI (Node.js 22.23.4+ / 24.22.1+ / 26.12.1+, ESM, TypeScript). Every command has a
