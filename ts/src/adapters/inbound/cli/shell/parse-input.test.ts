@@ -54,14 +54,16 @@ describe("parseInputSchema", () => {
     );
   });
 
-  it("names a positional by its placeholder", () => {
-    const positional = z.object({ token: z.string().min(2) });
-    const positionals = [{ field: "token", placeholder: "address" }];
-    expect(() => parseInputSchema(positional, {}, positionals)).toThrowError(
-      "missing required option --address",
+  it.each([
+    [{ field: "token", placeholder: "address" }, "<address>"],
+    [{ field: "uri" }, "<uri>"],
+  ])("names a positional argument as its usage line does (%o)", (positional, shown) => {
+    const schema = z.object({ [positional.field]: z.string().min(2) });
+    expect(() => parseInputSchema(schema, {}, [positional])).toThrowError(
+      `missing required argument ${shown}`,
     );
-    expect(() => parseInputSchema(positional, { token: "x" }, positionals)).toThrowError(
-      /^invalid --address:/,
+    expect(() => parseInputSchema(schema, { [positional.field]: "x" }, [positional])).toThrowError(
+      `invalid ${shown}:`,
     );
   });
 

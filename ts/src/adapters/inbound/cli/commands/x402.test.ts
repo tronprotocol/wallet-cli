@@ -75,6 +75,26 @@ describe("x402 command surface", () => {
   });
 
   it.each([
+    ["GET", { body: "{}" }, false],
+    ["GET", { bodyFile: "request.json" }, false],
+    ["GET", {}, true],
+    ["DELETE", { body: "{}" }, true],
+  ])("with --method %s and %o accepts the request: %s", (method, body, ok) => {
+    const registry = new CommandRegistry();
+    registerX402Commands(registry, service());
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    const result = neutralInputSchema(pay).safeParse({
+      url: "https://example.test",
+      method,
+      header: [],
+      ...body,
+    });
+    expect(result.success).toBe(ok);
+    if (!result.success)
+      expect(result.error.issues[0]).toMatchObject({ params: { errorCode: "invalid_option" } });
+  });
+
+  it.each([
     ["0", false],
     [(1n << 256n).toString(), false],
     ["1", true],

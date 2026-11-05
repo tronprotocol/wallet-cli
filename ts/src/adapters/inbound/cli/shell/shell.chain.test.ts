@@ -433,7 +433,7 @@ describe("block positional", () => {
       const { cli, run } = blockShell();
       await expect(cli.parseAsync(["block", pos])).rejects.toMatchObject({
         code: "invalid_value",
-        message: expect.stringContaining("--number"),
+        message: expect.stringContaining("<number>"),
       });
       expect(run).not.toHaveBeenCalled();
     },

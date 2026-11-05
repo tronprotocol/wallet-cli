@@ -70,6 +70,15 @@ const payInput = payFields.superRefine((value, context) => {
         "requires --token or --asset; a raw limit has no unit, so pin it to one token or use --max-amount",
     });
   }
+  // HTTP fetch refuses a GET body, so refuse it here, before any request.
+  if (value.method === "GET" && (value.body !== undefined || value.bodyFile !== undefined)) {
+    context.addIssue({
+      code: "custom",
+      params: { errorCode: "invalid_option" },
+      path: [value.body !== undefined ? "body" : "bodyFile"],
+      message: "cannot be used with --method GET",
+    });
+  }
   if (value.decimals !== undefined && !value.asset) {
     context.addIssue({
       code: "custom",

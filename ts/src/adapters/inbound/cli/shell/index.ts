@@ -584,13 +584,16 @@ export function parseInputSchema(
   if (result.success) return result.data;
   const issue = result.error.issues[0]!;
   const key = issue.path[0];
-  // A positional is named as its usage line shows it.
-  const name = (part: PropertyKey) =>
-    positionals.find((p) => p.field === part)?.placeholder ?? String(part);
-  const field =
-    issue.path.map((part, i) => (i === 0 ? name(part) : String(part))).join(".") || "input";
+  // A positional is named as its usage line shows it, an option by its flag.
+  const positional = positionals.find((p) => p.field === key);
+  const subject = positional
+    ? `<${positional.placeholder ?? positional.field}>`
+    : `--${camelToKebab(issue.path.map(String).join(".") || "input")}`;
   if (issue.code === "invalid_type" && key !== undefined && argv[key] === undefined) {
-    throw new UsageError("missing_option", `missing required option --${camelToKebab(name(key))}`);
+    throw new UsageError(
+      "missing_option",
+      positional ? `missing required argument ${subject}` : `missing required option ${subject}`,
+    );
   }
   // Refines may select only registered usage-error codes; other codes fall back to invalid_value.
   const declared = (issue as { params?: { errorCode?: unknown } }).params?.errorCode;
@@ -601,7 +604,7 @@ export function parseInputSchema(
     declaredCode && entry && (entry.exit === 2 || entry.exit === "either")
       ? declaredCode
       : "invalid_value";
-  throw new UsageError(code, `invalid --${camelToKebab(field)}: ${issue.message}`);
+  throw new UsageError(code, `invalid ${subject}: ${issue.message}`);
 }
 
 function withFields(spec: ChainSpec, fields: ZodObject<ZodRawShape>): CommandExecutionSpec {
