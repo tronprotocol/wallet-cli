@@ -1,15 +1,11 @@
+import { assertSubmitAdmitted, submitDispatchCheck } from "../services/command-deadline.js";
 import { randomBytes } from "node:crypto";
 import type { TransactionScope } from "../contracts/execution-scope.js";
-import type { MessageService } from "./message-service.js";
+import type { MessageSigner } from "../services/signing/message-signer.js";
 import type { BaiRechargeApi } from "../ports/bai-recharge.js";
 import { UsageError } from "../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
-
-export function baiChain(network: NetworkDescriptor): string | undefined {
-  if (network.family === "evm" && network.chainId === "56") return "bnb";
-  if (network.family === "evm" && network.chainId === "8453") return "base";
-  if (network.family === "tron" && network.chainId === "728126428") return "tron";
-}
+import { baiChain } from "../services/capability/predicates.js";
 
 export function requireBaiChain(network: NetworkDescriptor): string {
   const chain = baiChain(network);
@@ -20,10 +16,10 @@ export function requireBaiChain(network: NetworkDescriptor): string {
   );
 }
 
-/** Signs only after recharge has checked the live binding status and signing credentials. */
+// Caller must check live binding status and signing credentials first.
 export class BaiWalletBinding {
   constructor(
-    private readonly messages: Pick<MessageService, "sign">,
+    private readonly messages: Pick<MessageSigner, "sign">,
     private readonly now: () => number = Date.now,
     private readonly nonce: () => string = () => randomBytes(16).toString("hex"),
   ) {}
@@ -44,8 +40,12 @@ export class BaiWalletBinding {
       type: "activity",
       message: "Wallet is not bound; signing the B.AI binding message…",
     });
-    const signed = await this.messages.sign(scope, network.family, scope.activeAccount, message);
+    const signed = await this.messages.sign(scope, network, scope.activeAccount, message, "built");
     scope.emit({ type: "activity", message: "Binding the selected wallet to B.AI…" });
-    await api.bind({ chain, address, message, signature: signed.signature, version: 2 });
+    assertSubmitAdmitted(scope.deadline);
+    await api.bind(
+      { chain, address, message, signature: signed.signature, version: 2 },
+      submitDispatchCheck(scope.deadline),
+    );
   }
 }

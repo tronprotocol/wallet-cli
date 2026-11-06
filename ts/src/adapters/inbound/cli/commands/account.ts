@@ -6,32 +6,7 @@ import type { TronAccountService } from "../../../../application/use-cases/tron/
 import { ciEnum } from "../arity/index.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
-
-const transactionModeRefine = (
-  input: {
-    dryRun?: boolean;
-    signOnly?: boolean;
-    buildOnly?: boolean;
-    expiration?: number;
-  },
-  context: z.RefinementCtx,
-): void => {
-  if ([input.dryRun, input.signOnly, input.buildOnly].filter(Boolean).length > 1) {
-    context.addIssue({
-      code: "custom",
-      path: ["dryRun"],
-      message: "choose at most one of --dry-run, --sign-only, --build-only",
-    });
-  }
-  if (input.expiration !== undefined && !input.signOnly && !input.buildOnly) {
-    context.addIssue({
-      code: "custom",
-      path: ["expiration"],
-      message: "--expiration is only valid with --sign-only or --build-only",
-    });
-  }
-};
+import { tronExpirationRefine, txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 
 export const accountActivateSpec: ChainSpec = {
   path: ["account", "activate"],
@@ -45,12 +20,13 @@ export const accountActivateSpec: ChainSpec = {
     "Create the account on chain, funded by the active account. The target must not already be\n" +
     "active; use --dry-run to inspect current creation fees. Note: a plain transfer also activates\n" +
     "the recipient, so use this command only when the address just needs to exist.",
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     address: Schemas.addressFor("tron").describe("unactivated TRON base58 address"),
     ...txModeFields,
     ...tronTxModeFields,
   }),
-  baseRefine: transactionModeRefine,
+  baseRefine: tronExpirationRefine,
   examples: [
     { cmd: "wallet-cli account activate --address T... --dry-run" },
     { cmd: "wallet-cli account activate --address T... --wait --password-stdin" },
@@ -84,17 +60,8 @@ export const accountSetSpec: ChainSpec = {
     ...txModeFields,
     ...tronTxModeFields,
   }),
-  exclusive: [{ label: "what to set", flags: ["name", "id"] }],
-  baseRefine: (input, context) => {
-    if ((input.name === undefined) === (input.id === undefined)) {
-      context.addIssue({
-        code: "custom",
-        path: ["name"],
-        message: "provide exactly one of --name or --id",
-      });
-    }
-    transactionModeRefine(input, context);
-  },
+  exclusive: [{ label: "what to set", flags: ["name", "id"] }, txModeExclusive],
+  baseRefine: tronExpirationRefine,
   examples: [
     { cmd: "wallet-cli account set --name alice --dry-run" },
     { cmd: "wallet-cli account set --id alice-001 --wait --password-stdin" },
@@ -113,7 +80,6 @@ export const accountBalanceSpec: ChainSpec = {
   auth: "none",
   capability: "account.balance.native",
   summary: "Show the native coin balance",
-  // Which coin, and how much of it, depend entirely on the selected network.
   description: "Show the native coin balance for the selected network",
   baseFields: z.object({}),
   examples: [
@@ -123,8 +89,6 @@ export const accountBalanceSpec: ChainSpec = {
   formatText: TextFormatters.accountBalance,
 };
 
-/** Shared by every family: the balance read is family-neutral, so one binding serves them all
- *  and the family comes from the selected network. */
 export const accountBalanceBinding = (svc: AccountBalanceService): FamilyBinding => ({
   run: async (ctx, net) => svc.balance(ctx, net, net.family),
 });
@@ -135,8 +99,6 @@ export const accountInfoSpec: ChainSpec = {
   wallet: "optional",
   auth: "none",
   summary: "Show the account's on-chain state",
-  // The field SETS differ by family — not the same fields with different values — so the
-  // help says which fields to expect rather than leaving the reader to discover it.
   description:
     "Show the account's on-chain state for the selected network. Fields differ by\n" +
     "family: TRON reports staked amounts, resources and permissions; EVM reports the\n" +

@@ -1,3 +1,7 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { lookup } from "node:dns/promises";
 import { EventEmitter } from "node:events";
 import { request as httpRequest } from "node:http";
@@ -6,6 +10,8 @@ import { Readable } from "node:stream";
 import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RegistrationLoader } from "./registration-loader.js";
+import { expiredCheck, expiringCheck } from "../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
 
 vi.mock("node:dns/promises", () => ({ lookup: vi.fn() }));
 vi.mock("node:http", () => ({ request: vi.fn() }));
@@ -76,7 +82,7 @@ describe("RegistrationLoader", () => {
     const encoded = Buffer.from(JSON.stringify({ name: "Ada", active: true })).toString("base64");
 
     await expect(
-      new RegistrationLoader(1_000).load(`data:application/json;base64,${encoded}`),
+      new RegistrationLoader(1_000).load(`data:application/json;base64,${encoded}`, NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata URI is invalid or unsupported" });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(httpRequestMock).not.toHaveBeenCalled();
@@ -89,7 +95,7 @@ describe("RegistrationLoader", () => {
     ["invalid base64", "data:application/json;base64,e30"],
     ["non-JSON bytes", "data:application/json;base64,////"],
   ])("rejects %s without transport access", async (_label, uri) => {
-    const result = await new RegistrationLoader(1_000).load(uri);
+    const result = await new RegistrationLoader(1_000).load(uri, NO_CHECK);
 
     expect(result.metadata).toBeUndefined();
     expect(result.warning).toMatch(/^Registration metadata /);
@@ -107,7 +113,7 @@ describe("RegistrationLoader", () => {
     allowPublicDns();
     replyHttps(JSON.stringify(value));
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/agent.json"),
+      new RegistrationLoader(1_000).load("https://metadata.example/agent.json", NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata is not a JSON object" });
   });
 
@@ -116,7 +122,7 @@ describe("RegistrationLoader", () => {
     replyHttps(JSON.stringify({ name: "remote" }), 200, { "content-type": "application/json" });
 
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/agent.json"),
+      new RegistrationLoader(1_000).load("https://metadata.example/agent.json", NO_CHECK),
     ).resolves.toEqual({ metadata: { name: "remote" } });
     expect(String(httpsRequestMock.mock.calls[0]![0])).toBe("https://metadata.example/agent.json");
     expect(httpsRequestMock.mock.calls[0]![1]).toEqual(
@@ -150,7 +156,7 @@ describe("RegistrationLoader", () => {
     fetchMock.mockRejectedValue(new Error("unsafe hostname resolution was used"));
 
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/agent.json"),
+      new RegistrationLoader(1_000).load("https://metadata.example/agent.json", NO_CHECK),
     ).resolves.toEqual({ metadata: { name: "pinned" } });
 
     expect(dnsLookup).toHaveBeenCalledTimes(1);
@@ -168,7 +174,7 @@ describe("RegistrationLoader", () => {
     replyHttp('{"name":"http"}');
 
     await expect(
-      new RegistrationLoader(1_000).load("http://metadata.example/agent.json"),
+      new RegistrationLoader(1_000).load("http://metadata.example/agent.json", NO_CHECK),
     ).resolves.toEqual({ metadata: { name: "http" } });
     expect(httpRequestMock).toHaveBeenCalledTimes(1);
     expect(httpsRequestMock).not.toHaveBeenCalled();
@@ -184,7 +190,7 @@ describe("RegistrationLoader", () => {
     "http://169.254.169.254/latest/meta-data/",
     "http://10.0.0.4/private",
   ])("blocks a local or private literal before fetch: %s", async (uri) => {
-    await expect(new RegistrationLoader(1_000).load(uri)).resolves.toEqual({
+    await expect(new RegistrationLoader(1_000).load(uri, NO_CHECK)).resolves.toEqual({
       warning: "Registration metadata URI targets a restricted network address",
     });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -199,7 +205,7 @@ describe("RegistrationLoader", () => {
     ] as never);
 
     await expect(
-      new RegistrationLoader(1_000).load("https://mixed.example/agent"),
+      new RegistrationLoader(1_000).load("https://mixed.example/agent", NO_CHECK),
     ).resolves.toEqual({
       warning: "Registration metadata URI targets a restricted network address",
     });
@@ -211,7 +217,7 @@ describe("RegistrationLoader", () => {
     "ftp://public.example/agent.json",
     "https://alice:secret@metadata.example/agent.json?token=query-secret",
   ])("rejects an unsafe URI without echoing it: %s", async (uri) => {
-    const result = await new RegistrationLoader(1_000).load(uri);
+    const result = await new RegistrationLoader(1_000).load(uri, NO_CHECK);
 
     expect(result).toEqual({ warning: "Registration metadata URI is invalid or unsupported" });
     expect(result.warning).not.toContain("secret");
@@ -223,7 +229,7 @@ describe("RegistrationLoader", () => {
 
   it("rejects IPFS without using a gateway or DNS", async () => {
     await expect(
-      new RegistrationLoader(1_000).load("ipfs://QmAgentCID/agent.json"),
+      new RegistrationLoader(1_000).load("ipfs://QmAgentCID/agent.json", NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata URI is invalid or unsupported" });
     expect(dnsLookup).not.toHaveBeenCalled();
     expect(httpsRequestMock).not.toHaveBeenCalled();
@@ -235,7 +241,7 @@ describe("RegistrationLoader", () => {
       allowPublicDns();
       replyHttps("", status, { location: "http://internal.example/admin?token=secret" });
       await expect(
-        new RegistrationLoader(1_000).load("https://metadata.example/agent.json"),
+        new RegistrationLoader(1_000).load("https://metadata.example/agent.json", NO_CHECK),
       ).resolves.toEqual({ warning: "Registration metadata redirects are not allowed" });
       expect(dnsLookup).toHaveBeenCalledTimes(1);
       expect(httpsRequestMock).toHaveBeenCalledTimes(1);
@@ -246,7 +252,10 @@ describe("RegistrationLoader", () => {
   it.each([20, 21, 10000])("limits object/array depth at %s", async (depth) => {
     allowPublicDns();
     replyHttps('{"child":'.repeat(depth - 1) + "{}" + "}".repeat(depth - 1));
-    const result = await new RegistrationLoader(1000).load("https://metadata.example/agent.json");
+    const result = await new RegistrationLoader(1000).load(
+      "https://metadata.example/agent.json",
+      NO_CHECK,
+    );
     if (depth <= 20) expect(result.metadata).toBeDefined();
     else
       expect(result).toEqual({
@@ -254,23 +263,19 @@ describe("RegistrationLoader", () => {
       });
   });
 
-  it.each([
-    [5000, 5000],
-    [10000, 10000],
-    [30000, 10000],
-  ])("caps timeout %s at %s", async (configured, effective) => {
+  it("keeps the 10 s cap and its warning when the command deadline is longer", async () => {
     vi.useFakeTimers();
     try {
       allowPublicDns();
       httpsRequestMock.mockImplementation(() => clientRequest());
       let settled = false;
-      const pending = new RegistrationLoader(configured)
-        .load("https://metadata.example/agent.json")
+      const pending = new RegistrationLoader()
+        .load("https://metadata.example/agent.json", expiringCheck(30_000))
         .then((result) => {
           settled = true;
           return result;
         });
-      await vi.advanceTimersByTimeAsync(effective - 1);
+      await vi.advanceTimersByTimeAsync(9_999);
       expect(settled).toBe(false);
       await vi.advanceTimersByTimeAsync(1);
       expect(await pending).toEqual({ warning: "Registration metadata request timed out" });
@@ -280,12 +285,35 @@ describe("RegistrationLoader", () => {
     }
   });
 
+  it("fails the load when the command deadline expires before the cap", async () => {
+    vi.useFakeTimers();
+    try {
+      allowPublicDns();
+      httpsRequestMock.mockImplementation(() => clientRequest());
+      const pending = new RegistrationLoader()
+        .load("https://metadata.example/agent.json", expiringCheck(5_000))
+        .catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(await pending).toBeInstanceOf(DeadlineExpiredError);
+      expect((httpsRequestMock.mock.calls[0]![1] as RequestOptions).signal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refuses to start once the command deadline has expired", async () => {
+    await expect(
+      new RegistrationLoader().load("https://metadata.example/agent.json", expiredCheck()),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(dnsLookup).not.toHaveBeenCalled();
+  });
+
   it("rejects a declared response larger than 1 MiB without reading it", async () => {
     allowPublicDns();
     replyHttps("ignored", 200, { "content-length": String(1024 * 1024 + 1) });
 
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/large"),
+      new RegistrationLoader(1_000).load("https://metadata.example/large", NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata response exceeds the 1 MiB limit" });
   });
 
@@ -294,7 +322,7 @@ describe("RegistrationLoader", () => {
     replyHttps("x".repeat(1024 * 1024 + 1));
 
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/streamed"),
+      new RegistrationLoader(1_000).load("https://metadata.example/streamed", NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata response exceeds the 1 MiB limit" });
   });
 
@@ -303,7 +331,10 @@ describe("RegistrationLoader", () => {
     replyHttps("{not-json");
 
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/agent?token=query-secret"),
+      new RegistrationLoader(1_000).load(
+        "https://metadata.example/agent?token=query-secret",
+        NO_CHECK,
+      ),
     ).resolves.toEqual({ warning: "Registration metadata contains malformed JSON" });
   });
 
@@ -312,11 +343,14 @@ describe("RegistrationLoader", () => {
     replyHttps("provider secret", 503);
 
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/agent?token=query-secret"),
+      new RegistrationLoader(1_000).load(
+        "https://metadata.example/agent?token=query-secret",
+        NO_CHECK,
+      ),
     ).resolves.toEqual({ warning: "Registration metadata request returned HTTP 503" });
   });
 
-  it("aborts at the configured deadline without exposing the network error", async () => {
+  it("aborts at the cap without exposing the network error", async () => {
     allowPublicDns();
     httpsRequestMock.mockImplementation(((
       _url: URL,
@@ -325,11 +359,11 @@ describe("RegistrationLoader", () => {
     ) => clientRequest()) as typeof httpsRequest);
 
     await expect(
-      new RegistrationLoader(5).load("https://metadata.example/agent?token=query-secret"),
+      new RegistrationLoader(5).load("https://metadata.example/agent?token=query-secret", NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata request timed out" });
   });
 
-  it("destroys an active response stream at the deadline", async () => {
+  it("destroys an active response stream at the cap", async () => {
     allowPublicDns();
     const response = new Readable({ read() {} }) as IncomingMessage;
     response.statusCode = 200;
@@ -344,12 +378,12 @@ describe("RegistrationLoader", () => {
     }) as typeof httpsRequest);
 
     await expect(
-      new RegistrationLoader(5).load("https://metadata.example/never-ending"),
+      new RegistrationLoader(5).load("https://metadata.example/never-ending", NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata request timed out" });
     expect(response.destroyed).toBe(true);
   });
 
-  it("does not start transport after a pending DNS lookup exceeds the deadline", async () => {
+  it("does not start transport after a pending DNS lookup exceeds the cap", async () => {
     let releaseDns: ((addresses: Array<{ address: string; family: number }>) => void) | undefined;
     dnsLookup.mockImplementation(
       () =>
@@ -359,7 +393,7 @@ describe("RegistrationLoader", () => {
     );
 
     await expect(
-      new RegistrationLoader(5).load("https://metadata.example/slow-dns"),
+      new RegistrationLoader(5).load("https://metadata.example/slow-dns", NO_CHECK),
     ).resolves.toEqual({ warning: "Registration metadata request timed out" });
     releaseDns?.([{ address: "93.184.216.34", family: 4 }]);
     await new Promise<void>((resolve) => setImmediate(resolve));
@@ -372,18 +406,25 @@ describe("RegistrationLoader", () => {
     );
 
     await expect(
-      new RegistrationLoader(1_000).load("https://metadata.example/agent?token=query-secret"),
+      new RegistrationLoader(1_000).load(
+        "https://metadata.example/agent?token=query-secret",
+        NO_CHECK,
+      ),
     ).resolves.toEqual({ warning: "Registration metadata request failed" });
   });
 });
 
 import { gzipSync } from "node:zlib";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 it.each(["text/plain", "application/json; charset=utf-16le", ""])(
   "rejects metadata content type %s",
   async (contentType) => {
     allowPublicDns();
     replyHttps('{"name":"ignored"}', 200, { "content-type": contentType });
-    await expect(new RegistrationLoader(1000).load("https://example.test/a")).resolves.toEqual({
+    await expect(
+      new RegistrationLoader(1000).load("https://example.test/a", NO_CHECK),
+    ).resolves.toEqual({
       warning: "Registration metadata requires application/json with UTF-8 encoding",
     });
   },
@@ -393,14 +434,17 @@ it.each([1024 * 1024, 1024 * 1024 + 1])("bounds decompressed gzip at %s bytes", 
   const body = JSON.stringify({ name: "a".repeat(size - 11) });
   expect(Buffer.byteLength(body)).toBe(size);
   replyHttps(gzipSync(body), 200, { "content-encoding": "gzip" });
-  const result = await new RegistrationLoader(1000).load("https://example.test/a");
-  if (size === 1024 * 1024) expect(result.metadata?.name).toHaveLength(size - 11);
+  const result = await new RegistrationLoader(1000).load("https://example.test/a", NO_CHECK);
+  if (size === 1024 * 1024)
+    expect((result.metadata as { name?: string } | undefined)?.name).toHaveLength(size - 11);
   else expect(result.warning).toContain("1 MiB");
 });
 it("rejects corrupt gzip without returning metadata", async () => {
   allowPublicDns();
   replyHttps("not gzip", 200, { "content-encoding": "gzip" });
-  await expect(new RegistrationLoader(1000).load("https://example.test/a")).resolves.toMatchObject({
+  await expect(
+    new RegistrationLoader(1000).load("https://example.test/a", NO_CHECK),
+  ).resolves.toMatchObject({
     warning: expect.stringContaining("content encoding"),
   });
 });

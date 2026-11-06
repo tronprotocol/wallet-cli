@@ -27,3 +27,9 @@ export function quantityToSafeNumber(value: unknown, field: string, invalid: Err
   }
   return safeNonNegative(parsed, field, invalid);
 }
+
+// Non-negative decimal integer text of any size.
+export function decimalToBigInt(value: string, field: string, invalid: ErrorFactory): bigint {
+  if (!/^\d+$/.test(value)) throw invalid(`${field} must be a non-negative decimal integer`);
+  return BigInt(value);
+}

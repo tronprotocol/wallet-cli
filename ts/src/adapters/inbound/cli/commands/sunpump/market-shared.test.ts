@@ -1,12 +1,3 @@
-/**
- * The refusals the three SunPump catalogue commands make before sending anything.
- *
- * All of them depend on nothing remote, so they belong to the schema — and each of them guards
- * against the same failure mode: this service answers a bad request with HTTP 200 and a plausible
- * list, so a value that is not caught here is never caught at all.
- *
- * Exercised through each spec's own fields and refine, which is what the shell composes.
- */
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import type { ChainSpec } from "../../contracts/command.js";
@@ -61,8 +52,6 @@ describe("paging", () => {
     expect(schema.safeParse({ ...base, limit: 50 }).success).toBe(true);
   });
 
-  // The service pages by page number and size: offset 5 with limit 4 names rows 5..8, which no
-  // page contains. Rounding to the nearest page would return rows nobody asked for.
   it("refuses an offset that is not a whole number of pages", () => {
     expect(refusals(list, { limit: 20, offset: 5 })).toEqual([{ path: "offset", code: undefined }]);
     expect(list.safeParse({ limit: 20, offset: 40 }).success).toBe(true);
@@ -76,8 +65,6 @@ describe("paging", () => {
 });
 
 describe("ordering", () => {
-  // Every name here was verified to actually sort the service's rows. `launched` was not: the
-  // service answers it with marketCap order and a 200, so it is not on the list.
   it.each(["created", "market-cap", "volume-24h", "price-change-24h"])(
     "accepts --order-by %s",
     (orderBy) => {
@@ -96,11 +83,6 @@ describe("ordering", () => {
     expect(list.safeParse({ sort: "asc" }).success).toBe(true);
   });
 
-  /**
-   * `--owner` answers from `/token/search/by_owner`, which drops `sort` rather than rejecting it
-   * and always returns newest-created first. Accepting the flags would print a creation-ordered
-   * list under a market-cap heading.
-   */
   it("refuses an ordering that cannot be applied to a creator's tokens", () => {
     expect(refusals(list, { owner: CREATOR, orderBy: "market-cap" })).toEqual([
       { path: "orderBy", code: "invalid_option" },
@@ -108,7 +90,6 @@ describe("ordering", () => {
     expect(refusals(list, { owner: CREATOR, sort: "asc" })).toEqual([
       { path: "sort", code: "invalid_option" },
     ]);
-    // the one ordering it does apply is the command's own default, so --owner alone is fine
     expect(list.safeParse({ owner: CREATOR }).success).toBe(true);
   });
 });
@@ -127,8 +108,6 @@ describe("addresses and keywords", () => {
     expect(info.safeParse({ address: CREATOR }).success).toBe(true);
   });
 
-  // A blank keyword is "no filter" to this service: it answers with the entire ranked catalogue
-  // at HTTP 200, which reads exactly like a search that matched everything.
   it("refuses a keyword that is empty or only whitespace", () => {
     for (const keyword of ["", "   ", "\t\n"]) {
       expect(search.safeParse({ keyword }).success).toBe(false);

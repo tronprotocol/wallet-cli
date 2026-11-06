@@ -5,8 +5,6 @@ import type { TokenEntry, TokensFile } from "../types/token.js";
 const entry: TokenEntry[] = [{ kind: "erc20", id: "0xabc", symbol: "AAA", decimals: 18 }];
 
 describe("tokens.json v1 → v2", () => {
-  // The scope key carries the network id, so an id that changed spelling orphans every entry
-  // filed under the old one — silently, as an empty token list rather than an error.
   it("rewrites the network half of each scope key", () => {
     const before = {
       version: 1,
@@ -24,13 +22,11 @@ describe("tokens.json v1 → v2", () => {
     expect(Object.keys(migrateTokensToV2(before).entries)).toEqual(["eip155:1|wlt_x.12"]);
   });
 
-  // A user-configured network this rename never knew about keeps whatever key it had.
   it("passes an unknown network id through unchanged", () => {
     const before = { version: 1, entries: { "eip155:8453|wlt_x.0": entry } } as TokensFile;
     expect(Object.keys(migrateTokensToV2(before).entries)).toEqual(["eip155:8453|wlt_x.0"]);
   });
 
-  // The account ref is opaque; only the FIRST separator divides network from account.
   it("splits on the first separator only", () => {
     const before = { version: 1, entries: { "evm:56|wlt_a.0|extra": entry } } as TokensFile;
     expect(Object.keys(migrateTokensToV2(before).entries)).toEqual(["eip155:56|wlt_a.0|extra"]);

@@ -43,8 +43,6 @@ describe("readBoundedTextFile", () => {
     });
   });
 
-  // BUG-040: an editor/`echo`/`jq -r` always leaves a trailing newline, and that newline used to
-  // travel straight into the transaction hex, breaking the offline-sign → broadcast handoff.
   it("trims a trailing newline like an editor or `echo` would leave", () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-cli-artifact-"));
     roots.push(root);
@@ -58,9 +56,6 @@ describe("readBoundedTextFile", () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-cli-artifact-"));
     roots.push(root);
     const path = join(root, "transaction.hex");
-    // Two tokens separated by a blank line: a naive "strip all whitespace" fix would silently
-    // concatenate them into one hex string instead of leaving the malformed content to fail
-    // downstream parsing.
     writeFileSync(path, "  0xdead beef  \n");
 
     expect(readBoundedTextFile(path, 1024, "transaction hex file")).toBe("0xdead beef");

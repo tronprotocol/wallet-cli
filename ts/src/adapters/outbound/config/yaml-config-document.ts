@@ -1,7 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
-import { parse, stringify } from "yaml";
-import type { ConfigDocumentRepository } from "../../../application/ports/config-document-repository.js";
+import { stringify } from "yaml";
+import type {
+  ConfigDocument,
+  ConfigDocumentRepository,
+} from "../../../application/ports/config-document-repository.js";
 import type { AtomicFileStore } from "../persistence/fs/index.js";
+import { parseConfigYaml } from "./index.js";
 
 export class YamlConfigDocument implements ConfigDocumentRepository {
   constructor(
@@ -10,14 +14,14 @@ export class YamlConfigDocument implements ConfigDocumentRepository {
   ) {}
 
   update<T>(
-    change: (current: Record<string, unknown>) => {
-      document: Record<string, unknown>;
+    change: (current: ConfigDocument) => {
+      document: ConfigDocument;
       result: T;
     },
   ): T {
     return this.files.withLock(this.path, () => {
       const current = existsSync(this.path)
-        ? ((parse(readFileSync(this.path, "utf8")) ?? {}) as Record<string, unknown>)
+        ? (parseConfigYaml(readFileSync(this.path, "utf8"), this.path) as ConfigDocument)
         : {};
       const { document, result } = change(current);
       this.files.writeText(this.path, stringify(document));

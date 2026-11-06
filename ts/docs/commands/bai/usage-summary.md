@@ -88,7 +88,7 @@ wallet-cli bai usage-summary -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`bai_auth_failed` — B.AI rejected the key; `bai_rejected`; `provider_error`; `timeout`) · `2` usage error (`bai_credentials_missing`).
+`0` success · `1` execution failure (`bai_auth_failed` — B.AI rejected the key; `bai_rejected`; `provider_error`; `provider_rate_limited` — HTTP 429; `timeout`) · `2` usage error (`bai_credentials_missing`).
 
 ## See also
 

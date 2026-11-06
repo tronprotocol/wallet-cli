@@ -1,101 +1,101 @@
-/**
- * LaunchpadPort — the curve contract reads and the call payloads the SunPump trades need.
- *
- * It returns PAYLOADS, never receipts: signing and broadcasting belong to `TxPipeline`, and an
- * adapter that sent its own transaction would sit outside every guarantee the pipeline makes
- * about dry-run, permissions and confirmation.
- *
- * Everything crossing this line is base units as a decimal string, or a bounded integer. A curve
- * trade is money, and `number` rewrites anything past fifteen digits without saying so.
- */
+import type { DispatchCheck } from "../../contracts/deadline.js";
+// Return unsigned payloads; the transaction pipeline owns signing and broadcasting.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type {
   ApprovalCapablePort,
   ContractCallPayload,
-} from "../../contracts/tron-contract-call.js";
+} from "../../contracts/tron/tron-contract-call.js";
 import type { LaunchpadState } from "../../../domain/sunpump/curve.js";
+import type { BaseUnits, Sun } from "../../../domain/amounts/index.js";
 
-/** What a token is, as the chain reports it — never as an HTTP payload claims. */
+// Token facts read on chain.
 export interface LaunchpadTokenFacts {
   readonly address: string;
   readonly decimals: number;
   readonly symbol: string;
 }
 
-/** What a buy of a given TRX amount returns, and the platform fee taken out of it. */
 export interface BuyQuote {
-  /** base units of the token expected out. */
-  readonly tokenAmount: string;
-  /** SUN of platform fee, already included in the TRX the caller named. */
-  readonly feeSun: string;
+  readonly tokenAmount: BaseUnits;
+  // Fee included in the input TRX.
+  readonly feeSun: Sun;
 }
 
-/** What a sale of a given token amount returns, and the platform fee the curve pays beside it. */
 export interface SellQuote {
-  /** SUN the seller receives — already net of the fee below, which is paid on top of it. */
-  readonly trxAmountSun: string;
-  /** SUN paid to the fee address; the sale's gross is `trxAmountSun + feeSun`. */
-  readonly feeSun: string;
+  // Net received by the seller, excluding the fee paid alongside it.
+  readonly trxAmountSun: Sun;
+  // Gross sale proceeds are trxAmountSun + feeSun.
+  readonly feeSun: Sun;
 }
 
 export interface LaunchpadPort extends ApprovalCapablePort {
-  /** SunPump's launchpad, which pulls tokens itself and takes an unlimited allowance */
   readonly approvalDomain: "sunpump-launchpad";
 
-  /**
-   * The curve contract's state for a token, read on chain.
-   *
-   * The authority for whether a trade is possible at all. Never an HTTP `status` field: the API
-   * can be stale, and a stale "trading" sends a transaction that must revert.
-   */
-  tokenState(network: NetworkDescriptor, token: string): Promise<LaunchpadState>;
+  // On-chain trading state; catalogue status can be stale.
+  tokenState(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<LaunchpadState>;
 
-  /** decimals and symbol straight from the token contract. */
-  tokenFacts(network: NetworkDescriptor, token: string): Promise<LaunchpadTokenFacts>;
+  tokenFacts(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<LaunchpadTokenFacts>;
 
-  /** `owner`'s balance of `token`, in base units. */
-  balanceOf(network: NetworkDescriptor, token: string, owner: string): Promise<string>;
+  balanceOf(
+    network: NetworkDescriptor,
+    token: string,
+    owner: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits>;
 
-  /** how many tokens `trxSun` buys, and the fee inside it. */
-  quoteBuy(network: NetworkDescriptor, token: string, trxSun: string): Promise<BuyQuote>;
+  quoteBuy(
+    network: NetworkDescriptor,
+    token: string,
+    trxSun: Sun,
+    check: DispatchCheck,
+  ): Promise<BuyQuote>;
 
-  /** how much TRX the seller of `tokenAmount` receives, net, and the fee paid beside it. */
-  quoteSell(network: NetworkDescriptor, token: string, tokenAmount: string): Promise<SellQuote>;
+  quoteSell(
+    network: NetworkDescriptor,
+    token: string,
+    tokenAmount: BaseUnits,
+    check: DispatchCheck,
+  ): Promise<SellQuote>;
 
-  /**
-   * The smallest sale that pays the seller anything, in base units of the token.
-   *
-   * Below it the curve either reverts inside the quote or prices the sale at nothing for the
-   * seller. This asks the inverse question of the contract: how many tokens a net of one SUN
-   * corresponds to.
-   */
-  minimumSellAmount(network: NetworkDescriptor, token: string): Promise<string>;
+  // Token amount corresponding to one SUN net proceeds.
+  minimumSellAmount(
+    network: NetworkDescriptor,
+    token: string,
+    check: DispatchCheck,
+  ): Promise<BaseUnits>;
 
-  /** `expected × (1 − slippage)`, by the SDK's own integer arithmetic. */
+  // expected × (1 − slippage), using SDK integer arithmetic.
   applyFloor(expected: string, slippageBips: number): string;
 
-  /** the curve contract, which is both the counterparty and the spender a sale approves. */
+  // Counterparty and spender approved for a sale.
   launchpadAddress(network: NetworkDescriptor): string;
 
-  /** `purchaseToken`: TRX goes as the call's value, so nothing is approved. */
+  // Native TRX is callValue; no approval needed.
   buyPayload(network: NetworkDescriptor, request: BuyRequest): ContractCallPayload;
 
-  /** `saleToken`: the tokens are pulled, so the launchpad must be approved first. */
+  // Requires prior approval for the launchpad to pull tokens.
   sellPayload(network: NetworkDescriptor, request: SellRequest): ContractCallPayload;
 }
 
 export interface BuyRequest {
   readonly token: string;
-  /** SUN to spend, platform fee included. */
-  readonly trxSun: string;
-  /** base units below which the buy should revert rather than proceed. */
-  readonly minTokenAmount: string;
+  // Including platform fee.
+  readonly trxSun: Sun;
+  // Lower output reverts.
+  readonly minTokenAmount: BaseUnits;
 }
 
 export interface SellRequest {
   readonly token: string;
-  /** base units of the token to sell. */
-  readonly tokenAmount: string;
-  /** SUN below which the sale should revert rather than proceed. */
-  readonly minTrxSun: string;
+  readonly tokenAmount: BaseUnits;
+  // Lower output reverts.
+  readonly minTrxSun: Sun;
 }

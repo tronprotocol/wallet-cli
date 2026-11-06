@@ -2,9 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { TronContractService } from "./contract-service.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NETWORK = {
   id: "tron:3448148188",
@@ -19,6 +23,7 @@ describe("TronContractService.send fee-limit guidance", () => {
     async (price) => {
       const warn = vi.fn();
       const scope = {
+        deadline: NO_DEADLINE,
         activeAccount: {} as never,
         wait: false,
         waitTimeoutMs: 1_000,
@@ -35,7 +40,7 @@ describe("TronContractService.send fee-limit guidance", () => {
         })),
       } as unknown as TronGateway;
       const pipeline = {
-        async run(params: { estimate: (tx: unknown) => Promise<Record<string, unknown>> }) {
+        async runTron(params: { estimate: (tx: unknown) => Promise<Record<string, unknown>> }) {
           const fee = await params.estimate({});
           return { stage: "plan", tx: { txID: "plan" }, fee };
         },
@@ -49,8 +54,8 @@ describe("TronContractService.send fee-limit guidance", () => {
         contract: "Tcontract",
         method: "transfer(address,uint256)",
         parameters: [],
-        callValueSun: "8847971",
-        feeLimit: "1",
+        callValueSun: sunAmount("8847971"),
+        feeLimit: sunAmount("1"),
         dryRun: true,
       });
 

@@ -1,4 +1,5 @@
-import type { DeployConstructorArgs } from "../ports/chain/gateway-provider.js";
+import type { DeployConstructorArgs } from "../ports/chain/evm/evm-gateway.js";
+import type { Wei } from "../../domain/amounts/index.js";
 
 export type ApprovalKind = "erc721";
 
@@ -13,18 +14,17 @@ export interface TransactionModeInput {
 export interface EvmContractWriteInput extends TransactionModeInput {
   contract?: string;
   method?: string;
-  /** disambiguates standards that share a write signature. */
+  // Disambiguates standards sharing a write signature.
   approvalKind?: ApprovalKind;
-  /** `{type,value}` entries for a call; raw positional values for a deployment. */
+  // {type,value} pairs for calls; positional values for deployments.
   params?: unknown[];
-  /** native coin sent along with the call, in whole coins (as `tx send --amount` is). */
+  // Native value in whole coins.
   callValue?: string;
   bytecode?: string;
-  /** how the constructor's arguments are typed and what they are; see DeployConstructorArgs. */
   constructorArgs?: DeployConstructorArgs;
   gasLimit?: string;
-  maxFee?: string;
-  priorityFee?: string;
+  maxFee?: Wei;
+  priorityFee?: Wei;
   nonce?: number;
 }
 

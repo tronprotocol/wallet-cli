@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { Schemas, addressFieldsFor } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunPumpMarketQueryService } from "../../../../../application/use-cases/tron/sunpump/market-query-service.js";
+import type { SunPumpMarketQueryService } from "../../../../../application/use-cases/sunpump/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 
 const fields = z.object({
@@ -32,5 +32,5 @@ export const sunpumpTokenInfoSpec: ChainSpec = {
 };
 
 export const sunpumpTokenInfoTronBinding = (service: SunPumpMarketQueryService): FamilyBinding => ({
-  run: async (_ctx, net, input) => service.tokenInfo(net, input.address),
+  run: async (ctx, net, input) => service.tokenInfo(ctx.deadline, net, input.address),
 });

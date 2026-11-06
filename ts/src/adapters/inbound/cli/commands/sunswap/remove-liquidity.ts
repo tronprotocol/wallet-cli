@@ -1,28 +1,17 @@
 import { z, type RefinementCtx } from "zod";
 import { addressFieldsFor, allRefines, Schemas } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapRemoveLiquidityService } from "../../../../../application/use-cases/tron/sunswap/remove-liquidity-service.js";
+import type { SunSwapRemoveLiquidityService } from "../../../../../application/use-cases/sunswap/remove-liquidity-service.js";
 import { TextFormatters } from "../../render/index.js";
-import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../../domain/fees/tron.js";
 
 const PROTOCOLS = ["V2", "V3", "V4"] as const;
 
-/**
- * Flags that belong only to V4.
- *
- * `--fee` is a cross-check on V4 rather than a selector, and `--slippage` is a tolerance on the
- * FLOOR. Neither means anything on V2 or V3, where the tier comes from the pair or the position and
- * the floor is set directly with `--min0` / `--min1`.
- */
 const V4_ONLY = ["fee", "slippage"] as const;
 
-/**
- * Flags V4 does not have.
- *
- * `--recipient` is absent by design: a V4 withdrawal settles to the signing account and
- * nowhere else. Accepting the flag and ignoring it would send someone's money to the wrong place
- * while telling them otherwise.
- */
+// V4 settles withdrawals to the signing account only.
 const NOT_ON_V4 = ["recipient"] as const;
 
 const fields = z.object({
@@ -35,8 +24,6 @@ const fields = z.object({
     .default(false)
     .describe("emit the unsigned transactions in execution order without signing them"),
   protocol: z.string().describe("protocol version: V2, V3 or V4"),
-  // One flag, two meanings, and the difference is invisible in the value itself — so it is
-  // spelled out here rather than left to a reader to infer from the protocol they chose.
   liquidity: z
     .string()
     .describe(
@@ -84,22 +71,12 @@ const fields = z.object({
     .optional()
     .describe("Unix seconds the transaction stops being valid; default 30 minutes from now"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe(
       "maximum energy fee to burn, in SUN; the dry run's estimate is a lower bound, so a limit set from it can fail",
     ),
 });
 
-/**
- * The flag × scenario matrix.
- *
- * A V2 withdrawal names the pair; a V3 one names the position, which already knows its pair, so
- * accepting both would let a caller believe the two could disagree. V4 is the exception and
- * deliberately so: it requires BOTH, because there the pair is not a selector but a cross-check the
- * use case makes against what the position reports.
- *
- * Every refusal here depends on nothing remote, so it fires deterministically and without a wallet.
- */
 function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: RefinementCtx): void {
   const protocol = String(value.protocol).toUpperCase();
   if (!PROTOCOLS.includes(protocol as (typeof PROTOCOLS)[number])) {
@@ -111,8 +88,7 @@ function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: Refinem
     });
     return;
   }
-  // V4's own flags on a V2 or V3 withdrawal, said before anything else: a caller who passed
-  // --slippage to V3 has the wrong protocol rather than a stray flag.
+  // Report protocol mismatches before other scenario errors.
   if (protocol !== "V4") {
     for (const flag of V4_ONLY) {
       if (value[flag] !== undefined) {
@@ -170,14 +146,7 @@ function refuseFlagsOutsideScenario(value: Record<string, unknown>, ctx: Refinem
   }
 }
 
-/**
- * V4's own matrix.
- *
- * Both the position id AND the pair are required, which is the one place this command asks for more
- * than V3 does. The pair does not choose the pool — the position does — so it is checked against
- * what the position reports and a disagreement is refused. That check needs the chain and therefore
- * lives in the use case; what lives here is that both were given at all.
- */
+// Require the pair for an on-chain cross-check against the selected position.
 function refuseV4Flags(value: Record<string, unknown>, ctx: RefinementCtx): void {
   for (const flag of NOT_ON_V4) {
     if (value[flag] !== undefined) {
@@ -242,9 +211,9 @@ export const sunswapRemoveLiquiditySpec: ChainSpec = {
     "add-liquidity receipt reports.\n\n" +
     "--dry-run validates everything — the position, the balance, the amounts — without a\n" +
     "password, and works for a watch-only account.",
+  exclusive: [unsignedTxModeExclusive],
   baseFields: fields,
-  // The scenario matrix first, so a flag refused outright is reported as such; then a malformed
-  // `--recipient` is `invalid_address` at exit 2 rather than an encoder crash at exit 1.
+  // Reject unsupported flags before validating recipient addresses.
   baseRefine: allRefines(refuseFlagsOutsideScenario, addressFieldsFor("tron", "recipient")),
   examples: [
     {
@@ -274,11 +243,9 @@ export const sunswapRemoveLiquidityTronBinding = (
       ...(input.min1 === undefined ? {} : { min1: input.min1 }),
       ...(input.recipient === undefined ? {} : { recipient: input.recipient }),
       ...(input.deadline === undefined ? {} : { deadline: input.deadline }),
-      // V4's own. Forwarded explicitly like the rest rather than by spreading `input`, so a flag
-      // that is declared but never passed on is a visible omission instead of a silent one.
       ...(input.fee === undefined ? {} : { fee: input.fee }),
       ...(input.slippage === undefined ? {} : { slippage: input.slippage }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
     }),

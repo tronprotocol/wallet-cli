@@ -1,27 +1,23 @@
-/**
- * Which transaction id to believe after a broadcast.
- *
- * A TRON txID is the sha256 of the transaction body: not an identifier the node assigns, but one
- * derivable from the bytes we signed — and we derive it. The broadcast reply carries the node's own
- * copy, and it is the same value whenever the node is honest (verified against a live Nile node).
- * Taking it on trust anyway means a node whose copy is wrong chooses which transaction we then poll
- * for with `--wait` and quote back to the caller, which is how a receipt ends up describing someone
- * else's successful transaction.
- *
- * So the locally derived id wins where we have one. Disagreement is surfaced rather than thrown on:
- * the transaction has already been broadcast, and failing a submitted transaction would repeat the
- * mistake of reporting a side effect that happened as if it had not.
- */
+import {
+  classifyError,
+  type CliError,
+  ExecutionError,
+  UsageError,
+} from "../../domain/errors/index.js";
+import { normalizeTxHash, type ChainFamily } from "../../domain/family/index.js";
+import { DeadlineExpiredError } from "../contracts/deadline.js";
+
+// Prefer the signed transaction’s ID; warn on mismatch without denying a completed broadcast.
 export function authoritativeTxId(
+  family: ChainFamily,
   local: string | undefined,
   reported: string | undefined,
   warn: (message: string) => void,
 ): string {
   const nodeId = reported ?? "";
   if (!local) return nodeId;
-  // Compared case-insensitively: hex case carries no meaning, and comparing the representation
-  // rather than the value is what made a valid keystore look like a wrong password.
-  if (nodeId && nodeId.toLowerCase() !== local.toLowerCase()) {
+  const canonical = normalizeTxHash(family, local);
+  if (nodeId && (canonical === undefined || canonical !== normalizeTxHash(family, nodeId))) {
     warn(
       `the node reported transaction id ${nodeId} for a transaction whose id is ${local}; ` +
         "using the id derived from the signed transaction. The node is misreporting or faulty",
@@ -30,9 +26,38 @@ export function authoritativeTxId(
   return local;
 }
 
-/** best-effort transaction id of a signed tx, derived from its own bytes (TRON: txID). */
+// Reads an existing txID/hash; does not derive or verify it.
 export function localTxId(signed: unknown): string | undefined {
   const s = signed as { txID?: unknown; hash?: unknown } | null;
   const id = s?.txID ?? s?.hash;
   return typeof id === "string" && id !== "" ? id : undefined;
+}
+
+// Catch only submission: pre-submit failures must not imply a transaction reached the node.
+// A DeadlineExpiredError means the adapter refused before dispatch.
+export async function submitWithTxId<T>(
+  txId: string | undefined,
+  submit: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await submit();
+  } catch (error) {
+    if (error instanceof DeadlineExpiredError) throw error;
+    const classified = classifyError(error);
+    if (!["timeout", "rpc_error", "invalid_node_response"].includes(classified.code)) {
+      throw error;
+    }
+    throw outcomeUnknownError(classified, txId);
+  }
+}
+
+// The same code and retry class, marked as a write whose outcome is unknown.
+export function outcomeUnknownError(error: unknown, txId: string | undefined): CliError {
+  const classified = classifyError(error);
+  const ErrorType = classified.kind === "usage" ? UsageError : ExecutionError;
+  return new ErrorType(classified.code, classified, {
+    ...classified.details,
+    ...(txId ? { txId } : {}),
+    outcome: "unknown",
+  });
 }

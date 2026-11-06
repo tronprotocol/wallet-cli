@@ -1,33 +1,47 @@
-import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
-import { planEvmFee } from "../../../domain/fees/evm-gas.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import type {
+  EvmFeeReport,
+  EvmUnsignedTx,
+  NetworkDescriptor,
+} from "../../../domain/types/index.js";
+import { planEvmFee } from "../../../domain/evm/evm-gas.js";
+import { ChainError, UsageError, type UserMessage } from "../../../domain/errors/index.js";
 import { decimalToSafeNumber } from "../../../domain/numbers/index.js";
-import { resolveGasLimit } from "../../services/evm-gas-estimate.js";
-import type { EvmGateway } from "../../ports/chain/gateway-provider.js";
+import { resolveGasLimit } from "../../services/evm/evm-gas-estimate.js";
+import type { EvmGateway } from "../../ports/chain/evm/evm-gateway.js";
+import type { Wei } from "../../../domain/amounts/index.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
+import { unlessDeadline } from "../../services/command-deadline.js";
 
 export interface EvmGasInput {
   gasLimit?: string;
-  maxFee?: string;
-  priorityFee?: string;
+  maxFee?: Wei;
+  priorityFee?: Wei;
   nonce?: number;
 }
 
+// Absent `to` creates a contract; value is decimal wei.
+export interface EvmCall {
+  to?: string;
+  data?: string;
+  value: string;
+}
+
 export interface EvmBuildRequest {
+  deadline: ExecutionDeadline;
   gateway: EvmGateway;
   network: NetworkDescriptor;
   from: string;
-  call: Record<string, unknown>;
+  call: EvmCall;
   input: EvmGasInput;
-  /** `--dry-run` — the caller asked "would this go through?", so the nonce is checked against
-   *  the chain rather than merely used. See the `latest` read below. */
+  // Best-effort check of an explicit nonce against the mined count.
   dryRun?: boolean;
   onNonce?: (from: string, nonce: string) => void;
 }
 
 export interface EvmBuildResult {
-  tx: UnsignedTx;
-  fee: Record<string, unknown>;
-  warnings?: string[];
+  tx: EvmUnsignedTx;
+  fee: EvmFeeReport;
+  warnings?: Array<string | UserMessage>;
 }
 
 function overridesOf(input: EvmGasInput) {
@@ -43,34 +57,23 @@ function invalidInteger(message: string) {
 }
 
 export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmBuildResult> {
-  const { gateway, network, from, call, input, dryRun } = request;
-  // With --nonce given, the pending-nonce read exists only to warn about a gap below — it must
-  // not be able to fail a build that already has everything it needs, so it is best-effort.
-  // Without --nonce, that same read IS the nonce, so it stays a hard dependency (contrast
-  // `getBlockNumber` in transaction-service.ts, which is best-effort because it only adds a
-  // field to a status view that already has an answer without it).
+  const { deadline, gateway, network, from, call, input, dryRun } = request;
+  // With an explicit nonce, the pending read only supplies a gap warning and is optional.
   const [pendingNonce, fee, latestNonce] = await Promise.all([
-    // "pending", not "latest": a latest-based nonce refuses to queue behind a transaction of
-    // our own that has not been mined yet.
+    // Pending count includes unmined transactions so new sends queue behind them.
     input.nonce === undefined
       ? gateway.getTransactionCount(from, "pending")
-      : gateway.getTransactionCount(from, "pending").catch(() => undefined),
+      : gateway
+          .getTransactionCount(from, "pending")
+          .catch(unlessDeadline(deadline, () => undefined)),
     gateway.feeData(),
-    // The MINED count, read only to answer `--dry-run` — and only when a nonce was given, since
-    // a derived one IS the pending count and cannot be behind. Every other mode pays no extra
-    // round trip. Best-effort like the read above: a dry run that could not reach the node still
-    // builds, rather than failing on a check it could not perform.
-    //
-    // "latest", not "pending": a nonce below PENDING may be a deliberate replacement of a
-    // transaction still in the mempool, which is legitimate. Only one already mined is spent.
+    // Compare with mined count: a nonce below pending can be a valid replacement.
     dryRun === true && input.nonce !== undefined
-      ? gateway.getTransactionCount(from, "latest").catch(() => undefined)
+      ? gateway.getTransactionCount(from, "latest").catch(unlessDeadline(deadline, () => undefined))
       : undefined,
   ]);
   const nonce = input.nonce === undefined ? (pendingNonce as string) : String(input.nonce);
-  // Before onNonce and before the gas estimate: a doomed transaction should not hand the caller a
-  // predicted contract address, nor spend an eth_estimateGas whose failure would report the wrong
-  // reason. Same code and wording `tx broadcast --dry-run` answers with.
+  // Reject spent nonces before predicting a deployment address or estimating gas.
   if (latestNonce !== undefined && BigInt(nonce) < BigInt(latestNonce)) {
     throw new ChainError(
       "nonce_too_low",
@@ -87,7 +90,7 @@ export async function buildEvmUnsignedTx(request: EvmBuildRequest): Promise<EvmB
     declaredFeeModel: network.feeModel,
     overrides: overridesOf(input),
   });
-  const warnings = [...(plan.warnings ?? [])];
+  const warnings: Array<string | UserMessage> = [...(plan.warnings ?? [])];
   if (
     input.nonce !== undefined &&
     pendingNonce !== undefined &&

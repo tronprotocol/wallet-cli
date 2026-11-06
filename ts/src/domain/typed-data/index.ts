@@ -1,8 +1,3 @@
-/**
- * TypedDataPayload — the EIP-712 / TIP-712 value object and its normalization rules.
- * Pure: no hashing, no signing, no I/O. Hashing is family-specific and lives in the outbound
- * adapters (tronweb for TRON); this module only decides what a well-formed payload is.
- */
 import { UsageError } from "../errors/index.js";
 
 export interface TypedDataField {
@@ -10,24 +5,57 @@ export interface TypedDataField {
   type: string;
 }
 
+// A JSON value; payment SDKs also pass uint fields as bigint.
+export type TypedDataValue =
+  string | number | bigint | boolean | null | TypedDataValue[] | TypedDataObject;
+
+export interface TypedDataObject {
+  [field: string]: TypedDataValue;
+}
+
 export interface TypedDataPayload {
-  domain: Record<string, unknown>;
+  domain: TypedDataObject;
   types: Record<string, TypedDataField[]>;
-  /** inferred from `types` when the caller omits it. */
+  // May be inferred from types when there is exactly one root.
   primaryType?: string;
-  message: Record<string, unknown>;
+  message: TypedDataObject;
 }
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-/** A field's struct name, with any array suffixes (`Person[]`, `Person[2][]`) stripped. */
+const INVALID = Symbol("invalid");
+
+function typedDataValue(v: unknown): TypedDataValue | typeof INVALID {
+  if (v === null || typeof v === "string" || typeof v === "boolean" || typeof v === "bigint")
+    return v;
+  if (typeof v === "number") return Number.isFinite(v) ? v : INVALID;
+  if (Array.isArray(v)) {
+    const items = v.map(typedDataValue);
+    return items.includes(INVALID) ? INVALID : (items as TypedDataValue[]);
+  }
+  return typedDataObject(v) ?? INVALID;
+}
+
+// An undefined member reads as an absent field, so it is dropped from the copy.
+function typedDataObject(v: unknown): TypedDataObject | undefined {
+  if (!isObject(v) || ![Object.prototype, null].includes(Object.getPrototypeOf(v)))
+    return undefined;
+  const members: [string, TypedDataValue][] = [];
+  for (const [field, member] of Object.entries(v)) {
+    if (member === undefined) continue;
+    const value = typedDataValue(member);
+    if (value === INVALID) return undefined;
+    members.push([field, value]);
+  }
+  return Object.fromEntries(members);
+}
+
 function elementType(type: string): string {
   return type.replace(/(\[\d*\])+$/, "");
 }
 
-/** Whether `name` appears as a field type (bare or as an array element) of any struct in `types`. */
 function isReferencedType(types: Record<string, TypedDataField[]>, name: string): boolean {
   for (const fields of Object.values(types)) {
     for (const f of fields) {
@@ -37,27 +65,16 @@ function isReferencedType(types: Record<string, TypedDataField[]>, name: string)
   return false;
 }
 
-/**
- * The structs `root` actually reaches, in declaration order.
- *
- * `primaryType` is what says WHICH struct is being signed, and the EIP-712 JSON-RPC schema carries
- * it precisely because the type map alone does not determine the root. A payload may therefore
- * declare types the chosen root never reaches — one shared dictionary covering several message
- * kinds is the ordinary case. An encoder handed that whole map sees more than one root and refuses,
- * so the map has to be narrowed to the closure before it gets there.
- *
- * Narrowing cannot change what a payload hashes to: every type a single-root payload declares is
- * reachable from that root, so its closure is the whole map. `seen` also makes the walk terminate
- * on a cycle below the root — a cycle THROUGH the root is refused earlier as not being a root.
- */
+// Drop unrelated structs so encoders see only the selected signing root.
 function typeClosure(
   types: Record<string, TypedDataField[]>,
   root: string,
 ): Record<string, TypedDataField[]> {
   const seen = new Set<string>();
   const walk = (name: string): void => {
-    const fields = types[name];
-    if (fields === undefined || seen.has(name)) return; // primitives have no entry; cycles stop here
+    // Type names come from the payload, so inherited members such as `constructor` are not types.
+    const fields = Object.hasOwn(types, name) ? types[name] : undefined;
+    if (fields === undefined || seen.has(name)) return; // Stop at primitives and cycles.
     seen.add(name);
     for (const f of fields) walk(elementType(f.type));
   };
@@ -65,22 +82,11 @@ function typeClosure(
   return Object.fromEntries(Object.entries(types).filter(([name]) => seen.has(name)));
 }
 
-/** The struct names in `types` that no other struct references — the candidate signing roots. */
 function rootTypes(types: Record<string, TypedDataField[]>): string[] {
   return Object.keys(types).filter((name) => !isReferencedType(types, name));
 }
 
-/**
- * Resolve which struct a payload is signing: the declared `primaryType`, or — when the caller
- * omitted it — the struct `types` reaches from nowhere else, PROVIDED there is exactly one such
- * struct. Returns `undefined` when that root cannot be determined unambiguously (zero roots, e.g.
- * a cycle with nothing outside it, or more than one candidate), the same condition under which an
- * encoder handed the bare map would refuse to infer a root.
- *
- * Callers that must never silently treat "root unknown" as "no guard needed" — see
- * `adapters/outbound/x402/signer-bridge.ts` — should refuse rather than proceed when this returns
- * `undefined`.
- */
+// Returns the declared or unique root; callers requiring a signing guard must reject undefined.
 export function resolvePrimaryType(
   payload: Pick<TypedDataPayload, "types" | "primaryType">,
 ): string | undefined {
@@ -89,23 +95,22 @@ export function resolvePrimaryType(
   return roots.length === 1 ? roots[0] : undefined;
 }
 
-/**
- * Validate and canonicalize a caller-supplied typed-data payload.
- * - `EIP712Domain` is dropped from `types`: it describes `domain`, it is not a struct to hash,
- *   and ethers' TypedDataEncoder (which tronweb reuses) throws when it is present.
- * - `value` is accepted as an alias for `message`; some producers emit that spelling.
- */
+// Drops EIP712Domain for encoder compatibility; accepts value as an alias for message.
 export function normalizeTypedData(raw: unknown): TypedDataPayload {
   if (!isObject(raw)) throw new UsageError("invalid_payload", "typed data must be a JSON object");
-  const { domain, types, primaryType } = raw;
-  if (!isObject(domain))
-    throw new UsageError("invalid_payload", "typed data `domain` must be an object");
+  const { types, primaryType } = raw;
+  const domain = typedDataObject(raw.domain);
+  if (domain === undefined)
+    throw new UsageError("invalid_payload", "typed data `domain` must be an object of JSON values");
   if (!isObject(types))
     throw new UsageError("invalid_payload", "typed data `types` must be an object");
 
-  const message = raw.message ?? raw.value;
-  if (!isObject(message))
-    throw new UsageError("invalid_payload", "typed data `message` must be an object");
+  const message = typedDataObject(raw.message ?? raw.value);
+  if (message === undefined)
+    throw new UsageError(
+      "invalid_payload",
+      "typed data `message` must be an object of JSON values",
+    );
 
   const structs: Record<string, TypedDataField[]> = {};
   for (const [name, fields] of Object.entries(types)) {
@@ -135,15 +140,13 @@ export function normalizeTypedData(raw: unknown): TypedDataPayload {
   if (primaryType !== undefined && typeof primaryType !== "string") {
     throw new UsageError("invalid_payload", "typed data `primaryType` must be a string");
   }
-  if (typeof primaryType === "string" && !(primaryType in structs)) {
+  if (typeof primaryType === "string" && !Object.hasOwn(structs, primaryType)) {
     throw new UsageError(
       "invalid_value",
       `typed data \`primaryType\` "${primaryType}" is not declared in types`,
     );
   }
-  // The signed message is always the root struct — the one no other struct references. A supplied
-  // primaryType that IS referenced (directly or through an array field) is nested, so it can never be
-  // what gets signed; reject it rather than sign the root while echoing the caller's nested type.
+  // Reject nested primary types to keep the reported type consistent with the signing root.
   if (typeof primaryType === "string" && isReferencedType(structs, primaryType)) {
     throw new UsageError(
       "invalid_value",
@@ -151,9 +154,7 @@ export function normalizeTypedData(raw: unknown): TypedDataPayload {
     );
   }
 
-  // With a declared root, hand on only what that root reaches. Without one there is nothing to
-  // compute a closure from: the encoder infers the root, which is well defined only when the
-  // payload has exactly one.
+  // Without a declared root, leave inference to the encoder.
   const reachable = primaryType === undefined ? structs : typeClosure(structs, primaryType);
 
   return {

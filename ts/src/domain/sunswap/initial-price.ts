@@ -1,5 +1,4 @@
-/** Human token1 per token0, rounded down to eight significant digits without floating point.
- *  Always a plain decimal string, never scientific notation, however extreme the value. */
+// Human token1 per token0, rounded down to eight significant digits as a plain decimal.
 import { checkedTokenDecimals } from "../amounts/index.js";
 
 export function initialPrice(sqrtPriceX96: string, decimals0: number, decimals1: number): string {

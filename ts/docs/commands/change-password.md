@@ -19,7 +19,7 @@ The flow:
 1. **Verify** — enter the current master password; it must decrypt an existing keystore (`auth_failed` otherwise, nothing touched).
 2. **Set** — enter the new password twice. A mismatch or a policy failure is rejected at the prompt and asked again.
 3. **Confirm** — the command lists how many software wallets will be re-encrypted; `[y/N]` (skipped with `--yes`). Declining aborts with no changes.
-4. **Re-encrypt atomically** — each keystore: decrypt with old → encrypt with new → write temp file → fsync; only after *all* succeed are files renamed into place. Any failure rolls everything back and reports `io_error` — the old keystores stay valid.
+4. **Re-encrypt** — decrypt each keystore with the old password, encrypt with the new one, and stage the files with the password verifier. A journal records the commit point. Before it, a failure reports `io_error` and the old password remains valid. After it, the new password is in effect; an incomplete replacement reports `io_error`, and the next wallet command finishes it. Interrupted staging is cleaned up by the next wallet command.
 
 ## Options
 
@@ -51,7 +51,7 @@ This command is interactive. In text mode the receipt lists the re-encrypted sof
 
 ## Exit status
 
-`0` changed · `1` execution failure (`auth_failed`; `no_software_wallet` — nothing to re-encrypt; `invalid_value` — a referenced encrypted wallet blob is missing; `io_error` — write failed, rolled back) · `2` usage error (`tty_required` — no TTY for interactive input; `invalid_value` — the new password equals the current one; `aborted` — confirmation declined).
+`0` changed · `1` execution failure (`aborted` — Ctrl-C at a prompt; nothing is changed; `auth_failed`; `no_software_wallet` — nothing to re-encrypt; `invalid_value` — a referenced encrypted wallet blob is missing; `io_error` — the message states whether the old or new password is in effect) · `2` usage error (`tty_required` — no TTY for interactive input; `invalid_value` — the new password equals the current one; `aborted` — confirmation declined).
 
 ## See also
 

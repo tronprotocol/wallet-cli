@@ -1,18 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
-import type {
-  TronLinkCollaborationPort,
-  TronLinkRemoteRecord,
-} from "../../ports/tronlink-collaboration.js";
+import type { TronLinkCollaborationPort } from "../../ports/tronlink-collaboration.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import {
   decodeTransactionHex,
   encodeTransactionHex,
+  encodeTransactionJson,
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import {
+  parseTronLinkEntry,
+  unsignedOpenCount,
+} from "../../../adapters/outbound/tronlink/client.js";
+import { ChainError, TransportError } from "../../../domain/errors/index.js";
 import type { TronMultisigService } from "./multisig-service.js";
 import { TronMultisigCollaborationService } from "./multisig-collaboration-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const A = "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -49,10 +55,10 @@ function unsignedHex(amount = 1): string {
   });
 }
 
-function remote(
-  hex = unsignedHex(),
-  overrides: Partial<TronLinkRemoteRecord> = {},
-): TronLinkRemoteRecord {
+// A TronLink list row as the service sends it.
+type WireRecord = Record<string, unknown>;
+
+function remote(hex = unsignedHex(), overrides: WireRecord = {}): WireRecord {
   const transaction = decodeTransactionHex(hex);
   const signed = transaction.signature?.length ?? 0;
   return {
@@ -78,9 +84,7 @@ function remote(
   };
 }
 
-/** A record whose transaction bytes this client cannot reconstruct — as an unknown contract type
- *  or an unrecognized provider encoding would be. */
-function undecodable(hex = unsignedHex()): TronLinkRemoteRecord {
+function undecodable(hex = unsignedHex()): WireRecord {
   const record = remote(hex);
   return {
     ...record,
@@ -91,6 +95,7 @@ function undecodable(hex = unsignedHex()): TronLinkRemoteRecord {
 function gateway(): TronGateway {
   return {
     encodeTransactionHex,
+    encodeTransactionJson,
     decodeTransactionHex,
     decodeTransaction: () => ({ kind: "trx", from: A, to: B, rawAmount: "1" }),
     getSignWeight: vi.fn(async () => ({
@@ -114,9 +119,9 @@ function scope(): TransactionScope {
   return {
     activeAccount: "local" as never,
     resolveAddress: () => A,
-    timeoutMs: 1_000,
+    deadline: new CommandDeadline(0),
     wait: false,
-    waitTimeoutMs: 1_000,
+
     emit: vi.fn(),
     warn: vi.fn(),
   };
@@ -139,16 +144,18 @@ function approval(hex: string) {
   };
 }
 
-function setup(...given: TronLinkRemoteRecord[]) {
+function setup(...given: WireRecord[]) {
   const records = given.length ? given : [remote()];
   const collaboration = {
-    list: vi.fn(async () => ({ total: records.length, records })),
+    list: vi.fn(async () => ({ total: records.length, entries: records.map(parseTronLinkEntry) })),
     submit: vi.fn(async () => {}),
-    watch: vi.fn(async (_network, _address, _signal, onMessage) => {
-      onMessage([
-        { state: 0, is_sign: 0 },
-        { state: 0, is_sign: 1 },
-      ]);
+    watch: vi.fn(async (_network, _address, _signal, _check, onUnsignedCount) => {
+      onUnsignedCount(
+        unsignedOpenCount([
+          { state: 0, is_sign: 0 },
+          { state: 0, is_sign: 1 },
+        ]),
+      );
     }),
   } as unknown as TronLinkCollaborationPort;
   const chain = gateway();
@@ -158,7 +165,7 @@ function setup(...given: TronLinkRemoteRecord[]) {
     signature: [SIG],
   });
   const local = {
-    approvals: vi.fn(async (_network, hex: string) => approval(hex)),
+    approvals: vi.fn(async (_deadline, _network, hex: string) => approval(hex)),
     signChecked: vi.fn(async () => ({
       kind: "tx-sign",
       signer: A,
@@ -180,13 +187,14 @@ function setup(...given: TronLinkRemoteRecord[]) {
     service: new TronMultisigCollaborationService(collaboration, provider, local, () => NOW),
     collaboration,
     local,
+    chain,
     signedHex,
   };
 }
 
 describe("TronLink multi-sign collaboration workflow", () => {
   it("projects only byte- and node-validated remote transactions", async () => {
-    const result = await setup().service.list(NETWORK, A);
+    const result = await setup().service.list(NO_DEADLINE, NETWORK, A);
     expect(result).toMatchObject({
       total: 1,
       transactions: [
@@ -201,15 +209,13 @@ describe("TronLink multi-sign collaboration workflow", () => {
     });
   });
 
-  // A permission updated while an old transaction sat pending makes that record disagree with the
-  // chain forever. Listing must survive it: one stale row cannot cost the user the whole queue.
   it("lists a chain-disagreeing record as unverified instead of failing the whole page", async () => {
     const stale = remote(unsignedHex(), { threshold: 1 });
     const signedHex = encodeTransactionHex({
       ...decodeTransactionHex(unsignedHex()),
       signature: [SIG],
     });
-    const result = await setup(stale, remote(signedHex)).service.list(NETWORK, A);
+    const result = await setup(stale, remote(signedHex)).service.list(NO_DEADLINE, NETWORK, A);
 
     expect(result.transactions).toHaveLength(2);
     expect(result.transactions[0]).toMatchObject({ verified: false });
@@ -218,10 +224,30 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(result.transactions[1]!.unverifiedReason).toBeUndefined();
   });
 
-  // A record this client cannot reconstruct costs its own row, never the whole queue: one historical
-  // transaction carrying an encoding we do not understand must not hide every pending one.
+  it("lists a record for another chain as unverified without reading its permission", async () => {
+    const { service, local, chain } = setup();
+    vi.mocked(local.approvals).mockRejectedValueOnce(
+      new ChainError("chain_id_mismatch", "this transaction's reference block is not on nile"),
+    );
+    const result = await service.list(NO_DEADLINE, NETWORK, A);
+
+    expect(result.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
+    expect(result.transactions[0]!.unverifiedReason).toMatch(/reference block/);
+    expect(chain.getSignWeight).not.toHaveBeenCalled();
+  });
+
+  it("fails the page when the node has not reached a record's reference block", async () => {
+    const { service, local } = setup();
+    vi.mocked(local.approvals).mockRejectedValueOnce(
+      new TransportError("rpc_error", "the node has not yet seen this reference block"),
+    );
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).rejects.toMatchObject({
+      code: "rpc_error",
+    });
+  });
+
   it("omits an undecodable record and counts it instead of failing the whole page", async () => {
-    const result = await setup(undecodable(), remote()).service.list(NETWORK, A);
+    const result = await setup(undecodable(), remote()).service.list(NO_DEADLINE, NETWORK, A);
 
     expect(result.unreadable).toBe(1);
     expect(result.transactions).toHaveLength(1);
@@ -237,8 +263,19 @@ describe("TronLink multi-sign collaboration workflow", () => {
     ).resolves.toMatchObject({ action: "sign", accepted: true });
   });
 
-  // The reason belongs in the message: "TronLink sent something bad" sends the user to the wrong
-  // system when the truth is that this client could not reconstruct the bytes.
+  it("finds a record behind a malformed one, but fails a listing that contains it", async () => {
+    const target = unsignedHex(2);
+    const { service } = setup(remote(unsignedHex(), { state: 3 }), remote(target));
+
+    await expect(
+      service.sign(scope(), NETWORK, decodeTransactionHex(target).txID),
+    ).resolves.toMatchObject({ action: "sign", accepted: true });
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).rejects.toMatchObject({
+      code: "provider_error",
+      message: "TronLink returned unsupported transaction state 3",
+    });
+  });
+
   it("names why the requested record could not be decoded", async () => {
     const { service } = setup(undecodable());
 
@@ -250,11 +287,10 @@ describe("TronLink multi-sign collaboration workflow", () => {
     });
   });
 
-  // "Could not check" is not "checked and disagreed" — a node outage must not read as a clean page.
   it("propagates a node failure rather than reporting every record as unverified", async () => {
     const { service, local } = setup();
     vi.mocked(local.approvals).mockRejectedValue(new ChainError("timeout", "node timed out"));
-    await expect(service.list(NETWORK, A)).rejects.toMatchObject({ code: "timeout" });
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).rejects.toMatchObject({ code: "timeout" });
   });
 
   it("still refuses to co-sign a record that disagrees with the chain", async () => {
@@ -266,16 +302,17 @@ describe("TronLink multi-sign collaboration workflow", () => {
 
   it("rejects hash, owner, and progress metadata tampering", async () => {
     await expect(
-      setup(remote(unsignedHex(), { hash: "00".repeat(32) })).service.list(NETWORK, A),
+      setup(remote(unsignedHex(), { hash: "00".repeat(32) })).service.list(NO_DEADLINE, NETWORK, A),
     ).rejects.toMatchObject({ code: "provider_error" });
     await expect(
       setup(remote(unsignedHex(), { contract_data: { owner_address: B } })).service.list(
+        NO_DEADLINE,
         NETWORK,
         A,
       ),
     ).rejects.toMatchObject({ code: "provider_error" });
     await expect(
-      setup(remote(unsignedHex(), { current_weight: 1 })).service.list(NETWORK, A),
+      setup(remote(unsignedHex(), { current_weight: 1 })).service.list(NO_DEADLINE, NETWORK, A),
     ).rejects.toMatchObject({ code: "provider_error" });
   });
 
@@ -319,6 +356,52 @@ describe("TronLink multi-sign collaboration workflow", () => {
     expect(collaboration.submit).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a submit whose reply was lost as an unknown outcome with the transaction id", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    vi.mocked(collaboration.submit).mockRejectedValueOnce(
+      new TransportError("timeout", "TronLink request timed out"),
+    );
+    const context = scope();
+    const error = await service.sign(context, NETWORK, txId).catch((e: unknown) => e);
+    expect(error).toMatchObject({
+      code: "timeout",
+      details: { txId, address: A, network: "tron:3448148188", outcome: "unknown" },
+    });
+    expect(context.warn).toHaveBeenCalledWith(expect.stringContaining("may have been recorded"));
+  });
+
+  it("reports a submit refused before dispatch without a transaction id", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    const refusal = new DeadlineExpiredError();
+    vi.mocked(collaboration.submit).mockRejectedValueOnce(refusal);
+    const context = scope();
+    await expect(service.sign(context, NETWORK, txId)).rejects.toBe(refusal);
+    expect(context.warn).not.toHaveBeenCalled();
+  });
+
+  it("refuses the submit below the admission reserve without a warning", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    const deadline = new CommandDeadline(1999);
+    const context = { ...scope(), deadline };
+    await expect(service.sign(context, NETWORK, txId)).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(collaboration.submit).not.toHaveBeenCalled();
+    expect(context.warn).not.toHaveBeenCalled();
+    deadline.dispose();
+  });
+
+  it("keeps a definite TronLink rejection as it is", async () => {
+    const { service, collaboration } = setup();
+    const txId = decodeTransactionHex(unsignedHex()).txID;
+    const rejection = new ChainError("provider_error", "TronLink rejected the transaction");
+    vi.mocked(collaboration.submit).mockRejectedValueOnce(rejection);
+    const context = scope();
+    await expect(service.sign(context, NETWORK, txId)).rejects.toBe(rejection);
+    expect(context.warn).not.toHaveBeenCalled();
+  });
+
   it("reports an expired failed record as tx_expired before the generic state error", async () => {
     const expired = decodeTransactionHex(unsignedHex());
     const hex = encodeTransactionHex({
@@ -340,20 +423,20 @@ describe("TronLink multi-sign collaboration workflow", () => {
   it("counts only pending unsigned WebSocket records", async () => {
     const { service } = setup();
     const counts: number[] = [];
-    const result = await service.watch(NETWORK, A, new AbortController().signal, (count) =>
-      counts.push(count),
+    const result = await service.watch(
+      NO_DEADLINE,
+      NETWORK,
+      A,
+      new AbortController().signal,
+      (count) => counts.push(count),
     );
     expect(counts).toEqual([1]);
     expect(result).toMatchObject({ action: "watch", notifications: 1 });
   });
 });
 
-// #verifyOnChain used to bind only the SIGNED address set and the aggregate weight, leaving unsigned
-// entries and every per-signer weight provider-controlled. A stale record (permission updated while
-// the transaction sat pending) or a hostile one could therefore name a signer the permission does
-// not contain, or misstate weights — and it all rendered as chain-validated.
 describe("TronLink signer roster is bound to the on-chain permission", () => {
-  const C = "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2"; // not a key in the permission (keys are A and B)
+  const C = "TB6dL8QunEyPUqX95PESxyZ2SHGeAQELW2"; // Not an on-chain permission key.
   const unsigned = (address: string, weight: number) => ({
     address,
     weight,
@@ -365,19 +448,16 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
     return setup(remote(unsignedHex(), { signature_progress: progress }));
   }
 
-  // Listing shows a fabricated roster as unverified rather than refusing the page, but it is never
-  // presented as chain-validated and never as work waiting on this account.
   it("never presents a fabricated signer entry as verified", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
-    const view = await service.list(NETWORK, A);
+    const view = await service.list(NO_DEADLINE, NETWORK, A);
     expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
     expect(view.transactions[0]!.unverifiedReason).toMatch(/not a key in the on-chain permission/);
   });
 
   it("refuses to act for an account the permission does not contain", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 1), unsigned(C, 1)]);
-    // C passes every provider-side consistency check because the provider invented its own entry
-    const view = await service.list(NETWORK, C);
+    const view = await service.list(NO_DEADLINE, NETWORK, C);
     expect(view.transactions[0]).toMatchObject({ verified: false, awaitingMySignature: false });
     await expect(
       service.sign(scope(), NETWORK, decodeTransactionHex(unsignedHex()).txID),
@@ -386,12 +466,12 @@ describe("TronLink signer roster is bound to the on-chain permission", () => {
 
   it("renders on-chain weights, not the ones the provider reported", async () => {
     const { service } = withProgress([unsigned(A, 1), unsigned(B, 99)]);
-    const view = await service.list(NETWORK, A);
+    const view = await service.list(NO_DEADLINE, NETWORK, A);
     expect(view.transactions[0]!.signatureProgress.map((entry) => entry.weight)).toEqual([1, 1]);
   });
 
   it("accepts a roster that omits a key — every number shown is chain-derived anyway", async () => {
     const { service } = withProgress([unsigned(A, 1)]);
-    await expect(service.list(NETWORK, A)).resolves.toBeDefined();
+    await expect(service.list(NO_DEADLINE, NETWORK, A)).resolves.toBeDefined();
   });
 });

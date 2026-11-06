@@ -1,34 +1,12 @@
-/**
- * asset-contract-codec — the two TRON contract types TronWeb cannot round-trip.
- *
- * TronWeb hand-writes one protobuf serialiser per contract type, and two are unusable for the
- * TRC10 command group:
- *
- *   - `UnfreezeAssetContract` (type 14) is absent from its serialiser switch AND from its
- *     deserialiser's type map, so it can be neither built nor decoded — even though the
- *     generated proto class is bundled.
- *   - `AssetIssueContract` (type 6) serialises only `frozen_supply[0]`, silently dropping every
- *     later tranche, while its deserialiser reads the whole list. A multi-tranche issuance
- *     therefore fails `decodeTransactionHex`'s round-trip check and is refused outright. 56 of
- *     Nile's 7,330 TRC10s carry more than one tranche, so this is a live case, not a corner.
- *
- * We drive TronWeb's own bundled proto classes for the contract message, and let TronWeb build
- * the surrounding transaction envelope (ref block, expiration, timestamp, permission id) so
- * that layer stays in one place.
- *
- * Both encodings are verified byte-for-byte against transactions built by a live java-tron node
- * (`/wallet/unfreezeasset`, `/wallet/createassetissue`) — see the co-located tests.
- */
+// TronWeb drops extra AssetIssue tranches and lacks an UnfreezeAsset codec.
 import { TronWeb, utils as tronUtils } from "tronweb";
 import { ChainError } from "../../../../domain/errors/index.js";
 import type { TronTransactionArtifact } from "../../../../domain/types/index.js";
 
-/** contract types whose TronWeb serialiser we replace. */
 export const OVERRIDDEN_ENCODE_TYPES = Object.freeze([
   "AssetIssueContract",
   "UnfreezeAssetContract",
 ]);
-/** contract types TronWeb cannot deserialise at all. */
 export const OVERRIDDEN_DECODE_TYPES = Object.freeze(["UnfreezeAssetContract"]);
 
 const CONTRACT_TYPE_ID: Readonly<Record<string, number>> = Object.freeze({
@@ -36,12 +14,7 @@ const CONTRACT_TYPE_ID: Readonly<Record<string, number>> = Object.freeze({
   UnfreezeAssetContract: 14,
 });
 
-/**
- * A minimal supported contract used only to obtain a well-formed envelope from TronWeb, whose
- * `Any` wrapper we then retarget. WithdrawBalanceContract carries exactly one field —
- * `owner_address` — so it is the smallest valid stand-in, and reusing TronWeb's own `Any`
- * instance avoids depending on a second copy of google-protobuf.
- */
+// Reuse TronWeb's envelope and Any instance, replacing only the contract payload and type.
 const ENVELOPE_TYPE = "WithdrawBalanceContract";
 
 interface ProtoMessage {
@@ -117,7 +90,7 @@ function proto(): TronProto {
   return p;
 }
 
-/** address bytes, accepting either the hex or the base58 form TronWeb itself accepts. */
+// Accept hex or base58 addresses.
 function addressBytes(value: unknown): Uint8Array {
   if (typeof value !== "string" || value.length === 0) {
     return invalid("contract owner_address is missing");
@@ -131,10 +104,7 @@ function addressBytes(value: unknown): Uint8Array {
   return Uint8Array.from(tronUtils.code.hexStr2byteArray(hex.replace(/^0x/, "")));
 }
 
-/**
- * Mirrors TronWeb's own `stringToUint8Array`: a value already in hex is taken as-is, anything
- * else is treated as UTF-8. Matching it exactly matters — these bytes decide the txID.
- */
+// Match TronWeb's hex-or-UTF-8 interpretation: these bytes determine the txID.
 function textBytes(value: unknown): Uint8Array {
   if (typeof value !== "string" || value.length === 0) return new Uint8Array();
   const raw = value.replace(/^0x/, "");
@@ -142,7 +112,6 @@ function textBytes(value: unknown): Uint8Array {
   return Uint8Array.from(tronUtils.code.hexStr2byteArray(hex));
 }
 
-/** int64/int32 protobuf fields reject anything that is not a safe integer. */
 function intField(value: unknown, field: string, fallback?: number): number {
   if (value === undefined || value === null) {
     if (fallback !== undefined) return fallback;
@@ -162,12 +131,7 @@ function buildUnfreezeAsset(value: Record<string, unknown>): ProtoMessage {
   return message;
 }
 
-/**
- * Field-for-field identical to TronWeb's `buildAssetIssueContract`, except that every frozen
- * tranche is written instead of only the first. Setter order is irrelevant to the wire format
- * (protobuf orders by field number), but the conditional setters are preserved exactly: writing
- * a zero-valued optional field where TronWeb omits it would change raw_data_hex and so the txID.
- */
+// Preserve TronWeb's optional-field handling while encoding every frozen tranche.
 function buildAssetIssue(value: Record<string, unknown>): ProtoMessage {
   const P = proto();
   const AssetIssue = P.AssetIssueContract!;
@@ -198,7 +162,7 @@ function buildAssetIssue(value: Record<string, unknown>): ProtoMessage {
   );
 
   const supply = value.frozen_supply;
-  // TronWeb accepts either a list or a single tranche object; keep both shapes working.
+  // TronWeb accepts a list or a single tranche object.
   const tranches =
     supply === undefined || supply === null ? [] : Array.isArray(supply) ? supply : [supply];
   for (const tranche of tranches as Array<Record<string, unknown>>) {
@@ -212,13 +176,6 @@ function buildAssetIssue(value: Record<string, unknown>): ProtoMessage {
   return message;
 }
 
-/**
- * Build a transaction for a contract type TronWeb cannot serialise, reusing its envelope.
- *
- * TronWeb assembles ref block, expiration, timestamp, fee limit and permission id from the
- * candidate; we then retarget the contract's `Any` — which is TronWeb's own instance, so no
- * second protobuf runtime is involved — to the real type and message bytes.
- */
 export function encodeOverriddenContract(
   candidate: Partial<TronTransactionArtifact>,
 ): ProtoTransaction | undefined {
@@ -262,11 +219,6 @@ export function encodeOverriddenContract(
   return pb;
 }
 
-/**
- * Decode a raw_data payload whose contract type TronWeb cannot deserialise.
- * Mirrors the envelope shape TronWeb's own `deserializeTransaction` produces, so a decoded
- * artifact looks the same whichever path produced it.
- */
 export function decodeOverriddenContract(
   contractType: string,
   rawDataHex: string,
@@ -302,7 +254,7 @@ export function decodeOverriddenContract(
   if (!contract || contract.getType() !== CONTRACT_TYPE_ID[contractType]) {
     return invalid(`TRON contract type ${contractType} cannot be decoded losslessly`);
   }
-  // `auths` is a legacy field no encoder writes; carrying one through would silently drop it.
+  // Reject auths because re-encoding would drop them.
   if (raw.getAuthsList().length > 0) {
     return invalid(`TRON contract type ${contractType} cannot be decoded losslessly`);
   }

@@ -1,3 +1,5 @@
+import { endedByDeadline, requestDispatchCheck } from "../services/command-deadline.js";
+import type { ExecutionDeadline } from "../contracts/deadline.js";
 import type { AccountStore } from "../ports/account-store.js";
 import type { ChainGatewayProvider } from "../ports/chain/gateway-provider.js";
 import type {
@@ -9,12 +11,18 @@ import type {
 import { BaiRechargeFlow, reportBaiTransaction } from "./bai-recharge-flow.js";
 import { requireBaiChain, type BaiWalletBinding } from "./bai-wallet-binding.js";
 import type { BaiApi, BaiPageInput } from "../ports/bai-api.js";
-import { UsageError } from "../../domain/errors/index.js";
-import { assertBaiRechargeMinimum, baiRechargeAmount } from "../../domain/bai/recharge-policy.js";
+import { errorMessage, inputRef, UsageError } from "../../domain/errors/index.js";
+import {
+  assertBaiRechargeMinimum,
+  assertBaiRechargePrecision,
+  baiRechargeAmount,
+} from "../../domain/bai/recharge-policy.js";
 import type { X402RoundtripPort, X402ServeInput } from "../ports/x402-server.js";
 import { baiPaymentResult } from "../services/bai-payment-result.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
+import { sameAddress, type ChainFamily } from "../../domain/family/index.js";
+import { isBaiTxHash } from "../../domain/bai/chains.js";
 
 export interface BaiListCommandInput {
   cursor?: string;
@@ -22,6 +30,23 @@ export interface BaiListCommandInput {
   offset: number;
   sort: "asc" | "desc";
 }
+
+// The payer's token balance reader of each family, for the dry-run preview.
+const TOKEN_BALANCE: Record<
+  ChainFamily,
+  (
+    deadline: ExecutionDeadline,
+    gateways: ChainGatewayProvider,
+    network: NetworkDescriptor,
+    asset: string,
+    owner: string,
+  ) => Promise<string>
+> = {
+  evm: (deadline, gateways, network, asset, owner) =>
+    gateways.get(network, "evm", requestDispatchCheck(deadline)).getErc20Balance(asset, owner),
+  tron: (deadline, gateways, network, asset, owner) =>
+    gateways.get(network, "tron", requestDispatchCheck(deadline)).getTrc20Balance(asset, owner),
+};
 
 export class BaiService {
   constructor(
@@ -53,6 +78,7 @@ export class BaiService {
   ) {
     const amount = baiRechargeAmount(input.amount);
     assertBaiRechargeMinimum(input.token, amount);
+    assertBaiRechargePrecision(amount);
     const chain = requireBaiChain(network);
     if (!input.apiKey) {
       throw new UsageError(
@@ -84,11 +110,14 @@ export class BaiService {
       facilitatorUrl: this.rechargeConfig.facilitatorUrl,
     };
     this.payments.validate(network, paymentInput);
-    // Resolve the signing account before binding checks, including ambiguous address selectors.
+    // Reject ambiguous account selectors before binding checks.
     this.accounts?.resolveAccount(scope.activeAccount, network.family);
     const payer = scope.resolveAddress(network.family);
     scope.emit({ type: "activity", message: "Checking B.AI wallet binding…" });
-    const bound = await this.rechargeApi.isBound({ chain, address: payer });
+    const bound = await this.rechargeApi.isBound(
+      { chain, address: payer },
+      requestDispatchCheck(scope.deadline),
+    );
     if (!input.dryRun) {
       this.payments.prepare(scope, network);
       if (!bound) {
@@ -102,15 +131,14 @@ export class BaiService {
       );
     }
     const identifier = input.to?.trim();
-    const self =
-      !identifier ||
-      (network.family === "evm"
-        ? identifier.toLowerCase() === payer.toLowerCase()
-        : identifier === payer);
+    const self = !identifier || sameAddress(network.family, identifier, payer);
     let rechargeTarget: BaiRechargeTarget | undefined;
     if (!self) {
       scope.emit({ type: "activity", message: "Checking the recharge recipient…" });
-      const resolved = await this.rechargeApi.resolveTarget(identifier!);
+      const resolved = await this.rechargeApi.resolveTarget(
+        identifier!,
+        requestDispatchCheck(scope.deadline),
+      );
       rechargeTarget = {
         input: { type: "personal", identifier: identifier! },
         confirmedTarget: { type: "personal", targetId: resolved.targetId },
@@ -122,15 +150,21 @@ export class BaiService {
       const asset = inspection.serve.asset;
       if (this.gateways && typeof asset === "string") {
         try {
-          const tokenRaw =
-            network.family === "evm"
-              ? await this.gateways.get(network, "evm").getErc20Balance(asset, payer)
-              : await this.gateways.get(network, "tron").getTrc20Balance(asset, payer);
+          const tokenRaw = await TOKEN_BALANCE[network.family](
+            scope.deadline,
+            this.gateways,
+            network,
+            asset,
+            payer,
+          );
           balance = {
             tokenRaw,
-            nativeRaw: await this.gateways.client(network).getNativeBalance(payer),
+            nativeRaw: await this.gateways
+              .client(network, requestDispatchCheck(scope.deadline))
+              .getNativeBalance(payer),
           };
-        } catch {
+        } catch (error) {
+          if (endedByDeadline(error, scope.deadline)) throw error;
           scope.warn("Wallet balance is unavailable; preview does not establish sufficient funds.");
         }
       }
@@ -158,13 +192,16 @@ export class BaiService {
       {
         pay: async () => {
           const result = await this.payments!.roundtrip(scope, network, paymentInput);
-          return { ...baiPaymentResult(result.pay, network.id), chain };
+          return {
+            ...baiPaymentResult({ ...result.pay, settlement: result.settlement }, network.id),
+            chain,
+          };
         },
       },
       this.reportDelay,
       (message) => scope.emit({ type: "activity", message }),
     );
-    const result = await flow.execute({
+    const result = await flow.execute(scope.deadline, {
       channel: "crypto",
       chain,
       tokenName: input.token,
@@ -176,13 +213,16 @@ export class BaiService {
     return { ...result, network: network.id, token: input.token, amount: input.amount, payer };
   }
 
-  async rechargeReport(input: {
-    chain: "tron" | "bnb" | "base";
-    txHash: string;
-    amount?: string;
-    to?: string;
-    targetId?: string;
-  }) {
+  async rechargeReport(
+    deadline: ExecutionDeadline,
+    input: {
+      chain: "tron" | "bnb" | "base";
+      txHash: string;
+      amount?: string;
+      to?: string;
+      targetId?: string;
+    },
+  ) {
     if (!this.rechargeApi)
       throw new UsageError("invalid_option", "B.AI recharge reporting is unavailable");
     if (!["tron", "bnb", "base"].includes(input.chain))
@@ -190,8 +230,7 @@ export class BaiService {
         "invalid_value",
         "Recharge report requires the original tron, bnb or base chain",
       );
-    const hashPattern = input.chain === "tron" ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/;
-    if (!hashPattern.test(input.txHash))
+    if (!isBaiTxHash(input.chain, input.txHash))
       throw new UsageError("invalid_value", "Invalid transaction hash for the recharge chain");
     const to = input.to?.trim();
     const targetId = input.targetId?.trim();
@@ -201,11 +240,11 @@ export class BaiService {
     ) {
       throw new UsageError(
         "invalid_value",
-        "Recipient recovery requires both the original --to and --target-id",
+        errorMessage`Recipient recovery requires both the original ${inputRef("to")} and ${inputRef("targetId")}`,
       );
     }
     const amount = input.amount === undefined ? undefined : baiRechargeAmount(input.amount);
-    return reportBaiTransaction(this.rechargeApi, {
+    return reportBaiTransaction(deadline, this.rechargeApi, {
       chain: input.chain,
       txHash: input.txHash,
       ...(amount === undefined ? {} : { amount }),
@@ -220,8 +259,8 @@ export class BaiService {
     });
   }
 
-  async usage() {
-    const summary = await this.api.status();
+  async usage(deadline: ExecutionDeadline) {
+    const summary = await this.api.status(requestDispatchCheck(deadline));
     const current = summary.monthlyChart.at(-1);
     return {
       credits: summary.pointsBalance,
@@ -233,23 +272,16 @@ export class BaiService {
     };
   }
 
-  async usageList(input: BaiListCommandInput) {
-    const result = await this.api.usageList({
-      ...pageInput(input),
-      ...(input.cursor ? { cursor: input.cursor } : {}),
-    });
+  async usageList(deadline: ExecutionDeadline, input: BaiListCommandInput) {
+    const result = await this.api.usageList(
+      {
+        ...pageInput(input),
+        ...(input.cursor ? { cursor: input.cursor } : {}),
+      },
+      requestDispatchCheck(deadline),
+    );
     return {
-      records: result.items.map((row) => ({
-        id: optionalString(row.id),
-        createdAt: optionalString(row.created_at ?? row.createdAt),
-        model: optionalString(row.model),
-        inputTokens: optionalScalar(row.input_tokens ?? row.inputTokens),
-        outputTokens: optionalScalar(row.output_tokens ?? row.outputTokens),
-        totalTokens: optionalScalar(row.total_tokens ?? row.totalTokens),
-        credits: optionalScalar(row.cost_points ?? row.credits),
-        latencyMs: secondsToMilliseconds(row.duration_sec ?? row.durationSec),
-        source: optionalString(row.source_type ?? row.source),
-      })),
+      records: result.items,
       pagination: {
         offset: input.offset,
         limit: input.limit,
@@ -260,19 +292,22 @@ export class BaiService {
     };
   }
 
-  async rechargeList(input: BaiListCommandInput) {
+  async rechargeList(deadline: ExecutionDeadline, input: BaiListCommandInput) {
     const limit = Math.min(input.limit, 100);
     const page = Math.floor(input.offset / limit) + 1;
     const skip = input.offset % limit;
-    const request = { page, pageSize: limit, sortBy: "created_at" as const, sortOrder: input.sort };
-    const result = await this.api.rechargeList(request);
+    const request = { page, pageSize: limit, sortOrder: input.sort };
+    const result = await this.api.rechargeList(request, requestDispatchCheck(deadline));
     let orders = result.items.slice(skip);
     if (
       skip > 0 &&
       result.items.length === limit &&
       (result.total === undefined || input.offset + orders.length < result.total)
     ) {
-      const next = await this.api.rechargeList({ ...request, page: page + 1 });
+      const next = await this.api.rechargeList(
+        { ...request, page: page + 1 },
+        requestDispatchCheck(deadline),
+      );
       orders = orders.concat(next.items).slice(0, limit);
     }
     return {
@@ -292,30 +327,16 @@ function pageInput(input: BaiListCommandInput): BaiPageInput {
   if (input.offset % input.limit !== 0) {
     throw new UsageError(
       "invalid_value",
-      `--offset must be a multiple of --limit for the B.AI page API`,
+      errorMessage`${inputRef("offset")} must be a multiple of ${inputRef("limit")} for the B.AI page API`,
     );
   }
   return {
     page: input.offset / input.limit + 1,
     pageSize: input.limit,
-    sortBy: "created_at",
     sortOrder: input.sort,
   };
 }
 
 function utcMonth(date: Date): string {
   return date.toISOString().slice(0, 7);
-}
-
-function optionalString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
-function optionalScalar(value: unknown): string | undefined {
-  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
-}
-
-function secondsToMilliseconds(value: unknown): number | undefined {
-  const seconds = typeof value === "number" ? value : Number(value);
-  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : undefined;
 }

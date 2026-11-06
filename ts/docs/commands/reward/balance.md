@@ -61,6 +61,8 @@ wallet-cli reward balance --account main --network nile -o json
 | `withdrawableNow` | boolean | Whether it can be withdrawn now |
 | `withdrawableAt` | number \| null | When it becomes withdrawable (epoch ms); `null` when already withdrawable |
 
+Malformed TRON account data fails with `provider_error`.
+
 ## Exit status
 
 `0` success · `1` execution failure (`rpc_error`) · `2` usage error (`invalid_value`).

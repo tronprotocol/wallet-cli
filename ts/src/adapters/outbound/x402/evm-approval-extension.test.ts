@@ -1,8 +1,20 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, expect, it, vi } from "vitest";
 import { Interface, Transaction, Wallet } from "ethers";
 import { X402PaymentClient } from "./payment-client.js";
 import { evmSignStrategy } from "../chain/evm/signing-strategy.js";
-import type { TypedDataPayload } from "../../../domain/types/index.js";
+import type { TypedDataPayload, UnsignedTx } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -27,7 +39,7 @@ it.each(["56", "8453"])(
       return Response.json({ jsonrpc: "2.0", id: body.id, result });
     });
     vi.stubGlobal("fetch", rpc);
-    const sign = vi.fn((tx: unknown) => evmSignStrategy.sign(wallet.privateKey, tx));
+    const sign = vi.fn((tx: UnsignedTx) => evmSignStrategy.sign(wallet.privateKey, tx));
     const signTypedData = vi.fn((payload: TypedDataPayload) =>
       evmSignStrategy.signTypedData(wallet.privateKey, payload),
     );
@@ -62,7 +74,8 @@ it.each(["56", "8453"])(
       approval = payload.extensions[extension].info;
       return new Response("ok");
     });
-    const client = new X402PaymentClient(
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
       {
         assertCanSign() {},
         resolve: () => ({
@@ -72,11 +85,15 @@ it.each(["56", "8453"])(
           signTypedData,
         }),
       } as never,
-      fetcher,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      signing,
     );
     await expect(
       client.pay(
-        { activeAccount: "payer", timeoutMs: 2000, emit() {} } as never,
+        { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never,
         {
           family: "evm",
           chainId,
@@ -111,3 +128,88 @@ it.each(["56", "8453"])(
     expect(fetcher).toHaveBeenCalledTimes(2);
   },
 );
+
+it("ends a hung EVM RPC read at the command deadline and sends no later read", async () => {
+  const wallet = Wallet.createRandom();
+  const asset = "0x55d398326f99059fF775485246999027B3197955";
+  const methods: string[] = [];
+  let release: (() => void) | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn<typeof fetch>(async (input, init) => {
+      const body = (await new Request(input, init).json()) as { method: string; id: number };
+      methods.push(body.method);
+      if (methods.length === 1) await new Promise<void>((resolve) => (release = resolve));
+      const result = body.method === "eth_call" ? "0x" + "0".repeat(64) : "0x3";
+      return Response.json({ jsonrpc: "2.0", id: body.id, result });
+    }),
+  );
+  const challenge = {
+    x402Version: 2,
+    resource: { url: "https://payment.example" },
+    accepts: [
+      {
+        scheme: "exact",
+        network: "eip155:56",
+        amount: "1000000",
+        asset,
+        payTo: "0x2222222222222222222222222222222222222222",
+        maxTimeoutSeconds: 300,
+        extra: { assetTransferMethod: "permit2" },
+      },
+    ],
+    extensions: { erc20ApprovalGasSponsoring: { info: { version: "1" } } },
+  };
+  const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+    if (new Request(input, init).headers.has("payment-signature")) return new Response("ok");
+    return new Response(null, {
+      status: 402,
+      headers: { "payment-required": Buffer.from(JSON.stringify(challenge)).toString("base64") },
+    });
+  });
+  const sign = vi.fn((tx: UnsignedTx) => evmSignStrategy.sign(wallet.privateKey, tx));
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    {
+      assertCanSign() {},
+      resolve: () => ({
+        address: wallet.address,
+        kind: "software",
+        sign,
+        signTypedData: (payload: TypedDataPayload) =>
+          evmSignStrategy.signTypedData(wallet.privateKey, payload),
+      }),
+    } as never,
+    {} as never,
+    {} as never,
+    undefined,
+    undefined,
+    signing,
+  );
+  // Just above the submit reserve, so the payment starts and the read hangs past expiry.
+  const deadline = new CommandDeadline(2_100);
+  await expect(
+    client.pay(
+      { activeAccount: "payer", deadline, emit() {}, warn() {} } as never,
+      {
+        family: "evm",
+        chainId: "56",
+        id: "eip155:56",
+        httpEndpoint: "https://rpc.example",
+      } as never,
+      {
+        url: "https://payment.example",
+        method: "GET",
+        headers: [],
+        asset,
+        maxRawAmount: "1000000",
+      },
+    ),
+  ).rejects.toMatchObject({ code: "timeout", details: { phase: "create_payment" } });
+  release?.();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(methods).toEqual(["eth_call"]);
+  expect(sign).not.toHaveBeenCalled();
+  expect(fetcher).toHaveBeenCalledOnce();
+  deadline.dispose();
+});

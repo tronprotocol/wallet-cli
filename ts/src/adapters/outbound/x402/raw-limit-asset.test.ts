@@ -1,15 +1,26 @@
-// A raw payment limit has no unit: it must be pinned to one token, or a seller can price the
-// route in any asset (or the same asset at another precision) under a cap sized for a stablecoin.
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Wallet } from "ethers";
 import { TronWeb, providers } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { evmSignStrategy } from "../chain/evm/signing-strategy.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
-import type { X402PayInput } from "../../../application/ports/x402-payment.js";
+import type { X402PaidResult } from "../../../application/ports/x402-payment.js";
+import type { X402PayRequest } from "../../../application/use-cases/x402-service.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
 import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -19,17 +30,18 @@ afterEach(() => {
 const BSC_USDT = "0x55d398326f99059fF775485246999027B3197955"; // 18 decimals
 const BSC_BTCB = "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"; // 18 decimals, not registered
 const TRON_USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // 6 decimals
+const TRON_USDD = "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz"; // 18 decimals
 const ONE_E18 = "1000000000000000000";
 
 const scope = {
   activeAccount: "payer",
-  timeoutMs: 2000,
+  deadline: new CommandDeadline(0),
   emit() {},
   warn() {},
 } as unknown as TransactionScope;
 
 interface Outcome {
-  result?: Record<string, unknown>;
+  result?: Partial<X402PaidResult>;
   error?: { code?: string };
   typedData: TypedDataPayload[];
   txs: unknown[];
@@ -37,11 +49,16 @@ interface Outcome {
   paidRequests: number;
 }
 
-function seller(requirement: Record<string, unknown>, out: Outcome): typeof fetch {
+function seller(
+  requirements: Record<string, unknown> | Record<string, unknown>[],
+  out: Outcome,
+): typeof fetch {
   const challenge = {
     x402Version: 2,
     resource: { url: "https://seller.example" },
-    accepts: [{ maxTimeoutSeconds: 300, ...requirement }],
+    accepts: [requirements]
+      .flat()
+      .map((requirement) => ({ maxTimeoutSeconds: 300, ...requirement })),
   };
   return async (request, init) => {
     out.requests++;
@@ -55,9 +72,9 @@ function seller(requirement: Record<string, unknown>, out: Outcome): typeof fetc
   };
 }
 
-async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outcome> {
+async function payEvm(asset: string, input: Partial<X402PayRequest>): Promise<Outcome> {
   const wallet = Wallet.createRandom();
-  // Permit2 already holds an allowance, so the only signature is the payment authorization.
+  // Sufficient Permit2 allowance avoids approval signing.
   vi.stubGlobal(
     "fetch",
     vi.fn<typeof fetch>(async (request, init) => {
@@ -100,7 +117,15 @@ async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outc
     out,
   );
   try {
-    out.result = await new X402PaymentClient(signers, fetcher).pay(
+    out.result = await new X402Service(
+      new X402PaymentClient(fetcher),
+      signers,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      signing,
+    ).pay(
       scope,
       {
         family: "evm",
@@ -116,10 +141,14 @@ async function payEvm(asset: string, input: Partial<X402PayInput>): Promise<Outc
   return out;
 }
 
-async function payTron(amount: string, input: Partial<X402PayInput>): Promise<Outcome> {
+async function payTron(
+  amount: string,
+  input: Partial<X402PayRequest>,
+  offers?: Record<string, unknown>[],
+): Promise<Outcome> {
   const key = Wallet.createRandom().privateKey;
   const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
-  // Permit2 already holds an allowance, so no approve is built.
+  // Sufficient Permit2 allowance avoids approval signing.
   vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
     if (path === "wallet/triggerconstantcontract")
       return { result: { result: true }, constant_result: ["f".repeat(64)] };
@@ -143,7 +172,7 @@ async function payTron(amount: string, input: Partial<X402PayInput>): Promise<Ou
     }),
   } as unknown as SignerResolver;
   const fetcher = seller(
-    {
+    offers ?? {
       scheme: "exact",
       network: "tron:0x2b6653dc",
       amount,
@@ -154,7 +183,15 @@ async function payTron(amount: string, input: Partial<X402PayInput>): Promise<Ou
     out,
   );
   try {
-    out.result = await new X402PaymentClient(signers, fetcher).pay(
+    out.result = await new X402Service(
+      new X402PaymentClient(fetcher),
+      signers,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      signing,
+    ).pay(
       scope,
       {
         id: "tron:728126428",
@@ -247,5 +284,39 @@ describe("x402 raw payment limit pinning", () => {
     const out = await payEvm(BSC_BTCB, { maxRawAmount: ONE_E18, asset: BSC_BTCB });
     expect(out.error).toBeUndefined();
     expect(out.result?.payment).toEqual({ asset: BSC_BTCB, rawAmount: ONE_E18 });
+  });
+});
+
+describe("x402 whole-token payment limit binding", () => {
+  const offer = (asset: string, amount: string, extra: Record<string, unknown> = {}) => ({
+    scheme: "exact",
+    network: "tron:0x2b6653dc",
+    amount,
+    asset,
+    payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+    extra: { assetTransferMethod: "permit2", ...extra },
+  });
+
+  it("refuses another asset when the SDK drops the offer the limit was converted for", async () => {
+    // The SDK filters an unknown paymentFlow before the policy runs; the inspection does not.
+    const out = await payTron("", { maxAmount: "1" }, [
+      offer(TRON_USDD, ONE_E18, { paymentFlow: "deferred" }),
+      offer(TRON_USDT, "5000000000"),
+    ]);
+    expect(out.error).toMatchObject({
+      code: "no_matching_requirement",
+      details: { paymentStatus: "not_sent" },
+    });
+    expect(out.typedData).toHaveLength(0);
+    expect(out.txs).toHaveLength(0);
+    expect(out.paidRequests).toBe(0);
+  });
+
+  it.each([{}, { token: "USDT" }])("pays a single offer within the limit with %j", async (pin) => {
+    const out = await payTron("1000000", { maxAmount: "1", ...pin });
+    expect(out.error).toBeUndefined();
+    expect(out.typedData).toHaveLength(1);
+    expect(out.paidRequests).toBe(1);
+    expect(out.result).toMatchObject({ payment: { asset: TRON_USDT, rawAmount: "1000000" } });
   });
 });

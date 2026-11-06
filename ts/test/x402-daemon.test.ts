@@ -12,7 +12,7 @@ afterEach(async () => {
     try {
       process.kill(pid, "SIGTERM");
     } catch {
-      /* already stopped */
+      /* Best-effort cleanup. */
     }
   }
   for (const path of homes.splice(0)) await rm(path, { recursive: true, force: true });

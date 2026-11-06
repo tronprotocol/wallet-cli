@@ -15,7 +15,6 @@ describe("AddressService", () => {
       secretFile: "/safe/key.json",
     });
     expect(JSON.stringify(result)).not.toContain(SECRET);
-    // the use case states the name; where it lands is the adapter's decision
     expect(writer.write).toHaveBeenCalledWith(
       { name: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC" },
       expect.objectContaining({ privateKey: SECRET }),

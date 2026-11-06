@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { utf8ToBytes, bytesToHex } from "@noble/hashes/utils.js";
+import { utf8ToBytes, bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { keccak_256 } from "@noble/hashes/sha3.js";
 import { CryptoEnvelope } from "./index.js";
 
 describe("CryptoEnvelope", () => {
@@ -24,6 +25,17 @@ describe("CryptoEnvelope", () => {
   it("rejects a wrong password with auth_failed", () => {
     const blob = CryptoEnvelope.encrypt(secret, "right", "vlt_3", "bip39-seed");
     expect(() => CryptoEnvelope.decrypt(blob, "wrong")).toThrowError(/auth_failed|incorrect/);
+  });
+
+  it.each([16, 64])("refuses a file declaring dklen %i before checking the password", (dklen) => {
+    const blob = CryptoEnvelope.encrypt(secret, "right", "vlt_4", "bip39-seed");
+    const tampered = structuredClone(blob);
+    tampered.crypto.kdfparams = { ...tampered.crypto.kdfparams, n: 2, dklen };
+    // With dklen 16 the MAC key slice dk[16:32] is empty, so this MAC matches any password.
+    tampered.crypto.mac = bytesToHex(keccak_256(hexToBytes(tampered.crypto.ciphertext)));
+    expect(() => CryptoEnvelope.decrypt(tampered, "any wrong password")).toThrowError(
+      expect.objectContaining({ code: "encoding_error" }),
+    );
   });
 
   it("uses a fresh salt+iv per encryption", () => {

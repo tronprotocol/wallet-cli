@@ -5,7 +5,7 @@ import type { ChainGatewayMap } from "../../application/ports/chain/gateway-prov
 export interface FamilyPlugin<F extends ChainFamily> {
   readonly meta: FamilyMeta & { family: F };
   readonly signStrategy: SignStrategy;
-  createGateway(network: NetworkDescriptor, timeoutMs: number): ChainGatewayMap[F];
+  createGateway(network: NetworkDescriptor): ChainGatewayMap[F];
 }
 
 export type AnyFamilyPlugin = {

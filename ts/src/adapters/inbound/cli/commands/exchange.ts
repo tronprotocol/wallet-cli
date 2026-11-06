@@ -1,18 +1,7 @@
-/**
- * `exchange` — TRON's protocol-level Bancor market maker for TRX and TRC10.
- *
- * Four facts that run against intuition, and shape every command here:
- *   - only the pair's creator may inject or withdraw; this is private market-making, not a pool
- *     anyone can join, and the binding cannot be transferred;
- *   - TRX's on-chain token id is `_`; we accept `TRX`, `_` or a numeric TRC10 id;
- *   - `--min-received` is a floor that reverts the trade, not an expected return;
- *   - the protocol takes no fee — only `create` costs anything beyond bandwidth.
-
- */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronExchangeService } from "../../../../application/use-cases/tron/exchange-service.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 const NO_NAMES =
@@ -44,7 +33,10 @@ export const exchangeCreateSpec: ChainSpec = {
     "initial amounts is the pair's starting price. Sides keep the order you type.\n\n" +
     NO_NAMES,
   requires: ["an account with enough TRX for the fee and enough of both tokens"],
-  exclusive: [{ label: "how to size both sides", flags: ["amounts", "raw-amounts"] }],
+  exclusive: [
+    { label: "how to size both sides", flags: ["amounts", "raw-amounts"] },
+    txModeExclusive,
+  ],
   baseFields: z.object({
     pair: z.string().min(1).describe("the two sides as <a>:<b>, TRX or a TRC10 id"),
     amounts: z
@@ -82,7 +74,10 @@ export const exchangeInjectSpec: ChainSpec = {
     NO_NAMES,
   requires: ["the account that created the pair, holding enough of both tokens"],
   positionals: [{ field: "id" }],
-  exclusive: [{ label: "how to size the amount", flags: ["amount", "raw-amount"] }],
+  exclusive: [
+    { label: "how to size the amount", flags: ["amount", "raw-amount"] },
+    txModeExclusive,
+  ],
   baseFields: z.object({
     id: exchangeId,
     token: tokenField("the side you are specifying"),
@@ -112,7 +107,10 @@ export const exchangeWithdrawSpec: ChainSpec = {
     NO_NAMES,
   requires: ["the account that created the pair"],
   positionals: [{ field: "id" }],
-  exclusive: [{ label: "how to size the amount", flags: ["amount", "raw-amount"] }],
+  exclusive: [
+    { label: "how to size the amount", flags: ["amount", "raw-amount"] },
+    txModeExclusive,
+  ],
   baseFields: z.object({
     id: exchangeId,
     token: tokenField("the side you are specifying"),
@@ -151,6 +149,7 @@ export const exchangeTradeSpec: ChainSpec = {
       flags: ["min-received", "raw-min-received", "slippage"],
       select: "at-most-one",
     },
+    txModeExclusive,
   ],
   baseFields: z.object({
     id: exchangeId,
@@ -247,7 +246,13 @@ export function exchangeDefinitions(
       binding: { run: (ctx, net, input) => svc.withdraw(ctx, net, input) },
     },
     { spec: exchangeTradeSpec, binding: { run: (ctx, net, input) => svc.trade(ctx, net, input) } },
-    { spec: exchangeShowSpec, binding: { run: (_ctx, net, input) => svc.show(net, input) } },
-    { spec: exchangeListSpec, binding: { run: (_ctx, net, input) => svc.list(net, input) } },
+    {
+      spec: exchangeShowSpec,
+      binding: { run: (ctx, net, input) => svc.show(ctx.deadline, net, input) },
+    },
+    {
+      spec: exchangeListSpec,
+      binding: { run: (ctx, net, input) => svc.list(ctx.deadline, net, input) },
+    },
   ];
 }

@@ -1,5 +1,8 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
+import { expiringCheck } from "../../http/__test-support__/dispatch.js";
 
 const ADDR = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 
@@ -7,25 +10,39 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("TronRpcClient timeout", () => {
-  it("a hung node call rejects with ChainError(timeout) instead of hanging", async () => {
-    const client = new TronRpcClient("http://localhost:1", 20);
-    // never-resolving tronweb call → must be bounded by timeoutMs, not hang forever.
-    client.tronweb.trx.getContract = (() => new Promise(() => {})) as never;
-    await expect(client.getContract(ADDR)).rejects.toMatchObject({ code: "timeout" });
+describe("TronRpcClient command deadline", () => {
+  it("ends a hung SDK call with timeout when the deadline expires", async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
+    tronweb.trx.getContract = (() => new Promise(() => {})) as never;
+    await expect(
+      withDispatchCheck(expiringCheck(20), () => client.getContract(ADDR)),
+    ).rejects.toMatchObject({ code: "timeout" });
   });
 
   it("getContractMetadata fails not_found when no contract is deployed at the address", async () => {
-    const client = new TronRpcClient("http://localhost:1", 20);
-    // tronweb returns {} for an address with no contract (e.g. a plain account).
-    client.tronweb.trx.getContract = (() => Promise.resolve({})) as never;
-    client.tronweb.trx.getContractInfo = (() => Promise.resolve({})) as never;
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
+    tronweb.trx.getContract = (() => Promise.resolve({})) as never;
+    tronweb.trx.getContractInfo = (() => Promise.resolve({})) as never;
     await expect(client.getContractMetadata(ADDR)).rejects.toMatchObject({ code: "not_found" });
   });
 
-  it("getAccount aborts its fetch at timeoutMs (best-effort, does not hang)", async () => {
-    // fetch that only settles when its abort signal fires — proves the signal is wired to timeoutMs.
-    // hangs unless an abort signal is wired — a missing signal must fail the test, not pass it.
+  it("getContractMetadata times out when the deadline stops the optional info read", async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
+    tronweb.trx.getContract = (() => Promise.resolve({ bytecode: "60" })) as never;
+    tronweb.trx.getContractInfo = (() => new Promise(() => {})) as never;
+    await expect(
+      withDispatchCheck(expiringCheck(20), () => client.getContractMetadata(ADDR)),
+    ).rejects.toMatchObject({ code: "timeout" });
+  });
+
+  it("getContractMetadata omits info when the optional info read fails", async () => {
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("http://localhost:1"));
+    tronweb.trx.getContract = (() => Promise.resolve({ bytecode: "60" })) as never;
+    tronweb.trx.getContractInfo = (() => Promise.reject(new Error("unsupported"))) as never;
+    await expect(client.getContractMetadata(ADDR)).resolves.toMatchObject({ info: undefined });
+  });
+
+  it("aborts a sent getAccount request with the deadline and reports timeout", async () => {
     vi.stubGlobal(
       "fetch",
       (_url: string, init?: RequestInit) =>
@@ -35,7 +52,9 @@ describe("TronRpcClient timeout", () => {
           );
         }),
     );
-    const client = new TronRpcClient("http://localhost:1", 20);
-    await expect(client.getAccount(ADDR)).rejects.toBeTruthy();
+    const client = new TronRpcClient("http://localhost:1");
+    await expect(
+      withDispatchCheck(expiringCheck(20), () => client.getAccount(ADDR)),
+    ).rejects.toMatchObject({ code: "timeout" });
   });
 });

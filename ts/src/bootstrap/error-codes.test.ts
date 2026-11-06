@@ -6,17 +6,6 @@ import { ERROR_CODES, type ErrorCodeEntry } from "../domain/errors/codes.js";
 import { EVM_REJECTION_CODES } from "../adapters/outbound/chain/evm/node-errors.js";
 import { TRON_REJECTION_CODES } from "../adapters/outbound/chain/tron/node-errors.js";
 
-/**
- * The drift guard behind the "single index" promise.
- *
- * A table of error codes maintained by hand is accurate on the day it is written and wrong a week
- * later — which is how the error-code table came to list nine codes the implementation never produces while thirty
- * it does produce went undocumented. So the index is checked against the source: every code the
- * code can throw must have an entry, and every entry must correspond to a code that still exists.
- *
- * It lives in bootstrap because it reads across every layer, which only the composition root may
- * do; the index itself stays in `domain/errors`, beside the errors it describes.
- */
 const SRC = fileURLToPath(new URL("..", import.meta.url));
 
 function sourceFiles(dir: string): string[] {
@@ -29,17 +18,7 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-/**
- * Every code minted at a literal in an error constructor, with the exit its class implies. The
- * single scanner behind both directions of the guard below — a ternary first argument (e.g.
- * `throw new ChainError(cond ? "a" : "b", …)`) mints one site per branch, both attributed to that
- * constructor's exit class, because both really are thrown by it. Scans every string literal
- * between the call's opening paren and its FIRST COMMA (not depth-aware — it does not skip over
- * nested parens/brackets to find the first top-level one, it is `indexOf(",")`), so it does not
- * pick up literals from later arguments (the message) as long as nothing before that first comma
- * contains one, and skips a literal that is a comparison operand (e.g. `field === "name" ? …`)
- * rather than a branch value.
- */
+// Scan literals up to the first comma; nested expressions are not parsed.
 function thrownSites(): Array<{ code: string; exit: 1 | 2; where: string }> {
   const callStart = /new (Usage|Execution|Chain|Wallet|Transport)Error\(/g;
   const sites: Array<{ code: string; exit: 1 | 2; where: string }> = [];
@@ -64,17 +43,11 @@ function thrownSites(): Array<{ code: string; exit: 1 | 2; where: string }> {
   return sites;
 }
 
-/** Codes thrown as literals. The two node-rejection tables build theirs from data, so they publish
- *  their own lists rather than being scraped. */
+// Node-rejection codes come from tables rather than literal throw sites.
 function producedCodes(): Set<string> {
   const codes = new Set<string>([...EVM_REJECTION_CODES, ...TRON_REJECTION_CODES]);
   for (const { code } of thrownSites()) codes.add(code);
-  // A refine can also mint a code via `params: { errorCode: "…" }` (see `parseInputSchema`),
-  // which has no `new XError(...)` call of its own — it is always thrown as UsageError by
-  // parseInputSchema itself, so `thrownSites()`'s literal scan never sees it. Today every
-  // declared code also has a literal throw site elsewhere, so this scan is currently redundant —
-  // but the day a code is produced ONLY via a `params` declaration, skipping this would make the
-  // "entry with nobody producing it" check below misjudge it as stale.
+  // Schema refinements declare error codes without literal error constructors.
   const declared = /errorCode:\s*"([a-z_0-9]+)"/g;
   for (const file of sourceFiles(SRC)) {
     const text = readFileSync(file, "utf8");
@@ -89,8 +62,6 @@ describe("the error-code index", () => {
     expect(undocumented).toEqual([]);
   });
 
-  // The other direction, so the index does not accumulate codes that were renamed or removed —
-  // an agent branching on a code that can never arrive is writing dead handling.
   it("has no entry for a code nothing throws", () => {
     const produced = producedCodes();
     const stale = Object.keys(ERROR_CODES)
@@ -108,9 +79,6 @@ describe("the error-code index", () => {
     }
   });
 
-  // exit 2 means "it will still be wrong on retry" (machine-interface.md). A code that says
-  // otherwise has one of the two fields wrong, and filling them independently is how that gets
-  // caught.
   it("never claims a usage error is retryable", () => {
     const contradictory = Object.entries(ERROR_CODES)
       .filter(([, e]) => e.exit === 2 && e.retry !== "never")
@@ -119,9 +87,6 @@ describe("the error-code index", () => {
     expect(contradictory).toEqual([]);
   });
 
-  // The class a throw site picks is its statement of intent; the table is the contract. When they
-  // disagree one of them is wrong, and nothing else in the build can tell. `either` is the
-  // documented escape hatch for the few codes that genuinely arise on both sides.
   it("throws every code at the exit class its entry declares", () => {
     const wrong = thrownSites()
       .filter(({ code, exit }) => {
@@ -133,11 +98,6 @@ describe("the error-code index", () => {
     expect(wrong).toEqual([]);
   });
 
-  // The rejection-classification codes (EVM/TRON node-errors tables) are thrown as
-  // `new ChainError(known.code, …)` — a variable, not a string literal — so `thrownSites()`'s
-  // literal scan can never see them, and the guard above never checks their exit. They are always
-  // thrown through `ChainError`, so their declared exit must always be 1; this pins that down
-  // directly so a future rule declaring exit 2 here fails loudly instead of shipping unchecked.
   it("declares every node-rejection code at exit 1, since they are always thrown via ChainError", () => {
     const rejectionCodes = new Set([...EVM_REJECTION_CODES, ...TRON_REJECTION_CODES]);
     const wrong = [...rejectionCodes]

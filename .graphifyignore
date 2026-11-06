@@ -1,0 +1,33 @@
+# Generated code and build/dependency output obscure the handwritten code graph.
+java/src/main/gen/
+java/src/gen/
+node_modules/
+build/
+dist/
+bin/
+.gradle/
+coverage/
+graphify-out/
+
+# Generated fixtures, dependency locks, and architecture drawing data.
+**/__snapshots__/
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+ts/.dependency-cruiser-known-violations.json
+ts/eslint-suppressions.json
+ts/docs/
+java/docs/
+
+# Local agent state and wallet data are outside the source graph.
+.claude/
+.codex/
+.agents/
+.superpowers/
+.team/
+.private/
+.mcp.json
+Wallet/
+Mnemonic/
+wallet_data/
+.wallet-cli/

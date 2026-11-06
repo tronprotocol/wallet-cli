@@ -1,0 +1,2737 @@
+{
+  "tool": "wallet-cli",
+  "version": "<version>",
+  "globalFlags": [
+    {
+      "flag": "--output",
+      "alias": "-o",
+      "type": "string",
+      "values": [
+        "text",
+        "json"
+      ],
+      "description": "result format",
+      "defaultValue": "config.defaultOutput (built-in: text)"
+    },
+    {
+      "flag": "--network",
+      "type": "string",
+      "description": "network id or alias, e.g. nile, sepolia, bsc, or eip155:11155111; falls back to config.defaultNetwork when omitted"
+    },
+    {
+      "flag": "--account",
+      "type": "string",
+      "description": "accountId, label, or address for wallet-bound commands; an address is only valid on its own chain (use accountId or label to cross chains); read-only commands accept any address of that chain, signing commands require you to hold it; falls back to the active account set by use"
+    },
+    {
+      "flag": "--timeout",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2147483647,
+      "description": "deadline for the whole command, in milliseconds (0-2147483647); 0 = no limit",
+      "defaultValue": "config.timeoutMs (built-in: 90000)"
+    },
+    {
+      "flag": "--verbose",
+      "alias": "-v",
+      "type": "boolean",
+      "description": "show extra diagnostic output",
+      "defaultValue": false
+    },
+    {
+      "flag": "--wait",
+      "type": "boolean",
+      "description": "after submitting, wait until the transaction is confirmed or failed, within the command deadline; the default where a transaction is submitted"
+    },
+    {
+      "flag": "--no-wait",
+      "type": "boolean",
+      "description": "return the submitted receipt without waiting for confirmation; approvals still wait"
+    },
+    {
+      "flag": "--password-stdin",
+      "type": "boolean",
+      "description": "read the master password from stdin (fd 0); only one *-stdin flag can consume stdin per run"
+    }
+  ],
+  "errorCodes": {
+    "usage_error": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the command line could not be parsed"
+    },
+    "unknown_command": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no such command path, including under help or schema discovery"
+    },
+    "invalid_option": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "an option is not accepted here, or contradicts another one"
+    },
+    "missing_option": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "a required option was not given"
+    },
+    "invalid_value": {
+      "exit": "either",
+      "retry": "never",
+      "meaning": "an option's value is not of the shape that option takes"
+    },
+    "unknown_parameter": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no chain parameter by that name"
+    },
+    "limit_exceeded": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "a bounded input (file size, list length, page size) was over its limit"
+    },
+    "family_mismatch": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the account, recipient, raw transaction or command does not belong to the selected network's chain"
+    },
+    "missing_network": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the command needs a network and none was selected or configured"
+    },
+    "unsupported_network": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no network by that id or alias"
+    },
+    "unsupported_network_capability": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the selected network does not offer what this command needs"
+    },
+    "missing_wallet_address": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no account is available to act as"
+    },
+    "account_not_found": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no local account by that id, label or address"
+    },
+    "seed_not_found": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the reference does not name a seed (HD) wallet"
+    },
+    "invalid_account": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the account reference is not well-formed"
+    },
+    "not_exportable": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account holds no exportable secret (watch-only or Ledger)"
+    },
+    "no_software_wallet": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the operation needs a locally stored key and none exists"
+    },
+    "watch_only_no_signer": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the selected account can be watched but cannot sign"
+    },
+    "legacy_derivation": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account was derived at a TRON path this version no longer produces"
+    },
+    "derivation_mismatch": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account's stored address matches no derivation path of its seed"
+    },
+    "auth_required": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the master password is needed and was not available"
+    },
+    "auth_failed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the master password was wrong"
+    },
+    "weak_password": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the proposed master password does not meet the strength rule"
+    },
+    "wrong_keystore_password": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the keystore file's own password was wrong"
+    },
+    "invalid_keystore": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the file is not a valid V3 keystore"
+    },
+    "invalid_mnemonic": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the phrase is not a valid BIP39 mnemonic"
+    },
+    "invalid_path": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the value is not a usable BIP44 derivation path"
+    },
+    "invalid_private_key": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the private key is not 32 bytes of hex"
+    },
+    "keystore_not_found": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no keystore file at that path"
+    },
+    "secret_source_error": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a secret channel (stdin / TTY) could not be read"
+    },
+    "tty_required": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the operation only accepts input from a terminal, and there is none"
+    },
+    "entropy_failure": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "the system random source failed"
+    },
+    "insecure_permissions": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a wallet file's permissions are wider than 0600"
+    },
+    "migration_required": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "a registry file is older than this build and must be migrated first"
+    },
+    "audit_append_failed": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "the local export/audit log could not be appended to"
+    },
+    "file_not_found": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "an input file does not exist"
+    },
+    "output_exists": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the output path is already taken and would be overwritten"
+    },
+    "io_error": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "a local read or write failed"
+    },
+    "encoding_error": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "data on disk or on the wire is not in the form its format requires"
+    },
+    "invalid_config": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the config file is malformed, or a network in it is missing a required field"
+    },
+    "insecure_config": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the config file's permissions or contents are unsafe to load"
+    },
+    "contact_not_found": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no contact by that name, and the value is not an address either"
+    },
+    "invalid_address": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the value is not a valid address for the relevant chain"
+    },
+    "already_exists": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "a contact with that name or address is already stored"
+    },
+    "token_not_in_book": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no token by that reference in the local address book"
+    },
+    "token_already_listed": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "that token is already in the local address book"
+    },
+    "token_is_official": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the entry is a built-in and cannot be edited or removed"
+    },
+    "token_metadata_unavailable": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the token's on-chain metadata could not be read"
+    },
+    "unsupported_token": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the token standard is not one this command handles"
+    },
+    "ambiguous_token_symbol": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the symbol matches more than one token; address it by contract"
+    },
+    "ambiguous_asset_name": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the TRC10 name matches more than one asset; address it by id"
+    },
+    "ambiguous_account": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the address matches more than one account; address it by accountId"
+    },
+    "invalid_transaction": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the transaction is malformed, or already carries a signature"
+    },
+    "invalid_payload": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the payload does not decode as what the flag says it is"
+    },
+    "invalid_amount": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the amount is not positive, or is finer than the asset's precision"
+    },
+    "precision_loss": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the amount cannot be represented exactly at the required precision"
+    },
+    "tx_integrity": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the transaction re-encoded differently than it arrived — it was altered in flight"
+    },
+    "chain_id_mismatch": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a transaction or typed data names a different chain than the selected network"
+    },
+    "signing_rejected": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the signature was declined on the device"
+    },
+    "payer_mismatch": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the payload names a payer other than the signing account"
+    },
+    "fee_cap_exceeded": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the payload's fee exceeds the ceiling the caller set"
+    },
+    "signed_payload_mismatch": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the signature is not for the struct that was requested"
+    },
+    "dry_run_violation": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a dry-run path attempted to broadcast; the attempt was barred"
+    },
+    "invalid_permission": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no such permission group on the account, or it cannot be used here"
+    },
+    "not_authorized": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account is not permitted to perform this operation"
+    },
+    "already_signed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "this account has already signed the transaction"
+    },
+    "already_approved": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the approval was already recorded"
+    },
+    "not_approved": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the transaction has not gathered the approvals it needs"
+    },
+    "tx_expired": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the transaction's expiration has passed"
+    },
+    "transaction_rejected": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the node refused the transaction, in its own words"
+    },
+    "nonce_too_low": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "nonce already used; the account has moved on"
+    },
+    "nonce_too_high": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "nonce is ahead of the account; an earlier transaction is missing"
+    },
+    "replacement_underpriced": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "replacing a pending transaction needs a higher fee than the original"
+    },
+    "gas_too_low": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the gas limit is below what this transaction needs"
+    },
+    "gas_limit_exceeded": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the gas limit exceeds the block gas limit"
+    },
+    "fee_too_low": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the fee is below what the network is currently accepting"
+    },
+    "insufficient_balance": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the balance cannot cover the amount plus the maximum fee"
+    },
+    "insufficient_token_balance": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the token balance cannot cover the amount"
+    },
+    "execution_reverted": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the contract reverted the call"
+    },
+    "execution_error": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the transaction ran on-chain and failed"
+    },
+    "not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the transaction, block or record does not exist at this node"
+    },
+    "rpc_error": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "the node answered with an error"
+    },
+    "invalid_node_response": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "the node's answer was not in the shape the API defines"
+    },
+    "provider_error": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "an external service failed"
+    },
+    "provider_rate_limited": {
+      "exit": 1,
+      "retry": "later",
+      "meaning": "an external service is rate-limiting this client"
+    },
+    "gasfree_insufficient_balance": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the GasFree token balance cannot cover payment and maximum fee"
+    },
+    "gasfree_asset_unsupported": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the selected token contract is unavailable in the GasFree account; check the asset and relay"
+    },
+    "gasfree_not_activated": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the GasFree account is not activated"
+    },
+    "permit2_allowance_required": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the token allowance for Permit2 is insufficient"
+    },
+    "approval_reset_required": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the token requires zero allowance before a new approval"
+    },
+    "invalid_x402_response": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "an x402 response could not be decoded"
+    },
+    "invalid_settlement": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the paid response carried an invalid settlement receipt"
+    },
+    "no_matching_requirement": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no offered x402 payment route matched the requested filters"
+    },
+    "amount_exceeds_limit": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the requested x402 payment exceeds its configured limit"
+    },
+    "response_too_large": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the remote response exceeded the CLI safety limit"
+    },
+    "timeout": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "the command ran out of time, or a node, service or device did not answer in time"
+    },
+    "aborted": {
+      "exit": "either",
+      "retry": "never",
+      "meaning": "the operation was stopped before it finished"
+    },
+    "cancelled": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the operation was cancelled before it reached the device"
+    },
+    "history_not_supported": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the selected network exposes no transaction history endpoint"
+    },
+    "chain_parameter_unavailable": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the node does not report that chain parameter"
+    },
+    "gasfree_auth_failed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the GasFree service rejected the request's credentials"
+    },
+    "gasfree_credentials_missing": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no GasFree credentials are configured"
+    },
+    "gasfree_integrity": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the GasFree service's answer failed its integrity check"
+    },
+    "gasfree_rejected": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the GasFree service refused the transfer"
+    },
+    "bai_rejected": {
+      "exit": 1,
+      "retry": "changed",
+      "meaning": "the B.AI service rejected an operation with a recognized business reason"
+    },
+    "bai_auth_failed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the B.AI service rejected the configured API key"
+    },
+    "bai_credentials_missing": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no B.AI API key is configured"
+    },
+    "tronlink_credentials_missing": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no TronLink multi-sig service credentials are configured"
+    },
+    "device_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no Ledger device answered"
+    },
+    "device_disconnected": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the Ledger disconnected during an operation"
+    },
+    "device_unavailable": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the Ledger could not be opened; it may be in use or inaccessible"
+    },
+    "device_locked": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the Ledger device is connected but locked"
+    },
+    "ledger_setting_required": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a setting in the Ledger app must be enabled for this operation"
+    },
+    "ledger_unsupported": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the Ledger app does not implement this operation or cannot decode it"
+    },
+    "ledger_address_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the address was not found within the scanned derivation range"
+    },
+    "wrong_device_seed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the device holds a different seed than the account was registered with"
+    },
+    "account_not_active": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account is not activated on-chain"
+    },
+    "account_already_active": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account is already activated on-chain"
+    },
+    "insufficient_stake": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the staked amount cannot cover this operation"
+    },
+    "insufficient_voting_power": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the account has less voting power than the votes cast"
+    },
+    "no_frozen_supply": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "there is nothing frozen to act on"
+    },
+    "not_yet_unfreezable": {
+      "exit": 1,
+      "retry": "later",
+      "meaning": "the stake is still within its lock-up period"
+    },
+    "nothing_to_withdraw": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "there is nothing available to withdraw"
+    },
+    "withdraw_too_frequent": {
+      "exit": 1,
+      "retry": "later",
+      "meaning": "the withdrawal interval has not elapsed yet"
+    },
+    "no_reward": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "there is no reward to claim"
+    },
+    "not_a_witness": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the address is not a witness"
+    },
+    "already_witness": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the address is already a witness"
+    },
+    "name_already_set": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account's on-chain name is already set"
+    },
+    "id_already_set": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account's on-chain id is already set"
+    },
+    "asset_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no TRC10 asset by that id or name"
+    },
+    "invalid_asset_name": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the TRC10 name is not of an acceptable form"
+    },
+    "already_issued_asset": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account has already issued a TRC10 asset"
+    },
+    "not_an_issuer": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account did not issue this asset"
+    },
+    "not_in_ico_window": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the asset's participation window is not open"
+    },
+    "id_taken": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "that id is already in use"
+    },
+    "proposal_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no proposal by that id"
+    },
+    "proposal_expired": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the proposal's voting window has closed"
+    },
+    "not_proposal_owner": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account did not create this proposal"
+    },
+    "already_canceled": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the proposal was already withdrawn"
+    },
+    "exchange_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no Bancor exchange pair by that id"
+    },
+    "exchange_closed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the exchange pair is not accepting this operation"
+    },
+    "exchange_trading_disabled": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "this network is not accepting Bancor trades"
+    },
+    "not_exchange_creator": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account did not create this exchange pair"
+    },
+    "token_not_in_exchange": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "that token is not one of the pair's two sides"
+    },
+    "same_token": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "both sides of the pair would be the same token"
+    },
+    "insufficient_reserve": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the pair's reserve cannot support the requested amount"
+    },
+    "pool_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no liquidity pool exists for that pair"
+    },
+    "pool_already_exists": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a liquidity pool already exists for that pool key, so it cannot be created"
+    },
+    "position_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no liquidity position with that id under that protocol"
+    },
+    "no_matching_route": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "the route service found no path for that pair"
+    },
+    "launchpad_token_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "that address is not a SunPump token on this network"
+    },
+    "launchpad_trading_closed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the token's bonding curve is closed: it is awaiting launch, or has already launched"
+    },
+    "launch_outcome_unknown": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a token launch may have created a token, but no token came back to say so"
+    },
+    "permit_mismatch": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "a Permit2 authorization did not match the swap it was planned for, so it was not signed"
+    },
+    "router_call_mismatch": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the encoded Universal Router call did not match the swap that was quoted, so it was not sent"
+    },
+    "self_participation": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account cannot take both sides of this operation"
+    },
+    "slippage_exceeded": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the trade would have returned less than the floor set for it"
+    },
+    "contract_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "no contract at that address"
+    },
+    "not_contract_deployer": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the account did not deploy this contract"
+    },
+    "port_in_use": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the requested server port is already in use"
+    },
+    "agent_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the agent token does not exist"
+    },
+    "provider_not_found": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the requested provider does not exist"
+    },
+    "catalog_schema_unsupported": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the provider catalog schema version is unsupported"
+    },
+    "internal_error": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "an unexpected internal failure; the message is redacted on purpose"
+    }
+  },
+  "commands": [
+    {
+      "id": "8004.add-operator",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "add-operator"
+      ],
+      "usage": "wallet-cli 8004 add-operator [options]",
+      "summary": "Give an operator access to all Agents owned by this account",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "erc8004.identity.write",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "operator": {
+            "type": "string",
+            "minLength": 1,
+            "description": "operator address"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "operator",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "8004.approve",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "approve"
+      ],
+      "usage": "wallet-cli 8004 approve [options]",
+      "summary": "Approve or revoke an operator for one Agent",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "erc8004.identity.write",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "agent token id, optionally chain-scoped"
+          },
+          "operator": {
+            "description": "address approved for this Agent",
+            "type": "string",
+            "minLength": 1
+          },
+          "revoke": {
+            "default": false,
+            "description": "clear the current per-Agent approval",
+            "type": "boolean"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "revoke",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "8004.operator-check",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "operator-check"
+      ],
+      "usage": "wallet-cli 8004 operator-check [options]",
+      "summary": "Check an owner-wide Agent operator approval",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "capability": "erc8004.identity.read",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli 8004 operator-check T... T... --network nile",
+        "wallet-cli 8004 operator-check 0x... 0x... --network bsc-testnet"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Agent owner address"
+          },
+          "operator": {
+            "type": "string",
+            "minLength": 1,
+            "description": "operator address"
+          }
+        },
+        "required": [
+          "owner",
+          "operator"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "8004.register",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "register"
+      ],
+      "usage": "wallet-cli 8004 register [options]",
+      "summary": "Register an externally hosted Agent URI",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "erc8004.identity.write",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli 8004 register ipfs://bafy... --network nile --password-stdin"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "uri": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "URI of an agent registration document built and hosted outside wallet-cli"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "uri",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "8004.remove-operator",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "remove-operator"
+      ],
+      "usage": "wallet-cli 8004 remove-operator [options]",
+      "summary": "Remove an owner-wide Agent operator",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "erc8004.identity.write",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "operator": {
+            "type": "string",
+            "minLength": 1,
+            "description": "operator address"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "operator",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "8004.show",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "show"
+      ],
+      "usage": "wallet-cli 8004 show [options]",
+      "summary": "Load one ERC-8004 Agent directly from the Identity Registry",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "capability": "erc8004.identity.read",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli 8004 show 123 --network nile",
+        "wallet-cli 8004 show eip155:97:123 --network bsc-testnet"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "agent token id, optionally chain-scoped"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "8004.transfer",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "transfer"
+      ],
+      "usage": "wallet-cli 8004 transfer [options]",
+      "summary": "Transfer Agent ownership",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "erc8004.identity.write",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "agent token id, optionally chain-scoped"
+          },
+          "newOwner": {
+            "type": "string",
+            "minLength": 1,
+            "description": "new owner address"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "newOwner",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "8004.update",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "8004",
+        "update"
+      ],
+      "usage": "wallet-cli 8004 update [options]",
+      "summary": "Update an Agent registration URI",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "erc8004.identity.write",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "agent token id, optionally chain-scoped"
+          },
+          "uri": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "URI of an agent registration document built and hosted outside wallet-cli"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "uri",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "account.balance",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "account",
+        "balance"
+      ],
+      "usage": "wallet-cli account balance [options]",
+      "summary": "Show the native coin balance",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "optional"
+      },
+      "capability": "account.balance.native",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli account balance --network nile",
+        "wallet-cli account balance --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "account.info",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "account",
+        "info"
+      ],
+      "usage": "wallet-cli account info [options]",
+      "summary": "Show the account's on-chain state",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "optional"
+      },
+      "examples": [
+        "wallet-cli account info --network nile",
+        "wallet-cli account info --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "account.portfolio",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "account",
+        "portfolio"
+      ],
+      "usage": "wallet-cli account portfolio [options]",
+      "summary": "Show native + token balances with best-effort USD value",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "optional"
+      },
+      "capability": "account.portfolio",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli account portfolio --network nile",
+        "wallet-cli account portfolio --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "bai.recharge",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "bai",
+        "recharge"
+      ],
+      "usage": "wallet-cli bai recharge [options]",
+      "summary": "Recharge your own or another B.AI account",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "bai.recharge",
+      "support": {
+        "eip155:1": "unsupported",
+        "eip155:11155111": "unsupported",
+        "eip155:56": "supported",
+        "eip155:97": "unsupported",
+        "eip155:8453": "supported",
+        "eip155:84532": "unsupported"
+      },
+      "examples": [
+        "wallet-cli bai recharge 10 --token USDT --network tron --password-stdin",
+        "wallet-cli bai recharge 10 --token USDT --network tron --to recipient@example.com --password-stdin",
+        "wallet-cli bai recharge 10 --token USDT --network bsc --password-stdin",
+        "wallet-cli bai recharge 1 --token USDC --network base --password-stdin"
+      ],
+      "exclusive": [
+        {
+          "label": "GasFree fee limit",
+          "flags": [
+            "max-gasfree-fee",
+            "max-gasfree-fee-raw"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "default": false,
+            "description": "preview without creating an order, unlocking, signing or paying",
+            "type": "boolean"
+          },
+          "scheme": {
+            "default": "exact",
+            "type": "string",
+            "enum": [
+              "exact",
+              "exact_gasfree"
+            ]
+          },
+          "gasfreeRelay": {
+            "description": "GasFree relay: official, gasfree, or HTTPS URL",
+            "type": "string"
+          },
+          "maxGasfreeFee": {
+            "description": "maximum GasFree fee in whole tokens",
+            "type": "string"
+          },
+          "maxGasfreeFeeRaw": {
+            "description": "maximum GasFree fee in smallest units",
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "token": {
+            "description": "recharge token symbol; defaults to USDC on Base and USDT otherwise",
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "description": "B.AI recipient email or EVM, TRON, or Solana address; omit to recharge yourself",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 320
+          }
+        },
+        "required": [
+          "dryRun",
+          "scheme",
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "block",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "block"
+      ],
+      "usage": "wallet-cli block [options]",
+      "summary": "Get a block (latest if omitted)",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli block",
+        "wallet-cli block 12345 --network nile",
+        "wallet-cli block 12345 --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "number": {
+            "description": "block number to fetch, in block height; omit to fetch the latest block",
+            "type": "string",
+            "pattern": "^\\d+$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "chain.node",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "chain",
+        "node"
+      ],
+      "usage": "wallet-cli chain node [options]",
+      "summary": "Connected node status",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli chain node --network nile",
+        "wallet-cli chain node --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "chain.prices",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "chain",
+        "prices"
+      ],
+      "usage": "wallet-cli chain prices [options]",
+      "summary": "Current transaction unit prices",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli chain prices --network nile",
+        "wallet-cli chain prices --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "contract.call",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "contract",
+        "call"
+      ],
+      "usage": "wallet-cli contract call [options]",
+      "summary": "Read-only contract call",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "capability": "contract.call",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli contract call --contract TR7... --method \"balanceOf(address)\" --params '[{\"type\":\"address\",\"value\":\"T...\"}]' --network nile",
+        "wallet-cli contract call --contract 0xA0b8... --method \"balanceOf(address)\" --params '[{\"type\":\"address\",\"value\":\"0x742d...\"}]' --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "minLength": 1,
+            "description": "contract address"
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1,
+            "description": "function signature, e.g. balanceOf(address)"
+          },
+          "params": {
+            "description": "JSON array of ABI parameters as {type,value}; omit to pass no parameters",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "method"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "contract.deploy",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "contract",
+        "deploy"
+      ],
+      "usage": "wallet-cli contract deploy [options]",
+      "summary": "Deploy contract bytecode",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "contract.deploy",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli contract deploy --artifact ./build/contracts/Token.json --constructor-args '[\"18\",\"MyToken\"]' --network nile",
+        "wallet-cli contract deploy --artifact ./out/Token.sol/Token.json --constructor-args '[\"18\",\"MyToken\"]' --network sepolia",
+        "wallet-cli contract deploy --code-file ./Token.bin --constructor-signature 'constructor(uint8,string)' --constructor-args '[\"18\",\"MyToken\"]' --network sepolia"
+      ],
+      "exclusive": [
+        {
+          "label": "the creation bytecode",
+          "flags": [
+            "artifact",
+            "code",
+            "code-file"
+          ]
+        },
+        {
+          "label": "the constructor values",
+          "flags": [
+            "constructor-args",
+            "constructor-params"
+          ],
+          "select": "at-most-one"
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "artifact": {
+            "description": "path to a compiler artifact (Foundry, Hardhat/sunhat, TronBox) holding both the bytecode and the ABI; the preferred source, because the constructor's types then come from the compiler",
+            "type": "string",
+            "minLength": 1
+          },
+          "code": {
+            "description": "contract creation bytecode, hex-encoded",
+            "type": "string",
+            "minLength": 1
+          },
+          "codeFile": {
+            "description": "path to a file holding the creation bytecode; bytecode often exceeds the shell's argument limit",
+            "type": "string",
+            "minLength": 1
+          },
+          "constructorSignature": {
+            "description": "the constructor's types when there is no ABI, e.g. \"constructor(uint256,string)\"; not needed with --artifact, and not accepted on TRON, which needs the full ABI",
+            "type": "string",
+            "minLength": 1
+          },
+          "constructorArgs": {
+            "description": "constructor arguments as a JSON array of bare values, e.g. [\"18\",\"MyToken\"]; the types come from --artifact, --constructor-signature, or --abi on TRON",
+            "type": "string"
+          },
+          "constructorParams": {
+            "description": "constructor arguments as a JSON array of {type,value} entries, e.g. [{\"type\":\"uint8\",\"value\":\"18\"}]; prefer --constructor-args with --artifact",
+            "type": "string"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build an unsigned transaction without signing or broadcasting",
+            "type": "boolean"
+          },
+          "gasLimit": {
+            "description": "gas units to authorise; defaults to the node's estimate, unpadded",
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "maxFee": {
+            "description": "maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 only)",
+            "type": "string"
+          },
+          "priorityFee": {
+            "description": "tip per gas, in gwei — 25 or 25gwei (EIP-1559 only)",
+            "type": "string"
+          },
+          "nonce": {
+            "description": "transaction nonce; defaults to the account's pending nonce",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "contract.send",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "contract",
+        "send"
+      ],
+      "usage": "wallet-cli contract send [options]",
+      "summary": "State-changing contract call",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "contract.call",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli contract send --contract TR7... --method \"transfer(address,uint256)\" --params '[...]' --network nile",
+        "wallet-cli contract send --contract 0xA0b8... --method \"transfer(address,uint256)\" --params '[...]' --network sepolia"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "minLength": 1,
+            "description": "contract address"
+          },
+          "method": {
+            "type": "string",
+            "minLength": 1,
+            "description": "function signature, e.g. transfer(address,uint256)"
+          },
+          "params": {
+            "description": "JSON array of ABI parameters as {type,value}; omit to pass no parameters",
+            "type": "string"
+          },
+          "value": {
+            "description": "native coin sent with the call, in whole coins",
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build an unsigned transaction without signing or broadcasting",
+            "type": "boolean"
+          },
+          "gasLimit": {
+            "description": "gas units to authorise; defaults to the node's estimate, unpadded",
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "maxFee": {
+            "description": "maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 only)",
+            "type": "string"
+          },
+          "priorityFee": {
+            "description": "tip per gas, in gwei — 25 or 25gwei (EIP-1559 only)",
+            "type": "string"
+          },
+          "nonce": {
+            "description": "transaction nonce; defaults to the account's pending nonce",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "contract",
+          "method",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "message.sign",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "message",
+        "sign"
+      ],
+      "usage": "wallet-cli message sign [options]",
+      "summary": "Sign an arbitrary message (TIP-191/V2 · EIP-191)",
+      "requires": {
+        "network": "optional",
+        "auth": "required",
+        "wallet": "optional"
+      },
+      "capability": "message.sign",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli message sign --message \"hello\" --network nile",
+        "wallet-cli message sign --message \"hello\" --network sepolia"
+      ],
+      "exclusive": [
+        {
+          "label": "the message to sign",
+          "flags": [
+            "message",
+            "message-stdin"
+          ],
+          "select": "exactly-one"
+        }
+      ],
+      "inputFlags": [
+        {
+          "flag": "--message-stdin",
+          "type": "boolean",
+          "description": "read the message bytes/text from stdin (fd 0)"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "message": {
+            "description": "message text to sign",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "token.add",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "token",
+        "add"
+      ],
+      "usage": "wallet-cli token add [options]",
+      "summary": "Add a token to the address book",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "optional"
+      },
+      "capability": "token.tokenbook",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli token add --contract TR7... --network nile",
+        "wallet-cli token add --contract 0xA0b8... --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "minLength": 1,
+            "description": "token contract address"
+          }
+        },
+        "required": [
+          "contract"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "token.balance",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "token",
+        "balance"
+      ],
+      "usage": "wallet-cli token balance [options]",
+      "summary": "Show a single token balance",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "optional"
+      },
+      "capability": "account.balance.token",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli token balance --contract TR7... --network nile",
+        "wallet-cli token balance --contract 0xA0b8... --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "minLength": 1,
+            "description": "token contract address"
+          }
+        },
+        "required": [
+          "contract"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "token.info",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "token",
+        "info"
+      ],
+      "usage": "wallet-cli token info [options]",
+      "summary": "Show token metadata",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "capability": "account.balance.token",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli token info --contract TR7... --network nile",
+        "wallet-cli token info --contract 0xA0b8... --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "minLength": 1,
+            "description": "token contract address"
+          }
+        },
+        "required": [
+          "contract"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "token.list",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "token",
+        "list"
+      ],
+      "usage": "wallet-cli token list [options]",
+      "summary": "List the address book",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "optional"
+      },
+      "capability": "token.tokenbook",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli token list --network nile",
+        "wallet-cli token list --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "token.remove",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "token",
+        "remove"
+      ],
+      "usage": "wallet-cli token remove [options]",
+      "summary": "Remove a user-added token",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "optional"
+      },
+      "capability": "token.tokenbook",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli token remove --contract TR7... --network nile",
+        "wallet-cli token remove --contract 0xA0b8... --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "minLength": 1,
+            "description": "token contract address"
+          }
+        },
+        "required": [
+          "contract"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "tx.broadcast",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "tx",
+        "broadcast"
+      ],
+      "usage": "wallet-cli tx broadcast [options]",
+      "summary": "Broadcast a presigned transaction",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "capability": "tx.broadcast",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli tx broadcast --file signed.hex --network nile",
+        "wallet-cli tx broadcast --file signed.hex --network sepolia",
+        "wallet-cli tx broadcast --tx-stdin < signed.json --network nile"
+      ],
+      "exclusive": [
+        {
+          "label": "the signed transaction to broadcast",
+          "flags": [
+            "tx-stdin",
+            "hex",
+            "file"
+          ]
+        }
+      ],
+      "inputFlags": [
+        {
+          "flag": "--tx-stdin",
+          "type": "boolean",
+          "description": "read the signed transaction JSON from stdin (fd 0)"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "hex": {
+            "description": "signed transaction hex: protobuf hex for TRON, RLP for EVM",
+            "type": "string",
+            "minLength": 2
+          },
+          "file": {
+            "description": "file containing the signed transaction hex",
+            "type": "string",
+            "minLength": 1
+          },
+          "dryRun": {
+            "default": false,
+            "description": "validate signatures, threshold, expiration, and dynamic multi-sign fee without broadcasting",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dryRun"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "tx.info",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "tx",
+        "info"
+      ],
+      "usage": "wallet-cli tx info [options]",
+      "summary": "Show full transaction detail + receipt",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli tx info --txid abc123 --network nile",
+        "wallet-cli tx info --txid 0x9c4e... --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "minLength": 1,
+            "description": "transaction id/hash"
+          }
+        },
+        "required": [
+          "txid"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "tx.send",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "tx",
+        "send"
+      ],
+      "usage": "wallet-cli tx send [options]",
+      "summary": "Send native coins or tokens with human --amount",
+      "requires": {
+        "network": "optional",
+        "auth": "conditional",
+        "wallet": "optional"
+      },
+      "capability": "tx.send",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli tx send --to T... --amount 1 --network nile",
+        "wallet-cli tx send --to 0x742d... --amount 1 --network sepolia",
+        "wallet-cli tx send --to T... --token USDT --amount 5 --network nile",
+        "wallet-cli tx send --to 0x742d... --token USDC --amount 5 --network sepolia",
+        "wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network nile"
+      ],
+      "exclusive": [
+        {
+          "label": "the amount to send",
+          "flags": [
+            "amount",
+            "raw-amount"
+          ],
+          "select": "exactly-one"
+        },
+        {
+          "label": "which asset to send; omit for the network's native coin",
+          "flags": [
+            "token",
+            "contract"
+          ],
+          "select": "at-most-one"
+        },
+        {
+          "label": "the transaction mode; omit all for sign and broadcast",
+          "flags": [
+            "dry-run",
+            "sign-only",
+            "build-only"
+          ],
+          "select": "at-most-one"
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "recipient address for the selected network, or a local contact name"
+          },
+          "token": {
+            "description": "token symbol from the address book",
+            "type": "string",
+            "minLength": 1
+          },
+          "contract": {
+            "description": "token contract address; omit for a native-coin transfer",
+            "type": "string",
+            "minLength": 1
+          },
+          "amount": {
+            "description": "human amount: native coin for native transfers, token units for token transfers",
+            "type": "string",
+            "pattern": "^\\d+(\\.\\d+)?$"
+          },
+          "rawAmount": {
+            "description": "raw integer amount in native base units or token base units",
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "dryRun": {
+            "default": false,
+            "description": "build and estimate only, with no signature and no broadcast",
+            "type": "boolean"
+          },
+          "signOnly": {
+            "default": false,
+            "description": "sign and output complete transaction hex without broadcasting",
+            "type": "boolean"
+          },
+          "buildOnly": {
+            "default": false,
+            "description": "build and output unsigned complete transaction hex without unlocking; the entry point for multi-party signing (relay it with `tx sign`, or open a queue with `tx multisig --create`)",
+            "type": "boolean"
+          },
+          "gasLimit": {
+            "description": "gas units to authorise; defaults to the node's estimate, unpadded",
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "maxFee": {
+            "description": "maximum total fee per gas, in gwei — 25 or 25gwei (EIP-1559 chains only)",
+            "type": "string"
+          },
+          "priorityFee": {
+            "description": "tip per gas paid to the proposer, in gwei — 25 or 25gwei (EIP-1559 chains only)",
+            "type": "string"
+          },
+          "nonce": {
+            "description": "transaction nonce; defaults to the account's pending nonce",
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "to",
+          "dryRun",
+          "signOnly",
+          "buildOnly"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "tx.sign",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "tx",
+        "sign"
+      ],
+      "usage": "wallet-cli tx sign [options]",
+      "summary": "Sign a transaction built elsewhere",
+      "requires": {
+        "network": "optional",
+        "auth": "required",
+        "wallet": "optional"
+      },
+      "capability": "tx.sign",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli tx sign --transaction '{\"txID\":\"...\",\"raw_data\":{...},\"raw_data_hex\":\"...\"}'",
+        "wallet-cli tx sign --file unsigned.hex --out signed.hex --network nile --password-stdin",
+        "wallet-cli tx sign --file unsigned.hex --out signed.hex --network sepolia --password-stdin",
+        "wallet-cli tx sign --file partially-signed.hex --offline --password-stdin"
+      ],
+      "exclusive": [
+        {
+          "label": "the transaction to co-sign",
+          "flags": [
+            "hex",
+            "file"
+          ]
+        }
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "hex": {
+            "description": "transaction hex: protobuf hex for TRON, RLP for EVM",
+            "type": "string",
+            "minLength": 2
+          },
+          "file": {
+            "description": "file containing the transaction hex",
+            "type": "string",
+            "minLength": 1
+          },
+          "offline": {
+            "default": false,
+            "description": "sign locally without contacting a node; skips the reference-block, signer-permission and approval-weight checks",
+            "type": "boolean"
+          },
+          "out": {
+            "description": "write co-signed transaction hex to this new file; an existing path is refused",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "offline"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "tx.status",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "tx",
+        "status"
+      ],
+      "usage": "wallet-cli tx status [options]",
+      "summary": "Show confirmation status of a transaction",
+      "requires": {
+        "network": "optional",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli tx status --txid abc123 --network nile",
+        "wallet-cli tx status --txid 0x9c4e... --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "txid": {
+            "type": "string",
+            "minLength": 1,
+            "description": "transaction id/hash"
+          }
+        },
+        "required": [
+          "txid"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "typed-data.sign",
+      "kind": "chain",
+      "families": [
+        "tron",
+        "evm"
+      ],
+      "path": [
+        "typed-data",
+        "sign"
+      ],
+      "usage": "wallet-cli typed-data sign [options]",
+      "summary": "Sign EIP-712 / TIP-712 structured data",
+      "requires": {
+        "network": "optional",
+        "auth": "required",
+        "wallet": "optional"
+      },
+      "capability": "typedData.sign",
+      "support": {
+        "eip155:1": "supported",
+        "eip155:11155111": "supported",
+        "eip155:56": "supported",
+        "eip155:97": "supported",
+        "eip155:8453": "supported",
+        "eip155:84532": "supported"
+      },
+      "examples": [
+        "wallet-cli typed-data sign --typed-data '{\"domain\":{...},\"types\":{...},\"message\":{...}}' --network nile",
+        "wallet-cli typed-data sign --typed-data '{\"domain\":{...},\"types\":{...},\"message\":{...}}' --network sepolia"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "typedData": {
+            "type": "string",
+            "minLength": 1,
+            "description": "EIP-712/TIP-712 JSON: {\"domain\":…,\"types\":…,\"primaryType\"?:…,\"message\":…}; a domain.chainId must match the selected network"
+          }
+        },
+        "required": [
+          "typedData"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}

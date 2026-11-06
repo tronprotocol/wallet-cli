@@ -10,14 +10,7 @@ interface NativeBinding {
   devices(...args: unknown[]): unknown[];
 }
 
-/**
- * Build the small JavaScript facade exposed by `node-hid`.
- *
- * `node-hid` normally locates its N-API addon through the dynamic `bindings()` helper. A Bun
- * executable has no package directory at runtime, so that lookup cannot work. The build plugin
- * resolves the addon from Ledger transport's package location and redirects the shim's static
- * native import to that exact file; Bun can then embed and extract it with the executable.
- */
+// Bun executables need an embedded binding; node-hid's runtime package lookup cannot work.
 export function createNodeHid(binding: NativeBinding) {
   class HID extends EventEmitter {
     private readonly raw: NativeHid;
@@ -29,7 +22,7 @@ export function createNodeHid(binding: NativeBinding) {
       super();
       this.raw = new binding.HID(...args);
 
-      // Preserve node-hid's public surface without maintaining a second list of native methods.
+      // Expose the native methods required by node-hid callers.
       for (const method in binding.HID.prototype) {
         if (method in this) continue;
         (this as Record<string, unknown>)[method] = (
@@ -78,7 +71,7 @@ export function createNodeHid(binding: NativeBinding) {
   return {
     HID,
     devices: (...args: unknown[]) => binding.devices(...args),
-    // The standalone Linux build statically selects hidraw; keep this method for API compatibility.
+    // Linux uses hidraw; retain the method for API compatibility.
     setDriverType: (_type: string) => {},
   };
 }

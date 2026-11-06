@@ -43,8 +43,6 @@ function renderWith(unreadable: number, ...transactions: unknown[]): string {
 }
 
 describe("TronLink multi-sig list rendering", () => {
-  // History and actionability are separate concerns: preserve the service's state for an
-  // informational list, but surface the failed chain check independently and never invite action.
   it("preserves service state while marking a chain-unverified row and keeping it out of the co-sign hint", () => {
     const output = render(
       transaction({
@@ -62,7 +60,6 @@ describe("TronLink multi-sig list rendering", () => {
     expect(output).not.toContain("disagree");
   });
 
-  // A shorter table than the total is a silent lie about the queue — say what was dropped.
   it("reports records that were omitted because they could not be decoded", () => {
     expect(renderWith(2, transaction())).toContain("2 record");
     expect(render(transaction())).not.toMatch(/could not be decoded/i);
@@ -101,8 +98,6 @@ function receipt(action: "create" | "sign", thresholdReached: boolean): string {
 }
 
 describe("TronLink multi-sig receipts", () => {
-  // --create is the originator's signature, so the receipt has to name the signer and its weight
-  // the way --sign does; the collection opens at 1 of N, never at 0.
   it("reports the originator's own signature on create and points at the co-signers", () => {
     const output = receipt("create", false);
     expect(output).toContain("Created on TronLink multi-sig service");
@@ -112,8 +107,6 @@ describe("TronLink multi-sig receipts", () => {
     expect(output).not.toContain("tx broadcast");
   });
 
-  // The service broadcasts once the threshold is met, so an unconditional "broadcast it" would
-  // send the user at a call that fails with "Transaction already exists."
   it("tells both create and sign to confirm on chain before broadcasting at threshold", () => {
     for (const action of ["create", "sign"] as const) {
       const output = receipt(action, true);

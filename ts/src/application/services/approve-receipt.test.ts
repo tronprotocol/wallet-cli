@@ -1,7 +1,3 @@
-/**
- * The approve receipt — shared by both families, because TRC20 and ERC-20 share the method,
- * the hazard, and the unreadable argument.
- */
 import { describe, it, expect, vi } from "vitest";
 import { approveRows } from "./approve-receipt.js";
 import { fromBaseUnits } from "../../domain/amounts/index.js";
@@ -25,8 +21,6 @@ describe("approveRows", () => {
     ).resolves.toEqual({ spender: SPENDER, allowance: "1", allowanceDecimals: 6, token: "USDC" });
   });
 
-  // 2^256-1 is the approval that never runs out; 78 digits say only that the number is long, and
-  // no decimals can make that readable — so it does not even ask the contract.
   it("calls the maximum unlimited without reading metadata", async () => {
     const metadata = vi.fn(async () => ({ decimals: 6 }));
     const rows = await approveRows({
@@ -40,7 +34,6 @@ describe("approveRows", () => {
     expect(metadata).not.toHaveBeenCalled();
   });
 
-  // Being unable to LABEL the amount has no bearing on the approval itself.
   it("falls back to base units when decimals cannot be read", async () => {
     await expect(
       approveRows({
@@ -81,7 +74,6 @@ describe("approveRows", () => {
     expect(metadata).not.toHaveBeenCalled();
   });
 
-  // Spacing is a typing habit, not a different method.
   it("matches the signature regardless of spacing", async () => {
     await expect(
       approveRows({

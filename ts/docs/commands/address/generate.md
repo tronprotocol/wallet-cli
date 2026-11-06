@@ -57,10 +57,11 @@ wallet-cli address generate -o json
 | `tron` | string | TRON base58 address |
 | `evm` | string | EVM `0x` address (EIP-55) |
 | `secretFile` | string | Path the private key was written to (absent with `--print-secret`) |
+| `privateKey` | string | The private key, 64 hex characters; only with `--print-secret` |
 
 ## Exit status
 
-`0` success · `1` execution failure (`io_error`; `entropy_failure` — the system CSPRNG was unavailable) · `2` usage error (`output_exists` — the `--out` target already exists and is never overwritten; `invalid_value`).
+`0` success · `1` execution failure (`io_error` — the file or a missing parent directory cannot be created; nothing is written; `entropy_failure` — the system CSPRNG was unavailable) · `2` usage error (`output_exists` — the `--out` target already exists and is never overwritten; `invalid_value`).
 
 ## See also
 

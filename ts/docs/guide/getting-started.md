@@ -68,7 +68,7 @@ printf '%s' "$MY_PASSWORD" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1
 op read "op://Private/wallet-cli/password" | wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network nile --password-stdin
 ```
 
-The transaction is signed and **submitted**. Submission is not confirmation — check where it landed:
+The transaction is signed, submitted, and followed until it is confirmed or failed. If the command ends with the transaction still **submitted** (its time limit ran out, or you passed `--no-wait`), check where it landed:
 
 ```bash
 wallet-cli tx status --txid <the txid you got back> --network nile
@@ -81,7 +81,7 @@ Block          #70,604,611
 Confirmations  19
 ```
 
-`pending` means wait and re-run; `failed` means the chain rejected it (see [troubleshooting](../troubleshooting.md)). To make `tx send` block until confirmed, add `--wait`.
+`pending` means wait and re-run; `failed` means the chain rejected it (see [troubleshooting](../troubleshooting.md)).
 
 Not sure about a transaction? Rehearse it first — `--dry-run` builds and estimates without signing or broadcasting:
 

@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { CommandRegistry } from "../registry/index.js";
 import { registerX402Commands } from "./x402.js";
-import { parseInputSchema } from "../shell/index.js";
+import { neutralInputSchema, parseInputSchema } from "../shell/index.js";
 
 const registry = new CommandRegistry();
 registerX402Commands(registry, {} as never);
 function parse(verb: string, values: Record<string, unknown>) {
-  return parseInputSchema(registry.resolveNeutral(["x402", verb])!.input, values);
+  return parseInputSchema(neutralInputSchema(registry.resolveNeutral(["x402", verb])!), values);
 }
 describe("R4 payment input contracts", () => {
   it.each([

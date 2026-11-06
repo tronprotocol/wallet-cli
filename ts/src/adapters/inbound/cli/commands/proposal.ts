@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronProposalService } from "../../../../application/use-cases/tron/proposal-service.js";
 import { ciEnum } from "../arity/index.js";
-import { governanceTxModeFields, governanceTxRefine } from "./shared.js";
+import { governanceTxModeFields, tronExpirationRefine, txModeExclusive } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 export const proposalListSpec: ChainSpec = {
@@ -32,7 +32,7 @@ export const proposalListSpec: ChainSpec = {
 };
 
 export const proposalListTronBinding = (service: TronProposalService): FamilyBinding => ({
-  run: async (_ctx, net, input) => service.list(net, input),
+  run: async (ctx, net, input) => service.list(ctx.deadline, net, input),
 });
 
 export const proposalShowSpec: ChainSpec = {
@@ -59,16 +59,17 @@ export const proposalShowSpec: ChainSpec = {
 };
 
 export const proposalShowTronBinding = (service: TronProposalService): FamilyBinding => ({
-  run: async (_ctx, net, input) => service.show(net, input.id),
+  run: async (ctx, net, input) => service.show(ctx.deadline, net, input.id),
 });
 
 const proposalWriteBase = {
   network: "optional" as const,
   wallet: "optional" as const,
-  auth: "required" as const,
+  auth: "conditional" as const,
   broadcasts: true,
   capability: "proposal.write",
-  baseRefine: governanceTxRefine,
+  exclusive: [txModeExclusive],
+  baseRefine: tronExpirationRefine,
   formatText: TextFormatters.governanceReceipt,
 };
 

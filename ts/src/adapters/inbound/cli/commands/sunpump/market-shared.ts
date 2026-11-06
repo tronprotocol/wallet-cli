@@ -1,15 +1,3 @@
-/**
- * Zod fragments shared by the SunPump listing commands.
- *
- * Kept in one place so the paging and ordering flags cannot drift apart between `token-list` and
- * `token-search`: an agent that learned `--limit` on one listing should not find a different
- * ceiling on the next.
- *
- * Everything here is refused at PARSE time, because none of it depends on the service. A page
- * that is too large, an offset that no page boundary contains, an ordering the service does not
- * apply and an empty keyword are all knowable before a request is sent — and each of them is a
- * failure this particular service would answer with a confident 200 rather than an error.
- */
 import { z } from "zod";
 import type { RefinementCtx } from "zod";
 import {
@@ -17,12 +5,6 @@ import {
   SUNPUMP_SORT_DIRECTIONS,
 } from "../../../../../domain/sunpump/market.js";
 
-/**
- * The largest page this CLI asks for.
- *
- * A ceiling of our own: the service will serve a page of 200, but a listing that large is not a
- * CLI answer, so the limit is 50 for both commands.
- */
 export const MAX_PAGE_SIZE = 50;
 
 export const ORDER_BY_LIST = SUNPUMP_ORDER_BY_NAMES.join(", ");
@@ -41,23 +23,11 @@ export const sortField = z
   .default("desc")
   .describe(`sort direction: ${SORT_LIST}`);
 
-/**
- * The orderings the service really applies.
- *
- * `launched` is absent on purpose. It is a real field on every token and the service answers an
- * ordering by it with a 200 — having quietly sorted by market cap instead, while echoing the
- * field name back. It cannot be served, so it is not offered.
- */
+// Do not offer launched ordering: the service silently substitutes market-cap ordering.
 export const orderByField = (fallback: (typeof SUNPUMP_ORDER_BY_NAMES)[number]) =>
   z.enum(SUNPUMP_ORDER_BY_NAMES).default(fallback).describe(`order by: ${ORDER_BY_LIST}`);
 
-/**
- * `--limit` and `--offset`, checked together.
- *
- * The offset has to be a whole number of pages: the service pages by page number and size, so
- * `offset 5, limit 4` names rows 5..8, which no page contains. Rounding to the nearest page
- * would hand back rows the caller did not ask for while looking like success.
- */
+// Offsets must align to whole pages because the service accepts page number and size.
 export function pageWindowRefine(value: { limit: number; offset: number }, ctx: RefinementCtx) {
   const { limit, offset } = value;
   if (!Number.isInteger(limit) || limit <= 0) {

@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { walletImportLedgerInput } from "./wallet.js";
+import { walletImportLedgerExclusive, walletImportLedgerFields } from "./wallet.js";
+import { exclusiveRefine } from "../schemas/exclusive.js";
+
+const walletImportLedgerInput = walletImportLedgerFields.superRefine(
+  exclusiveRefine(walletImportLedgerExclusive, walletImportLedgerFields)!,
+);
 
 const ok = (v: unknown) => walletImportLedgerInput.safeParse(v).success;
 
@@ -28,8 +33,6 @@ describe("wallet import-ledger contract", () => {
     expect(r.success && (r.data as { index?: number }).index).toBe(2);
   });
 
-  // Previously "rejects a hidden-family app (EVM is not currently exposed)". The app list is
-  // derived from FAMILIES[f].ledger, so wiring hw-app-eth exposes `--app ethereum` by itself.
   it("accepts the ethereum app now that the EVM family is ledger-wired", () => {
     expect(ok({ app: "ethereum", index: 0 })).toBe(true);
   });

@@ -1,12 +1,15 @@
-/**
- * Prompter — the single owner of interactive TTY I/O. Logic (validation loops,
- * confirm match, select navigation) is backend-agnostic; the real backend talks to
- * the terminal (/dev/tty, or the console stdin on Windows). Prompts/echo never touch stdout.
- */
+// Prompts and input echo must never use stdout.
 import { openSync, closeSync } from "node:fs";
 import { ReadStream, isatty } from "node:tty";
 import * as readline from "node:readline";
 import { ExecutionError } from "../../../../../domain/errors/index.js";
+import type {
+  DeadlinePause,
+  ExecutionDeadline,
+} from "../../../../../application/contracts/deadline.js";
+
+// The command deadline as the prompter sees it.
+export type PromptClock = DeadlinePause & Pick<ExecutionDeadline, "assertActive">;
 
 export type KeyEvent = { name?: string; ctrl?: boolean; sequence?: string };
 export interface Choice<T> {
@@ -16,14 +19,14 @@ export interface Choice<T> {
 
 export interface PromptBackend {
   isTTY(): boolean;
-  /** read one line; when hidden, keystrokes are not echoed. */
+  // Hidden input must not echo keystrokes.
   question(prompt: string, hidden: boolean): Promise<string>;
-  /** resolve on the next keypress (raw mode must be active). */
+  // Requires raw mode.
   readKey(): Promise<KeyEvent>;
   write(s: string): void;
   beginRaw(): void;
   endRaw(): void;
-  /** release any held resources (e.g. the /dev/tty stream) so the process can exit. */
+  // Release held resources so the process can exit.
   close?(): void;
 }
 
@@ -31,13 +34,34 @@ export class Prompter {
   #renderedSelectLines = 0;
   #interactive = true;
 
-  constructor(private readonly be: PromptBackend) {}
+  // The clock stops only while waiting for the human's answer, not for validation or later work.
+  // No prompt opens once the deadline has expired.
+  constructor(
+    private readonly be: PromptBackend,
+    private readonly clock?: PromptClock,
+  ) {}
 
-  /**
-   * Per-dispatch interaction policy. Dispatch sets this per command so non-interactive commands
-   * behave as if there were no TTY — every prompt site already gates on isTTY(), so flipping this
-   * off makes gap-fill / password / secret prompts fail-fast on missing input instead of blocking.
-   */
+  async #question(prompt: string, hidden: boolean): Promise<string> {
+    this.clock?.assertActive();
+    const resume = this.clock?.pause();
+    try {
+      return await this.be.question(prompt, hidden);
+    } finally {
+      resume?.();
+    }
+  }
+
+  async #readKey(): Promise<KeyEvent> {
+    this.clock?.assertActive();
+    const resume = this.clock?.pause();
+    try {
+      return await this.be.readKey();
+    } finally {
+      resume?.();
+    }
+  }
+
+  // Disable isTTY for commands that must fail instead of prompting.
   setInteractive(allowed: boolean): void {
     this.#interactive = allowed;
   }
@@ -46,14 +70,13 @@ export class Prompter {
     return this.#interactive && this.be.isTTY();
   }
 
-  /** release backend resources at end of run (no-op for in-memory backends). */
   close(): void {
     this.be.close?.();
   }
 
   async text(o: { label: string; validate?: (v: string) => string | null }): Promise<string> {
     for (;;) {
-      const v = (await this.be.question(`${color("cyan", "?")} ${o.label}: `, false)).trim();
+      const v = (await this.#question(`${color("cyan", "?")} ${o.label}: `, false)).trim();
       const err = o.validate?.(v);
       if (err) {
         this.be.write(`${color("red", "  x")} ${err}\n`);
@@ -70,14 +93,14 @@ export class Prompter {
     validate?: (v: string) => string | null;
   }): Promise<string> {
     for (;;) {
-      const v = await this.be.question(`${color("cyan", "?")} ${o.label}: `, true);
+      const v = await this.#question(`${color("cyan", "?")} ${o.label}: `, true);
       const err = o.validate?.(v);
       if (err) {
         this.be.write(`${color("red", "  x")} ${err}\n`);
         continue;
       }
       if (o.confirm) {
-        const again = await this.be.question(
+        const again = await this.#question(
           `${color("cyan", "?")} ${o.confirmLabel ?? "Confirm"}: `,
           true,
         );
@@ -92,7 +115,7 @@ export class Prompter {
 
   async confirm(o: { label: string; expect?: string }): Promise<boolean> {
     const suffix = o.expect === undefined ? " [y/N]" : "";
-    const v = await this.be.question(`${color("yellow", "?")} ${o.label}${suffix}: `, false);
+    const v = await this.#question(`${color("yellow", "?")} ${o.label}${suffix}: `, false);
     if (o.expect !== undefined) return v.trim() === o.expect;
     return /^y(es)?$/i.test(v.trim());
   }
@@ -109,8 +132,8 @@ export class Prompter {
       this.#renderedSelectLines = 0;
       this.#render(o.label, items, idx);
       for (;;) {
-        const k = await this.be.readKey();
-        if (k.ctrl && k.name === "c") throw new ExecutionError("aborted", "cancelled");
+        const k = await this.#readKey();
+        if (k.ctrl && k.name === "c") throw promptAborted();
         if (k.name === "up") idx = Math.max(0, idx - 1);
         else if (k.name === "down") {
           if (idx === items.length - 1 && o.loadMore) {
@@ -142,6 +165,10 @@ export class Prompter {
   }
 }
 
+function promptAborted(): ExecutionError {
+  return new ExecutionError("aborted", "cancelled at the prompt");
+}
+
 function color(kind: "cyan" | "red" | "yellow" | "green", s: string): string {
   if (process.env.NO_COLOR) return s;
   const code = { cyan: 36, red: 31, yellow: 33, green: 32 }[kind];
@@ -152,16 +179,15 @@ function dim(s: string): string {
   return process.env.NO_COLOR ? s : `\x1b[2m${s}\x1b[0m`;
 }
 
-/** Where the terminal input comes from. */
 export interface TtySource {
-  /** whether an interactive terminal is reachable; must not hold it open. */
+  // Probe without holding the terminal open.
   available(): boolean;
   open(): ReadStream;
-  /** release a stream returned by open() so the event loop can drain. */
+  // Release the stream so the event loop can drain.
   release(stream: ReadStream): void;
 }
 
-/** POSIX: the controlling terminal, reachable even when stdin is a pipe. */
+// The controlling terminal remains reachable when stdin is a pipe.
 export const devTty: TtySource = {
   available() {
     try {
@@ -179,12 +205,8 @@ export const devTty: TtySource = {
   },
 };
 
-/**
- * Windows has no /dev/tty: the console is reachable only through stdin, so prompts work only when
- * stdin is the console, not a pipe. The stream is the process's own stdin — pause it, never destroy.
- * process.stdin is created lazily on the first prompt: creating it switches fd 0 to non-blocking,
- * which breaks a later `--password-stdin` read from a pipe whose writer has not written yet.
- */
+// Pause process stdin on release; destroy would close it.
+// Open lazily: creating process.stdin makes fd 0 nonblocking and can break piped reads.
 export function consoleStdin(
   isConsole: () => boolean = () => isatty(0),
   stdin: () => ReadStream = () => process.stdin as ReadStream,
@@ -202,7 +224,6 @@ export function defaultTtySource(platform: NodeJS.Platform = process.platform): 
   return platform === "win32" ? consoleStdin() : devTty;
 }
 
-/** Real backend: reads the terminal, writes prompts to stderr (never stdout). */
 export class TtyBackend implements PromptBackend {
   #tty: boolean;
   #input?: ReadStream;
@@ -210,7 +231,6 @@ export class TtyBackend implements PromptBackend {
   #pendingKey?: (key: KeyEvent) => void;
   #keyListener?: (s: string, key: KeyEvent) => void;
   constructor(private readonly source: TtySource = defaultTtySource()) {
-    // Probe for a terminal without holding it; the real stream opens on first prompt.
     this.#tty = source.available();
   }
   isTTY(): boolean {
@@ -220,36 +240,25 @@ export class TtyBackend implements PromptBackend {
     process.stderr.write(s);
   }
 
-  /**
-   * ONE persistent tty.ReadStream for the whole run (a real TTY stream, unlike fs.createReadStream).
-   * Per-prompt fds caused two failures: an undestroyed fs stream hung the event loop, and opening a
-   * fresh fd per prompt let the previous prompt's async teardown reset the terminal AFTER the next
-   * prompt set raw mode → the confirm prompt echoed the secret. A single reused stream avoids both;
-   * the runner calls close once at the end to release it so the process exits.
-   */
+  // Reuse one stream: teardown of a prior stream can disable raw mode and expose the next secret.
   #stream(): ReadStream {
     if (!this.#input) this.#input = this.source.open();
     return this.#input;
   }
 
-  /**
-   * Visible input goes through readline (echoes typed text, manages the prompt). Hidden input is read
-   * MANUALLY in raw mode: readline's terminal-mode redraw emits `ESC[1G ESC[0J` which erases the
-   * just-written prompt on a real terminal (prompt vanished → looked hung). A raw manual read writes
-   * the prompt once and never redraws; raw mode means the OS never echoes the secret.
-   */
+  // Read hidden input in raw mode without readline redraws, which can erase the prompt.
   question(prompt: string, hidden: boolean): Promise<string> {
     const input = this.#stream();
     if (!hidden) {
       const rl = readline.createInterface({ input, output: process.stderr, terminal: true });
-      // Raw mode turns Ctrl-C into a keypress; without this listener readline closes silently and
-      // the question never answers, so the command hangs.
-      rl.on("SIGINT", () => {
-        rl.close();
-        process.stderr.write("\n");
-        process.exit(130);
-      });
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
+        // Handle raw-mode Ctrl-C; otherwise readline closes without resolving the question.
+        rl.on("SIGINT", () => {
+          rl.close();
+          input.pause();
+          process.stderr.write("\n");
+          reject(promptAborted());
+        });
         rl.question(prompt, (ans) => {
           rl.close();
           input.pause();
@@ -257,25 +266,28 @@ export class TtyBackend implements PromptBackend {
         });
       });
     }
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       process.stderr.write(prompt);
       input.setRawMode(true);
       input.resume();
       let buf = "";
-      const finish = (val: string): void => {
+      const stop = (): void => {
         input.setRawMode(false);
         input.off("data", onData);
         input.pause();
         process.stderr.write("\n");
+      };
+      const finish = (val: string): void => {
+        stop();
         resolve(val);
       };
       const onData = (d: Buffer): void => {
         for (const ch of d.toString("utf8")) {
           const code = ch.charCodeAt(0);
-          if (ch === "\r" || ch === "\n") return finish(buf); // Enter
+          if (ch === "\r" || ch === "\n") return finish(buf);
           if (code === 3) {
-            process.stderr.write("\n");
-            process.exit(130);
+            stop();
+            return reject(promptAborted());
           } // Ctrl-C
           if (code === 4) return finish(buf); // Ctrl-D
           if (code === 127 || code === 8) {
@@ -325,13 +337,12 @@ export class TtyBackend implements PromptBackend {
       this.#pendingKey = resolve;
     });
   }
-  /** Release the persistent terminal stream so the event loop drains and the process exits. */
   close(): void {
     if (this.#input) {
       try {
         this.#input.setRawMode(false);
       } catch {
-        /* may already be closed */
+        // The stream may already be closed.
       }
       this.source.release(this.#input);
       this.#input = undefined;
@@ -339,6 +350,6 @@ export class TtyBackend implements PromptBackend {
   }
 }
 
-export function createPrompter(): Prompter {
-  return new Prompter(new TtyBackend());
+export function createPrompter(clock?: PromptClock): Prompter {
+  return new Prompter(new TtyBackend(), clock);
 }

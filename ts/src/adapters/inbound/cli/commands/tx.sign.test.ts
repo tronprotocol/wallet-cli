@@ -26,8 +26,6 @@ describe("tx sign spec", () => {
     expect(txSignSpec.baseFields.safeParse({ hex: "abcd", offline: true }).success).toBe(true);
   });
 
-  // The online permission/approval check is the default; --offline opts out of it.
-  // --check is gone: it was the inverted spelling and never shipped in a release.
   it("exposes --offline and no longer exposes --check", () => {
     expect(Object.keys(txSignSpec.baseFields.shape)).toContain("offline");
     expect(Object.keys(txSignSpec.baseFields.shape)).not.toContain("check");
@@ -38,31 +36,30 @@ describe("tx sign spec", () => {
     expect(parsed.offline).toBe(false);
   });
 
-  // the payload is not a secret, so argv is the only channel — no --tx-stdin on this command.
   it("declares no stdin channel", () => {
     expect(txSignSpec.stdin).toBeUndefined();
   });
 });
 
 describe("tx sign binding", () => {
-  it("parses the JSON payload and hands it to the service", async () => {
+  it("hands the parsed JSON payload to the checked offline signing service", async () => {
     let received: unknown;
     const svc = {
-      sign: async (_c: unknown, _n: unknown, tx: unknown) => {
-        received = tx;
+      signJson: async (_c: unknown, _n: unknown, tx: unknown, options: unknown) => {
+        received = { tx, options };
         return { kind: "sign" };
       },
     };
-    await txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+    await txSignTronBinding(svc as never, {} as never).run(ctx, net, {
       transaction: '{"txID":"abc"}',
     });
-    expect(received).toEqual({ txID: "abc" });
+    expect(received).toEqual({ tx: { txID: "abc" }, options: { origin: "offline" } });
   });
 
   it("rejects malformed JSON with invalid_value", async () => {
-    const svc = { sign: async () => ({}) };
+    const svc = { signJson: async () => ({}) };
     await expect(
-      txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+      txSignTronBinding(svc as never, {} as never).run(ctx, net, {
         transaction: "not json",
       }),
     ).rejects.toMatchObject({ code: "invalid_value" });
@@ -99,68 +96,56 @@ describe("tx sign binding", () => {
     },
   };
 
-  // Default: verify signer permission and resulting weight online. A co-signer who is
-  // not in the permission group, or who already signed, must fail before a signature is produced —
-  // not silently emit a hex that only `tx broadcast` will reject, after it has been passed on.
   it("routes hex signing through the multisig authorization service by default", async () => {
     await expect(
-      txSignTronBinding(
-        {} as never,
-        rejectOffline as never,
-        checkedSigner() as never,
-        {} as never,
-      ).run(ctx, net, { hex: "abcd", offline: false }),
+      txSignTronBinding(rejectOffline as never, checkedSigner() as never).run(ctx, net, {
+        hex: "abcd",
+        offline: false,
+      }),
     ).resolves.toMatchObject({ checked: true, signerWeight: 1 });
   });
 
   it("treats an absent --offline exactly like --offline false", async () => {
     await expect(
-      txSignTronBinding(
-        {} as never,
-        rejectOffline as never,
-        checkedSigner() as never,
-        {} as never,
-      ).run(ctx, net, { hex: "abcd" }),
+      txSignTronBinding(rejectOffline as never, checkedSigner() as never).run(ctx, net, {
+        hex: "abcd",
+      }),
     ).resolves.toMatchObject({ checked: true });
   });
 
   it("routes --offline through the local signing service, never touching the node", async () => {
     await expect(
-      txSignTronBinding(
-        {} as never,
-        offlineSigner() as never,
-        rejectChecked as never,
-        {} as never,
-      ).run(ctx, net, { hex: "abcd", offline: true }),
+      txSignTronBinding(offlineSigner() as never, rejectChecked as never).run(ctx, net, {
+        hex: "abcd",
+        offline: true,
+      }),
     ).resolves.toMatchObject({ checked: false });
   });
 
-  it("writes --out on both routes", async () => {
-    for (const input of [
-      { hex: "abcd", out: "signed.hex" },
-      { hex: "abcd", out: "signed.hex", offline: true },
-    ]) {
-      let written: unknown;
-      const writer = {
-        write: (path: string, hex: string) => {
-          written = { path, hex };
-        },
-      };
-      const result = await txSignTronBinding(
-        {} as never,
-        offlineSigner() as never,
-        checkedSigner() as never,
-        writer as never,
-      ).run(ctx, net, input);
-      expect(written).toEqual({ path: "signed.hex", hex: "beef" });
-      expect(result).toMatchObject({ out: "signed.hex", hex: "beef" });
-    }
+  it("passes --out to the signing use case on both routes", async () => {
+    const outs: unknown[] = [];
+    const offline = {
+      sign: async (_c: unknown, _n: unknown, _h: unknown, _o: unknown, out: unknown) => {
+        outs.push(out);
+        return {};
+      },
+    };
+    const checked = {
+      signChecked: async (_c: unknown, _n: unknown, _h: unknown, out: unknown) => {
+        outs.push(out);
+        return {};
+      },
+    };
+    const binding = txSignTronBinding(offline as never, checked as never);
+    await binding.run(ctx, net, { hex: "abcd", out: "signed.hex" });
+    await binding.run(ctx, net, { hex: "abcd", out: "offline.hex", offline: true });
+    expect(outs).toEqual(["signed.hex", "offline.hex"]);
   });
 
   it("rejects --offline with the JSON payload route, which has no online check to skip", async () => {
-    const svc = { sign: async () => ({ kind: "sign" }) };
+    const svc = { signJson: async () => ({ kind: "sign" }) };
     await expect(
-      txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(ctx, net, {
+      txSignTronBinding(svc as never, {} as never).run(ctx, net, {
         transaction: "{}",
         offline: true,
       }),
@@ -169,31 +154,23 @@ describe("tx sign binding", () => {
 });
 
 describe("EVM tx sign binding", () => {
-  it("writes the signed raw transaction when --out is provided", async () => {
-    const signed = { raw: "0x02signed", hash: "0xabc" };
-    const svc = { sign: async () => ({ kind: "sign", signed }) };
-    let written: unknown;
-    const writer = {
-      write: (path: string, hex: string) => {
-        written = { path, hex };
+  it("passes --out to the signing use case", async () => {
+    let received: unknown;
+    const svc = {
+      sign: async (_c: unknown, _n: unknown, hex: unknown, out: unknown) => {
+        received = { hex, out };
+        return { kind: "sign" };
       },
     };
 
-    const result = await txSignEvmBinding(svc as never, writer as never).run(ctx, net, {
-      hex: "0x02unsigned",
-      out: "signed.hex",
-    });
+    await txSignEvmBinding(svc as never).run(ctx, net, { hex: "0x02unsigned", out: "signed.hex" });
 
-    expect(written).toEqual({ path: "signed.hex", hex: signed.raw });
-    expect(result).toMatchObject({ out: "signed.hex", signed });
+    expect(received).toEqual({ hex: "0x02unsigned", out: "signed.hex" });
   });
 });
 
-// `tx sign --transaction <json>` was once the only form, and that contract must survive the
-// multisig work: the JSON route still returns the transaction service's result verbatim, and the
-// newer `kind:"tx-sign"` shape appears only for --hex/--file.
 describe("tx sign legacy JSON compatibility", () => {
-  it("returns the transaction service result unwrapped and unannotated", async () => {
+  it("returns the signing service result unwrapped and unannotated", async () => {
     const legacy = {
       kind: "sign",
       mode: "sign-only",
@@ -201,12 +178,10 @@ describe("tx sign legacy JSON compatibility", () => {
       address: "T1",
       txId: "abc",
     };
-    const svc = { sign: async () => legacy };
-    const result = await txSignTronBinding(svc as never, {} as never, {} as never, {} as never).run(
-      ctx,
-      net,
-      { transaction: '{"txID":"abc"}' },
-    );
+    const svc = { signJson: async () => legacy };
+    const result = await txSignTronBinding(svc as never, {} as never).run(ctx, net, {
+      transaction: '{"txID":"abc"}',
+    });
     expect(result).toEqual(legacy);
     expect(result).not.toHaveProperty("checked");
     expect(result).not.toHaveProperty("approval");
@@ -217,8 +192,6 @@ describe("tx sign legacy JSON compatibility", () => {
   });
 });
 
-// tx send carries both flavours, and conflating them would be a new lie in the help:
-// the amount pair is jointly required, the asset trio is not (omit all three → native TRX).
 describe("tx send exclusive groups", () => {
   const groups = () => Object.fromEntries((txSendSpec.exclusive ?? []).map((g) => [g.flags[0], g]));
 
@@ -231,11 +204,9 @@ describe("tx send exclusive groups", () => {
   });
 
   it("marks the asset selector optional, since omitting it sends the native coin", () => {
-    // `--asset-id` is TRON-only and is declared on that binding. An exclusive group is
-    // spec-level and therefore shared by every family, so it may only name flags they all have.
     expect(groups().token).toEqual({
       label: "which asset to send; omit for the network's native coin",
-      flags: ["token", "contract"],
+      flags: ["token", "contract", "asset-id"],
       select: "at-most-one",
     });
     expect(txSendSpec.baseFields.safeParse({ to: "T...", amount: "1" }).success).toBe(true);
@@ -250,9 +221,8 @@ describe("tx send exclusive groups", () => {
 });
 
 describe("tx broadcast binding", () => {
-  const broadcastContext = (stdin?: string, wait = false) =>
+  const broadcastContext = (stdin?: string) =>
     ({
-      wait,
       secrets: {
         has: (kind: string) => kind === "tx" && stdin !== undefined,
         pick: (inline: string | undefined) => inline ?? stdin,
@@ -265,9 +235,6 @@ describe("tx broadcast binding", () => {
     expect(txBroadcastSpec.baseFields.safeParse({ file: "tx.hex" }).success).toBe(true);
   });
 
-  // The exclusive group is the single source of truth for "pick exactly one of these four",
-  // on both the human help and the --json-schema catalog. Restating it inside a field
-  // description is a second copy that drifts the moment an input is added or renamed.
   it("declares every input in one exclusive group and nowhere else", () => {
     expect(txBroadcastSpec.exclusive).toEqual([
       {
@@ -316,19 +283,13 @@ describe("tx broadcast binding", () => {
     expect(received).toEqual({ txID: "abc" });
   });
 
-  it("rejects ambiguous input and --wait with --dry-run", async () => {
+  it("rejects ambiguous input", async () => {
     const service = { broadcastHex: async () => ({}), broadcastJson: async () => ({}) };
     await expect(
       txBroadcastTronBinding(service as never).run(broadcastContext(), net, {
         transaction: "{}",
         hex: "aabb",
         dryRun: false,
-      }),
-    ).rejects.toMatchObject({ code: "invalid_option" });
-    await expect(
-      txBroadcastTronBinding(service as never).run(broadcastContext(undefined, true), net, {
-        hex: "aabb",
-        dryRun: true,
       }),
     ).rejects.toMatchObject({ code: "invalid_option" });
   });

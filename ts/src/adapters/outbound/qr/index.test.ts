@@ -5,10 +5,10 @@ const ADDRESS = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
 
 describe("TerminalQrEncoder", () => {
   it("renders a complete fixed-width ANSI-free matrix on a wide TTY", () => {
-    const output = new TerminalQrEncoder({
+    const output = new TerminalQrEncoder().encode(ADDRESS, {
       isTTY: true,
       columns: 120,
-    }).encode(ADDRESS);
+    });
     const lines = output!.split("\n");
 
     expect(output).toContain("█");
@@ -21,32 +21,32 @@ describe("TerminalQrEncoder", () => {
 
   it("encodes the exact payload rather than returning a static symbol", () => {
     const terminal = { isTTY: true, columns: 120 };
-    const first = new TerminalQrEncoder(terminal).encode(ADDRESS);
-    const second = new TerminalQrEncoder(terminal).encode("TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT");
+    const first = new TerminalQrEncoder().encode(ADDRESS, terminal);
+    const second = new TerminalQrEncoder().encode("TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT", terminal);
     expect(first).not.toBe(second);
   });
 
   it("degrades for non-TTY and narrow terminals", () => {
     expect(
-      new TerminalQrEncoder({
+      new TerminalQrEncoder().encode(ADDRESS, {
         isTTY: false,
         columns: 120,
-      }).encode(ADDRESS),
+      }),
     ).toBeNull();
     expect(
-      new TerminalQrEncoder({
+      new TerminalQrEncoder().encode(ADDRESS, {
         isTTY: true,
         columns: 10,
-      }).encode(ADDRESS),
+      }),
     ).toBeNull();
   });
 
   it("rejects unsafe payload text before encoding", () => {
     expect(() =>
-      new TerminalQrEncoder({
+      new TerminalQrEncoder().encode("address\u202e", {
         isTTY: true,
         columns: 120,
-      }).encode("address\u202e"),
+      }),
     ).toThrow(/safe characters/);
   });
 });

@@ -59,6 +59,8 @@ wallet-cli vote status --account main --network nile -o json
 
 Zero-reward-ratio warnings appear in `meta.warnings` as plain strings — see [reading `meta.warnings`](../../machine-interface.md#reading-metawarnings).
 
+Malformed TRON account data fails with `provider_error`.
+
 ## Exit status
 
 `0` success · `1` execution failure (`rpc_error`) · `2` usage error (`invalid_value`).

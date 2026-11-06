@@ -6,7 +6,7 @@ Replace the account's permission structure.
 
 ```
 wallet-cli permission update (--file <path> | --json <str>)
-                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                              [--permission-id <n>] [options]
 ```
 
@@ -46,7 +46,8 @@ Changing only `keys`, `threshold` or `name` needs no such deletion.
 | `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md) for service-relayed multi-sig). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` — changing permissions is owner-level, so normally `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -66,10 +67,10 @@ wallet-cli permission show --network nile -o json | jq '.data' > perms.json
 $EDITOR perms.json
 ```
 
-Submit with `--wait`. The receipt is the transaction record plus the resulting on-chain structure (read back after confirmation, same cards as `permission show`). Warnings go to stderr ahead of it:
+Submit and wait for confirmation (the default). The receipt is the transaction record plus the resulting on-chain structure (read back after confirmation, same cards as `permission show`). Warnings go to stderr ahead of it:
 
 ```bash
-echo "$PW" | wallet-cli permission update --file perms.json --network nile --wait --password-stdin
+echo "$PW" | wallet-cli permission update --file perms.json --network nile --password-stdin
 ```
 
 ```console
@@ -101,7 +102,7 @@ Authorized To     Address                             Weight
 When present, the JSON receipt's `data.permissions` is **structurally identical** to `permission show`'s `data`, so you can diff it against the pre-change export. If the confirmed post-check cannot be read, the field is omitted and `meta.warnings` carries `permission_postcheck_unavailable`; the confirmed transaction is still `success: true`. The lockout warning is in `meta.warnings` too:
 
 ```bash
-echo "$PW" | wallet-cli permission update --file perms.json --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli permission update --file perms.json --network nile --password-stdin -o json
 ```
 
 ```json
@@ -114,9 +115,9 @@ echo "$PW" | wallet-cli permission update --file perms.json --network nile --wai
 
 | Mode | Fields |
 |---|---|
-| default (submit) | `kind: "permission-update"`, `stage: "submitted"`, `txId` |
-| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed`, and `permissions` (same shape as `permission show` data, read back from chain) |
-| `--dry-run` | `kind`, `mode: "dry-run"`, `tx`, `fee` (the account-permission fee), and `permissions` (the resulting structure); no `txId` |
+| `--no-wait` (submitted) | `kind: "permission-update"`, `stage: "submitted"`, `txId` |
+| default or `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed`, and `permissions` (same shape as `permission show` data, read back from chain) |
+| `--dry-run` | `kind`, `mode: "dry-run"`, `tx`, `fee` (the account-permission fee; `fee.feeSun` and `fee.balanceSun` are decimal SUN strings), and `permissions` (the resulting structure); no `txId` |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `signed`, `hex` (signed tx hex — feed `tx broadcast --hex`), `fee`, `address`, `txId`, and `permissions` |
 | `--build-only` | `kind`, `mode: "build-only"`, `tx`, `hex` (unsigned tx hex — feed `tx multisig --create`), `fee`, and `permissions` |
 
@@ -126,9 +127,13 @@ After confirmation, `permission_postcheck_unavailable` says the read-back failed
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`not_authorized`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_permission` — malformed JSON or an invalid permission structure; `invalid_value`).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed/dry-run in early-exit modes) · `1` execution failure (`not_authorized`, `watch_only_no_signer`, `auth_failed`, `insufficient_balance`, `rpc_error`, `timeout`) · `2` usage error (`invalid_permission` — malformed JSON or an invalid permission structure; `invalid_value` — malformed values; `invalid_option` — missing or conflicting input sources, or conflicting modes).
 
 On a multi-sig account, a submission whose accumulated signature weight is below the permission threshold is refused **after signing and before broadcasting** with `not_authorized` (`signature threshold is not reached; missing N weight`) — nothing is sent and no fee is burned. Collect the remaining signatures through `--sign-only` + [`tx sign`](../tx/sign.md) and submit with [`tx broadcast`](../tx/broadcast.md) instead. `--sign-only` and `--build-only` still return a partial signature, which is how a co-signing flow starts.
+
+## Known limitations
+
+**Ledger TRON app 0.7.7 – 0.8.1.** The device refuses some permission updates, and the command fails with `ledger_unsupported`. This happens when the update is just long enough to need one more transfer to the device. Shorten a permission `name` in the structure by a few characters and try again.
 
 ## See also
 

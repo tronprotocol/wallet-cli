@@ -1,18 +1,8 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapPositionInfoService } from "../../../../../application/use-cases/tron/sunswap/position-info-service.js";
+import type { SunSwapPositionInfoService } from "../../../../../application/use-cases/sunswap/position-info-service.js";
 import { TextFormatters } from "../../render/index.js";
 
-/**
- * V3 or V4, and nothing else — refused before anything is asked of a node.
- *
- * V2, V1, V1_5 and CURVE positions are not NFTs and have no id, so there is no "unsupported
- * protocol" here to fall through to at runtime: naming one is a mistake about what a position id
- * IS, and the message says so rather than listing four more values that would never work.
- *
- * Case is normalised because `v4` is what a person types and the value is an enum, not an
- * identifier — but the accepted set is still exactly two.
- */
 const protocolField = z
   .string()
   .transform((value) => value.trim().toUpperCase())
@@ -24,13 +14,7 @@ const protocolField = z
   )
   .describe("protocol version: V3 or V4");
 
-/**
- * The NFT id, as a STRING.
- *
- * Not `z.coerce.number()`: an id is an unbounded uint256, and a number would round one past fifteen
- * digits into a different position. What is checked is the shape — digits only, no sign, no point —
- * so a malformed id is a usage error at parse time rather than a revert a caller pays for.
- */
+// Keep uint256 IDs as strings to avoid rounding to another position.
 const positionIdField = z
   .string()
   .refine((value) => /^\d+$/.test(value.trim()), {
@@ -48,14 +32,7 @@ export const sunswapPositionInfoSpec: ChainSpec = {
   network: "optional",
   wallet: "none",
   auth: "none",
-  /**
-   * The CONTRACTS, not the market API.
-   *
-   * The data API is mainnet-only. This implementation reads the position manager and the pool
-   * instead, and those exist on every network the liquidity commands
-   * already work on — so the gate is the same one they use, and the USD fields are absent where
-   * there is no price source rather than the whole command being refused.
-   */
+  // Gate on contracts: position reads do not require the mainnet market API.
   capability: "sunswap.liquidity",
   rejectsAccount:
     "position-info looks up a position by its id and reports whoever holds it, so it is not about any account of yours",
@@ -81,7 +58,7 @@ export const sunswapPositionInfoTronBinding = (
   service: SunSwapPositionInfoService,
 ): FamilyBinding => ({
   run: async (ctx, net, input) =>
-    service.positionInfo(ctx, net, {
+    service.positionInfo(ctx.deadline, ctx, net, {
       protocol: input.protocol,
       positionId: input.positionId,
     }),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isPaymentRawAmount } from "../../../../domain/x402/payment-terms.js";
 
 export const uint256Max = (1n << 256n) - 1n;
 export const paymentAmount = z
@@ -14,16 +15,10 @@ export const paymentAmount = z
       params: { errorCode: "invalid_amount" },
     },
   );
-export const rawPaymentAmount = z
-  .string()
-  .refine(
-    (value) =>
-      /^\d+$/.test(value) &&
-      value.length <= 78 &&
-      BigInt(value) > 0n &&
-      BigInt(value) <= uint256Max,
-    { message: "must be a positive uint256 amount", params: { errorCode: "invalid_amount" } },
-  );
+export const rawPaymentAmount = z.string().refine(isPaymentRawAmount, {
+  message: "must be a positive uint256 amount",
+  params: { errorCode: "invalid_amount" },
+});
 export function integerLiteral(min: number, max: number) {
   return z
     .union([z.string().regex(/^\d+$/), z.number().int()])

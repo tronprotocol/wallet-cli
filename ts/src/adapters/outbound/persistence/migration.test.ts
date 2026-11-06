@@ -3,13 +3,12 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AtomicFileStore } from "./fs/index.js";
-import { MigrationRunner, type MigrationStep } from "./migration.js";
+import { FileDataMigrations, MigrationRunner, type MigrationStep } from "./migration.js";
 
 function root(): string {
   return mkdtempSync(join(tmpdir(), "migration-"));
 }
 
-/** a step that bumps version and stamps a marker, so we can see it actually ran */
 function bumpStep(path: string): MigrationStep {
   return {
     path,
@@ -51,8 +50,6 @@ describe("MigrationRunner.apply", () => {
 });
 
 describe("MigrationRunner pre-migration backup", () => {
-  // writeJsonAll is crash-safe but not CHANGE-safe — it deletes its own backups on
-  // success. A migration that succeeds but is wrong would otherwise destroy the only copy.
   it("keeps a copy of each file's pre-migration content", () => {
     const dir = root();
     const wallets = join(dir, "wallets.json");
@@ -103,10 +100,6 @@ describe("MigrationRunner atomicity", () => {
   });
 });
 
-// Every keystore mutator wraps its read-modify-write in withLock; the migration did not. The
-// race it opens is the worst kind: process A reads the v1 document and blocks on an interactive
-// password prompt while process B migrates and creates an account under the lock; A then writes
-// the migration of its now-stale read, erasing B's account and orphaning its encrypted key blob.
 describe("MigrationRunner holds the file lock while it writes", () => {
   it("takes the lock for the files it migrates", () => {
     const dir = root();
@@ -139,12 +132,6 @@ describe("MigrationRunner holds the file lock while it writes", () => {
   });
 });
 
-// The lock above is necessary but not sufficient. `plan()` reads OUTSIDE any lock — it has to,
-// because the gate must know whether a password will be needed before it prompts for one — so the
-// document travels through `notice`, `confirm` and an interactive password prompt before `commit()`
-// takes the lock. Anything another process committed in that window is invisible to the snapshot,
-// and writing the snapshot would erase it. Every case below writes the file between plan and apply
-// to stand in for that other process.
 describe("MigrationRunner re-reads under the lock", () => {
   it("does not erase an account another process added while the prompt was open", () => {
     const dir = root();
@@ -152,9 +139,8 @@ describe("MigrationRunner re-reads under the lock", () => {
     writeFileSync(wallets, JSON.stringify({ version: 1, wallets: [] }));
 
     const runner = new MigrationRunner(new AtomicFileStore());
-    const plan = runner.plan([bumpStep(wallets)]); // reads v1, [] — the snapshot
+    const plan = runner.plan([bumpStep(wallets)]);
 
-    // process B: migrates under the lock, then creates an account
     writeFileSync(wallets, JSON.stringify({ version: 1, wallets: [{ id: "wlt_b.0" }] }));
 
     runner.apply(plan.stale);
@@ -195,7 +181,6 @@ describe("MigrationRunner re-reads under the lock", () => {
     runner.apply(plan.stale);
 
     expect(JSON.parse(readFileSync(wallets, "utf8"))).toEqual(done);
-    // nothing was written, so no pre-migration copy was taken either
     expect(existsSync(`${wallets}.v1.bak`)).toBe(false);
     expect(existsSync(`${wallets}.v2.bak`)).toBe(false);
   });
@@ -263,5 +248,55 @@ describe("MigrationRunner re-reads under the lock", () => {
       wallets: [{ id: "wlt_b.0" }],
     });
     expect(existsSync(`${wallets}.v1.bak`)).toBe(false);
+  });
+});
+
+describe("FileDataMigrations", () => {
+  it("plans each stale file with its versions and backup path", () => {
+    const wallets = join(root(), "wallets.json");
+    writeFileSync(wallets, JSON.stringify({ version: 1, wallets: [] }));
+
+    const plan = new FileDataMigrations(new AtomicFileStore(), [bumpStep(wallets)]).plan();
+
+    expect(plan).toEqual({
+      pending: [{ path: wallets, from: 1, to: 2, backup: `${wallets}.v1.bak` }],
+      needsPassword: false,
+    });
+  });
+
+  it("plans nothing when every file is current", () => {
+    const wallets = join(root(), "wallets.json");
+    writeFileSync(wallets, JSON.stringify({ version: 2, wallets: [] }));
+
+    expect(new FileDataMigrations(new AtomicFileStore(), [bumpStep(wallets)]).plan()).toEqual({
+      pending: [],
+      needsPassword: false,
+    });
+  });
+
+  it("applies the planned files through their steps and hands over the password", () => {
+    const wallets = join(root(), "wallets.json");
+    writeFileSync(wallets, JSON.stringify({ version: 1, wallets: [] }));
+    const step: MigrationStep = {
+      ...bumpStep(wallets),
+      needsPassword: () => true,
+      migrate: (doc, password) => ({ ...(doc as object), version: 2, sawPassword: password }),
+    };
+    const migrations = new FileDataMigrations(new AtomicFileStore(), [step]);
+    const plan = migrations.plan();
+
+    const retained = migrations.apply(plan.pending, "hunter2");
+
+    expect(plan.needsPassword).toBe(true);
+    expect(retained).toEqual([]);
+    expect(JSON.parse(readFileSync(wallets, "utf8"))).toEqual({
+      version: 2,
+      wallets: [],
+      sawPassword: "hunter2",
+    });
+    expect(JSON.parse(readFileSync(`${wallets}.v1.bak`, "utf8"))).toEqual({
+      version: 1,
+      wallets: [],
+    });
   });
 });

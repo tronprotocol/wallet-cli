@@ -94,7 +94,7 @@ The TRC10 shape carries no normalized `contract`, `symbol`, or `decimals` keys.
 
 ## Exit status
 
-`0` success · `1` execution failure (`token_metadata_unavailable` — the contract does not expose ERC20-style metadata; `rpc_error`) · `2` usage error (`invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
+`0` success · `1` execution failure (`token_metadata_unavailable` — the contract does not expose ERC20-style metadata; `rpc_error`) · `2` usage error (`invalid_value`; `invalid_option` — missing or conflicting selectors on TRON, or `--asset-id` on an EVM network; `missing_option` — a missing `--contract` on EVM).
 
 ## See also
 

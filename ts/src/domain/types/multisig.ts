@@ -68,9 +68,8 @@ export interface TronLinkSignatureProgressView {
   signedAt: number | null;
 }
 
-/** Validated projection of an untrusted TronLink collaboration record. */
 export interface TronLinkMultisigTransactionView {
-  /** False when the record could not be reconciled with the chain; act on it at your own risk. */
+  // False when the record cannot be reconciled with chain state.
   verified: boolean;
   unverifiedReason?: string;
   txId: string;
@@ -101,7 +100,7 @@ export interface TronLinkMultisigTransactionView {
 export interface TronLinkMultisigListView {
   address: string;
   total: number;
-  /** Records omitted because this client could not reconstruct their transaction bytes. */
+  // Count of records whose transaction bytes could not be reconstructed.
   unreadable: number;
   transactions: TronLinkMultisigTransactionView[];
 }

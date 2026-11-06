@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { FeeReport, NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -17,9 +18,9 @@ const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
@@ -27,10 +28,12 @@ const scope: TransactionScope = {
 function createService(gateway: Partial<TronGateway>) {
   const concrete = gateway as TronGateway;
   const assertCanSign = vi.fn();
+  let estimatedFee: FeeReport | undefined;
   const pipeline = {
     assertCanSign,
-    run: async (params: TxPipelineParams) => {
-      await params.build(OWNER);
+    runTron: async (params: TronTxPipelineParams) => {
+      const tx = await params.build(OWNER);
+      estimatedFee = await params.estimate(tx);
       return { stage: "submitted", txId: "tx-witness", feeSun: 0 } as never;
     },
   } as unknown as TxPipeline;
@@ -38,14 +41,18 @@ function createService(gateway: Partial<TronGateway>) {
     { get: () => concrete } as unknown as ChainGatewayProvider,
     pipeline,
   );
-  return Object.assign(service, { assertCanSign }) as TronWitnessService & {
+  return Object.assign(service, {
+    assertCanSign,
+    estimatedFee: () => estimatedFee,
+  }) as TronWitnessService & {
     assertCanSign: typeof assertCanSign;
+    estimatedFee: () => FeeReport | undefined;
   };
 }
 
 describe("TronWitnessService", () => {
   it("uses getAccountUpgradeCost exactly and reports the irreversible burn as feeSun", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const service = createService({
       getWitness: async () => null,
       getAccount: async () => ({ address: OWNER, balance: "10000000000" }),
@@ -63,6 +70,7 @@ describe("TronWitnessService", () => {
       registrationFeeSun: "9999000000",
     });
     expect(build).toHaveBeenCalledWith(OWNER, "https://sr.example", { permissionId: 2 });
+    expect(service.estimatedFee()).toMatchObject({ feeSun: "9999000000" });
   });
 
   it("rejects insufficient registration balance before building", async () => {
@@ -79,8 +87,26 @@ describe("TronWitnessService", () => {
     expect(build).not.toHaveBeenCalled();
   });
 
+  it.each([-1, 101, 1.5])("refuses brokerage %s before any chain call", async (value) => {
+    const build = vi.fn();
+    const service = createService({ buildWitnessSetBrokerage: build });
+    await expect(service.setBrokerage(scope, NET, { percent: value })).rejects.toMatchObject({
+      code: "invalid_value",
+    });
+    expect(build).not.toHaveBeenCalled();
+  });
+
+  it("refuses a witness URL over 256 UTF-8 bytes before any chain call", async () => {
+    const build = vi.fn();
+    const service = createService({ buildWitnessUpdate: build });
+    await expect(
+      service.update(scope, NET, { url: `https://${"é".repeat(125)}` }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+    expect(build).not.toHaveBeenCalled();
+  });
+
   it("passes brokerage through unchanged: percent is the SR-retained share", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const service = createService({
       getWitness: async () => ({ address: OWNER, voteCount: "1" }),
       buildWitnessSetBrokerage: build,
@@ -92,7 +118,7 @@ describe("TronWitnessService", () => {
   });
 
   it("refuses an unactivated account before demanding the registration fee", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const service = createService({
       getWitness: async () => null,
       getAccount: async () => ({}),
@@ -105,10 +131,6 @@ describe("TronWitnessService", () => {
     expect(build).not.toHaveBeenCalled();
   });
 
-  // The Ledger TRON app has no parser for WitnessCreate / WitnessUpdate / UpdateBrokerage
-  // (java's ledger/wrapper/ContractTypeChecker lists neither), so every write in this group must be
-  // refused as software-only BEFORE the device is touched. Asserted per command
-  // because the flag is passed at each call site and is easy to drop in one of them.
   describe("Ledger accounts", () => {
     const cases = [
       [
@@ -136,7 +158,7 @@ describe("TronWitnessService", () => {
         buildWitnessUpdate: async () => ({}) as never,
         buildWitnessSetBrokerage: async () => ({}) as never,
       });
-      await call(service).catch(() => undefined); // `create` rejects with already_witness; irrelevant here
+      await call(service).catch(() => undefined); // create rejects after the signer gate.
       expect(service.assertCanSign).toHaveBeenCalledWith(scope.activeAccount, "tron", {
         requireSoftware: true,
       });

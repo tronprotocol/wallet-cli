@@ -1,8 +1,10 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { TransportError } from "../../../domain/errors/index.js";
+import { activeDispatch, dispatchNow, withDispatchCheck } from "./dispatch-context.js";
 
 export const MAX_HTTP_RESPONSE_BYTES = 10 * 1024 * 1024;
 
-/** Enforce limits while reading, before an SDK or JSON parser can buffer the body. */
+// Enforce the byte limit before downstream parsers buffer the body.
 export async function boundedResponse(
   response: Response,
   maxBytes: number,
@@ -60,22 +62,34 @@ export async function boundedResponse(
   return result;
 }
 
+// Sends under `check` (or the active dispatch check) and bounds the body. An abort after the
+// request was sent is a TransportError timeout: the request may have acted.
 export async function fetchBounded(
   fetcher: typeof fetch,
   request: Parameters<typeof fetch>[0],
   init: RequestInit | undefined,
-  timeoutMs: number,
+  check: DispatchCheck | undefined,
   maxBytes = MAX_HTTP_RESPONSE_BYTES,
 ): Promise<Response> {
-  const signals = [AbortSignal.timeout(timeoutMs)];
-  if (request instanceof Request) signals.push(request.signal);
-  if (init?.signal) signals.push(init.signal);
-  const signal = AbortSignal.any(signals);
-  try {
-    return await boundedResponse(await fetcher(request, { ...init, signal }), maxBytes, signal);
-  } catch (error) {
-    if (signal.aborted)
-      throw new TransportError("timeout", "HTTP request timed out or was aborted");
-    throw error;
-  }
+  const run = async () => {
+    const context = activeDispatch();
+    const signals: AbortSignal[] = [];
+    if (context) signals.push(context.check.signal);
+    if (request instanceof Request) signals.push(request.signal);
+    if (init?.signal) signals.push(init.signal);
+    const signal = signals.length === 0 ? undefined : AbortSignal.any(signals);
+    dispatchNow(context);
+    try {
+      return await boundedResponse(
+        await fetcher(request, { ...init, ...(signal ? { signal } : {}) }),
+        maxBytes,
+        signal,
+      );
+    } catch (error) {
+      if (signal?.aborted)
+        throw new TransportError("timeout", "HTTP request timed out or was aborted");
+      throw error;
+    }
+  };
+  return check ? withDispatchCheck(check, run) : run();
 }

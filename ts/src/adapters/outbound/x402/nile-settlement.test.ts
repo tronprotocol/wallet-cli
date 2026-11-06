@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Interface, Wallet } from "ethers";
 import { TronWeb, providers, utils as tronUtils } from "tronweb";
@@ -7,6 +8,17 @@ import type { PaymentPayload, PaymentRequirements } from "@bankofai/x402-core/ty
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 beforeEach(() => {
   vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
@@ -41,7 +53,7 @@ it.each([true, false])(
       extra: { assetTransferMethod: "permit2" },
     };
     const transactions = new Map<string, unknown>();
-    // This boundary simulates node acceptance. No network or chain VM is used.
+    // Simulate node acceptance without a chain VM.
     const broadcast = vi.fn(async (signed: { txID: string; signature: string[] }) => {
       expect(signed.signature[0]).toMatch(/^[0-9a-f]{130}$/i);
       expect(
@@ -142,9 +154,17 @@ it.each([true, false])(
         },
       });
     });
-    const client = new X402PaymentClient(signers as never, fetcher);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      signers as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      signing,
+    );
     const payment = client.pay(
-      { activeAccount: "payer", timeoutMs: 1000, emit: vi.fn() } as never,
+      { activeAccount: "payer", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
       {
         id: "tron:3448148188",
         family: "tron",

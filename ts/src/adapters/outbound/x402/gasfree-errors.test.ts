@@ -1,7 +1,9 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { expect, it, vi } from "vitest";
 import { x402Client, wrapFetchWithPayment } from "@bankofai/x402-fetch";
 import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
 import { X402PaymentClient } from "./payment-client.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 it("reports the installed SDK's GasFree shortfall before signing, without a wallet fallback", async () => {
   const payer = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
@@ -48,14 +50,15 @@ it("reports the installed SDK's GasFree shortfall before signing, without a wall
         headers: { "payment-required": Buffer.from(JSON.stringify(challenge)).toString("base64") },
       }),
   );
-  const client = new X402PaymentClient(
+  const client = new X402Service(
+    new X402PaymentClient(fetcher, async () => wrapFetchWithPayment(fetcher, sdk)),
     { assertCanSign: vi.fn(), resolve: () => ({ address: payer }) } as never,
-    globalThis.fetch,
-    async () => wrapFetchWithPayment(fetcher, sdk),
+    {} as never,
+    {} as never,
   );
   await expect(
     client.pay(
-      { activeAccount: "payer", emit: vi.fn() } as never,
+      { activeAccount: "payer", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
       { id: "tron:728126428", family: "tron", chainId: "728126428" } as never,
       { url: "https://example.test/pay", method: "GET", headers: [] },
     ),
@@ -65,5 +68,5 @@ it("reports the installed SDK's GasFree shortfall before signing, without a wall
   });
   expect(readContract).toHaveBeenCalledWith(expect.objectContaining({ args: [gasfreeAddress] }));
   expect(signTypedData).not.toHaveBeenCalled();
-  expect(fetcher).toHaveBeenCalledOnce();
+  expect(fetcher).toHaveBeenCalledTimes(2);
 });

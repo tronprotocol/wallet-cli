@@ -67,20 +67,14 @@ describe("RecipientResolver — EVM", () => {
     expect(resolver.resolve("evm", EVM)).toEqual({ address: EVM });
   });
 
-  // An all-lowercase address counts as "no checksum was offered" and is accepted — but what
-  // comes back is the canonical spelling, so the receipt shows the same address the wallet does
-  // rather than a second style the reader has to compare character by character.
   it("accepts an unchecksummed EVM address and returns it in EIP-55", () => {
     expect(resolver.resolve("evm", EVM.toLowerCase())).toEqual({ address: EVM });
   });
 
-  // The TRON guard, now for EVM: a near-miss must not fall through to a name lookup.
   it("never falls back to a contact for a mistyped EVM address", () => {
     expect(() => resolver.resolve("evm", "0xe2e1a54926527Fbb4E4420DE4c6BAb82beAEE24D")).toThrow();
   });
 
-  // The attack this closes: a contact deliberately named like an address. contactName() now
-  // refuses to create one, but an entry planted before that guard must stay unreachable.
   it("does not resolve a contact whose name mimics the mistyped address", () => {
     const impostor = "0xe2e1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
     const resolverWithImpostor = new RecipientResolver(
@@ -119,9 +113,6 @@ describe("RecipientResolver — EVM", () => {
   });
 });
 
-// A well-formed address of the WRONG family used to report contact_not_found, sending the user
-// hunting for a contact they never created. Pasting a 0x address onto a TRON network is a
-// first-day mistake with a two-family wallet.
 describe("RecipientResolver reports a wrong-family address as such", () => {
   it.each([
     ["evm", TRON],
@@ -137,10 +128,6 @@ describe("RecipientResolver reports a wrong-family address as such", () => {
   });
 });
 
-// familyOf() only recognises a VALID address, so a wrong-family value with a broken checksum
-// fell through to the generic branch and was described as the selected network's family — the
-// message told a user pasting a mistyped 0x address onto TRON that it "resembles a tron address",
-// naming the wrong chain's rules and sending them to check the wrong thing.
 describe("RecipientResolver names the family the value actually looks like", () => {
   const resolver = new RecipientResolver(repoWith([]));
 
@@ -159,10 +146,6 @@ describe("RecipientResolver names the family the value actually looks like", () 
   });
 });
 
-// With names unique book-wide, a name that exists but belongs to another chain is a distinct
-// and diagnosable case. It used to report contact_not_found, sending the user to look for a
-// contact they can see in `contact list`. The message describes the ADDRESS, not the family —
-// the user never has to learn that word.
 describe("RecipientResolver explains a contact from another chain", () => {
   it("reports family_mismatch rather than contact_not_found", () => {
     const resolver = new RecipientResolver(
@@ -198,12 +181,6 @@ describe("RecipientResolver explains a contact from another chain", () => {
   });
 });
 
-/**
- * `--to` takes an address OR a contact name, so when a value is neither, the answer has to say
- * which of the two it is reporting on. `contact not found: 0xnotanaddress` told someone who had
- * mistyped an address to go looking for a contact they never made — and said the same words twice
- * (the code already says "contact not found").
- */
 describe("RecipientResolver — a value that is neither", () => {
   const resolver = new RecipientResolver({
     find: () => undefined,
@@ -221,7 +198,6 @@ describe("RecipientResolver — a value that is neither", () => {
     })();
 
     expect(error.code).toBe("invalid_address");
-    // and still points at the other thing --to accepts
     expect(error.message).toMatch(/no contact is named that either/);
   });
 

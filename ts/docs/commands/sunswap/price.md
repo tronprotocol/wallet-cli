@@ -70,7 +70,7 @@ A price at or above a cent shows four decimals; below a cent it switches to four
 | `prices[].priceUsd` | string | USD price, the service's exact digits; `"0"` means "not indexed" |
 | `prices[].quotedAt` | string | UTC minute the service answered. **Not** a freshness claim about the price |
 
-Rows come back in the service's order, which need not match the order given; match on `address`. Duplicate addresses are deduplicated before the request, so there may be fewer rows than addresses.
+Rows come back in the service's order, which need not match the order given; match on `address`. Duplicate addresses are deduplicated before the request, so there may be fewer rows than addresses. When the service returns no rows, `prices` is `[]` and the text output reads `(none)`.
 
 ## Exit status
 

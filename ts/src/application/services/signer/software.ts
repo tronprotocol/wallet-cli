@@ -1,8 +1,3 @@
-/**
- * SoftwareSigner — in-process signing; no device and safe for unattended execution.
- * Family-agnostic: the per-family serialize/sign difference lives in the injected SignStrategy
- * through dependency injection, so this class has no `if family` branch.
- */
 import { bytesToHex } from "@noble/hashes/utils.js";
 import type {
   Bytes,
@@ -19,8 +14,7 @@ export class SoftwareSigner implements Signer {
   readonly kind = "software" as const;
   #pkHex?: `0x${string}`;
 
-  // The key is decrypted lazily on first sign: `address` is public metadata, so build/estimate
-  // (and hence `tx send --dry-run`) never touch the keystore — only an actual sign demands the password.
+  // Construction uses public metadata; prepare or signing loads the key.
   constructor(
     private readonly loadKey: () => Bytes,
     public readonly address: string,

@@ -14,6 +14,8 @@ Fetches the token's name, symbol and decimals from the chain and adds it to the 
 
 Once added, the token can be used by symbol elsewhere — e.g. `tx send --token USDT`. The book has two layers: **official** (bundled, read-only) and **user** (the ones you add). If the token is already bundled in the official layer, it fails with `token_already_listed` (no need to add it again); if you have already added it before, adding it again does not error — it re-fetches the token's metadata (symbol/decimals/name) and updates it, returning `action: refreshed`.
 
+EVM contract addresses are stored and returned in checksum form. Address comparison ignores case, so adding the same user token with different casing refreshes its existing entry. TRON token names are returned as text, including names that resemble hexadecimal strings.
+
 ## Options
 
 | Option | Description |
@@ -67,7 +69,7 @@ wallet-cli token add --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 --net
 
 ## Exit status
 
-`0` added · `1` execution failure (`token_metadata_unavailable` — metadata could not be fetched, nothing is stored; `encoding_error` / `io_error` — the local token book could not be decoded or written) · `2` usage error (`token_already_listed` — already in the official layer; `invalid_value`; `invalid_option` — `--asset-id` on an EVM network).
+`0` added · `1` execution failure (`token_metadata_unavailable` — metadata could not be fetched, nothing is stored; `encoding_error` / `io_error` — the local token book could not be decoded or written) · `2` usage error (`token_already_listed` — already in the official layer; `invalid_value`; `invalid_option` — missing or conflicting selectors on TRON, or `--asset-id` on an EVM network; `missing_option` — a missing `--contract` on EVM).
 
 ## See also
 

@@ -238,21 +238,22 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
                            an address names one chain, so use accountId or label to cross families;
                            an address matching several accounts that are not interchangeable
                            signers for the family being acted on is `ambiguous_account`
---timeout <number>         per RPC/device call timeout, ms (default: config.timeoutMs, built-in 60000)
+--timeout <number>         deadline for the whole command, ms; 0 = no limit
+                           (default: config.timeoutMs, built-in 90000)
 -v, --verbose              extra diagnostic output
 -h, --help / -V, --version
 ```
 
-Commands whose schema allows post-broadcast polling take `--wait` / `--wait-timeout <ms>` (cap default: config `waitTimeoutMs`, built-in 60000). The early-exit modes are command-specific too: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while a submit-only command such as `tx broadcast` neither rebuilds nor signs and therefore has no `--sign-only` / `--build-only`.
+Commands that submit a transaction wait for its confirmation within the command's `--timeout` (see [time limit](../machine-interface.md#time-limit---timeout)); `--no-wait` returns at submission, and `--wait` names the default. Elsewhere, and with an early-exit mode, both flags fail with `invalid_option`. The early-exit modes are command-specific too: transaction-building commands may expose `--dry-run` / `--sign-only` / `--build-only`, while a submit-only command such as `tx broadcast` neither rebuilds nor signs and therefore has no `--sign-only` / `--build-only`.
 
 Fee and multi-sig flags are **family-scoped**, so they are not global:
 
 | Flags | Family | Where |
 |---|---|---|
 | Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast`, GasFree, or the `sunswap` and `sunpump` writes |
-| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy`, `sunswap swap` / `add-liquidity` / `remove-liquidity` / `collect-fees`, and `sunpump buy` / `sell` |
+| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy`, `sunswap swap` / `add-liquidity` / `remove-liquidity` / `collect-fees`, `sunpump buy` / `sell`, and the `8004` writes |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 
 `--permission-id` selects the permission group to sign under (0=owner, 1=witness, 2-9=active) and `--expiration` extends the window for collecting co-signatures. An EVM transaction carries exactly one signature, so neither has a counterpart there: on a portable command they are tagged `(TRON only)` and refused on EVM with `invalid_option`.
 
-Where all three early-exit modes exist, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. The code depends on where the check runs: on the `account`, `permission`, `contract`, `proposal` and `witness` writes it is `invalid_value`, and which field the message names depends on the rule. Mutual exclusion is attached to the whole object, so it reports `--input` rather than the flags you passed (`invalid --input: choose at most one of --dry-run, --sign-only, --build-only`); the `--expiration` rule is attached to its own field and names it (`invalid --expiration: only valid with --sign-only or --build-only`). Elsewhere the same conflict reports `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).
+Where two or more early-exit modes exist, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. Passing two modes is `invalid_option` and names the first one given (`invalid --dry-run: cannot be combined with --sign-only`); `--json-schema` lists the modes as an `exclusive` group. For `--expiration` the code depends on where the check runs: on the `account`, `permission`, `contract`, `proposal`, `witness` and `8004` writes it is `invalid_value` (`invalid --expiration: only valid with --sign-only or --build-only`); elsewhere it is `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).

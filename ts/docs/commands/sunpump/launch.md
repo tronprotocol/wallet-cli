@@ -23,7 +23,7 @@ The token starts in status `CREATED`, on the curve. It moves to SunSwap only onc
 
 **A launch is real and permanent.** There is no undo and no testnet: the group is mainnet only. Use `--dry-run` first.
 
-**A launch that does not answer may still have happened.** SunPump deploys the token before it replies, so once the request may have reached it, every failure short of SunPump saying no — no reply within `--timeout`, a 5xx, a dropped connection, a reply that does not parse or names no token — fails with `launch_outcome_unknown` rather than `timeout` or `provider_error`. The token may exist. Run `sunpump token-search <symbol>` and check for it before you launch again: a second launch is a second, permanent token.
+**A launch that does not answer may still have happened.** SunPump deploys the token before it replies, so once the request may have reached it, every failure short of SunPump saying no — no reply within `--timeout`, a 5xx, a dropped connection, a reply that does not parse or names no token — fails with `launch_outcome_unknown` rather than `timeout` or `provider_error`, with [`error.details.outcome: "unknown"`](../../machine-interface.md#unknown-outcome-errordetailsoutcome). The token may exist. Run `sunpump token-search <symbol>` and check for it before you launch again: a second launch is a second, permanent token.
 
 `--dry-run` sends nothing to the create endpoint. It validates the options, reads the logo file, and prints the request that would be made. Because the creator is not known until the service picks one, the preview shows the fact instead of an address.
 
@@ -43,7 +43,7 @@ The token starts in status `CREATED`, on the curve. It moves to SunSwap only onc
 
 A logo is optional; without one the token is created without one, and the dry run says so. An option left out is omitted from the request, not sent empty.
 
-Plus the [global options](../index.md#global-options-every-command). No `--account`, `--wait` or `--wait-timeout`: nothing is signed locally and no transaction comes back to wait for, so they are refused with `invalid_option`.
+Plus the [global options](../index.md#global-options-every-command). No `--account`, `--wait`, or `--no-wait`: nothing is signed locally and no transaction comes back to wait for, so they are refused with `invalid_option`.
 
 ## Examples
 
@@ -88,7 +88,7 @@ The token can be read back with [`sunpump token-info`](token-info.md), which sho
 
 ## Exit status
 
-`0` success · `1` execution failure (`provider_error` — the service refused the launch, in its reply or with an HTTP 4xx, including a name or symbol it would not take; `launch_outcome_unknown` — any other failure once the request may have reached the service, so the token may exist; `provider_rate_limited`) · `2` usage error (`missing_option`; `invalid_option` — `--account`, `--wait`, or both `--image` and `--image-base64`; `file_not_found`; `invalid_value` — a URL that does not start with `http://` or `https://`, or an image file that cannot be read; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure (`provider_error` — the service refused the launch, in its reply or with an HTTP 4xx, including a name or symbol it would not take; `launch_outcome_unknown` — any other failure once the request may have reached the service, so the token may exist; `provider_rate_limited`; `timeout` — the time limit ran out before the request was sent) · `2` usage error (`missing_option`; `invalid_option` — `--account`, `--wait`, `--no-wait`, or both `--image` and `--image-base64`; `file_not_found`; `invalid_value` — a URL that does not start with `http://` or `https://`, or an image file that cannot be read; `unsupported_network_capability` off mainnet; `family_mismatch` on an EVM network).
 
 ## See also
 

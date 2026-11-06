@@ -1,9 +1,15 @@
+import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
 import { describe, expect, it, vi } from "vitest";
-import type { Signer } from "../../../domain/types/index.js";
-import { encodeOperations } from "../../../domain/permission/index.js";
-import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
+import type { SignedTx, Signer, UnsignedTx } from "../../../domain/types/index.js";
+import { encodeOperations } from "../../../domain/tron/permission/index.js";
+import type {
+  TronGateway,
+  TronSignWeight,
+  TronTxInfo,
+} from "../../ports/chain/tron/tron-gateway.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { SignerResolver } from "../../services/signer/index.js";
+import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import {
   decodeTransactionHex,
@@ -11,6 +17,13 @@ import {
 } from "../../../adapters/outbound/chain/tron/transaction-codec.js";
 import { TronMultisigService } from "./multisig-service.js";
 import { TronSigService } from "./sig-service.js";
+import { SigningService } from "../../services/signing/signing-service.js";
+import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const A = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const B = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
@@ -71,23 +84,28 @@ function fakeGateway(overrides: Partial<TronGateway> = {}): TronGateway {
     getMultiSignFee: vi.fn(async () => 1_000_000),
     broadcastHex: vi.fn(async () => ({ txId: "txid" })),
     getTransactionInfoById: vi.fn(async () => ({})),
+    referenceBlockStatus: vi.fn(async () => "held"),
     ...overrides,
   } as unknown as TronGateway;
 }
 
-function scope(): TransactionScope {
+function scope(wait?: boolean): TransactionScope {
   return {
     activeAccount: "local" as never,
-    timeoutMs: 100,
-    wait: false,
-    waitTimeoutMs: 100,
+    deadline: new CommandDeadline(0),
+    wait,
+
     resolveAddress: () => A,
     emit: vi.fn(),
     warn: vi.fn(),
   };
 }
 
-function service(gateway: TronGateway, signer?: Signer) {
+function service(
+  gateway: TronGateway,
+  signer?: Signer,
+  artifacts: TransactionArtifactWriter = { write: vi.fn() },
+) {
   const actualSigner: Signer = signer ?? {
     kind: "software",
     address: A,
@@ -104,15 +122,21 @@ function service(gateway: TronGateway, signer?: Signer) {
     resolve: vi.fn(() => actualSigner),
   } as unknown as SignerResolver;
   const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
-  const signing = new TronSigService(provider, signers, () => NOW);
-  return new TronMultisigService(provider, signing, () => NOW);
+  const signing = new TronSigService(
+    provider,
+    signers,
+    new SigningService(provider),
+    { write: vi.fn() },
+    () => NOW,
+  );
+  return new TronMultisigService(provider, signing, artifacts, () => NOW);
 }
 
 const NETWORK = { id: "tron:3448148188", family: "tron", nativeSymbol: "TRX" } as never;
 
 describe("local TRON multi-signature workflow", () => {
   it("reports structured permission and missing weight for an unsigned transaction", async () => {
-    const view = await service(fakeGateway()).approvals(NETWORK, unsignedHex());
+    const view = await service(fakeGateway()).approvals(NO_DEADLINE, NETWORK, unsignedHex());
     expect(view).toMatchObject({
       permission: { id: 2, name: "active", threshold: 2 },
       currentWeight: 0,
@@ -139,6 +163,29 @@ describe("local TRON multi-signature workflow", () => {
     });
   });
 
+  it("writes the checked signed hex to the chosen file and reports it", async () => {
+    const artifacts = { write: vi.fn() };
+    const signed = await service(fakeGateway(), undefined, artifacts).signChecked(
+      scope(),
+      NETWORK,
+      unsignedHex(),
+      "signed.hex",
+    );
+    expect(artifacts.write).toHaveBeenCalledExactlyOnceWith("signed.hex", signed.hex);
+    expect(signed.out).toBe("signed.hex");
+  });
+
+  it("writes nothing when no file is chosen", async () => {
+    const artifacts = { write: vi.fn() };
+    const signed = await service(fakeGateway(), undefined, artifacts).signChecked(
+      scope(),
+      NETWORK,
+      unsignedHex(),
+    );
+    expect(artifacts.write).not.toHaveBeenCalled();
+    expect(signed).not.toHaveProperty("out");
+  });
+
   it("rejects expiration before calling a signer", async () => {
     const signer: Signer = {
       kind: "software",
@@ -153,9 +200,6 @@ describe("local TRON multi-signature workflow", () => {
     expect(signer.sign).not.toHaveBeenCalled();
   });
 
-  // `tx sign` verifies online by default precisely so these two never yield a signature. Producing
-  // one anyway is worse than failing: the hex looks fine and gets passed to the next co-signer,
-  // and only `tx broadcast` — possibly hours and several people later — rejects it.
   const spySigner = (address: string): Signer => ({
     kind: "software",
     address,
@@ -180,7 +224,7 @@ describe("local TRON multi-signature workflow", () => {
 
   it("refuses a repeat signature before producing a signature", async () => {
     const signer = spySigner(A);
-    // gateway reports A as already approved for any transaction carrying a signature
+    // The gateway maps any single signature to A, regardless of its bytes.
     const alreadySigned = encodeTransactionHex({
       ...decodeTransactionHex(unsignedHex()),
       signature: [SIG_B],
@@ -219,14 +263,204 @@ describe("local TRON multi-signature workflow", () => {
     expect(dry).toMatchObject({ multiSignFeeSun: 1_000_000, mode: "dry-run" });
     expect(gateway.broadcastHex).not.toHaveBeenCalled();
 
-    await service(gateway).broadcastHex(scope(), NETWORK, multiSigned, false);
-    expect(gateway.broadcastHex).toHaveBeenCalledWith(multiSigned);
+    await service(gateway).broadcastHex(scope(false), NETWORK, multiSigned, false);
+    expect(gateway.broadcastHex).toHaveBeenCalledWith(multiSigned, expect.anything());
   });
+
+  it.each([
+    [undefined, "confirmed"],
+    [true, "confirmed"],
+    [false, "submitted"],
+  ] as const)(
+    "broadcasts the imported bytes once with wait intent %s and returns %s",
+    async (wait, stage) => {
+      const gateway = fakeGateway({
+        getTransactionInfoById: vi.fn(async () => parseTronTxInfo({ blockNumber: 7, receipt: {} })),
+      });
+      const multiSigned = encodeTransactionHex({
+        ...decodeTransactionHex(unsignedHex()),
+        signature: [SIG_A, SIG_B],
+      });
+      const out = await service(gateway).broadcastHex(scope(wait), NETWORK, multiSigned, false);
+      expect(out).toMatchObject({ stage });
+      expect(gateway.broadcastHex).toHaveBeenCalledOnce();
+      expect(gateway.broadcastHex).toHaveBeenCalledWith(multiSigned, expect.anything());
+      expect(gateway.getTransactionInfoById).toHaveBeenCalledTimes(stage === "confirmed" ? 1 : 0);
+    },
+  );
+
+  it.each([true, false])(
+    "refuses an explicit wait intent (%s) on a dry run before any node read",
+    async (wait) => {
+      const gateway = fakeGateway();
+      await expect(
+        service(gateway).broadcastHex(scope(wait), NETWORK, unsignedHex(), true),
+      ).rejects.toMatchObject({ code: "invalid_option" });
+      expect(gateway.getSignWeight).not.toHaveBeenCalled();
+      expect(gateway.broadcastHex).not.toHaveBeenCalled();
+    },
+  );
 
   it("fails closed when the two node approval endpoints disagree", async () => {
     const gateway = fakeGateway({ getApprovedList: vi.fn(async () => [B]) });
-    await expect(service(gateway).approvals(NETWORK, unsignedHex())).rejects.toMatchObject({
+    await expect(
+      service(gateway).approvals(NO_DEADLINE, NETWORK, unsignedHex()),
+    ).rejects.toMatchObject({
       code: "provider_error",
     });
+  });
+});
+
+describe("TRON multisig submission outcome", () => {
+  function signedHex(expiration = NOW + 60_000) {
+    return encodeTransactionHex({
+      ...decodeTransactionHex(unsignedHex(expiration)),
+      signature: [SIG_A, SIG_B],
+    });
+  }
+
+  it.each(["timeout", "rpc_error", "invalid_node_response"])(
+    "retains the local ID and error representation on %s",
+    async (code) => {
+      const original = new ChainError(code, errorMessage`node: ${"untrusted\nvalue"}`, {
+        nodeCode: "fixture",
+      });
+      const broadcastHex = vi.fn().mockRejectedValueOnce(original);
+      const hex = signedHex();
+      const error = classifyError(
+        await service(fakeGateway({ broadcastHex }))
+          .broadcastHex(scope(), NETWORK, hex, false)
+          .catch((e) => e),
+      );
+      expect(errorEnvelope(error)).toEqual({
+        code,
+        message: original.message,
+        details: { nodeCode: "fixture", txId: decodeTransactionHex(hex).txID, outcome: "unknown" },
+      });
+      expect(error.textMessage).toBe(original.textMessage);
+      expect(error.kind).toBe(original.kind);
+      expect(exitCodeOf(error)).toBe(exitCodeOf(original));
+      expect(broadcastHex).toHaveBeenCalledWith(hex, expect.anything());
+    },
+  );
+
+  it("confirms an imported transaction the node already held and keeps alreadyKnown", async () => {
+    const hex = signedHex();
+    const txId = decodeTransactionHex(hex).txID;
+    const getTransactionInfoById = vi.fn(
+      async () => ({ blockNumber: 9, execution: "failed" }) as TronTxInfo,
+    );
+    const result = await service(
+      fakeGateway({
+        broadcastHex: vi.fn(async () => ({ txId, alreadyKnown: true })),
+        getTransactionInfoById,
+      }),
+    ).broadcastHex(scope(), NETWORK, hex, false);
+    expect(getTransactionInfoById).toHaveBeenCalledWith(txId);
+    expect(result).toMatchObject({ stage: "failed", txId, alreadyKnown: true, blockNumber: 9 });
+  });
+
+  it("refuses an imported broadcast before submitting when too little time is left", async () => {
+    const broadcastHex = vi.fn();
+    const clock = { now: () => 0 };
+    const deadline = new CommandDeadline(10_000, 0, clock);
+    deadline.dispose();
+    clock.now = () => 8_001;
+    const error = await service(fakeGateway({ broadcastHex }))
+      .broadcastHex({ ...scope(), deadline }, NETWORK, signedHex(), false)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(DeadlineExpiredError);
+    expect((error as DeadlineExpiredError).details).toBeUndefined();
+    expect(broadcastHex).not.toHaveBeenCalled();
+  });
+
+  it("preserves a definite rejection without an ID", async () => {
+    const original = new ChainError("transaction_rejected", "refused");
+    const gateway = fakeGateway({ broadcastHex: vi.fn().mockRejectedValueOnce(original) });
+    await expect(service(gateway).broadcastHex(scope(), NETWORK, signedHex(), false)).rejects.toBe(
+      original,
+    );
+    expect(original.details).toBeUndefined();
+  });
+
+  it.each(["authorization", "fee"])("does not label a pre-submit %s timeout", async (step) => {
+    const original = new ChainError("timeout", "before submission");
+    const gateway = fakeGateway({
+      [step === "authorization" ? "getSignWeight" : "getMultiSignFee"]: vi
+        .fn()
+        .mockRejectedValueOnce(original),
+    });
+    await expect(service(gateway).broadcastHex(scope(), NETWORK, signedHex(), false)).rejects.toBe(
+      original,
+    );
+    expect(original.details).toBeUndefined();
+    expect(gateway.broadcastHex).not.toHaveBeenCalled();
+  });
+
+  it.each(["expiry", "threshold", "validation"])(
+    "does not attach an ID on %s failure",
+    async (step) => {
+      const gateway = fakeGateway();
+      const hex = step === "expiry" ? signedHex(NOW) : step === "threshold" ? unsignedHex() : "00";
+      const error = classifyError(
+        await service(gateway)
+          .broadcastHex(scope(), NETWORK, hex, false)
+          .catch((e) => e),
+      );
+      expect(error.code).toBe(
+        step === "expiry"
+          ? "tx_expired"
+          : step === "threshold"
+            ? "not_authorized"
+            : "invalid_transaction",
+      );
+      expect(error.details ?? {}).not.toHaveProperty("txId");
+      expect(gateway.broadcastHex).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("reference block check", () => {
+  const signerSpy = () => ({
+    kind: "software" as const,
+    address: A,
+    sign: vi.fn(async (transaction: UnsignedTx) => transaction as SignedTx),
+    signMessage: async () => "",
+    signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
+  });
+  const commands = {
+    approvals: (svc: TronMultisigService) => svc.approvals(NO_DEADLINE, NETWORK, unsignedHex()),
+    "tx sign": (svc: TronMultisigService) => svc.signChecked(scope(), NETWORK, unsignedHex()),
+    broadcast: (svc: TronMultisigService) =>
+      svc.broadcastHex(scope(), NETWORK, unsignedHex(), false),
+    "broadcast --dry-run": (svc: TronMultisigService) =>
+      svc.broadcastHex(scope(), NETWORK, unsignedHex(), true),
+  };
+
+  describe.each(Object.entries(commands))("%s", (_name, run) => {
+    it.each([
+      ["another chain's block", "different", "chain_id_mismatch"],
+      ["a block the node has not reached", "not-reached", "rpc_error"],
+    ] as const)(
+      "refuses %s before any permission read, signature, or broadcast",
+      async (_label, status, code) => {
+        const gateway = fakeGateway({ referenceBlockStatus: vi.fn(async () => status) });
+        const signer = signerSpy();
+        await expect(run(service(gateway, signer))).rejects.toMatchObject({ code });
+        expect(gateway.getSignWeight).not.toHaveBeenCalled();
+        expect(gateway.getApprovedList).not.toHaveBeenCalled();
+        expect(signer.sign).not.toHaveBeenCalled();
+        expect(gateway.broadcastHex).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it("reads permissions after a held reference block", async () => {
+    const gateway = fakeGateway();
+    await service(gateway).approvals(NO_DEADLINE, NETWORK, unsignedHex());
+    const checked = (gateway.referenceBlockStatus as ReturnType<typeof vi.fn>).mock
+      .invocationCallOrder[0]!;
+    const read = (gateway.getSignWeight as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]!;
+    expect(checked).toBeLessThan(read);
   });
 });

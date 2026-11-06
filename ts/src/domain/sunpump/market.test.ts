@@ -10,8 +10,6 @@ describe("sunpumpSortParam", () => {
     expect(sunpumpSortParam("price-change-24h", "desc")).toBe("priceChange24Hr:DESC");
   });
 
-  // The whole point of the whitelist: the service answers an unknown field with a 200 and
-  // marketCap order, so a value that is not translated here must never be forwarded.
   it("refuses an ordering the service does not apply", () => {
     for (const name of ["launched", "tokenLaunchedInstant", "holders", ""]) {
       expect(() => sunpumpSortParam(name, "desc")).toThrowError(CliError);
@@ -29,8 +27,6 @@ describe("sunpumpSortParam", () => {
 });
 
 describe("multiplyDecimalTruncating", () => {
-  // The real pair from a mainnet detail response: eighteen decimals times twelve, and the
-  // product a float would give differs in the digits a small-cap price is read by.
   it("keeps every digit of a price × rate product", () => {
     expect(multiplyDecimalTruncating("0.011538978919347204", "0.340814453508", 18)).toBe(
       "0.003932650794437649",

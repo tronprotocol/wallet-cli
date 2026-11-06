@@ -6,7 +6,7 @@ Approve a proposal, or cancel your approval.
 
 ```
 wallet-cli proposal approve <id> [--cancel]
-                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                             [--permission-id <n>] [options]
 ```
 
@@ -16,7 +16,7 @@ Adds your approval to a proposal; `--cancel` withdraws an approval you already c
 
 Only a registered witness can approve; other accounts fail with `not_a_witness`. The chain checks nothing beyond that, so a non-elected candidate's approval is accepted and lands on chain — but at tally only the approvals of the **top-27 active SRs** count toward the threshold, so it does not move the proposal any closer to passing.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -29,7 +29,8 @@ Only a registered witness can approve; other accounts fail with `not_a_witness`.
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -39,7 +40,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli proposal approve 47 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli proposal approve 47 --network nile --password-stdin
 ```
 
 ```console
@@ -56,7 +57,7 @@ echo "$PW" | wallet-cli proposal approve 47 --network nile --wait --password-std
 `--cancel` takes your own approval back off the proposal:
 
 ```bash
-echo "$PW" | wallet-cli proposal approve 47 --cancel --network nile --wait --password-stdin
+echo "$PW" | wallet-cli proposal approve 47 --cancel --network nile --password-stdin
 ```
 
 ```console
@@ -71,7 +72,7 @@ echo "$PW" | wallet-cli proposal approve 47 --cancel --network nile --wait --pas
 ```
 
 ```bash
-echo "$PW" | wallet-cli proposal approve 47 --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli proposal approve 47 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -84,12 +85,12 @@ echo "$PW" | wallet-cli proposal approve 47 --network nile --wait --password-std
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "proposal-approve"`, `stage: "submitted"`, `txId`, `proposalId`, `voterAddress`, `addApproval` (`false` with `--cancel`), `approvals`, and `approvalThreshold` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
+| `--no-wait` (submitted) | `kind: "proposal-approve"`, `stage: "submitted"`, `txId`, `proposalId`, `voterAddress`, `addApproval` (`false` with `--cancel`), `approvals`, and `approvalThreshold` |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`not_a_witness`, `proposal_not_found` — no such proposal, `already_approved` — you already approved it, `not_approved` — `--cancel` with no approval to withdraw, `proposal_expired`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`invalid_value` — id not a number).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`not_a_witness`, `proposal_not_found` — no such proposal, `already_approved` — you already approved it, `not_approved` — `--cancel` with no approval to withdraw, `proposal_expired`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`invalid_value` — id not a number).
 
 ## See also
 

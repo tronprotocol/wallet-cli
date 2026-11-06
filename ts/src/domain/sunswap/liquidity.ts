@@ -1,63 +1,55 @@
-/**
- * Liquidity rules that need no I/O: slippage floors, deadlines, and which amounts were given.
- *
- * All amounts here are base-unit integers carried as decimal strings and computed with `bigint`.
- * A deposit is money; a float would round it, and the rounding would be in the pool's favour or
- * the user's at random.
- */
-import { UsageError } from "../errors/index.js";
+// Amounts are base-unit integers; bigint avoids rounding money through floats.
+import { errorMessage, inputRef, UsageError } from "../errors/index.js";
 
-/**
- * The share of a computed amount a V2 deposit will accept by default.
- *
- * A V2 deposit must match the pool's current ratio, which moves between the moment the amounts
- * are computed and the moment the transaction lands. Without a floor the deposit reverts on any
- * movement at all; 95% is the documented default and can be overridden.
- */
 export const DEFAULT_V2_MIN_BASIS_POINTS = 9500n;
 
-/** Minutes a transaction stays valid when the caller does not say. */
 export const DEFAULT_DEADLINE_MINUTES = 30;
 
-/**
- * `9500` of `10000` — kept as basis points so the arithmetic stays integral.
- *
- * RESTATED, NOT MISSED. The vendor has `applyV2SlippageMin` / `applySlippageMin` and they compute the
- * same thing. This is duplicated because `domain/` may not import the vendor SDK: the rule is that the
- * load-bearing maths lives in the adapter where the vendor is allowed, and what domain restates is
- * policy. Do not "tidy this up" by importing the SDK here — that breaks the boundary the note exists
- * to protect.
- */
+const BASIS_POINTS = 10_000n;
+
 export function applyMinimumShare(amount: string, basisPoints: bigint): string {
-  return ((toBigInt(amount, "amount") * basisPoints) / 10000n).toString();
+  return ((toBigInt(amount, "amount") * basisPoints) / BASIS_POINTS).toString();
 }
 
-/**
- * Seconds-since-epoch the transaction stops being valid.
- *
- * A deadline already in the past is refused rather than sent: the contract would reject it, and
- * the fee would be spent finding that out.
- */
+// Lowers an expected amount by a slippage tolerance; rounds down.
+export function lowerBySlippage(amount: string, slippageBips: number): string {
+  return applyMinimumShare(amount, BASIS_POINTS - BigInt(slippageBips));
+}
+
+// Raises a deposit ceiling by a slippage tolerance; rounds down.
+export function raiseBySlippage(amount: string, slippageBips: number): string {
+  if (slippageBips === 0) return amount;
+  return applyMinimumShare(amount, BASIS_POINTS + BigInt(slippageBips));
+}
+
+// A V2 pool's reserve paid out for burning lpAmount of totalSupply; rounds down.
+export function lpRedemption(lpAmount: string, reserve: string, totalSupply: string): string {
+  return (
+    (toBigInt(lpAmount, "amount") * toBigInt(reserve, "reserve")) /
+    toBigInt(totalSupply, "total supply")
+  ).toString();
+}
+
+// Returns epoch seconds; now is in milliseconds.
 export function resolveDeadline(explicitEpochSeconds: number | undefined, now: number): number {
   if (explicitEpochSeconds === undefined) {
     return Math.floor(now / 1000) + DEFAULT_DEADLINE_MINUTES * 60;
   }
   if (!Number.isInteger(explicitEpochSeconds)) {
-    throw new UsageError("invalid_value", "--deadline must be a whole number of seconds");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("deadline")} must be a whole number of seconds`,
+    );
   }
   if (explicitEpochSeconds * 1000 <= now) {
-    throw new UsageError("invalid_value", "--deadline is already in the past");
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("deadline")} is already in the past`,
+    );
   }
   return explicitEpochSeconds;
 }
 
-/**
- * Which side of the pair the caller sized.
- *
- * Exactly one side is the normal case: the other is derived from the pool's ratio. Both is
- * allowed and means "these exact amounts". Neither cannot be answered — there is nothing to
- * derive a deposit from — so it is a usage error rather than a guess.
- */
 export type AmountSelection =
   | { kind: "amount0"; amount0: string }
   | { kind: "amount1"; amount1: string }
@@ -74,20 +66,11 @@ export function selectAmounts(
   if (amount1 !== undefined) return { kind: "amount1", amount1 };
   throw new UsageError(
     "missing_option",
-    "this command requires --amount0 or --amount1; give one and the other is derived from the pool, or give both for exact amounts",
+    errorMessage`this command requires ${inputRef("amount0")} or ${inputRef("amount1")}; give one and the other is derived from the pool, or give both for exact amounts`,
   );
 }
 
-/**
- * Pair the given side against the pool's reserves: `other = given * otherReserve / givenReserve`.
- *
- * Integer division truncates, which deposits marginally less of the derived side than the exact
- * ratio would. That is the safe direction: it can only ever leave dust unspent, never overdraw.
- *
- * RESTATED, NOT MISSED. The vendor's `quoteV2LiquidityAmount` is the same formula. It is duplicated
- * because `domain/` may not import the vendor SDK — see `applyMinimumShare`.
- * Importing the SDK here to remove the duplication is the outcome this note exists to prevent.
- */
+// Round the derived base-unit amount down to avoid overdrawing.
 export function pairAmount(
   givenAmount: string,
   givenReserve: string,
@@ -105,18 +88,7 @@ export function pairAmount(
   return ((given * to) / from).toString();
 }
 
-/**
- * The LP tokens a V2 deposit mints, by the pair contract's own arithmetic.
- *
- * `UniswapV2Pair.mint` credits `min(amount0 * supply / reserve0, amount1 * supply / reserve1)` —
- * the MINIMUM, because whichever side is proportionally smaller is the one that actually gets
- * paired; the excess of the other side is what `amountMin` guards against losing.
- *
- * Only for a pool that already holds liquidity. The first deposit into an empty pool mints
- * `sqrt(amount0 * amount1) - MINIMUM_LIQUIDITY`, which is a different rule and a different
- * scenario — one this command refuses for want of a ratio — so it is deliberately not answered
- * here rather than answered wrongly.
- */
+// V2 LP base units for existing liquidity; empty pools require a different mint formula.
 export function expectedLpAmount(
   amount0: string,
   amount1: string,

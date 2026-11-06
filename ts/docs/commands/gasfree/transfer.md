@@ -6,14 +6,14 @@ Sign a gas-free transfer and submit it to the GasFree provider.
 
 ```
 wallet-cli gasfree transfer --to <address|contact> --amount <n> [--token <symbol>]
-                            [--dry-run | --wait [--wait-timeout <ms>]] [options]
+                            [--dry-run | --wait | --no-wait] [options]
 ```
 
 ## Description
 
 Signs a transfer with TIP-712 structured-data signing (TRON's EIP-712 analogue) and submits it to the GasFree provider, which puts it on-chain for you. No TRX is needed — the per-transfer service fee (plus a one-time activation fee on the first transfer) is deducted from the GasFree address's token balance, on top of the amount sent.
 
-Submission returns a **`traceId`** (the provider's acceptance id); at that point the transfer is accepted but **not yet on-chain**. Add `--wait` to poll the provider to a terminal state (`SUCCEED` / `FAILED`), or follow it later with [`gasfree trace`](trace.md). On the first transfer, when the GasFree address isn't activated yet, this transfer carries the activation automatically and the total deducted is amount + service fee + activation fee (itemised in the receipt and in `--dry-run`).
+Submission returns a **`traceId`** (the provider's acceptance id); at that point the transfer is accepted but **not yet on-chain**. By default the command polls the provider to a terminal state (`SUCCEED` / `FAILED`), or follow it later with [`gasfree trace`](trace.md). On the first transfer, when the GasFree address isn't activated yet, this transfer carries the activation automatically and the total deducted is amount + service fee + activation fee (itemised in the receipt and in `--dry-run`).
 
 There is no `--sign-only` / `--build-only`: the signed payload is bound to the provider's submission protocol, so offline distribution has no meaning. Requires an account and the provider credentials (`gasfreeApiKey` / `gasfreeApiSecret`, set with [`config`](../config.md)). The master password via `--password-stdin` is needed only when submitting — `--dry-run` neither unlocks nor signs. Watch-only accounts fail with `watch_only_no_signer` when submitting.
 
@@ -25,7 +25,8 @@ There is no `--sign-only` / `--build-only`: the signed payload is bound to the p
 | `--amount <n>` | **Required.** Amount in token units (e.g. `25` = 25 USDT); fees are charged on top |
 | `--token <symbol>` | Token to transfer; must be supported by the provider (see `gasfree info`) — default `USDT` |
 | `--dry-run` | Fee breakdown and balance check only; no signature, no submission, no password |
-| `--wait` / `--wait-timeout <ms>` | Poll the provider until the transfer succeeds/fails (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll the provider until the transfer succeeds or fails, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the acceptance receipt without polling the provider |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -34,10 +35,10 @@ Plus the [global options](../index.md#global-options-every-command).
 
 In the examples, `$PW` is your master password, fed on stdin via `--password-stdin`.
 
-Default — submit and return the acceptance receipt (a `traceId`, not yet on-chain):
+With `--no-wait` — submit and return the acceptance receipt (a `traceId`, not yet on-chain):
 
 ```bash
-echo "$PW" | wallet-cli gasfree transfer --to TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c --amount 25 --network nile --password-stdin
+echo "$PW" | wallet-cli gasfree transfer --to TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c --amount 25 --network nile --no-wait --password-stdin
 ```
 
 ```console
@@ -57,10 +58,10 @@ echo "$PW" | wallet-cli gasfree transfer --to TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c
 {"schema":"wallet-cli.result.v1","success":true,"command":"gasfree.transfer","data":{"kind":"gasfree-transfer","stage":"submitted","traceId":"7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527","state":"WAITING","token":"USDT","tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","decimals":6,"amount":"25000000","serviceFee":"500000","activateFee":"0","authorizedMaxFee":"1500000","totalDeducted":"25500000","owner":"TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC","from":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER","to":"TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c","serviceProvider":"TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E","nonce":"8","deadline":"1700000060"},"meta":{"durationMs":650,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-Add `--wait` to poll to a terminal state, with the on-chain txid and actual deduction:
+Without `--no-wait`, the command polls to a terminal state, with the on-chain txid and actual deduction:
 
 ```bash
-echo "$PW" | wallet-cli gasfree transfer --to TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c --amount 25 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli gasfree transfer --to TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c --amount 25 --network nile --password-stdin
 ```
 
 ```console
@@ -103,16 +104,18 @@ wallet-cli gasfree transfer --to TF9yB7bAL2oBbonYaMvGTqoXxExS14x73c --amount 25 
 
 | Mode | Fields |
 |---|---|
-| default (submit) | `kind: "gasfree-transfer"`, `stage: "submitted"`, `traceId`, provider `state`, `token`, `tokenAddress`, `decimals`, `amount`, `serviceFee`, `activateFee`, `authorizedMaxFee`, `totalDeducted`, `owner`, `from`, `to`, `nonce`, `deadline`, `serviceProvider`, plus `toContact` when `--to` was a contact name |
-| `--wait` (confirmed) | the above, but `stage: "confirmed"`, `state: "SUCCEED"`, and `txId` when the provider supplies it |
-| `--wait` (failed) | the same fields, but `stage: "failed"`, `failed: true`, `state: "FAILED"`, and `failureReason` carrying the provider's explanation |
+| `--no-wait` (submitted) | `kind: "gasfree-transfer"`, `stage: "submitted"`, `traceId`, provider `state`, `token`, `tokenAddress`, `decimals`, `amount`, `serviceFee`, `activateFee`, `authorizedMaxFee`, `totalDeducted`, `owner`, `from`, `to`, `nonce`, `deadline`, `serviceProvider`, plus `toContact` when `--to` was a contact name |
+| default or `--wait` (confirmed) | the above, but `stage: "confirmed"`, `state: "SUCCEED"`, and `txId` when the provider supplies it |
+| default or `--wait` (failed) | the same fields, but `stage: "failed"`, `state: "FAILED"`, and `failureReason` carrying the provider's explanation |
 | `--dry-run` | the default fields except `traceId` **and** `state` — both come from the provider, which is never called — with `stage: "dry-run"`; no signature, no submission. Text renders `Status  not submitted` in place of the missing `state` |
 
 A provider-side failure still leaves the envelope at `success: true` and exit `0` — the command completed; the transfer did not. This view carries no `confirmed` or `failed` booleans; branch on `data.stage` / `data.state`, not on the exit code. See [script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## Exit status
 
-`0` submitted (or dry-run) · `1` execution failure (`insufficient_token_balance` — token balance < amount + service fee [+ activation fee], `gasfree_rejected` — the provider declined the authorization, `gasfree_integrity` — the provider's fee metadata disagreed with itself, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `provider_error` — the service failed, answered with malformed or oversized JSON, returned a field this CLI will not act on, or returned any non-429 error status; `provider_rate_limited` — the service returned 429, with `details.retryAfter` when it sent one) · `2` usage error (`gasfree_credentials_missing`, `unsupported_token`, `unsupported_network`, `invalid_value`, `invalid_amount`).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or dry-run) · `1` execution failure (`insufficient_token_balance` — token balance < amount + service fee [+ activation fee], `gasfree_rejected` — the provider declined the authorization, the GasFree address may not submit transfers, or the service returned a 4xx status other than 401, 403, 404 and 429, `gasfree_integrity` — the provider's fee metadata disagreed with itself, or its submit receipt or a polled record did not match the signed authorization; after submission `details.traceId` carries the id to follow with [`gasfree trace`](trace.md) and `details.outcome` is `"unknown"`, `not_found` — the service returned 404 or no data, `watch_only_no_signer`, `auth_failed`, `signing_rejected`, `timeout` — the service did not answer within `--timeout`, `gasfree_auth_failed` — the service rejected the API credentials (HTTP 401 or 403), `provider_error` — the service could not be reached, returned a 5xx status, answered with malformed or oversized JSON, or returned a field this CLI will not act on; `provider_rate_limited` — the service returned 429, with `details.httpStatus: 429` and `details.retryAfterSeconds` when it sent a usable `Retry-After`) · `2` usage error (`gasfree_credentials_missing`, `unsupported_token`, `unsupported_network`, `unsupported_network_capability` — Shasta, `invalid_value`, `invalid_amount`, `invalid_config` — the network's GasFree `baseUrl` or `apiPrefix` is invalid).
+
+A `timeout` or `provider_error` after the transfer was submitted carries `paymentStatus: "unknown"` and [`outcome: "unknown"`](../../machine-interface.md#unknown-outcome-errordetailsoutcome): the transfer may have been accepted. Compare the GasFree nonce with `details.nonce` before you transfer again; see [Out of time after a submission](../../machine-interface.md#out-of-time-after-a-submission).
 
 ## See also
 

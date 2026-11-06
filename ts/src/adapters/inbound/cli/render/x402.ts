@@ -4,8 +4,9 @@ import wrapAnsi from "wrap-ansi";
 import { sanitizeText } from "./scalars.js";
 import { asObj, query, table, receipt, ok, warn, type Pair } from "./layout.js";
 import { fromX402Network } from "../../../../domain/x402/network-id.js";
+import { CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js";
 
-// Keep untrusted text on its own line/cell and never emit terminal controls.
+// Sanitize untrusted text and flatten it to prevent forged terminal rows or cells.
 function text(value: unknown): string {
   if (value !== null && typeof value === "object") return "";
   return sanitizeText(String(value ?? ""))
@@ -134,9 +135,7 @@ export function agentShowText(value: unknown): string {
     ["URI", text(p.uri)],
     [
       "Approved",
-      ["T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", "0x0000000000000000000000000000000000000000"].includes(
-        String(p.approved),
-      )
+      CHAIN_FAMILIES.some((family) => FAMILIES[family].zeroAddress === String(p.approved))
         ? "None"
         : text(p.approved),
     ],

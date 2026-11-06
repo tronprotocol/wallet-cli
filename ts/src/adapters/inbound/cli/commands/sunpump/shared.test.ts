@@ -15,10 +15,6 @@ function issues(input: Record<string, unknown>) {
       }));
 }
 
-/**
- * `--quote` sends no transaction, so it refuses every flag that describes one — the floor flags
- * included, since a floor given to a quote would be accepted and then protect nothing.
- */
 describe("--quote", () => {
   it.each([
     ["slippage", { slippage: "0.0001" }, "a tolerance"],

@@ -162,8 +162,6 @@ it("sanitizes payment fields and shows daemon management details", () => {
   expect(rendered).not.toContain("\x1b");
   expect(rendered).not.toContain("\nforged");
 });
-// The one-time Permit2 approve is a separate on-chain transaction the payer should be able to
-// find from the default text, not only from JSON.
 it("shows the approval transaction when a payment carried one", () => {
   const rendered = paymentText({
     status: 200,

@@ -3,8 +3,11 @@ import { TronAssetService } from "./asset-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAsset, TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronAsset, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -14,16 +17,16 @@ const NET: NetworkDescriptor = {
   capabilities: [],
 };
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
-const OWNER_HEX = "4174472e7d35395a6b5add427eecb7f4b62ad2b071"; // == OWNER
+const OWNER_HEX = "4174472e7d35395a6b5add427eecb7f4b62ad2b071"; // OWNER in hex.
 const OTHER_HEX = "419756bae210f6e9591f311613cff8f19d6cef3971";
-const NOW = 1_800_000_000_000; // 2027-01-15T08:00:00Z
+const NOW = 1_800_000_000_000;
 
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
@@ -51,7 +54,7 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
     { get: () => gateway as TronGateway } as unknown as ChainGatewayProvider,
     {
       assertCanSign: () => {},
-      run: async () => ({ stage: "submitted", txId: "txid" }),
+      runTron: async () => ({ stage: "submitted", txId: "txid" }),
       ...pipeline,
     } as unknown as TxPipeline,
     () => NOW,
@@ -70,7 +73,6 @@ const ISSUE = {
 
 describe("asset issue", () => {
   it("refuses a Ledger account before touching the device", () => {
-    // The Ledger TRON app cannot parse AssetIssueContract at all.
     const assertCanSign = vi.fn();
     const svc = service({}, { assertCanSign });
     void svc.issue(scope, NET, { ...ISSUE }).catch(() => {});
@@ -86,6 +88,27 @@ describe("asset issue", () => {
     expect(build).not.toHaveBeenCalled();
   });
 
+  it("refuses a TRC10 precision above 6 before building", async () => {
+    const build = vi.fn();
+    const svc = service({ getAssetByIssuer: async () => undefined, buildAssetIssue: build });
+    await expect(svc.issue(scope, NET, { ...ISSUE, precision: 7 })).rejects.toMatchObject({
+      code: "invalid_value",
+    });
+    expect(build).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ supply: "0" }, "supply must be greater than zero"],
+    [{ freeze: ["0:30"] }, "freeze amount must be greater than zero"],
+    [{ freeze: ["100:0"] }, "freeze days must be greater than zero"],
+  ])("refuses a zero count %j with invalid_value", async (override, message) => {
+    const svc = service({ getAssetByIssuer: async () => undefined });
+    await expect(svc.issue(scope, NET, { ...ISSUE, ...override })).rejects.toMatchObject({
+      code: "invalid_value",
+      message,
+    });
+  });
+
   it("scales supply and tranches by precision and reduces the price", async () => {
     let issuance: Record<string, unknown> | undefined;
     const svc = service(
@@ -97,7 +120,7 @@ describe("asset issue", () => {
         }) as never,
       },
       {
-        run: async (p: { build: (o: string) => Promise<unknown> }) => {
+        runTron: async (p: { build: (o: string) => Promise<unknown> }) => {
           await p.build(OWNER);
           return { stage: "submitted", txId: "txid" } as never;
         },
@@ -116,14 +139,14 @@ describe("asset issue", () => {
     });
   });
 
-  it("reads --start/--end as UTC and requires a future, ordered window", async () => {
+  it("reads start/end as UTC and requires a future, ordered window", async () => {
     const svc = service({ getAssetByIssuer: async () => undefined });
     await expect(svc.issue(scope, NET, { ...ISSUE, start: "2020-01-01" })).rejects.toThrow(
-      /--start must be in the future/,
+      /^start must be in the future/,
     );
     await expect(
       svc.issue(scope, NET, { ...ISSUE, start: "2028-02-01", end: "2028-01-01" }),
-    ).rejects.toThrow(/--end must be later/);
+    ).rejects.toThrow(/^end must be later/);
     await expect(svc.issue(scope, NET, { ...ISSUE, start: "2028-13-01" })).rejects.toThrow(
       /not a real date/,
     );
@@ -141,10 +164,10 @@ describe("asset issue", () => {
   it("requires a non-empty url and bounds the text fields", async () => {
     const svc = service({ getAssetByIssuer: async () => undefined });
     await expect(svc.issue(scope, NET, { ...ISSUE, url: "" })).rejects.toThrow(
-      /--url must not be empty/,
+      /^url must not be empty/,
     );
     await expect(svc.issue(scope, NET, { ...ISSUE, description: "d".repeat(201) })).rejects.toThrow(
-      /--description must be at most 200 bytes/,
+      /^description must be at most 200 bytes/,
     );
   });
 });
@@ -162,7 +185,7 @@ describe("asset update", () => {
         }) as never,
       },
       {
-        run: async (p: { build: (o: string) => Promise<unknown> }) => {
+        runTron: async (p: { build: (o: string) => Promise<unknown> }) => {
           await p.build(OWNER);
           return { stage: "submitted", txId: "txid" } as never;
         },
@@ -170,7 +193,6 @@ describe("asset update", () => {
     );
 
     await svc.update(scope, NET, { url: "https://mytoken.io/v2" });
-    // the chain overwrites all four; omitting a flag must not blank the field
     expect(update).toEqual({
       url: "https://mytoken.io/v2",
       description: "Demo TRC10",
@@ -198,7 +220,7 @@ describe("asset participate", () => {
     const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX }) });
     await expect(svc.participate(scope, NET, input)).resolves.toMatchObject({
       paidSun: "100000000",
-      receivedAmount: "10000000000", // 100 TRX × 100 tokens, in minimal units
+      receivedAmount: "10000000000",
     });
   });
 
@@ -227,8 +249,15 @@ describe("asset participate", () => {
     ).resolves.toMatchObject({ paidSun: "10500000", receivedAmount: "1050000000" });
   });
 
+  it("refuses a zero payment with invalid_value", async () => {
+    const svc = service({ getAssetById: async () => asset({ owner_address: OTHER_HEX }) });
+    await expect(
+      svc.participate(scope, NET, { assetRef: "1000123", pay: "0" }),
+    ).rejects.toMatchObject({ code: "invalid_value", message: "pay must be greater than zero" });
+  });
+
   it("refuses a payment too small to buy one unit", async () => {
-    // at 1 sun per 0.5 minimal units, the smallest possible payment buys nothing
+    // One SUN buys half a minimal unit, which rounds down to zero.
     const svc = service({
       getAssetById: async () => asset({ owner_address: OTHER_HEX, trx_num: 2, num: 1 }),
     });
@@ -251,8 +280,6 @@ describe("asset participate", () => {
 });
 
 describe("ambiguous asset names", () => {
-  // A name collision is a choice, not a dead end: the error has to carry enough for the caller to
-  // pick — ids for a machine, and the columns a human compares on.
   it("carries the queried name, the ids, and one comparable row per match", async () => {
     const svc = service({
       getAssetsByName: async () => [
@@ -265,7 +292,7 @@ describe("ambiguous asset names", () => {
         asset({ id: "1000488", owner_address: OWNER_HEX, total_supply: "50000000", precision: 2 }),
       ],
     });
-    await expect(svc.info(NET, { assetRef: "MyToken" })).rejects.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "MyToken" })).rejects.toMatchObject({
       code: "ambiguous_asset_name",
       details: {
         name: "MyToken",
@@ -280,7 +307,7 @@ describe("ambiguous asset names", () => {
 
   it("resolves a name matching exactly one asset instead of erroring", async () => {
     const svc = service({ getAssetsByName: async () => [asset({ id: "1000123" })] });
-    await expect(svc.info(NET, { assetRef: "MyToken" })).resolves.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "MyToken" })).resolves.toMatchObject({
       assetId: "1000123",
     });
   });
@@ -293,7 +320,7 @@ describe("asset unfreeze", () => {
   ];
 
   it("releases every matured tranche and reports what stays frozen", async () => {
-    const start = NOW - 60 * 86_400_000; // 60 days ago: first tranche matured, second not
+    const start = NOW - 60 * 86_400_000;
     const svc = service({
       getAssetByIssuer: async () => asset({ start_time: start, frozen_supply: tranches }),
     });
@@ -329,7 +356,7 @@ describe("asset unfreeze", () => {
     const start = NOW - 60 * 86_400_000;
     const svc = service(
       { getAssetByIssuer: async () => asset({ start_time: start, frozen_supply: tranches }) },
-      { run: async () => ({ stage: "confirmed", txId: "t", unfreezeAmount: 99 }) as never },
+      { runTron: async () => ({ stage: "confirmed", txId: "t", unfreezeAmount: 99 }) as never },
     );
     await expect(svc.unfreeze(scope, NET, {})).resolves.toMatchObject({ releasedAmount: "99" });
   });
@@ -342,7 +369,7 @@ describe("asset info / list", () => {
       getAssetById: async () =>
         asset({ start_time: start, frozen_supply: [{ frozen_amount: "5", frozen_days: 30 }] }),
     });
-    await expect(svc.info(NET, { assetRef: "1000123" })).resolves.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "1000123" })).resolves.toMatchObject({
       assetId: "1000123",
       price: "1:100",
       precision: 6,
@@ -350,15 +377,17 @@ describe("asset info / list", () => {
     });
   });
 
-  it("requires exactly one of <asset> and --issuer", async () => {
+  it("requires exactly one of <asset> and issuer", async () => {
     const svc = service({});
-    await expect(svc.info(NET, {})).rejects.toThrow(/exactly one/);
-    await expect(svc.info(NET, { assetRef: "1", issuer: OWNER })).rejects.toThrow(/exactly one/);
+    await expect(svc.info(NO_DEADLINE, NET, {})).rejects.toThrow(/exactly one/);
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "1", issuer: OWNER })).rejects.toThrow(
+      /exactly one/,
+    );
   });
 
   it("errors on an unknown reference rather than returning an empty result", async () => {
     const svc = service({ getAssetById: async () => undefined });
-    await expect(svc.info(NET, { assetRef: "999" })).rejects.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, NET, { assetRef: "999" })).rejects.toMatchObject({
       code: "asset_not_found",
     });
   });
@@ -366,7 +395,7 @@ describe("asset info / list", () => {
   it("pages server-side and reports only offset and limit", async () => {
     const listAssets = vi.fn(async () => [asset()]);
     const svc = service({ listAssets });
-    await expect(svc.list(NET, { limit: 10, offset: 20 })).resolves.toMatchObject({
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 10, offset: 20 })).resolves.toMatchObject({
       assets: [{ assetId: "1000123", name: "MyToken", precision: 6 }],
       pagination: { offset: 20, limit: 10 },
     });
@@ -374,14 +403,6 @@ describe("asset info / list", () => {
   });
 });
 
-/**
- * `asset issue` burns the issuance fee, an account may only ever issue once, and the ICO window is
- * fixed for the life of the token. So a mistyped time must not become a different, valid one.
- *
- * The parser accepted any two digits per component and let `Date.UTC` roll them over, checking only
- * the resulting DATE afterwards — which catches `24:00:00` (it lands on the next day) but not
- * `12:60:00`, which stays inside the same day and is silently read as 13:00:00.
- */
 describe("asset issue rejects an impossible time instead of rolling it over", () => {
   const issueWith = (start: string) =>
     service({

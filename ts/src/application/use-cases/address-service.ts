@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import type { KeypairWriter } from "../ports/keypair-writer.js";
-import { evmAddressFromPublicKey, TronAddress } from "../../domain/address/index.js";
+import { addressCodec } from "../../domain/family/index.js";
 import { ExecutionError } from "../../domain/errors/index.js";
 
 const MAX_SCALAR_ATTEMPTS = 128;
@@ -28,8 +28,8 @@ export class AddressService {
     }
 
     const publicKey = secp256k1.getPublicKey(privateKey, false);
-    const tron = new TronAddress().fromPublicKey(publicKey);
-    const evm = evmAddressFromPublicKey(publicKey);
+    const tron = addressCodec("tron").fromPublicKey(publicKey);
+    const evm = addressCodec("evm").fromPublicKey(publicKey);
     const privateKeyHex = bytesToHex(privateKey);
     try {
       if (input.printSecret) {

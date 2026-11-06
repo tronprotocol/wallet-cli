@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { TronContractService } from "./contract-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET = {
   id: "tron:3448148188",
@@ -12,16 +16,22 @@ const NET = {
   nativeSymbol: "TRX",
   chainId: "nile",
 } as unknown as NetworkDescriptor;
-const SCOPE = {} as unknown as TransactionScope;
-const DEPLOY_INPUT = { abi: [], bytecode: "0x00", feeLimit: "1000000000", parameters: [] };
+const SCOPE = { deadline: NO_DEADLINE } as unknown as TransactionScope;
+const DEPLOY_INPUT = {
+  abi: [],
+  bytecode: "0x00",
+  feeLimit: sunAmount("1000000000"),
+  parameters: [],
+};
 const CONTRACT_HEX = "41a614f803b6fd780986a42c78ec9c7f77e6ded13c";
 const CONTRACT_B58 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const PREPARED_HEX = "41b20b47cd2008731fd794274b736db24958f88edd";
 const PREPARED_B58 = "TSCcnz8iNBFDbccr4mfByskq8TDhCHLW3n";
+const BASE58: Record<string, string> = {
+  [CONTRACT_HEX]: CONTRACT_B58,
+  [PREPARED_HEX]: PREPARED_B58,
+};
 
-// Fake pipeline: run build() then prepare() the way TxPipeline does — deploy captures the address
-// from the prepared transaction — then return a canned outcome. The stage decides which
-// outcomeData branch runs. `prepareTransaction` stands in for the identity refresh.
 function service(opts: {
   deployTx: Record<string, unknown>;
   outcome: Record<string, unknown>;
@@ -34,11 +44,14 @@ function service(opts: {
     prepareTransaction(tx: Record<string, unknown>) {
       return "preparedAddress" in opts ? { ...tx, contract_address: opts.preparedAddress } : tx;
     },
+    deployedContractAddress(tx: { contract_address?: string }) {
+      return tx.contract_address && BASE58[tx.contract_address];
+    },
   } as unknown as TronGateway;
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   const pipeline = {
     assertCanSign() {},
-    async run(p: {
+    async runTron(p: {
       build: (from: string) => Promise<unknown>;
       prepare: (tx: unknown, o: { permissionId: number }) => unknown;
     }) {
@@ -76,8 +89,6 @@ describe("TronContractService.deploy — contractAddress", () => {
     expect(view.contractAddress).toBeUndefined();
   });
 
-  // --permission-id / --expiration rewrite raw_data, so preparation recomputes the txID and with it
-  // the deployed address. Reporting the builder's address would name a contract nobody deploys.
   it("broadcast with --permission-id: reports the prepared address, not the builder's", async () => {
     const view = await service({
       deployTx: { contract_address: CONTRACT_HEX },

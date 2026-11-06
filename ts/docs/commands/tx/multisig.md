@@ -26,13 +26,13 @@ Where the on-chain path passes a hex from person to person, the service path has
 
 There is no empty collection. The service derives the starting weight from the signature the transaction arrives with, so `--create` signs before it submits and the collection opens at `1 / N` — the originator does **not** sign again afterwards, and attempting it returns `already_signed`.
 
-`--create` refuses a transaction that already carries a signature (`invalid_value`), one that has expired (`tx_expired`), and one whose permission group does not include the selected account (`not_authorized`).
+`--create` refuses a transaction that already carries a signature (`invalid_value`), one that has expired (`tx_expired`), one built for another chain — its reference block is not on the selected network (`chain_id_mismatch`) — and one whose permission group does not include the selected account (`not_authorized`). `--create` and `--sign` check the reference block before reading the permission or signing; when it is newer than the node's head, they fail with `rpc_error` and can be retried once the node has caught up. In the list, a record for another chain is shown with `verified: false`.
 
 ### Reaching the threshold
 
-Once the accumulated weight reaches the threshold the **service broadcasts the transaction itself**. The `--sign` receipt therefore points at confirmation first, and offers a manual broadcast only as a fallback. Broadcasting one that is already on chain fails with `transaction_rejected` (`Transaction already exists.`) — harmless, but confirm rather than guess. A transaction with more than one signature also incurs a 1 TRX multi-sig fee.
+Once the accumulated weight reaches the threshold the **service broadcasts the transaction itself**. The `--sign` receipt therefore points at confirmation first, and offers a manual broadcast only as a fallback. Broadcasting one that the node already holds returns `stage: "submitted"` with `alreadyKnown: true`, and the command then waits for its confirmation as usual. A transaction with more than one signature also incurs a 1 TRX multi-sig fee.
 
-`--watch` receives only a count, never transaction content, so watching leaks nothing about what is queued. It runs until interrupted (Ctrl-C, SIGINT/SIGTERM), then reports how many notifications arrived.
+`--watch` receives only a count, never transaction content, so watching leaks nothing about what is queued. It runs until interrupted (Ctrl-C, SIGINT/SIGTERM), then reports how many notifications arrived. At the end of `--timeout` it fails with `timeout` (exit `1`) instead; pass `--timeout 0` to watch until interrupted.
 
 The credentials are per-environment (mainnet / testnet); set them with [`config`](../config.md). The service owns its data; this command keeps no local copy.
 
@@ -184,7 +184,7 @@ A record the client cannot reconcile with the chain stays visible and is labelle
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_found` — txId not on the service, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error or rate limit; TronLink reports **every** non-404 status this way, 429 included) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`, conflicting modes).
+`0` success · `1` execution failure (`not_found` — txId not on the service, `chain_id_mismatch` — the transaction was built for another chain, `rpc_error`, `not_authorized`, `already_signed`, `tx_expired`, `auth_failed`, `provider_error` — service error, or a malformed service record such as a hash that is not 32-byte hex; TronLink reports every status other than 404 and 429 this way; `provider_rate_limited` — TronLink returned HTTP 429, with `details.retryAfterSeconds` when it sent a usable `Retry-After`) · `2` usage error (`tronlink_credentials_missing`, `unsupported_network`, `invalid_value` — including an already-signed transaction passed to `--create`; `invalid_option` — conflicting modes, `--create` without exactly one of `--hex` or `--file`, or `--hex` / `--file` without `--create`).
 
 ## See also
 
