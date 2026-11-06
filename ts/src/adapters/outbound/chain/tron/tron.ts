@@ -1473,12 +1473,17 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getCanDelegatedMaxSize(address: string, resource: RpcResourceCode): Promise<string> {
     return this.#wrap("getCanDelegatedMaxSize", async () =>
-      String((await this.#tw.trx.getCanDelegatedMaxSize(address, resource, LATEST_STATE)).max_size ?? 0),
+      String(
+        (await this.#tw.trx.getCanDelegatedMaxSize(address, resource, LATEST_STATE)).max_size ?? 0,
+      ),
     );
   }
   async getCanWithdrawUnfreezeAmount(address: string): Promise<string> {
     return this.#wrap("getCanWithdrawUnfreezeAmount", async () =>
-      String((await this.#tw.trx.getCanWithdrawUnfreezeAmount(address, Date.now(), LATEST_STATE)).amount ?? 0),
+      String(
+        (await this.#tw.trx.getCanWithdrawUnfreezeAmount(address, Date.now(), LATEST_STATE))
+          .amount ?? 0,
+      ),
     );
   }
   async getAvailableUnfreezeCount(address: string): Promise<number> {
