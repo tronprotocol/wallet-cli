@@ -119,6 +119,9 @@ import { PacedHttpTransport, RequestPacer } from "../../http/request-pacer.js";
 const TRON_READ_OWNER = FAMILIES.tron.zeroAddress;
 const DEFAULT_ACTIVE_OPERATIONS =
   "7fff1fc0033ef30f000000000000000000000000000000000000000000000000";
+// The SDK reads these stake facts from the solidity node by default, which lags the head and would refuse an
+// undelegate or withdraw that the latest state allows.
+const LATEST_STATE = { confirmed: false };
 
 // Convert 41-prefixed hex to base58; pass through base58 and empty values.
 export function hexToBase58(addr: unknown): string {
@@ -1444,7 +1447,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   async getDelegatedResourceV2(from: string, to: string): Promise<TronDelegatedResource[]> {
     return this.#wrap("getDelegatedResourceV2", async () => {
-      const res = await this.#tw.trx.getDelegatedResourceV2(from, to);
+      const res = await this.#tw.trx.getDelegatedResourceV2(from, to, LATEST_STATE);
       return (res.delegatedResource ?? []).map((d) => ({
         from: tronHexToBase58(d.from),
         to: tronHexToBase58(d.to),
@@ -1461,7 +1464,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     address: string,
   ): Promise<{ fromAccounts: string[]; toAccounts: string[] }> {
     return this.#wrap("getDelegatedResourceAccountIndexV2", async () => {
-      const res = await this.#tw.trx.getDelegatedResourceAccountIndexV2(address);
+      const res = await this.#tw.trx.getDelegatedResourceAccountIndexV2(address, LATEST_STATE);
       return {
         fromAccounts: (res.fromAccounts ?? []).map((a) => tronHexToBase58(a)),
         toAccounts: (res.toAccounts ?? []).map((a) => tronHexToBase58(a)),
@@ -1470,17 +1473,17 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
   async getCanDelegatedMaxSize(address: string, resource: RpcResourceCode): Promise<string> {
     return this.#wrap("getCanDelegatedMaxSize", async () =>
-      String((await this.#tw.trx.getCanDelegatedMaxSize(address, resource)).max_size ?? 0),
+      String((await this.#tw.trx.getCanDelegatedMaxSize(address, resource, LATEST_STATE)).max_size ?? 0),
     );
   }
   async getCanWithdrawUnfreezeAmount(address: string): Promise<string> {
     return this.#wrap("getCanWithdrawUnfreezeAmount", async () =>
-      String((await this.#tw.trx.getCanWithdrawUnfreezeAmount(address)).amount ?? 0),
+      String((await this.#tw.trx.getCanWithdrawUnfreezeAmount(address, Date.now(), LATEST_STATE)).amount ?? 0),
     );
   }
   async getAvailableUnfreezeCount(address: string): Promise<number> {
     return this.#wrap("getAvailableUnfreezeCount", async () =>
-      Number((await this.#tw.trx.getAvailableUnfreezeCount(address)).count ?? 0),
+      Number((await this.#tw.trx.getAvailableUnfreezeCount(address, LATEST_STATE)).count ?? 0),
     );
   }
 
