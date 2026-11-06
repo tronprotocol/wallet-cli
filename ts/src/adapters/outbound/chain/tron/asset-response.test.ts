@@ -1,17 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseTronAssetResponse } from "./tron.js";
+import type { TronAsset } from "../../../../application/ports/chain/tron/tron-gateway.js";
+import {
+  assertUsableAsset,
+  assetList,
+  exchangeValue,
+  parseTronAssetResponse,
+} from "./asset-response.js";
 
-/**
- * TRC10 supply and frozen tranches are protocol int64. They used to arrive through tronweb, whose
- * HTTP provider parses the body with a plain `JSON.parse`, so anything above 2^53 was rounded to the
- * nearest float64 before this code ever saw it — and the port then declared the damage by typing the
- * field `number`. On mainnet that is not theoretical: of 1,400 assets sampled, 252 carry a supply
- * above 2^53 and 10 rendered a wrong figure, six of them as 9223372036854776000 — a value larger
- * than int64 allows, i.e. one the chain cannot possibly hold.
- *
- * The account and block endpoints already avoided this by parsing losslessly; these tests hold the
- * asset endpoints to the same standard.
- */
 describe("parseTronAssetResponse", () => {
   it("keeps an int64 total supply exact instead of rounding it to a float64", () => {
     const asset = parseTronAssetResponse(`{
@@ -38,8 +33,6 @@ describe("parseTronAssetResponse", () => {
     expect(asset.frozen_supply?.[0]?.frozen_amount).toBe("2");
   });
 
-  // tronweb decoded these; asking the node for `visible: false` keeps addresses in the hex form
-  // tronHexToBase58 expects, at the cost of owning the text decoding here.
   it("decodes the node's hex-encoded text fields", () => {
     const asset = parseTronAssetResponse(
       '{"name": "4556494c", "abbr": "4556", "url": "782e636f6d", "description": "64"}',
@@ -67,5 +60,53 @@ describe("parseTronAssetResponse", () => {
       parseTronAssetResponse('{"owner_address": "418225f3aa48a2d30643a64410abb1e914dfa0bd2f"}')
         .owner_address,
     ).toBe("418225f3aa48a2d30643a64410abb1e914dfa0bd2f");
+  });
+});
+
+describe("assertUsableAsset", () => {
+  const asset = (overrides: Record<string, unknown> = {}) =>
+    ({ id: "1002000", trx_num: 1, num: 1, ...overrides }) as unknown as TronAsset;
+
+  it.each([
+    ["absent precision", asset()],
+    ["precision 6", asset({ precision: 6 })],
+    ["int32 max rate", asset({ trx_num: 2_147_483_647 })],
+  ])("accepts %s", (_name, value) => {
+    expect(assertUsableAsset(value, "1002000")).toBe(value);
+  });
+
+  it.each([
+    ["another id than requested", asset({ id: "1002001" }), /asked the node for TRC10 1002000/],
+    ["precision above 6", asset({ precision: 7 }), /precision 7 is outside/],
+    ["negative precision", asset({ precision: -1 }), /precision -1 is outside/],
+    ["a zero trx_num", asset({ trx_num: 0 }), /trx_num 0 is not a positive int32/],
+    ["a num above int32", asset({ num: 2_147_483_648 }), /num 2147483648 is not a positive int32/],
+    ["a missing num", asset({ num: undefined }), /num undefined is not a positive int32/],
+  ])("rejects %s", (_name, value, message) => {
+    expect(() => assertUsableAsset(value, "1002000")).toThrow(message);
+  });
+});
+
+describe("assetList", () => {
+  it.each([
+    ["no assetIssue", "{}", []],
+    ["a non-array assetIssue", '{"assetIssue": 1}', []],
+    [
+      "an unusable row dropped",
+      '{"assetIssue": [{"id": "1", "trx_num": 1, "num": 1}, {"id": "2", "trx_num": 0, "num": 1}]}',
+      ["1"],
+    ],
+  ])("%s", (_name, text, ids) => {
+    expect(assetList(text).map((entry) => entry.id)).toEqual(ids);
+  });
+});
+
+describe("exchangeValue", () => {
+  it("keeps balances exact and leaves text undecoded", () => {
+    expect(
+      exchangeValue(
+        '{"exchange_id": 1, "first_token_balance": 9007199254740993, "first_token_id": "5f"}',
+      ),
+    ).toEqual({ exchange_id: 1, first_token_balance: "9007199254740993", first_token_id: "5f" });
   });
 });

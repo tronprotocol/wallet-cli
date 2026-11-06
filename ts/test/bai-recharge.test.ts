@@ -25,7 +25,7 @@ it.each([
     const hash = (chain === "tron" ? "" : "0x") + "a".repeat(64);
     try {
       const store = new AtomicFileStore();
-      new Keystore(home, store, () => "testPassword123").import({
+      new Keystore(home, store, () => "testPassword123!").import({
         type: "privateKey",
         secret: "11".repeat(32),
         label: "payer",
@@ -65,10 +65,10 @@ it.each([
       };
       const pay = async () => {
         log({method:'pay'});
-        return {settled:true, payer:{address:${JSON.stringify(payer)}}, paymentResponse:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}};
+        return {settled:true, payer:{address:${JSON.stringify(payer)}}, paymentResponse:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}, settlement:{success:true, transaction:${JSON.stringify(hash)}, network:${JSON.stringify(networkId)}}};
       };
-      X402PaymentClient.prototype.pay = pay;
-      if (${JSON.stringify(chain)} === "tron") X402Service.prototype.roundtrip = async () => ({serve:{},pay:await pay()});`,
+      X402PaymentClient.prototype.request = async () => ({kind: "response", result: await pay()});
+      if (${JSON.stringify(chain)} === "tron") X402Service.prototype.roundtrip = async () => { const p = await pay(); return {serve:{},pay:p,settlement:p.settlement}; };`,
       );
       for (const [to, withPassword] of [
         [undefined, false],
@@ -100,7 +100,7 @@ it.each([
             ...DETACHED,
             env: { ...process.env, WALLET_CLI_HOME: home, WALLET_CLI_BAI_REPORT_DELAY_MS: "0" },
             encoding: "utf8",
-            input: withPassword ? "testPassword123\n" : undefined,
+            input: withPassword ? "testPassword123!\n" : undefined,
             timeout: 20000,
           },
         );

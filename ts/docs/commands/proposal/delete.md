@@ -6,7 +6,7 @@ Delete a proposal you created.
 
 ```
 wallet-cli proposal delete <id>
-                           [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                           [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                            [--permission-id <n>] [options]
 ```
 
@@ -18,7 +18,7 @@ This is a different action from [`proposal approve --cancel`](approve.md), which
 
 The chain records the result under its own name — after a successful delete, [`proposal show`](show.md) reports `State canceled`.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -30,7 +30,8 @@ The chain records the result under its own name — after a successful delete, [
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -40,7 +41,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli proposal delete 48 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli proposal delete 48 --network nile --password-stdin
 ```
 
 ```console
@@ -54,7 +55,7 @@ echo "$PW" | wallet-cli proposal delete 48 --network nile --wait --password-stdi
 ```
 
 ```bash
-echo "$PW" | wallet-cli proposal delete 48 --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli proposal delete 48 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -67,12 +68,12 @@ echo "$PW" | wallet-cli proposal delete 48 --network nile --wait --password-stdi
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "proposal-delete"`, `stage: "submitted"`, `txId`, `proposalId`, `proposerAddress` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
+| `--no-wait` (submitted) | `kind: "proposal-delete"`, `stage: "submitted"`, `txId`, `proposalId`, `proposerAddress` |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`proposal_not_found` — no such proposal, `not_proposal_owner` — you are not its creator, `proposal_expired`, `already_canceled`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`invalid_value` — id not a number).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`proposal_not_found` — no such proposal, `not_proposal_owner` — you are not its creator, `proposal_expired`, `already_canceled`, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`invalid_value` — id not a number).
 
 ## See also
 

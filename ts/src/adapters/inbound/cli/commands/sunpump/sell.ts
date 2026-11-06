@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { addressFieldsFor, allRefines, Schemas, slippageField } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunPumpCurveTradeService } from "../../../../../application/use-cases/tron/sunpump/curve-trade-service.js";
+import type { SunPumpCurveTradeService } from "../../../../../application/use-cases/sunpump/curve-trade-service.js";
 import { TextFormatters } from "../../render/index.js";
-import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
 import { CURVE_TRADE_NOTES, curveTradeFields, refuseQuoteWithSendingFlags } from "./shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
 
 const fields = z.object({
   token: Schemas.address().describe("the SunPump token's contract address"),
@@ -15,14 +16,10 @@ const fields = z.object({
 export const sunpumpSellSpec: ChainSpec = {
   path: ["sunpump", "sell"],
   network: "optional",
-  // `none` because `--quote` must work with no account at all, and the framework
-  // resolves the active account up front for anything else. Every mode that signs resolves it in
-  // the use case instead and fails with the same `missing_wallet_address` when there is none —
-  // later, but identically.
+  // Quotes need no account; signing modes resolve it in the use case.
   wallet: "none",
   auth: "conditional",
   broadcasts: true,
-  // A quote sends nothing, so there is no confirmation for --wait or --wait-timeout to wait on.
   rejectsWaitWith: "quote",
   capability: "sunpump.curve",
   summary: "Sell a token on the SunPump bonding curve",
@@ -36,13 +33,11 @@ export const sunpumpSellSpec: ChainSpec = {
     "The platform fee comes out of the proceeds, so the minimum is applied to what you receive.\n\n" +
     CURVE_TRADE_NOTES +
     "\n\nAn account is needed for every mode except --quote, which reads only.",
+  exclusive: [unsignedTxModeExclusive],
   baseFields: fields,
-  // A malformed address is `invalid_address` at exit 2, refused here rather than carried to a
-  // node that answers with a base58 complaint at exit 1.
   baseRefine: allRefines(
     addressFieldsFor("tron", "token"),
     refuseQuoteWithSendingFlags,
-    // A tolerance is pure input, so it is checked here rather than after a launchpad read.
     slippageField(),
   ),
   positionals: [{ field: "token", placeholder: "address" }],
@@ -67,6 +62,6 @@ export const sunpumpSellTronBinding = (service: SunPumpCurveTradeService): Famil
       ...(input.quote === undefined ? {} : { quote: input.quote }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
     }),
 });

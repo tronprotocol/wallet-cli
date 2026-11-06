@@ -18,7 +18,7 @@ export function canonicalTronLinkQuery(parameters: Readonly<Record<string, strin
     .join("&");
 }
 
-/** Canonical form used by Java MultiSignService; values are signed before URL encoding. */
+// Sign values before URL encoding.
 export function signTronLinkRequest(
   method: string,
   path: string,
@@ -57,7 +57,7 @@ export function encodeTronLinkQuery(parameters: Readonly<Record<string, string>>
     .join("&");
 }
 
-/** java.net.URLEncoder compatibility: form encoding uses '+' for spaces and escapes '~'. */
+// Match java.net.URLEncoder: spaces become '+', and '~' is escaped.
 function javaUrlEncode(value: string): string {
   return encodeURIComponent(value)
     .replace(/[!'()~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)

@@ -1,10 +1,3 @@
-/**
- * Portfolio holding rows.
- *
- * `account portfolio` is one command, so both families must report the same row shape. These
- * helpers are shared rather than copied for exactly that reason — a second copy is how the two
- * listings drift into reporting different fields for the same thing.
- */
 import { describe, it, expect } from "vitest";
 import { holding, portfolioTotal, unavailableHolding } from "./portfolio-holdings.js";
 
@@ -24,7 +17,6 @@ describe("holding", () => {
   });
 
   it("reports a null value when there is no price, rather than zero", () => {
-    // Zero would read as "this is worthless", which is a different claim from "we don't know".
     const row = holding("native", "ETH", 18, "1000000000000000000", null);
     expect(row.priceUsd).toBeNull();
     expect(row.valueUsd).toBeNull();
@@ -38,8 +30,6 @@ describe("holding", () => {
 });
 
 describe("unavailableHolding", () => {
-  // One unreadable token must not sink the whole portfolio: the row keeps its identity and says
-  // why it has no numbers, instead of vanishing or reporting a fictitious zero.
   it("keeps the row's identity and nulls only the numbers", () => {
     expect(unavailableHolding("erc20", "USDT", 6, { id: "0xdAC1" })).toMatchObject({
       kind: "erc20",

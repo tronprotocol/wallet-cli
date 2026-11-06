@@ -6,7 +6,7 @@ Register the account as a super representative candidate.
 
 ```
 wallet-cli witness create --url <url>
-                          [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                          [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                           [--permission-id <n>] [options]
 ```
 
@@ -18,7 +18,7 @@ Registers the acting account as an SR candidate, making it votable and eligible 
 
 The account must already be activated and hold at least the registration fee. `--url` is the candidate info page — the website explorers show next to the SR — and is the only business field the chain stores for a candidate; change it later with [`witness update`](update.md).
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 The Ledger TRON app cannot sign witness contract types. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
@@ -32,7 +32,8 @@ The Ledger TRON app cannot sign witness contract types. A Ledger account can dry
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -42,7 +43,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile --wait --password-stdin
+echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile --password-stdin
 ```
 
 ```console
@@ -56,7 +57,7 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile -
 ```
 
 ```bash
-echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile --password-stdin -o json
 ```
 
 ```json
@@ -69,14 +70,14 @@ echo "$PW" | wallet-cli witness create --url https://sr.acme.io --network nile -
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "witness-create"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url`, `feeSun`, and `registrationFeeSun` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed`, and `registrationFeeSun` |
+| `--no-wait` (submitted) | `kind: "witness-create"`, `stage: "submitted"`, `txId`, `witnessAddress`, `url`, `feeSun`, and `registrationFeeSun` |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed`, and `registrationFeeSun` |
 
 `registrationFeeSun` and `feeSun` are decimal strings carrying the same irreversible registration burn. The command deliberately overwrites the node receipt's bandwidth/energy fee with that economically relevant amount, so do not add the two together.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_witness`, `account_not_active`, `insufficient_balance` — below the registration fee, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--url`).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`already_witness`, `account_not_active`, `insufficient_balance` — below the registration fee, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — no `--url`).
 
 ## See also
 

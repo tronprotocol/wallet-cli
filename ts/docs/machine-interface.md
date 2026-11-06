@@ -10,10 +10,23 @@ wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account 
 
 - Always pass `-o json`. Text output is for humans and carries no stability promise.
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
-- Long-running `x402` and `bai` commands also report progress on stderr: `⏳ …` lines in text mode, and one `{"type":"activity","message":"…"}` line per step in JSON mode. They are informational — ignore them or show them to a user, but never parse them for the outcome.
-- Every RPC / device call is bounded by `--timeout` (milliseconds, default `config.timeoutMs`, built-in 60000).
+- Long-running `x402` and `bai` commands also report progress on stderr: `⏳ …` lines in text mode, and one `{"type":"activity","message":"…"}` line per step in JSON mode. Ledger device prompts go there the same way (`{"type":"awaiting_device",…}` in JSON mode). They are informational — ignore them or show them to a user, but never parse them for the outcome.
+- `--timeout <ms>` is one deadline for the whole command; see [Time limit](#time-limit---timeout).
+- A command that submits a transaction waits for its confirmation; `--no-wait` returns after submission. See [Script safety](#script-safety-never-mistake-submitted-for-confirmed).
 - `--network` takes a canonical **CAIP-2** id (`tron:3448148188`, `eip155:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). The namespace is not the chain family: `eip155` addresses the `evm` family. Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
-- The TRON ids used before CAIP-2 (`tron:mainnet`, `tron:nile`, `tron:shasta`) remain permanent aliases, so existing invocations keep working. **Output is a different matter**: `chain.network`, `chain.chainId`, the `networks` listing's `id`, and the `config` keys all report the CAIP-2 id now, so a consumer that string-matches or keys a map by `tron:nile` must be updated.
+- `tron:mainnet`, `tron:nile` and `tron:shasta` are permanent aliases. `chain.network`, the `networks` listing's `id`, and network `config` keys use canonical CAIP-2 ids; `chain.chainId` contains the decimal chain id.
+
+### Time limit (`--timeout`)
+
+`--timeout <ms>` limits the whole command, from start to the result envelope. It takes decimal digits representing an integer from 0 to 2147483647; the default is `config.timeoutMs`, built-in 90000. `0` disables the command deadline and confirmation cap. Transports can enforce their own timeouts; ERC-8004 metadata fetching keeps a 10 s safety cap, and transaction validity remains finite.
+
+- **What counts.** Every node, service and device call, polling for confirmation, approvals, on-device confirmation on a Ledger, and reading a `*-stdin` flag. A `*-stdin` read starts before the command runs, also when stdin is a terminal (end it with Ctrl-D). Time spent waiting for input at an interactive TTY prompt (`create`, `import`, `backup`, `change-password`, `delete`) does not count.
+- **Out of time.** Before a result is known, the command fails with `timeout` (exit `1`). A read returns no partial result: optional data that a command otherwise leaves out when it is unavailable (prices, token metadata, ERC-8004 metadata, witness lists, brokerage, block numbers and times, a dry run's nonce and balance checks) also ends the command with `timeout`.
+- **Before a write is sent.** A transaction, payment or service submission is not started with less than 2000 ms left; it fails with `timeout` and no `error.details.txId` or `error.details.outcome`, and nothing was sent. A finite `--timeout` below 2000 can read and build, but never submits.
+- **After a write is sent.** A signed transaction whose reply is lost fails with `timeout`, `rpc_error` or `invalid_node_response`, with the transaction's id in `error.details.txId` and `error.details.outcome: "unknown"` ([unknown outcome](#unknown-outcome-errordetailsoutcome)); check it with `tx status` before sending again. A transaction that was accepted while the command was still polling for its confirmation returns exit `0` with `stage: "submitted"`, its `txId`, and a warning; so does one whose polling stopped on an error that cannot be retried unchanged. A read after an accepted write that runs out of time adds a warning and keeps the result (for example `proposal create` when the new proposal's id was not read).
+- **Commands with their own outcome.** GasFree, TronLink, x402, B.AI and SunPump report an interrupted submission as described in [Out of time after a submission](#out-of-time-after-a-submission). `tx multisig --watch` fails with `timeout` at the deadline; pass `--timeout 0` to watch until stopped. `x402 serve` applies the limit to start-up and then to each request; see [`x402 serve`](commands/x402/serve.md).
+- **Local work.** Waiting for a file lock takes at most 5 s and never past the deadline, and no write starts after it. A write that has started finishes and reports its real result. Key derivation for the master password cannot be interrupted, so a command can end later than its deadline by the time that takes.
+- **Delivery.** The process ends after the result has been written to stdout. A reader that never reads the pipe can delay that; the deadline limits the command's work, not delivery to an unread pipe.
 
 ### Discovery
 
@@ -30,6 +43,8 @@ wallet-cli tx send --json-schema
 ```
 
 One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]`. Command entries carry `id`, `kind`, `path`, `usage`, `summary`, `requires` (network / auth / wallet), `capability`, `examples`, and `inputSchema`, a JSON Schema for their input; chain commands also declare `families`. This is the intended way to learn the CLI; do not scrape `--help`. A family argument scopes the catalog to one chain family.
+
+A command with a `capability` also carries `support`, mapping each configured network of its families to `supported`, `unsupported`, or `needs-inputs`. `unsupported` fails with **`unsupported_network_capability`** before any request. `needs-inputs` means the network supports the command only with inputs it otherwise defaults: `x402 serve` on a network with no registered default token needs `--token`, or `--asset` with `--decimals`. A command with flags that exclude each other carries `exclusive`: groups of flag names, each with a `label` and a `select` of `exactly-one` (the default) or `at-most-one`. Breaking a group fails with **`invalid_option`**.
 
 ### Chain families
 
@@ -100,7 +115,7 @@ Schema id: `wallet-cli.result.v1`.
 | ----------------- | ------------------------ | ------------------- | -------------------------------------------------------------------------------- |
 | `schema`          | `"wallet-cli.result.v1"` | always              | Version gate; dispatch on this                                                   |
 | `success`         | boolean                  | always              | Mirrors the exit code (`true` ⇔ 0)                                               |
-| `command`         | string                   | always              | Canonical command id, e.g. `tx.send`, `list`. It names the **operation**, not the words typed: `backup --records` reports `backup.records`, `import keystore` reports `import.keystore` |
+| `command`         | string                   | always              | Canonical command id, e.g. `tx.send`, `list`. It names the **operation**, not the words typed: `backup --records` reports `backup.records`, `import keystore` reports `import.keystore`. Empty (`""`) when the call failed before a command was resolved (`unknown_command`, an unreadable `config.yaml`) |
 | `data`            | object/array             | success only        | Command-specific payload; see each command's reference page                      |
 | `error.code`      | string                   | error only          | Machine-readable; see [error codes](#error-codes)                                |
 | `error.message`   | string                   | error only          | Human-readable; **not** stable — never parse it. When a chain rejection was classified into a code, this reads `<category>: <what the node said>`, so the terminal shows the node's own numbers or revert reason; the same node text is also in `details.nodeMessage` (TRON, redacted) or `details.providerMessage` (TronLink), alongside `details.nodeCode` / `details.providerCode` |
@@ -111,7 +126,7 @@ Schema id: `wallet-cli.result.v1`.
 | `meta.pagination` | object                   | windowed commands only | `offset` / `limit` / `total`; present when the command returns a pagination window — see [pagination](#pagination) |
 | `chain`           | object                   | when a network was selected | `family` / `network` / `chainId`. Present on every chain command and on the local commands whose policy resolves a network — currently `backup`, `current` and `list`, which use the selected or default network as a family/display selector without contacting a node. Commands with `network: "none"` (`config`, `networks`, `contact`, `encoding`, `address`, `create`, `import`, …) omit it — its presence does **not** mean a node was contacted |
 
-Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Amounts backed by `bigint` or protocol int64 values are strings, but bounded counters and fees such as `feeSun`, `multiSignFeeSun`, `energyUsed` and `netUsed` may come back as JSON numbers. Follow each command's field table instead of coercing every amount to one type.
+Encoding rules: `bigint` values are serialized as decimal **strings** (e.g. `"balance": "1976489000"`), binary as hex. Amounts backed by `bigint` or protocol int64 values are strings, but bounded counters and fees such as `feeSun`, `multiSignFeeSun`, `energyUsed` and `netUsed` may come back as JSON numbers. The `feeSun` of a TRON `fee` estimate object (`feeModel: "tron-resource"`) is always a decimal string when present. Follow each command's field table instead of coercing every amount to one type.
 
 **Token amounts carry their scale.** In the `sunswap` and `sunpump` payloads, every token amount is base units as a decimal string, and the object that carries it also carries the `decimals` needed to read it — `{address, symbol, decimals, amount}`. Where an amount sits at the top of a payload rather than inside a side, its scale is beside it under a matching name (`lpAmount` / `lpDecimals`, `tokensIn` / `tokenDecimals`). The exception is a SunSwap V3 / V4 position's `liquidity`, `liquidityAfter` and `liquidityExpected`: numbers the contract keeps, denominated in neither token, with no decimals. Token `decimals` from 0 to 77 are supported; SunSwap / SunPump contract or market metadata outside that range — or a market figure in scientific notation with an exponent beyond ±1000 — fails with `invalid_node_response` rather than being scaled.
 
@@ -127,7 +142,7 @@ A listing that accepts an ordering echoes it back as `{orderBy, sort}`, next to 
 
 ### Reading `meta.warnings`
 
-An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md) safety warnings and the post-confirmation checks; everything else is a bare string. Normalise before display, and never assume a uniform element type:
+An entry is either a plain string or a `{code, message}` object. The object form is used where the condition is worth branching on — currently the [`permission update`](commands/permission/update.md) safety warnings, the post-confirmation checks, the error code that ended a wait for confirmation, `network_not_verified` from a TRON [`tx sign`](commands/tx/sign.md) that contacted no node, `secret_file_not_removed` from a [`delete`](commands/delete.md) that could not remove the encrypted secret file, and `backup_file_not_removed` from a wallet-data upgrade that could not remove its temporary rollback copy (the message names the file), and the `sunswap_*` notices of the SunSwap commands (such as `sunswap_scan_truncated`); everything else is a bare string. Normalise before display, and never assume a uniform element type:
 
 ```bash
 # text for humans — works for both forms
@@ -190,9 +205,16 @@ Each entry is an object, not a bare string:
 
 `retry` answers "now what": `same` — retry the identical command right away (a node or service hiccup); `later` — the identical command will work, but not yet; back off first (a lock-up period, a withdrawal interval, a rate limit); `changed` — retry only after changing the request (raise the fee, rebuild with a new nonce); `never` — retrying as-is cannot succeed, something outside the command has to change. Every exit-`2` code is `never` by construction.
 
-`retry` describes the **error**, not the command. `timeout` and `rpc_error` are `same` because for most calls that is correct — the node never acted, so resending is free. But a command that may already have broadcast a transaction (`tx send`, and anything else on the submit path) can hit `timeout` or `rpc_error` **after the node accepted the transaction and before the response got back**. There the outcome is unknown, not failed, and resending does not retry the original request: it builds and signs a **new** transaction, which on TRON is a second, distinct transfer. `retry: "same"` is right for a `timeout`/`rpc_error` while resolving a network id or reading a balance; it is not a licence to resend a broadcast blind. Reconcile with [`tx status`](#script-safety-never-mistake-submitted-for-confirmed) before deciding. `sunpump launch` is the one service-side write that does not leave this to the caller: a create call that fails in any way short of the service refusing it (a timeout, a 5xx, a dropped connection, a reply that does not parse or names no token) fails as `launch_outcome_unknown` (`retry: "never"`), because the service deploys the token before it replies.
+`retry` describes the **error**, not the command.
 
-That index is the machine-readable catalog this build exposes. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code absent from `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and two strings (`invalid_value`, `aborted`) appear under either exit code depending on where they are raised — so always tolerate an unknown code by falling back to its exit-code class.
+- `timeout` and `rpc_error` are `same` because for most calls that is correct — the node never acted, so resending is free. `retry: "same"` is right for a `timeout`/`rpc_error` while resolving a network id or reading a balance.
+- A command that may already have broadcast a transaction (`tx send`, and anything else on the submit path) can hit `timeout`, `rpc_error` or `invalid_node_response` **after the node accepted the transaction and before the response got back**. There the outcome is unknown, not failed, and resending does not retry the original request: it builds and signs a **new** transaction, which on TRON is a second, distinct transfer. `retry: "same"` is not a licence to resend a broadcast blind.
+- Such an error carries [`error.details.outcome: "unknown"`](#unknown-outcome-errordetailsoutcome); reconcile with [`tx status`](#script-safety-never-mistake-submitted-for-confirmed) before deciding.
+- `sunpump launch` is the one service-side write that does not leave this to the caller: a create call that fails in any way short of the service refusing it (a timeout, a 5xx, a dropped connection, a reply that does not parse or names no token) fails as `launch_outcome_unknown` (`retry: "never"`), because the service deploys the token before it replies.
+
+On the submit path, a `timeout`, `rpc_error` or `invalid_node_response` carries `error.details.outcome: "unknown"` and `error.details.txId`: the id of the signed transaction, computed locally. Look it up with `tx status` before sending again. Text output shows it too. This applies when the local id is available; no id is invented. Definite node rejections and failures before submission (including expiry, authorization, validation and dry-run checks) gain neither field.
+
+That index is the machine-readable catalog this build exposes. Treat it as a discovery aid, not a closed enum: a few code paths choose among error-code strings dynamically, so a runtime envelope can still carry a code absent from `errorCodes`. The tables below are the frequently-hit subset, kept for reading. New codes may still be added within v1, and two strings (`invalid_value`, `aborted`) appear under either exit code depending on where they are raised (`aborted` is exit `1` for Ctrl-C at an interactive prompt and exit `2` for a declined confirmation) — so always tolerate an unknown code by falling back to its exit-code class.
 
 Common codes at exit **2** (usage — fix the call):
 
@@ -211,7 +233,7 @@ Common codes at exit **2** (usage — fix the call):
 | `unsupported_network_capability` | The selected network does not offer what this command needs |
 | `limit_exceeded` | A bounded input (file size, list length, page size) was over its limit |
 | `unknown_command` | No such command |
-| `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`). Deterministic — retrying the same path always fails |
+| `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`, `tx sign --out`). Deterministic — retrying the same path always fails |
 | `file_not_found` | An input file named by a flag does not exist (`contract deploy --artifact` / `--code-file`, `contract create2 --code-file`) |
 | `keystore_not_found` | `import keystore`: no file at the given path |
 | `invalid_keystore` | `import keystore`: not a valid Web3 V3 keystore — bad JSON, `version` ≠ 3, an unsupported cipher/KDF, or a payload that is not a 32-byte private key |
@@ -222,7 +244,7 @@ Common codes at exit **2** (usage — fix the call):
 | `token_not_in_book` / `token_is_official` / `token_already_listed` | Token address-book conditions |
 | `unsupported_token` | The selected provider or command does not support that token |
 | `insufficient_voting_power` | The requested votes exceed the account's voting power |
-| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config`) |
+| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config <key> --api-key-stdin`) |
 | `unknown_parameter` | No chain parameter by that name or id (`proposal create --set`) |
 | `invalid_asset_name` | A TRC10 name or abbreviation outside 1–32 visible ASCII characters |
 | `migration_required` | Persisted wallet data needs an upgrade this invocation cannot perform, because the master password was unavailable — re-run in a terminal, or pipe it with `--password-stdin`. See [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
@@ -236,24 +258,24 @@ Common codes at exit **1** (execution — runtime failure):
 |---|---|
 | `rpc_error` | The node rejected or failed the request — a TRON API call, or a JSON-RPC method such as `eth_estimateGas` |
 | `invalid_node_response` | The node answered, but its answer contradicts the request or the protocol: a TRC10 or exchange record carrying an id other than the one asked for, a `precision` outside 0–6 or a rate that is not a positive int32, a JSON-RPC reply with neither a `result` nor an `error` field, or no latest block. These values decide signed amounts, so the command stops instead of acting on them; list reads drop the offending record and keep the page |
-| `timeout` | Aborted waiting for network or device (`--timeout` exceeded) |
+| `timeout` | The command's time limit (`--timeout`) ran out, or a node, service or device did not answer in time. A transaction that may have been sent carries its id in `error.details.txId` and `error.details.outcome: "unknown"` |
 | `auth_required` | A required credential was unavailable — a software master password, or Ledger app/device readiness |
 | `auth_failed` | Wrong master password (decryption failed) |
 | `signing_rejected` / `transaction_rejected` | Signing or broadcast rejected (device or chain) |
 | `watch_only_no_signer` | The account is watch-only and cannot sign |
 | `invalid_mnemonic` / `invalid_private_key` | Storage validation rejected a malformed mnemonic or private key; an interactive import normally catches it at the prompt and asks again |
-| `token_metadata_unavailable` | Required token metadata could not be read from the selected network. This one crosses exit codes: most sites raise it at exit `1`, but `tx send` on TRON raises it at exit **2** when a contract answers no `decimals()` and the address book has no entry either — there the call itself has to change |
+| `token_metadata_unavailable` | Required token metadata could not be read from the selected network |
 | `wrong_device_seed` | Connected Ledger does not match the registered account |
 | `device_not_found` / `device_unavailable` / `device_disconnected` | No Ledger was detected; a Ledger was detected but could not be opened (another app such as Ledger Live may hold it, or USB access is denied); the Ledger disconnected during the operation. See [Ledger](guide/ledger.md#3-when-the-device-doesnt-respond) |
 | `ledger_setting_required` | A setting in the Ledger TRON app must be enabled — **Custom contracts** or **Sign by Hash**; the message names which. See [TRON app settings](guide/ledger.md#tron-app-settings) |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
-| `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, or an error status from GasFree / TronLink. TronLink reports **every** non-404 status this way, 429 included |
-| `provider_rate_limited` | An external service returned HTTP 429. GasFree: `error.details.retryAfter` carries its `Retry-After` header when it sent one. x402 facilitator or endpoint: `error.details.retryAfterSeconds` when sent, plus the payment details below — a 429 during settlement is `paymentStatus: "unknown"`. B.AI, the SunSwap market and route services, and the SunPump API: `error.details.httpStatus: 429`, plus `error.details.retryAfterSeconds` from SunSwap / SunPump when a `Retry-After` header was sent. TronLink's 429 is `provider_error` instead |
+| `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, a 5xx status from GasFree, or an error status from TronLink. GasFree's other statuses have their own codes: 401/403 `gasfree_auth_failed`, 404 `not_found`, 429 `provider_rate_limited`, any other 4xx `gasfree_rejected`. TronLink reports every status other than 404 and 429 this way |
+| `provider_rate_limited` | An external service returned HTTP 429: GasFree, TronLink, B.AI, the SunSwap market and route services, the SunPump API, an x402 facilitator, GasFree relay or endpoint, the x402 provider catalog, or the TronGrid history endpoint (`account history`). `error.details` carries `httpStatus: 429` and, when the service sent a `Retry-After` header as seconds or as an HTTP-date, `retryAfterSeconds` (whole seconds from now; `0` for a date in the past). The TronGrid history endpoint never reports `retryAfterSeconds`. A B.AI error also carries `procedure` and `retryPayment: false`. An x402 error adds the payment details below — a 429 during settlement is `paymentStatus: "unknown"` |
 | `tx_expired` | The transaction expired before or during signing — including while waiting for a Ledger confirmation, checked again after the device signs — or the TRON node rejected it as expired. Rebuild and sign again |
-| `chain_id_mismatch` | An EVM transaction was built for a different chain than the selected network |
+| `chain_id_mismatch` | A transaction or typed data names a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
-| `history_not_supported` | The selected network exposes no transaction history endpoint (`account history`, TRON) |
+| `history_not_supported` | The selected network exposes no transaction history endpoint (`account history`, TRON): none is configured, or it answers HTTP 404 |
 | `not_found` | The addressed thing does not exist — for example an unactivated account, a transaction, a block, or a GasFree / TronLink resource. Lookups with a group of their own use the specific code below |
 | `proposal_not_found` / `contract_not_found` / `asset_not_found` / `exchange_not_found` | Nothing on chain under that proposal id, contract address, TRC10 reference, or exchange pair id |
 | `ambiguous_asset_name` | A TRC10 name matches more than one token; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
@@ -273,20 +295,20 @@ Common codes at exit **1** (execution — runtime failure):
 | `permit_mismatch` / `router_call_mismatch` | `sunswap swap`: the Permit2 grant did not match the planned swap, so it was not signed; or the encoded router call did not match the quoted swap, so it was not sent |
 | `launchpad_token_not_found` | That address is not a SunPump token on this network (`sunpump buy` / `sell` / `token-info`) |
 | `launchpad_trading_closed` | The token's bonding curve is closed — it is awaiting launch, or it has launched and moved to SunSwap. The message distinguishes the two: one is a wait, the other a redirect to `sunswap swap` |
-| `launch_outcome_unknown` | `sunpump launch`: the create call failed without the service refusing it — a timeout, a 5xx, a dropped connection, or a reply that does not parse or names no token. The token may exist — look it up with `sunpump token-search <symbol>` (`error.details.symbol`) before launching again. `error.details.failure` / `httpStatus` say what went wrong, where known |
+| `launch_outcome_unknown` | `sunpump launch`: the create call failed without the service refusing it — a timeout, a 5xx, a dropped connection, or a reply that does not parse or names no token. `error.details.outcome` is `"unknown"`. The token may exist — look it up with `sunpump token-search <symbol>` (`error.details.symbol`) before launching again. `error.details.failure` / `httpStatus` say what went wrong, where known |
 | `insufficient_reserve` | `exchange withdraw`: more than that side of the pair holds |
-| `precision_loss` / `slippage_exceeded` / `exchange_trading_disabled` | Node rejections named from a narrow allowlist — an amount the reserve ratio cannot convert cleanly, a return below the floor, or a network that is not accepting Bancor trades at all |
+| `precision_loss` / `slippage_exceeded` / `exchange_trading_disabled` | Node rejections named from a narrow allowlist — an amount the reserve ratio cannot convert cleanly, a return below the floor (`sunswap swap` also refuses a `--min-out` above the quote with it, before signing), or a network that is not accepting Bancor trades at all |
 | `not_exportable` | The account holds no exportable secret (watch-only or Ledger) — `backup` |
 | `wrong_keystore_password` | `import keystore`: the file's own password is wrong (distinct from `auth_failed`, which is the master password). A file whose `mac` is missing or not hex is `invalid_keystore`, not a wrong password — hex case is not significant |
-| `legacy_derivation` | A TRON account #1 or later from a wallet created before 4.13.1 uses a derivation path this version no longer signs with. Raised when signing as that TRON address, or when `derive` adds an account to its wallet. See [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) |
+| `legacy_derivation` | A seed account uses `m/44'/195'/<index>'/0/0` with index greater than zero, which the CLI refuses to sign as a seed account. Raised when signing as that TRON address, or when `derive` adds an account to its wallet. See [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) |
 | `derivation_mismatch` | An account's stored address matches no derivation path of its seed — `wallets.json` and the encrypted vault disagree |
-| `execution_reverted` | The contract reverted the call; `error.details.revertData` carries the raw revert data |
+| `execution_reverted` | The contract reverted the call; `error.details.revertData` carries the raw revert data when the node returned any |
 | `not_authorized` | The account is not permitted to perform this operation. `8004 update` / `transfer` / `approve`: the account is neither the Agent's owner nor an operator allowed to do this, decoded from the registry's revert before signing |
 | `agent_not_found` | No Agent with that id in the selected network's registry — `8004 show`, and the `8004` writes (decoded from the registry's revert before signing) |
 | `amount_exceeds_limit` / `no_matching_requirement` | `x402 pay`, with or without `--dry-run`: the price is above `--max-amount` / `--max-raw-amount`, or no payment route offered by the endpoint matches the selected network, `--token`, `--asset`, or `--scheme`. Raised before signing (`details.paymentStatus: "not_sent"`) |
 | `gasfree_insufficient_balance` / `gasfree_not_activated` / `gasfree_asset_unsupported` | An `exact_gasfree` x402 payment: the GasFree account cannot cover payment plus maximum fee, is not activated, or does not hold the selected token contract (check the network, token and `--gasfree-relay`). Raised before anything is sent (`details.paymentStatus: "not_sent"`) |
 | `permit2_allowance_required` / `approval_reset_required` | An x402 payment needs a token allowance first, or the token needs its allowance reset to zero before a new one |
-| `fee_cap_exceeded` / `payer_mismatch` / `signed_payload_mismatch` | An x402 authorization is refused before or after signing: the GasFree fee is above the cap, the payload names another payer, or the signature covers a different struct than requested |
+| `fee_cap_exceeded` / `payer_mismatch` / `signed_payload_mismatch` | An x402 authorization is refused before or after signing: the GasFree fee is above the cap, the payload names another payer, or the signature covers a different struct than requested. `signed_payload_mismatch` is also raised for every signature from a Ledger (transaction, message or typed data) that is malformed, does not recover to the signing account, or covers other bytes than the ones the device was sent; the signature is not returned, written or submitted |
 | `invalid_settlement` / `invalid_x402_response` | A paid response carried an invalid settlement receipt, or an x402 response could not be decoded |
 | `provider_not_found` / `catalog_schema_unsupported` | `x402 provider-show` / `endpoint-list`: no provider by that name; or the downloaded catalog uses a version this build cannot read |
 | `port_in_use` | `x402 serve` / `roundtrip`: the requested local port is taken. `x402 serve --daemon` reports a background server that failed to start, including on a taken port, as `provider_error` with `error.details.logFile` |
@@ -296,6 +318,18 @@ Common codes at exit **1** (execution — runtime failure):
 
 Unexpected exceptions are **redacted** to `internal_error` with a generic message, so a library error that happens to echo secret material can never reach the envelope. The two tables above are a reading aid; `--json-schema`'s `errorCodes` is the maintained discovery index, not a parser exhaustiveness guarantee.
 
+TRON broadcast replies `OTHER_ERROR` and `NOT_ENOUGH_EFFECTIVE_CONNECTION` are uncertain outcomes: `rpc_error` with `error.details.txId`, `outcome: "unknown"` and `nodeCode`. A `DUP_TRANSACTION_ERROR` reply that names the transaction the command sent means the node already holds it: the broadcast reports `stage: "submitted"` with `alreadyKnown: true`, as EVM does for an "already known" reply, and the command then waits for confirmation as for any other submit. A `DUP_TRANSACTION_ERROR` that names no transaction or another one is an uncertain outcome like `OTHER_ERROR`. Unclassified EVM JSON-RPC broadcast errors also use `rpc_error` with `txId` and `outcome: "unknown"`; recognized refusals use `transaction_rejected` or their specific rejection code. An unrecognizable broadcast reply is `invalid_node_response`, with the signed transaction id and `outcome: "unknown"`.
+
+### Unknown outcome (`error.details.outcome`)
+
+An error whose request may have acted carries `error.details.outcome: "unknown"`: the transaction, payment or service write may have taken effect even though the command failed.
+
+- **Where it appears.** On every path that submits or pays: a chain submit (`tx send`, `tx broadcast`, and every other ✍️ command), `tx multisig --create` / `--sign`, `gasfree transfer` (including a `gasfree_integrity` failure after the submission), an x402 or B.AI payment whose `paymentStatus` is `unknown`, the order B.AI creates before a `bai recharge` payment, and `launch_outcome_unknown`.
+- **What it means for retrying.** It overrides the code's `retry` class. An agent that sees it does not rebuild or re-sign the operation, because that creates a second, distinct one.
+- **How to reconcile.** Look up `error.details.txId` with [`tx status`](commands/tx/status.md), or, when there is no `txId`, use the command's own evidence (the GasFree `nonce` or `traceId`, `candidateTxHash`, the B.AI order, `sunpump token-search`). For a chain transaction, an agent may instead rebroadcast the same signed transaction with [`tx broadcast`](commands/tx/broadcast.md): a node that already holds it answers `submitted` with `alreadyKnown: true`.
+- **Where it does not appear.** A failure known not to have acted — a definite rejection, a refusal before anything was sent, or a `timeout` that sent nothing — does not carry the field.
+- The other fields (`txId`, `paymentStatus`, `retryPayment`, …) keep the meanings given for each command.
+
 ### x402 and B.AI payment details
 
 A failed payment carries extra fields in `error.details` so a script can tell whether money may have moved:
@@ -304,13 +338,26 @@ A failed payment carries extra fields in `error.details` so a script can tell wh
 |---|---|
 | `phase` | Where it failed: `request`, `challenge`, `create_payment`, `sign`, `payment_request`, `verify`, or `settle` |
 | `httpStatus` | HTTP status of the failed request, when there was one |
-| `paymentStatus` | `not_sent` — nothing was sent; `unknown` — the outcome cannot be established, so reconcile before paying again; `settled` — a settlement receipt arrived but the paid resource could not be delivered |
+| `paymentStatus` | `not_sent` — nothing was sent; `unknown` — the outcome cannot be established, so reconcile before paying again (the error also carries [`outcome: "unknown"`](#unknown-outcome-errordetailsoutcome)); `settled` — a settlement receipt arrived but the paid resource could not be delivered |
 | `settled` / `delivered` | Whether the payment settled and the resource arrived |
 | `retryPayment` | `false` means do **not** pay again to recover. It overrides the code's generic `retry` value |
 | `candidateTxHash` / `candidateNetwork` | A transaction that may be the payment. Evidence for reconciliation, not proof of payment |
-| `approval` | TRON: the one-time Permit2 approve that was signed before the failure — `{txId, token, spender, allowance, feeLimitSun, status}` with `status` `submitted`, `confirmed` or `exported`. It is not the payment; do not report it as one. A `paymentStatus: "not_sent"` beside it means the allowance exists on chain but no payment authorization was produced |
+| `approval` | TRON: the one-time Permit2 approve that was signed before the failure — `{txId, token, spender, allowance, feeLimitSun, status}` with `status` `confirmed` (mined before the payment was signed) or `exported` (signed into the payment package for the endpoint to sponsor). When the approve fails after it was sent and before it confirmed, `error.details.txId` carries its transaction ID instead, with `outcome: "unknown"` unless the approve is known to have failed on chain (`execution_reverted`): an unconfirmed approve may still land. It is not the payment; do not report it as one. Only `status: "confirmed"` means the allowance exists on chain; `exported` is a signature only. A `paymentStatus: "not_sent"` beside it means the payment package, with any exported approval in it, did not leave in a paid request |
+| `orderId` | `bai recharge`: B.AI's id of the order created before the payment, when B.AI returned one |
 
-**Treat `paymentStatus: "unknown"` as possibly paid.** For example, an `exact` payment from an account with no token balance currently fails as `provider_error` with `phase: "create_payment"` and `paymentStatus: "unknown"`, even though nothing was sent.
+**Treat `paymentStatus: "unknown"` as possibly paid.** A payment whose request was never sent, even after it was signed, reports `not_sent`; once the paid request is sent, an error without a settlement receipt reports `unknown`.
+
+### Out of time after a submission
+
+These commands do not submit a chain transaction of their own, so a deadline that ends after their submission is reported this way:
+
+| Command | Result |
+|---|---|
+| `gasfree transfer` | The provider accepted the transfer but the time limit ended the wait for its outcome: exit `0`, the submitted receipt with its `traceId`, and a warning. The reply to the submission was lost: `timeout` or `provider_error` with `paymentStatus: "unknown"`, `outcome: "unknown"`, `retryPayment: false`, and `network`, `serviceProvider`, `owner`, `from` (the GasFree address), `to`, `token`, `tokenAddress`, `amount`, `authorizedMaxFee`, `nonce`, `deadline` (the authorization's expiry, unix seconds), and `permitDigest` in `error.details`. No `traceId` is known and the signature is not included. The CLI does not look the transfer up afterwards: compare the `nonce` that [`gasfree info`](commands/gasfree/info.md) reports with `details.nonce` before you transfer again. A receipt or polled record that does not match the signed authorization fails with `gasfree_integrity`, `traceId` and `outcome: "unknown"`; check it with [`gasfree trace`](commands/gasfree/trace.md) before you transfer again |
+| `tx multisig --create` / `--sign` | The reply to the TronLink submission was lost: the error adds `txId` (when the transaction has one), `address`, `network` and `outcome: "unknown"` to `error.details`, with a warning to inspect the address's existing collection before submitting again |
+| `x402 pay`, `x402 roundtrip` | No paid request is sent with less than 2000 ms left (`timeout`, `phase: "payment_request"`, `paymentStatus: "not_sent"`, `retryPayment: false`). A limit that ends while the payment is being created — node reads, GasFree relay reads, signing — fails with `timeout` and `phase` `create_payment` or `sign`, and no request of the payment starts after it. An interrupted payment carries the [payment details](#x402-and-bai-payment-details) above |
+| `bai recharge` | The time ran out after the payment and before it was reported to B.AI: exit `0` with `creditStatus: "unconfirmed"`, the `txHash`, `retryPayment: false`, `code: "timeout"`, and a warning to report it with `bai report-recharge`. Do not pay again. A payment the time limit refused before its request was sent fails with `timeout` and `paymentStatus: "not_sent"`. When the reply to the order creation is lost (a `timeout`, a 5xx, a dropped connection or a reply that does not parse), the error carries `outcome: "unknown"` and no payment details: no payment was made, but B.AI may hold an unpaid order |
+| `sunpump launch` | A launch request that may have reached SunPump fails with `launch_outcome_unknown` and `outcome: "unknown"`; see [`sunpump launch`](commands/sunpump/launch.md) |
 
 ### `error.details.matches`
 
@@ -334,7 +381,7 @@ Alongside it, an error may carry a scalar list of just the identifiers to retry 
 
 wallet-cli never reads passwords, mnemonics or private keys from argv or from dedicated secret environment variables: arguments and exported values leak into shell history, process listings and CI logs. Two channels only:
 
-1. **stdin flags** — `--password-stdin` for the master password, `--tx-stdin` / `--message-stdin` for large payloads. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
+1. **stdin flags** — `--password-stdin` for the master password, `--tx-stdin` / `--message-stdin` for large payloads, `--api-key-stdin` for the service credentials `config` stores. **Only one `*-stdin` flag can consume stdin per run.** (Mnemonics and private keys have no stdin path — `import mnemonic` / `import private-key` / `change-password` are interactive-only, hidden TTY input.)
 2. **Interactive TTY prompt** — only on the commands that declare themselves interactive: `create`, the `import` variants, `backup`, `change-password`, and `delete`'s confirmation. Everywhere else a terminal changes nothing: `tx send`, `contract *`, `stake *`, `message sign` and friends never prompt, and a missing master password is `auth_required` (exit `1`) whether or not a TTY is attached.
 
 A shell variable in an example is only a shell-side source for a pipe; wallet-cli does not read it. Keep such variables process-local and short-lived, and do not export them long term.
@@ -350,19 +397,25 @@ printf '%s' "$MASTER_PASSWORD_FROM_YOUR_VAULT" | wallet-cli tx send \
 
 This is a wallet; a wrong success check loses money. The rules:
 
-1. Broadcast (✍️) commands **by default return after submission**, not confirmation. The payload is a flat object with a `kind` naming the operation (`send`, `stake-freeze`, `permission-update`, `account-activate`, `proposal-create`, `asset-issue`, `exchange-trade`, …), a `stage`, and the `txId`; the `submitted` stage carries no block / fee / result (those appear only after `--wait` confirms):
+1. Broadcast (✍️) commands **wait for confirmation by default**: they poll until the transaction is confirmed or failed, within the command's [time limit](#time-limit---timeout). When the time runs out first, the command returns the submitted receipt with a warning. This covers transactions the CLI signs and submits, `tx broadcast` of an imported signed transaction (TRON and EVM), and `gasfree transfer`.
+   - **Chain transactions.** A failed poll is retried only when its error code has `retry` `same` or `later`; any other error ends the wait at once, and the command returns the submitted receipt with a `{code, message}` warning whose `code` is that error code. A transaction that later steps depend on (an approval) fails instead; see item 5.
+   - **`--timeout 0`.** The command polls until there is an outcome or such an error, which for an EVM transaction that is never mined means indefinitely; use a finite `--timeout` or `--no-wait` when the command must end.
+   - **`gasfree transfer`** polls the GasFree trace instead, with its own rules: it retries a poll that could not reach the service, got a 5xx status, or timed out; any other failed poll ends the wait, and the command returns the submitted receipt with a plain-text warning that names the error code and the `gasfree trace` command to follow it with. A trace that does not match the signed authorization, changes its id, or moves back to an earlier state fails with `gasfree_integrity`, `traceId`, and `outcome: "unknown"`.
+   - **Payload.** A flat object with a `kind` naming the operation (`send`, `stake-freeze`, `permission-update`, `account-activate`, `proposal-create`, `asset-issue`, `exchange-trade`, …), a `stage`, and the `txId`; block, fee, and result fields appear only with `confirmed` or `failed`.
+
+   **A receipt reports the transaction outcome in `data.stage`, never in `success`.** A transaction that was accepted, mined, and then reverted is a *successful command* carrying a *failed transaction*: the envelope stays `success: true` and the exit code stays `0`, while `data.stage` is `"failed"`. Exit codes say whether the CLI could carry out the request, not whether the chain accepted the result — so branch on `data.stage` (`confirmed` / `failed` / `submitted`) before recording the operation as done. `submitted` means the outcome is not known yet.
+
+   **Ids the chain assigns arrive only with confirmation.** A new proposal's `proposalId`, a TRC10's `assetId`, an exchange pair's `exchangeId` do not exist at submission — they are absent from a submitted receipt and appear once the command (or a later query) sees the transaction on chain.
+
+   The same applies to an Agent id: `8004 register` puts the requested `uri` in `data.identity` at once, and adds `identity.agentId` (a decimal string) only when a confirmed registration event can be read. `8004 update` reports `identity.agentId`, `oldURI` and `requestedURI`, plus `newURI` after confirmation; `8004 transfer` reports `agentId`, `oldOwner` and `requestedOwner`, plus `newOwner` after confirmation. `8004 approve` reports `agentId` and `operator` (the zero address for `--revoke`). `8004 add-operator` and `remove-operator` report `operator` and `requestedApproval`, plus `approved` — read back from the registry — after confirmation.
+
+2. To return right after submission, pass `--no-wait`. The receipt has `stage: "submitted"` and the `txId`, with no block, fee, or result:
 
    ```json
    { "kind": "send", "stage": "submitted", "txId": "7d9b6a08…", "rawAmount": "1000000", "to": "TSx72…" }
    ```
 
-   **Ids the chain assigns arrive only with confirmation.** A new proposal's `proposalId`, a TRC10's `assetId`, an exchange pair's `exchangeId` do not exist at submission — they are absent from the submitted receipt and appear once `--wait` (or a later query) sees the transaction on chain. Scripts that create one of these must wait for it.
-
-   The same applies to an Agent id: `8004 register` puts the requested `uri` in `data.identity` at once, and adds `identity.agentId` (a decimal string) only when a confirmed registration event can be read. `8004 update` reports `identity.agentId`, `oldURI` and `requestedURI`, plus `newURI` after confirmation; `8004 transfer` reports `agentId`, `oldOwner` and `requestedOwner`, plus `newOwner` after confirmation. `8004 approve` reports `agentId` and `operator` (the zero address for `--revoke`). `8004 add-operator` and `remove-operator` report `operator` and `requestedApproval`, plus `approved` — read back from the registry — after confirmation.
-
-2. To block until the outcome is known, pass `--wait` (polls until confirmed/failed, capped by `--wait-timeout`, default 60000 ms; on cap it returns the submitted receipt).
-
-   **A `--wait` receipt reports the transaction outcome in `data.stage`, never in `success`.** A transaction that was accepted, mined, and then reverted is a *successful command* carrying a *failed transaction*: the envelope stays `success: true` and the exit code stays `0`, while `data.stage` is `"failed"`. Exit codes say whether the CLI could carry out the request, not whether the chain accepted the result — so after any `--wait`, branch on `data.stage` (`confirmed` / `failed` / `submitted`) before recording the operation as done.
+   `--wait` names the default explicitly. Pass each flag bare and at most one of them: `--wait=<value>`, `--no-wait=<value>`, a following `true` or `false`, or both flags together fail with `invalid_option` (exit `2`). Both flags apply only where a transaction is submitted: with `--dry-run`, `--build-only`, `--sign-only`, or `--quote`, on reads and local commands, and on `x402 pay`, `x402 roundtrip`, `bai recharge`, `sunpump launch`, and `tx multisig`, either flag fails with `invalid_option` and nothing is sent. Without the flags these commands run as usual. A command's `--help` lists `--wait` and `--no-wait` only where they apply.
 
 3. Or poll yourself with `tx status`, which has a **four-state model**:
 
@@ -379,7 +432,7 @@ This is a wallet; a wrong success check loses money. The rules:
 
    > A deadline that ends in `pending` or `not_found` is an unknown outcome. Do not record it as failed, and do not resend automatically without external reconciliation.
 
-   **GasFree transfers are the exception.** `gasfree transfer` submits to a provider, not directly to a node: the submitted receipt carries a `traceId` (not a `txId`), and progress follows the provider's states — `WAITING` → `INPROGRESS` → `CONFIRMING` → `SUCCEED` / `FAILED`. Follow it with `--wait` or [`gasfree trace <traceId>`](commands/gasfree/trace.md) rather than `tx status`; a `txId` appears only once the provider puts it on-chain.
+   **GasFree transfers are the exception.** `gasfree transfer` submits to a provider, not directly to a node: the submitted receipt carries a `traceId` (not a `txId`), and progress follows the provider's states — `WAITING` → `INPROGRESS` → `CONFIRMING` → `SUCCEED` / `FAILED`. The command follows these states by default; after `--no-wait`, follow them with [`gasfree trace <traceId>`](commands/gasfree/trace.md) rather than `tx status`; a `txId` appears only once the provider puts it on-chain.
 
 ```bash
 #!/usr/bin/env bash
@@ -388,7 +441,7 @@ set -euo pipefail
 deadline=$((SECONDS + 90))
 txid=$(
   printf '%s' "$PW" |
-    wallet-cli tx send --to T... --amount 1 --network tron:3448148188 --password-stdin -o json |
+    wallet-cli tx send --to T... --amount 1 --network tron:3448148188 --no-wait --password-stdin -o json |
     jq -er '.data.txId'
 )
 
@@ -418,9 +471,13 @@ exit 1
 
 4. **Batch operations**: each command is one transaction with one exit code — except the ones in rule 5. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.
 
-5. **A command may send several transactions.** The `sunswap` liquidity commands, a router `sunswap swap` that spends a token, and a first `sunpump sell` approve before they act, and the approval must be on chain before the call that spends it. Each approval's txid is in `data.approvalTxIds`, in the order sent, beside the main `txId`. Approvals always wait for confirmation, even without `--wait` (which governs only the main transaction); each waits up to `--wait-timeout` (default 60000 ms), so several approvals lengthen the run, and one that does not confirm in time stops the command with `timeout` (exit 1) before the next step. If a later step fails — a confirmation timeout, another approval, the Permit2 signature, or the main call — the original error code is kept and `error.details.approvalTxIds` lists the approvals already submitted (text errors list them too). They are separate transactions and are not rolled back; a listed id records submission, not success, so check its receipt before retrying. Re-running is safe: an allowance that already suffices is not approved again.
+5. **A command may send several transactions.** The `sunswap` liquidity commands, a router `sunswap swap` that spends a token, and a first `sunpump sell` approve before they act, and the approval must be on chain before the call that spends it. Each approval's txid is in `data.approvalTxIds`, in the order sent, beside the main `txId`.
+   - **Waiting.** Approvals always wait for confirmation, also with `--no-wait` (which applies only to the main transaction). The approvals and the main transaction share the command's [time limit](#time-limit---timeout); an approval that does not confirm in time stops the command with `timeout` (exit 1) before the next step.
+   - **An approval's wait stops on an error.** When the error cannot be retried unchanged, the command stops with that error's code, the approval's id in `error.details.txId` and in `error.details.approvalTxIds`, and `outcome: "unknown"`.
+   - **A later step fails** — a confirmation timeout, another approval, the Permit2 signature, or the main call. The original error code is kept and `error.details.approvalTxIds` lists the approvals already submitted (text errors list them too). They are separate transactions and are not rolled back; a listed id records submission, not success, so check its receipt before retrying.
+   - **Re-running is safe:** an allowance that already suffices is not approved again.
 
-6. **One command writes without a transaction of ours.** `sunpump launch` asks SunPump to create a token; the service signs it, pays for it and chooses its owner. So there is no `stage`, no `confirmed`, no fee and no `--wait` — and `data.token.owner` is the creator the service picked, **not** the local account. Its `createTxHash` is the service's own: use `tx info` to find out whether it is on chain yet. A refusal from that service is `provider_error` (exit `1`), including a name or symbol it will not accept.
+6. **One command writes without a transaction of ours.** `sunpump launch` asks SunPump to create a token; the service signs it, pays for it and chooses its owner. So there is no `stage`, no `confirmed`, no fee, and no `--wait` or `--no-wait` — and `data.token.owner` is the creator the service picked, **not** the local account. Its `createTxHash` is the service's own: use `tx info` to find out whether it is on chain yet. A refusal from that service is `provider_error` (exit `1`), including a name or symbol it will not accept.
 
 7. **Trade receipts separate measured from quoted.** A confirmed `sunswap swap` reports `amountOut`, `sunpump buy` `tokensOut`, `sunpump sell` `trxOut`, and the liquidity commands their token amounts — read from the transaction's own transfers and events, excluding network fees, with `amountsEstimated: false`. If the receipt cannot be read, the pre-trade estimate stays, `amountsEstimated` is `true` and a warning says why; a failed receipt read never turns a confirmed trade into a failure. A router swap's `priceImpactPercent` and trading fee remain quoted figures (`priceImpactEstimated: true`).
 

@@ -1,68 +1,49 @@
-/**
- * CoinGecko simple-price API client — a {@link PriceProvider} implementation.
- * native via `ids=`, TRC20 via `token_price/tron`. TRC10 → null. Best-effort:
- * any network/parse failure resolves to null (see {@link PriceProvider}).
- */
+// Price lookup failures return null; expiry of the command deadline fails the lookup.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import { abortReason } from "../http/dispatch-context.js";
 import type { PriceProvider } from "../../../application/ports/price-provider.js";
 
 export class CoinGeckoPriceProvider implements PriceProvider {
   readonly source = "coingecko";
-  /**
-   * CoinGecko native coin ids.
-   *
-   * MAINNETS ONLY. Test networks never reach this map — they are answered as zero before the
-   * lookup (see TestnetZeroPriceProvider), because their coins are not traded.
-   *
-   * Each chain is listed EXPLICITLY: a bare `eip155:` prefix would price every EVM chain as
-   * Ethereum, so an unlisted chain like Gnosis (`eip155:100`) would be valued in ETH — a claim
-   * about money that nobody made. An unknown chain is worth `null`, not a guess.
-   *
-   * `tron:` keeps its prefix form because every TRON network shares that namespace and one coin;
-   * its testnets are likewise intercepted before they arrive here.
-   */
+  // Enumerate EVM networks: a namespace prefix would price unrelated chains as ETH.
   static readonly #NATIVE_IDS: Record<string, string> = {
     "tron:": "tron",
     "eip155:1": "ethereum",
     "eip155:56": "binancecoin",
   };
-  /**
-   * CoinGecko asset-platform slugs for token_price lookups; same keying rule as above.
-   *
-   * Mainnets only, for the same reason as above — which also closes a real exposure: a testnet
-   * contract used to be looked up against its MAINNET platform, and deterministic deployment can
-   * put the same address on both chains, so a testnet token could take a real token's price.
-   */
+  // Testnet interception belongs to the provider wrapper; TRON uses a namespace prefix.
   static readonly #PLATFORMS: Record<string, string> = {
     "tron:": "tron",
     "eip155:1": "ethereum",
     "eip155:56": "binance-smart-chain",
   };
 
-  constructor(
-    private readonly baseUrl = "https://api.coingecko.com/api/v3",
-    private readonly timeoutMs = 60_000,
-  ) {}
+  constructor(private readonly baseUrl = "https://api.coingecko.com/api/v3") {}
 
-  async nativeUsd(networkId: string): Promise<number | null> {
+  async nativeUsd(networkId: string, check: DispatchCheck): Promise<number | null> {
     const id = CoinGeckoPriceProvider.#prefixed(CoinGeckoPriceProvider.#NATIVE_IDS, networkId);
     if (!id) return null;
-    const body = await this.#get(`/simple/price?ids=${id}&vs_currencies=usd`);
+    const body = await this.#get(`/simple/price?ids=${id}&vs_currencies=usd`, check);
     return num(body?.[id]?.usd);
   }
 
-  async tokenUsd(networkId: string, contracts: string[]): Promise<Map<string, number | null>> {
+  async tokenUsd(
+    networkId: string,
+    contracts: string[],
+    check: DispatchCheck,
+  ): Promise<Map<string, number | null>> {
     const out = new Map<string, number | null>(contracts.map((c) => [c, null]));
     const platform = CoinGeckoPriceProvider.#prefixed(CoinGeckoPriceProvider.#PLATFORMS, networkId);
     if (!platform || contracts.length === 0) return out;
-    // The keyless tier caps token_price at one contract address per request, so query each
-    // contract on its own — a batched (comma-joined) request is rejected with HTTP 400.
+    // The keyless API accepts one contract per request.
     await Promise.all(
       contracts.map(async (contract) => {
         const body = await this.#get(
           `/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(contract)}&vs_currencies=usd`,
+          check,
         );
         if (!body || typeof body !== "object") return;
-        // CoinGecko lowercases contract keys in its response; match case-insensitively.
+        // CoinGecko returns lowercase contract keys.
         const entry = Object.entries(body).find(
           ([addr]) => addr.toLowerCase() === contract.toLowerCase(),
         );
@@ -72,28 +53,20 @@ export class CoinGeckoPriceProvider implements PriceProvider {
     return out;
   }
 
-  /** best-effort GET → parsed JSON, or null on ANY failure (network, non-2xx, bad JSON). */
-  async #get(path: string): Promise<any | null> {
+  // An unknown price is null, except when the command deadline ends the read.
+  async #get(path: string, check: DispatchCheck): Promise<any | null> {
+    check.assertDispatchable();
     try {
-      const res = await fetch(`${this.baseUrl}${path}`, {
-        signal: AbortSignal.timeout(this.timeoutMs),
-      });
+      const res = await fetch(`${this.baseUrl}${path}`, { signal: check.signal });
       if (!res.ok) return null;
       return await res.json();
     } catch {
+      if (check.signal.aborted) throw abortReason(check.signal);
       return null;
     }
   }
 
-  /**
-   * Exact network id first, then namespace prefixes (the keys ending in ":").
-   *
-   * The exact-first rule is not a nicety: a bare startsWith would let `eip155:11155111` match the
-   * key `eip155:1` BY ACCIDENT, and the same accident would catch every other chain whose id starts
-   * with those characters. Sepolia does inherit Ethereum's price, but because it is listed, not
-   * because its digits happen to line up. A prefix key covers a whole NAMESPACE, never a
-   * partial reference.
-   */
+  // Only keys ending in ":" match prefixes; eip155:1 must not match eip155:11155111.
   static #prefixed(map: Record<string, string>, networkId: string): string | undefined {
     const exact = map[networkId];
     if (exact) return exact;

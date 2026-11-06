@@ -11,8 +11,6 @@ const networks: Record<string, NetworkDescriptor> = {
     chainId: "mainnet",
     capabilities: [],
   },
-  // synthetic non-tron network: exercises the cross-family rejection branches even though
-  // only the tron family ships today (cast through unknown since ChainFamily is tron-only).
   "eip155:1": {
     id: "eip155:1",
     family: "evm",
@@ -86,12 +84,6 @@ describe("TargetResolver", () => {
     );
   });
 
-  // Previously "rejects a single-family account on a mismatched default network". That check
-  // prevented nothing — without it, any command that actually needs the address fails at
-  // resolveAddress, still before any RPC — and it fired at the wrong moment: on RESOLVING a
-  // network rather than on DEMANDING an address. `current` resolves a network (to pick which
-  // family's QR to draw) but never demands one family's address, so it was refused for a
-  // condition that did not apply to it. The guard now lives where the address is demanded.
   it("does not judge the account against the network — that belongs where an address is demanded", () => {
     const r = resolver("tron:728126428", { type: "watch", family: "evm" as any });
     expect(r.resolve(policy("tron"), {}).network?.id).toBe("tron:728126428");

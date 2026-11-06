@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/tron/sunswap/market-query-service.js";
+import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/sunswap/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { limitField, offsetField, protocolFilterField } from "./shared.js";
 
@@ -41,8 +41,8 @@ export const sunswapPoolSearchSpec: ChainSpec = {
 export const sunswapPoolSearchTronBinding = (
   service: SunSwapMarketQueryService,
 ): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.poolSearch(net, {
+  run: async (ctx, net, input) =>
+    service.poolSearch(ctx.deadline, net, {
       keyword: input.keyword,
       limit: input.limit,
       offset: input.offset,

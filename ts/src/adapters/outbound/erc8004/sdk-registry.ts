@@ -1,16 +1,15 @@
+import type { DispatchCheck, ExecutionDeadline } from "../../../application/contracts/deadline.js";
 import { SDK } from "@bankofai/8004-sdk";
 import { Interface, type InterfaceAbi } from "ethers";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
-import type { AgentRegistryReader } from "../../../application/ports/agent-sdk.js";
+import type {
+  AgentRegistryReader,
+  AgentRegistryValue,
+} from "../../../application/ports/agent-sdk.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
 import { UsageError, ExecutionError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-
-interface SupportedNetwork {
-  family: "evm" | "tron";
-  chainId: string;
-  sdkNetwork: string;
-}
+import { sameAddress, type ChainFamily } from "../../../domain/family/index.js";
 
 interface SdkNetwork {
   sdk: SDK;
@@ -19,25 +18,66 @@ interface SdkNetwork {
 
 const UNUSED_RPC_URL = "https://unused.invalid";
 
-const SUPPORTED_NETWORKS: Readonly<Record<string, SupportedNetwork>> = {
-  "eip155:56": { family: "evm", chainId: "56", sdkNetwork: "eip155:56" },
-  "eip155:97": { family: "evm", chainId: "97", sdkNetwork: "eip155:97" },
-  "eip155:8453": { family: "evm", chainId: "8453", sdkNetwork: "eip155:8453" },
-  "eip155:84532": { family: "evm", chainId: "84532", sdkNetwork: "eip155:84532" },
-  "tron:728126428": {
-    family: "tron",
-    chainId: "728126428",
-    sdkNetwork: "tron:mainnet",
+// The SDK names TRON networks by name and EVM networks by CAIP-2 id.
+const TRON_SDK_NETWORKS: Readonly<Record<string, string>> = {
+  "728126428": "tron:mainnet",
+  "3448148188": "tron:nile",
+  "2494104990": "tron:shasta",
+};
+
+type ViewParams = Array<{ type: string; value: unknown }>;
+
+interface RegistryFamily {
+  // CAIP-2 namespace of the family's network ids.
+  namespace: string;
+  sdkNetwork(network: NetworkDescriptor): string | undefined;
+  // ABI-encoded return data of a registry view call.
+  viewResult(
+    deadline: ExecutionDeadline,
+    contracts: AgentContractPorts,
+    network: NetworkDescriptor,
+    contract: string,
+    method: string,
+    params: ViewParams,
+  ): Promise<string | undefined>;
+  registeredAgentId(
+    gateways: ChainGatewayProvider,
+    network: NetworkDescriptor,
+    sdk: SDK,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined>;
+  // The form in which log addresses are compared.
+  logAddress(address: string, sdk: SDK): string;
+}
+
+// ERC-8004 SDK behavior that differs per chain family.
+const REGISTRY_FAMILIES: Record<ChainFamily, RegistryFamily> = {
+  evm: {
+    namespace: "eip155",
+    sdkNetwork: (network) => network.id,
+    viewResult: async (deadline, contracts, network, contract, method, params) =>
+      (await contracts.evm.call(deadline, network, contract, method, params)).result,
+    async registeredAgentId(gateways, network, sdk, txId, check) {
+      const receipt = await gateways.get(network, "evm", check).getTransactionReceipt(txId);
+      if (!receipt) return undefined;
+      const logs = matchingLogs(record(receipt.raw)?.logs, sdk, network.family);
+      return sdk.chain.parseRegisteredAgentId({ logs });
+    },
+    logAddress: (address, sdk) => sdk.chain.toEvmAddress(address),
   },
-  "tron:3448148188": {
-    family: "tron",
-    chainId: "3448148188",
-    sdkNetwork: "tron:nile",
-  },
-  "tron:2494104990": {
-    family: "tron",
-    chainId: "2494104990",
-    sdkNetwork: "tron:shasta",
+  tron: {
+    namespace: "tron",
+    sdkNetwork: (network) => TRON_SDK_NETWORKS[network.chainId],
+    viewResult: async (deadline, contracts, network, contract, method, params) =>
+      (await contracts.tron.call(deadline, network, contract, method, params)).result[0],
+    async registeredAgentId(gateways, network, sdk, txId, check) {
+      const receipt = await gateways.get(network, "tron", check).getTransactionInfoById(txId);
+      const logs = matchingLogs(receipt.log, sdk, network.family);
+      return sdk.chain.parseRegisteredAgentId({ log: logs });
+    },
+    // TRON compares any address form directly.
+    logAddress: (address) => address,
   },
 };
 
@@ -54,20 +94,22 @@ export class SdkAgentRegistry implements AgentRegistryReader {
   }
 
   async read(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     method: string,
     params: Array<{ type: string; value: unknown }>,
-  ): Promise<unknown> {
+  ): Promise<AgentRegistryValue> {
     const configured = this.#for(network);
     let decoded;
     try {
-      const response = await this.contracts[network.family].call(
+      const raw = await REGISTRY_FAMILIES[network.family].viewResult(
+        deadline,
+        this.contracts,
         network,
         configured.sdk.identityRegistry,
         method,
         params,
       );
-      const raw = network.family === "tron" ? response.result[0] : response.result;
       const data = String(raw ?? "");
       decoded = configured.identity.decodeFunctionResult(
         method,
@@ -91,7 +133,7 @@ export class SdkAgentRegistry implements AgentRegistryReader {
               "error Error(string)",
             ]).parseError(revert)?.name === "ERC721NonexistentToken";
         } catch {
-          /* preserve unknown failures */
+          // Preserve the original failure when revert decoding fails.
         }
       }
       if (
@@ -109,45 +151,28 @@ export class SdkAgentRegistry implements AgentRegistryReader {
     const output = configured.identity.getFunction(method)?.outputs[0];
     return output?.baseType === "address"
       ? configured.sdk.chain.toChainAddress(String(value))
-      : value;
+      : (value as AgentRegistryValue);
   }
 
-  async registeredAgentId(network: NetworkDescriptor, txId: string): Promise<string | undefined> {
-    const configured = this.#for(network);
-    if (network.family === "evm") {
-      const receipt = await this.gateways.get(network, "evm").getTransactionReceipt(txId);
-      if (!receipt) return undefined;
-      const source = record(receipt.raw) ?? receipt;
-      const logs = matchingLogs(source.logs, configured.sdk);
-      return configured.sdk.chain.parseRegisteredAgentId({ logs });
-    }
-
-    const receipt = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
-    const logs = matchingLogs(receipt.log, configured.sdk);
-    return configured.sdk.chain.parseRegisteredAgentId({ log: logs });
+  async registeredAgentId(
+    network: NetworkDescriptor,
+    txId: string,
+    check: DispatchCheck,
+  ): Promise<string | undefined> {
+    const { sdk } = this.#for(network);
+    return REGISTRY_FAMILIES[network.family].registeredAgentId(
+      this.gateways,
+      network,
+      sdk,
+      txId,
+      check,
+    );
   }
 
   #for(network: NetworkDescriptor): SdkNetwork {
-    const supported = SUPPORTED_NETWORKS[network.id];
-    if (!supported) {
-      throw new UsageError(
-        "unsupported_network_capability",
-        `ERC-8004 Identity Registry is not deployed on ${network.id}`,
-      );
-    }
-    if (network.family !== supported.family || network.chainId !== supported.chainId) {
-      throw new UsageError(
-        "family_mismatch",
-        `network descriptor ${network.id} does not match family ${network.family} and chain id ${network.chainId}`,
-      );
-    }
     const existing = this.#networks.get(network.id);
     if (existing) return existing;
-    const sdk = new SDK({
-      network: supported.sdkNetwork,
-      chainId: Number(supported.chainId),
-      rpcUrl: UNUSED_RPC_URL,
-    });
+    const sdk = sdkFor(network);
     const configured = {
       sdk,
       identity: new Interface(sdk.identityRegistryAbi as unknown as InterfaceAbi),
@@ -157,30 +182,45 @@ export class SdkAgentRegistry implements AgentRegistryReader {
   }
 }
 
+// Support is decided before this call; the SDK refuses a network it has no deployment for.
+function sdkFor(network: NetworkDescriptor): SDK {
+  const family = REGISTRY_FAMILIES[network.family];
+  const [namespace, reference] = network.id.split(":");
+  if (namespace !== family.namespace || reference !== network.chainId) {
+    throw new UsageError(
+      "family_mismatch",
+      `network descriptor ${network.id} does not match family ${network.family} and chain id ${network.chainId}`,
+    );
+  }
+  const name = family.sdkNetwork(network);
+  try {
+    if (name === undefined) throw new Error(`no ERC-8004 SDK network for ${network.id}`);
+    return new SDK({ network: name, chainId: Number(network.chainId), rpcUrl: UNUSED_RPC_URL });
+  } catch (error) {
+    throw new UsageError("unsupported_network", (error as Error).message);
+  }
+}
+
 function record(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object"
     ? (value as Record<string, unknown>)
     : undefined;
 }
 
-function matchingLogs(value: unknown, sdk: SDK): Record<string, unknown>[] {
+function matchingLogs(value: unknown, sdk: SDK, family: ChainFamily): Record<string, unknown>[] {
   if (!Array.isArray(value)) return [];
   return value.filter((entry): entry is Record<string, unknown> => {
     const log = record(entry);
     if (!log || typeof log.address !== "string") return false;
     try {
-      return normalizedAddress(log.address, sdk) === normalizedAddress(sdk.identityRegistry, sdk);
+      const { logAddress } = REGISTRY_FAMILIES[family];
+      return sameAddress(
+        family,
+        logAddress(log.address.trim(), sdk),
+        logAddress(sdk.identityRegistry.trim(), sdk),
+      );
     } catch {
       return false;
     }
   });
-}
-
-function normalizedAddress(address: string, sdk: SDK): string {
-  const raw = address.trim();
-  if (sdk.chainType === "tron") {
-    if (/^[0-9a-fA-F]{40}$/.test(raw)) return `0x${raw.toLowerCase()}`;
-    if (/^41[0-9a-fA-F]{40}$/.test(raw)) return `0x${raw.slice(2).toLowerCase()}`;
-  }
-  return sdk.chain.toEvmAddress(raw).toLowerCase();
 }

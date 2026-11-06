@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { fromX402Network, toX402Network } from "./network-id.js";
 
-// The full builtin set, as a literal table. A domain test may not import BUILTIN_NETWORKS
-// (that lives in an outbound adapter), and a hand-written table is also the clearer contract:
-// these exact pairs are what the migration relies on.
 const PAIRS: Array<[{ family: "tron" | "evm"; chainId: string }, string]> = [
   [{ family: "tron", chainId: "728126428" }, "tron:0x2b6653dc"],
   [{ family: "tron", chainId: "3448148188" }, "tron:0xcd8690dc"],

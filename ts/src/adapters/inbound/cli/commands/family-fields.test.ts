@@ -1,17 +1,5 @@
-/**
- * Family-scoped command fields.
- *
- * A ChainSpec's `baseFields` is shared by every family, so it may only declare what every family
- * actually has. Two consequences this file pins down:
- *
- *  - TRC10 (`--asset-id`) is a TRON concept. It belongs to the TRON binding, not to the base.
- *  - An address flag stays a plain string in the base and is validated by the family's own
- *    `refine`, so help/catalog show one flag while each family still rejects the other's format.
- *    (Merging two same-named family fields would collapse in help — `mergedFields` is
- *    last-writer-wins — so the base-plus-refine shape is the one that survives EVM registration.)
- */
 import { describe, it, expect } from "vitest";
-import { composeRefines, parseInputSchema } from "../shell/index.js";
+import { chainInputSchema, parseInputSchema } from "../shell/index.js";
 import {
   tokenBalanceSpec,
   tokenBalanceTronBinding,
@@ -25,10 +13,8 @@ import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 const TRON_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const EVM_CONTRACT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 
-/** the schema dispatch actually parses against: base + family fields + both refines. */
 function effectiveSchema(spec: ChainSpec, binding: FamilyBinding) {
-  const fields = binding.fields ? spec.baseFields.extend(binding.fields.shape) : spec.baseFields;
-  return composeRefines(fields, spec.baseRefine, binding.refine);
+  return chainInputSchema(spec, binding).input;
 }
 
 const svc = {} as never;
@@ -52,8 +38,6 @@ describe("token selector fields", () => {
     expect(schema.safeParse({ assetId: "1002000" }).success).toBe(true);
   });
 
-  // BUG-V413-008: both selectors given is a flag conflict, not a bad value — machine-interface.md
-  // reserves invalid_option for exactly this ("a flag used in an invalid combination").
   it("reports both selectors given as invalid_option, not invalid_value", () => {
     const schema = effectiveSchema(tokenBalanceSpec, tokenBalanceTronBinding(svc));
     expect(() =>
@@ -88,8 +72,6 @@ describe("address flags shared across families", () => {
     expect(result.success).toBe(true);
   });
 
-  // BUG-V413-018: a malformed address is invalid_address, not invalid_value —
-  // machine-interface.md defines invalid_address as "not a valid address for the relevant chain".
   it.each(cases)(
     "%s reports a non-TRON --contract as invalid_address",
     (_n, spec, binding, base) => {
@@ -100,7 +82,6 @@ describe("address flags shared across families", () => {
   );
 });
 
-// BUG-V413-010: --amount and --raw-amount both given is a flag conflict, not a bad value.
 describe("amount selector", () => {
   it("reports both --amount and --raw-amount as invalid_option", () => {
     const schema = effectiveSchema(txSendSpec, txSendTronBinding(svc));
@@ -110,10 +91,9 @@ describe("amount selector", () => {
   });
 });
 
-// BUG-V413-016: two bytecode sources given is a flag conflict, not a bad value.
 describe("contract deploy bytecode source selector", () => {
   it("reports two bytecode sources as invalid_option", () => {
-    const schema = contractDeploySpec.baseFields.superRefine(contractDeploySpec.baseRefine!);
+    const schema = effectiveSchema(contractDeploySpec, {} as FamilyBinding);
     expect(() =>
       parseInputSchema(schema, { artifact: "a.json", code: "6080", feeLimit: "1000000" }),
     ).toThrowError(expect.objectContaining({ code: "invalid_option" }));

@@ -2,13 +2,7 @@ import { describe, expect, it } from "vitest";
 import { utils as tronUtils } from "tronweb";
 import { decodeTransactionHex, encodeTransactionHex } from "./transaction-codec.js";
 
-/**
- * Golden fixtures built by a live java-tron node (Nile, /wallet/unfreezeasset and
- * /wallet/createassetissue) on 2026-08-09. They are the reference for what these two contract
- * types must serialise to: `encodeTransactionHex` recomputes raw_data_hex and txID from
- * raw_data and refuses the artifact unless both match, so simply encoding a node-built artifact
- * asserts byte-for-byte agreement with the node.
- */
+// Node-built fixtures bind raw_data to exact protobuf bytes and txIDs.
 const UNFREEZE_FIXTURE = {
   visible: false,
   txID: "802cc6ec1a91e97ba76a596d2ba82d3fe8401827200734cc8d5a621575ce01e5",
@@ -71,7 +65,6 @@ function issueFixture(frozenSupply: Array<{ frozen_amount: number; frozen_days: 
   };
 }
 
-// Three tranches, node-built.
 const ISSUE_THREE = {
   ...issueFixture(THREE_TRANCHES),
   txID: "47d35a1e0ac7ad61caee0a2fa2476c27a7f12a87b802cb9bdb95e3935716cfe3",
@@ -80,7 +73,6 @@ const ISSUE_THREE = {
     "0a02f7c422080d5c9f3c08da635840a095f7b7fe335ac201080612bd010a2f747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e41737365744973737565436f6e74726163741289010a15419756bae210f6e9591f311613cff8f19d6cef397112074d79546f6b656e1a034d544b2080809aa6eaafe3012a0a088080e983b1de16101e2a0a0880c0f4c198af0b105a2a0b0880a0faa0ccd70510b4013001380640644880a0f1c2b1345080f284f0b434a2010a44656d6f205452433130aa011268747470733a2f2f6d79746f6b656e2e696f70a2cbf3b7fe33",
 };
 
-// One tranche — the case TronWeb already handled, kept as a control.
 const ISSUE_ONE = {
   ...issueFixture([THREE_TRANCHES[0]!]),
   txID: "88066b3939a6ca1d22c23c186128f7bd34e733320557664f0b1856e289588c93",
@@ -91,7 +83,6 @@ const ISSUE_ONE = {
 
 describe("TRC10 contract types TronWeb cannot round-trip", () => {
   it("encodes UnfreezeAssetContract exactly as the node does", () => {
-    // encodeTransactionHex throws unless the recomputed raw_data_hex and txID both match.
     const hex = encodeTransactionHex(UNFREEZE_FIXTURE);
     expect(decodeTransactionHex(hex).raw_data_hex).toBe(UNFREEZE_FIXTURE.raw_data_hex);
     expect(decodeTransactionHex(hex).txID).toBe(UNFREEZE_FIXTURE.txID);
@@ -133,7 +124,7 @@ describe("TRC10 contract types TronWeb cannot round-trip", () => {
       "type.googleapis.com/protocol.UnfreezeAssetContract",
     );
     expect(decoded.raw_data.contract[0]?.parameter?.value?.owner_address)
-      // TronWeb's own deserialisers emit upper-case hex addresses; ours matches them.
+      // Match TronWeb's uppercase hex addresses.
       .toBe("417E95E45F5A60CC45F2D0AFE37EE9F77FB8CE9FFF");
   });
 
@@ -157,7 +148,6 @@ describe("TRC10 contract types TronWeb cannot round-trip", () => {
   });
 
   it("rejects an AssetIssueContract whose raw_data_hex disagrees with its tranches", () => {
-    // the node's three-tranche bytes, but raw_data claiming only the first tranche
     expect(() =>
       encodeTransactionHex({
         ...ISSUE_THREE,
@@ -180,17 +170,12 @@ describe("TRC10 contract types TronWeb cannot round-trip", () => {
     ).toThrow(/raw_data_hex does not match raw_data/);
   });
 
-  /**
-   * Guard on the reason this module exists. If a future TronWeb fixes its own serialiser, this
-   * test fails and the override can be reconsidered; until then it documents the defect.
-   */
   it("documents that TronWeb's own serialiser still drops tranches after the first", () => {
     const viaTronWeb = tronUtils.transaction.txJsonToPb(ISSUE_THREE as never);
     expect(tronUtils.transaction.txPbToRawDataHex(viaTronWeb).toLowerCase()).not.toBe(
       ISSUE_THREE.raw_data_hex,
     );
 
-    // ...and that it cannot build an UnfreezeAssetContract at all.
     expect(() => tronUtils.transaction.txJsonToPb(UNFREEZE_FIXTURE as never)).toThrow();
   });
 });

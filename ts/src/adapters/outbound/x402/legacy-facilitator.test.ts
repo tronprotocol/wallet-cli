@@ -4,8 +4,20 @@ import { TronWeb, providers } from "tronweb";
 import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import { X402PaymentClient } from "./payment-client.js";
-import { X402HttpServer } from "./server.js";
+import { X402FacilitatorClient } from "./facilitator-client.js";
+import { X402PaywallHttpServer } from "../../inbound/http/x402/paywall-server.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -56,7 +68,6 @@ it.each(
           kinds: networks.map((network) => ({ x402Version: 2, scheme: "exact", network })),
         });
       const body = JSON.parse(String(init!.body));
-      // Routing uses exactly the representation advertised for this scheme.
       expect(body.paymentRequirements.network).toBe(expectedNetwork);
       expect(body.paymentPayload.accepted).toEqual(body.paymentRequirements);
       payloads.push(body.paymentPayload);
@@ -72,13 +83,28 @@ it.each(
       );
     };
     const service = new X402Service(
-      new X402PaymentClient(signers as never),
+      new X402PaymentClient(),
+      signers as never,
       {} as never,
       {} as never,
-      new X402HttpServer(facilitator, 2000, () => {}),
+      {
+        facilitator: new X402FacilitatorClient(facilitator),
+        requestTimeoutMs: 0,
+        host: new X402PaywallHttpServer(
+          () => {},
+          () => {},
+        ),
+      },
+      undefined,
+      signing,
     );
     const pending = service.roundtrip(
-      { activeAccount: "payer", timeoutMs: 2000, emit: vi.fn(), warn: vi.fn() } as never,
+      {
+        activeAccount: "payer",
+        deadline: new CommandDeadline(0),
+        emit: vi.fn(),
+        warn: vi.fn(),
+      } as never,
       {
         id: "tron:3448148188",
         family: "tron",

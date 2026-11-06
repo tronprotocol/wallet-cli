@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decodeReceivedAmount } from "./received-amount.js";
+import { parseTronTxInfo } from "./tron-responses.js";
 import { tronHexAddress } from "../../../../domain/address/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
 
@@ -18,11 +19,13 @@ const transfer = (from: string, to: string, amount: bigint, token = TOKEN) => ({
   data: amount.toString(16).padStart(64, "0"),
 });
 const receipt = { receipt: { result: "SUCCESS" } };
+const decode = (info: unknown, token: string, recipient: string) =>
+  decodeReceivedAmount(parseTronTxInfo(info), token, recipient);
 
 describe("transaction-scoped trade output", () => {
   it("nets only output-token transfers to the recipient, including a transfer tax", () => {
     expect(
-      decodeReceivedAmount(
+      decode(
         {
           ...receipt,
           log: [
@@ -45,7 +48,7 @@ describe("transaction-scoped trade output", () => {
       callValueInfo: [{ callValue: value }],
     });
     expect(
-      decodeReceivedAmount(
+      decode(
         {
           ...receipt,
           fee: 20000000,
@@ -72,9 +75,9 @@ describe("transaction-scoped trade output", () => {
       { receipt: { result: "REVERT" }, log: [transfer(OTHER, OWNER, 1000n)] },
       { ...receipt, log: [{ ...transfer(OTHER, OWNER, 1000n), data: "abc" }] },
     ])
-      expect(decodeReceivedAmount(info, TOKEN, OWNER)).toBeUndefined();
+      expect(decode(info, TOKEN, OWNER)).toBeUndefined();
     expect(
-      decodeReceivedAmount(
+      decode(
         {
           ...receipt,
           internal_transactions: [

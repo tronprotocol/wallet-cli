@@ -4,7 +4,10 @@ import {
   contactNameKey,
   contactNote,
   createContact,
+  MAX_CONTACTS,
   resemblesAddress,
+  withContact,
+  withoutContact,
 } from "./index.js";
 
 const ADDRESS = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
@@ -30,8 +33,6 @@ describe("contact validation", () => {
   });
 
   it("rejects an invalid Base58Check address", () => {
-    // The message now names the family rather than the encoding, since each family validates
-    // against its own codec.
     expect(() => createContact("tron", "alice", "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HX")).toThrow(
       /valid tron address/,
     );
@@ -49,8 +50,6 @@ describe("createContact validates the address against its own family", () => {
     expect(createContact(family as never, "friend", address)).toMatchObject({ family, address });
   });
 
-  // Storing a TRON address under `evm` would make `--to friend` on an EVM network resolve to an
-  // address that does not exist there.
   it.each([
     ["tron", EVM],
     ["evm", TRON],
@@ -65,9 +64,6 @@ describe("createContact validates the address against its own family", () => {
   });
 });
 
-// A contact name that looks like an address is how a typo'd recipient becomes a silent redirect:
-// the address fails validation, falls through to a name lookup, and matches the impostor. The
-// TRON side has always been guarded; EVM must be too, before contacts can live in an evm bucket.
 describe("contact names may not impersonate an address of any family", () => {
   it.each([
     ["an EVM address", EVM],
@@ -97,11 +93,6 @@ describe("resemblesAddress spots a near-miss of any family", () => {
   });
 });
 
-/**
- * The address book is a display surface as much as a lookup: `contact list` is where someone
- * checks a payee against what their exchange showed them. The loader runs this same constructor,
- * so an entry written before this rule normalises the moment it is read back.
- */
 describe("createContact — canonical address", () => {
   const CHECKSUMMED = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
 
@@ -112,6 +103,46 @@ describe("createContact — canonical address", () => {
   it("names the argument that was wrong when the address is not one", () => {
     expect(() => createContact("evm", "alice", "0xnope")).toThrowError(
       expect.objectContaining({ code: "invalid_address" }),
+    );
+  });
+});
+
+describe("withContact", () => {
+  const alice = createContact("tron", "alice", ADDRESS);
+  const bob = createContact("tron", "Bob", "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7");
+
+  it("returns the family's contacts in name order", () => {
+    expect(withContact([bob], [bob], alice)).toEqual([alice, bob]);
+  });
+
+  it("refuses a name or address any family already holds", () => {
+    const evmAlice = createContact("evm", "ALICE", "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+    expect(() => withContact([evmAlice], [], alice)).toThrowError(
+      expect.objectContaining({ code: "already_exists" }),
+    );
+  });
+
+  it("refuses a family that is full", () => {
+    const full = Array.from({ length: MAX_CONTACTS }, () => bob);
+    expect(() => withContact([], full, alice)).toThrowError(
+      expect.objectContaining({
+        code: "limit_exceeded",
+        message: `contact book cannot exceed ${MAX_CONTACTS} entries`,
+      }),
+    );
+  });
+});
+
+describe("withoutContact", () => {
+  const alice = createContact("tron", "alice", ADDRESS);
+
+  it("removes the contact and returns it", () => {
+    expect(withoutContact([alice], "alice")).toEqual({ entries: [], removed: alice });
+  });
+
+  it("reports a missing contact", () => {
+    expect(() => withoutContact([alice], "bob")).toThrowError(
+      expect.objectContaining({ code: "contact_not_found", message: "contact not found: bob" }),
     );
   });
 });

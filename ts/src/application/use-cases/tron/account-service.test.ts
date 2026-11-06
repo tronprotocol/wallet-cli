@@ -1,13 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import { TronAccountService } from "./account-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { ChainError } from "../../../domain/errors/index.js";
 import type { AccountScope, TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TronHistoryReader } from "../../ports/chain/tron-history-reader.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
+import type { TronHistoryReader } from "../../ports/chain/tron/tron-history-reader.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { PriceProvider } from "../../ports/price-provider.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const net: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -16,7 +18,11 @@ const net: NetworkDescriptor = {
   chainId: "nile",
   capabilities: [],
 };
-const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "TXaddress" };
+const scope: AccountScope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => "TXaddress",
+};
 const OWNER = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const TARGET = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
@@ -54,7 +60,7 @@ describe("TronAccountService.portfolio native USD conversion", () => {
       balance: "1983.993",
       priceUsd: 0.12,
     });
-    expect(native.valueUsd).toBe(238.07916); // 1983.993 × 0.12, rounded to 6 dp
+    expect(native.valueUsd).toBe(238.07916);
     expect(result.totalValueUsd).toBe(238.07916);
     expect(result.priceSource).toBe("test");
   });
@@ -106,20 +112,16 @@ describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => 
 
   it("one unreadable token degrades to a stable reason without leaking the raw error (I-06)", async () => {
     const result = await serviceWithFailingToken().portfolio(scope, net);
-    // native still resolved
     const native = result.holdings.find((h) => h.kind === "native")!;
-    expect(native.balance).toBe("1"); // 1_000_000 sun / 1e6
-    // the failing token is present but degraded, not thrown
+    expect(native.balance).toBe("1");
     const token = result.holdings.find((h) => h.symbol === "USDT")!;
     expect(token.rawBalance).toBeNull();
     expect(token.balance).toBeNull();
     expect(token.valueUsd).toBeNull();
-    // stable enum, and the raw downstream message must NOT survive into the payload
     expect(token.balanceUnavailable).toBe(true);
     expect(token.reason).toBe("rpc_error");
     expect(JSON.stringify(token)).not.toContain("HTTP 500");
-    // total counts only the readable holdings (native), not the degraded token
-    expect(result.totalValueUsd).toBe(0.1); // 1 × 0.1
+    expect(result.totalValueUsd).toBe(0.1);
   });
 
   it("a failing price source degrades to a stable reason without leaking the raw error (I-06)", async () => {
@@ -156,9 +158,9 @@ describe("TronAccountService.portfolio per-token best-effort (issue #9)", () => 
 function transactionScope(wait = false): TransactionScope {
   return {
     activeAccount: "wlt_test.0",
-    timeoutMs: 100,
+    deadline: new CommandDeadline(0),
     wait,
-    waitTimeoutMs: 100,
+
     resolveAddress: () => OWNER,
     emit: vi.fn(),
     warn: vi.fn(),
@@ -174,8 +176,8 @@ function writeService(
   } = {},
 ) {
   const gateway = {
-    getAccount: vi.fn(options.getAccount ?? (async () => ({}))),
-    getAccountById: vi.fn(options.getAccountById ?? (async () => ({}))),
+    getAccountState: vi.fn(options.getAccount ?? (async () => ({}))),
+    getAccountStateById: vi.fn(options.getAccountById ?? (async () => ({}))),
     getChainParameters: vi.fn(async () => [
       { key: "getCreateAccountFee", value: 100_000 },
       { key: "getCreateNewAccountFeeInSystemContract", value: 1_000_000 },
@@ -187,15 +189,15 @@ function writeService(
     prepareTransaction: vi.fn((transaction) => transaction),
     encodeTransactionHex: vi.fn(() => "abcd"),
   } as unknown as TronGateway;
-  let captured: TxPipelineParams | undefined;
+  let captured: TronTxPipelineParams | undefined;
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: vi.fn(async (params: TxPipelineParams) => {
+    runTron: vi.fn(async (params: TronTxPipelineParams) => {
       captured = params;
       if (options.outcome) return options.outcome;
       const transaction = await params.build(OWNER);
       const fee = await params.estimate(transaction);
-      if (params.buildOnly) {
+      if (params.mode === "build-only") {
         return {
           stage: "built" as const,
           tx: transaction,
@@ -222,6 +224,69 @@ function writeService(
   );
   return { service, gateway, pipeline, captured: () => captured };
 }
+
+describe("TronAccountService.info", () => {
+  const RAW = { address: "41...", balance: "9000000" };
+  const STAKE = {
+    energySun: "1000000",
+    bandwidthSun: "2000000",
+    tronPowerSun: "3000000",
+    totalSun: "6000000",
+  };
+  function infoService(permissions: () => Promise<unknown>) {
+    const gateway = {
+      getAccountState: async () => ({
+        address: OWNER,
+        balanceSun: "9000000",
+        createdAt: 1700000000000,
+        stake: STAKE,
+        unfreezing: [],
+        votes: [],
+        raw: RAW,
+      }),
+      getAccountResources: async () => ({
+        energy: { used: 1, limit: 2 },
+        bandwidth: { used: 3, limit: 4 },
+        votingPower: { total: 6, used: 0 },
+      }),
+      getAccountPermissions: permissions,
+    };
+    return new TronAccountService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as TronHistoryReader,
+      {} as TokenRepository,
+      {} as PriceProvider,
+      {} as TxPipeline,
+    );
+  }
+
+  it("returns the balance, stake, creation time and permission summary as fields", async () => {
+    const service = infoService(async () => ({
+      address: OWNER,
+      owner: { id: 0, name: "owner", threshold: 2, keys: [{}, {}] },
+      witness: null,
+      actives: [{}],
+    }));
+
+    expect(await service.info({ ...scope, resolveAddress: () => OWNER }, net)).toEqual({
+      address: OWNER,
+      account: RAW,
+      resources: { bandwidth: { used: 3, limit: 4 }, energy: { used: 1, limit: 2 } },
+      balanceSun: "9000000",
+      staked: STAKE,
+      createdAt: 1700000000000,
+      permissions: { ownerThreshold: 2, ownerKeys: 2, activeGroups: 1 },
+    });
+  });
+
+  it("reports no permissions for an account the node does not hold", async () => {
+    const service = infoService(async () => {
+      throw new ChainError("not_found", "TRON account is not activated");
+    });
+
+    await expect(service.info(scope, net)).resolves.toMatchObject({ permissions: null });
+  });
+});
 
 describe("TronAccountService account lifecycle writes", () => {
   it("dry-runs activation with both dynamic creation fees and no signer gate", async () => {
@@ -259,7 +324,7 @@ describe("TronAccountService account lifecycle writes", () => {
         dryRun: true,
       }),
     ).rejects.toMatchObject({ code: "account_already_active" });
-    expect(pipeline.run).not.toHaveBeenCalled();
+    expect(pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("enforces the complete activation fee for dry-run and broadcast", async () => {
@@ -274,7 +339,7 @@ describe("TronAccountService account lifecycle writes", () => {
       code: "insufficient_balance",
       details: { balance: "1099999", required: "1100000" },
     });
-    expect(pipeline.run).not.toHaveBeenCalled();
+    expect(pipeline.runTron).not.toHaveBeenCalled();
   });
 
   it("allows an offline account build even when the payer balance is currently low", async () => {
@@ -309,14 +374,14 @@ describe("TronAccountService account lifecycle writes", () => {
       address: OWNER,
     });
     expect(gateway.buildAccountUpdate).toHaveBeenCalledWith(OWNER, "Acme Treasury");
-    expect(gateway.getAccountById).not.toHaveBeenCalled();
+    expect(gateway.getAccountStateById).not.toHaveBeenCalled();
   });
 
   it("rejects a previously set name and a globally occupied ID", async () => {
     const named = writeService({
       getAccount: async () => ({
         address: OWNER,
-        account_name: Buffer.from("existing", "utf8").toString("hex"),
+        name: "existing",
       }),
     });
     await expect(
@@ -363,13 +428,9 @@ describe("TronAccountService account lifecycle writes", () => {
     ).resolves.toMatchObject({ field: "id", value: "账".repeat(10) });
   });
 
-  // The post-check runs AFTER the fee is paid and the transaction is confirmed. A lagging node or a
-  // transient RPC failure there must never replace the confirmed txid with a command failure —
-  // callers would retry an operation that already succeeded.
   describe("post-check never overwrites a confirmed receipt", () => {
     const CONFIRMED = { stage: "confirmed", txId: "tx-confirmed", failed: false };
 
-    /** first call is the pre-check, second is the post-check. */
     function twoReads(
       first: () => Promise<Record<string, unknown>>,
       second: () => Promise<Record<string, unknown>>,
@@ -483,15 +544,10 @@ describe("TronAccountService account lifecycle writes", () => {
         address: TARGET,
       }),
     ).rejects.toMatchObject({ code: "watch_only_no_signer" });
-    expect(gateway.getAccount).not.toHaveBeenCalled();
+    expect(gateway.getAccountState).not.toHaveBeenCalled();
   });
 
-  // The Ledger TRON app parses a fixed set of contract types (app-tron src/parse.c). AccountCreate
-  // and SetAccountId are not among them: the device answers 0x6a80 after the user has already been
-  // sent to fetch, unlock and open the app. These must be refused up front like contract deploy and
-  // cancel-all-unfreeze already are. AccountUpdate IS parsed, so `set --name` must stay available.
   describe("contract types the Ledger TRON app cannot parse", () => {
-    /** stands in for the real SignerResolver rule: a Ledger account fails a software-only gate. */
     function ledgerAccount(pipeline: TxPipeline) {
       vi.mocked(pipeline.assertCanSign).mockImplementation((_account, _family, opts) => {
         if (opts?.requireSoftware) {
@@ -509,7 +565,7 @@ describe("TronAccountService account lifecycle writes", () => {
           address: TARGET,
         }),
       ).rejects.toMatchObject({ code: "ledger_unsupported" });
-      expect(gateway.getAccount).not.toHaveBeenCalled();
+      expect(gateway.getAccountState).not.toHaveBeenCalled();
     });
 
     it("refuses `set --id` on a Ledger account before any RPC", async () => {
@@ -523,7 +579,7 @@ describe("TronAccountService account lifecycle writes", () => {
           id: "acme-001",
         }),
       ).rejects.toMatchObject({ code: "ledger_unsupported" });
-      expect(gateway.getAccount).not.toHaveBeenCalled();
+      expect(gateway.getAccountState).not.toHaveBeenCalled();
     });
 
     it("still allows `set --name` on a Ledger account", async () => {

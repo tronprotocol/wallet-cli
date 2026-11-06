@@ -1,8 +1,8 @@
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import { activeDispatch, dispatchNow } from "./dispatch-context.js";
 
 export interface HttpEndpointConfig {
   readonly endpoint: string;
-  readonly timeoutMs: number;
   readonly headers: Readonly<Record<string, string>>;
 }
 
@@ -13,6 +13,7 @@ export interface HttpRequest {
   readonly headers?: Readonly<Record<string, string>>;
 }
 
+// A request runs under the dispatch check of the port call that makes it (dispatch-context.ts).
 export interface HttpTransport {
   requestText(request: HttpRequest): Promise<string>;
 }
@@ -20,7 +21,7 @@ export interface HttpTransport {
 export type HttpTransportErrorKind =
   "invalid_endpoint" | "invalid_request" | "timeout" | "network" | "http_status" | "redirect";
 
-/** Safe internal transport failure. It deliberately carries no URL, body, header, or remote text. */
+// Do not expose URLs, headers, bodies, or remote text in transport errors.
 export class HttpTransportError extends Error {
   constructor(
     public readonly kind: HttpTransportErrorKind,
@@ -41,17 +42,12 @@ export function httpTransportFailure(error: HttpTransportError): string {
 
 type FetchFunction = typeof globalThis.fetch;
 
-/** Resolve the HTTP mechanics shared by every adapter that uses a network's httpEndpoint. */
-export function networkHttpConfig(
-  network: NetworkDescriptor,
-  timeoutMs: number,
-): HttpEndpointConfig {
+export function networkHttpConfig(network: NetworkDescriptor): HttpEndpointConfig {
   assertHttpEndpoint(network.httpEndpoint ?? "");
   const headers =
     network.apiKeyHeader && network.apiKey ? { [network.apiKeyHeader]: network.apiKey } : {};
   return {
     endpoint: network.httpEndpoint ?? "",
-    timeoutMs,
     headers,
   };
 }
@@ -68,7 +64,6 @@ function assertHttpEndpoint(endpoint: string): void {
   }
 }
 
-/** Native HTTP adapter. Protocol-specific parsing deliberately stays above this interface. */
 export class FetchHttpTransport implements HttpTransport {
   constructor(
     private readonly config: HttpEndpointConfig,
@@ -78,24 +73,23 @@ export class FetchHttpTransport implements HttpTransport {
   async requestText(request: HttpRequest): Promise<string> {
     const headers = new Headers(request.headers);
     for (const [name, value] of Object.entries(this.config.headers)) headers.set(name, value);
+    const url = requestUrl(this.config.endpoint, request.path);
+    const context = activeDispatch();
+    const signal = context?.check.signal;
+    dispatchNow(context);
     try {
-      const response = await this.fetchFn(requestUrl(this.config.endpoint, request.path), {
+      const response = await this.fetchFn(url, {
         method: request.method,
         headers,
         body: request.body,
-        signal: AbortSignal.timeout(this.config.timeoutMs),
+        ...(signal ? { signal } : {}),
         ...(Object.keys(this.config.headers).length === 0 ? {} : { redirect: "error" }),
       });
       if (!response.ok) throw new HttpTransportError("http_status", response.status);
       return await response.text();
     } catch (error) {
       if (error instanceof HttpTransportError) throw error;
-      if (
-        error instanceof Error &&
-        (error.name === "AbortError" || error.name === "TimeoutError")
-      ) {
-        throw new HttpTransportError("timeout");
-      }
+      if (signal?.aborted) throw new HttpTransportError("timeout");
       throw new HttpTransportError("network");
     }
   }

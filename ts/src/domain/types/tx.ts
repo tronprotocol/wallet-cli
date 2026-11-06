@@ -1,59 +1,119 @@
-/**
- * SharedTypes — crypto / signing / tx / rpc (implementations live in upper layers)
- * plus the per-command typed text outputs the text formatter narrows on.
- */
+import type { Sun } from "../amounts/index.js";
 import type { TypedDataPayload } from "../typed-data/index.js";
 
 export type Bytes = Uint8Array;
 export type KeyPair = { privateKey: Bytes; publicKey: Bytes };
 
-export type UnsignedTx = unknown;
-export type SignedTx = unknown;
-export type FeeReport = Record<string, unknown>;
+export type UnsignedTx = TronTransactionArtifact | EvmUnsignedTx;
+export type SignedTx = TronTransactionArtifact | EvmSignedTx;
+// The signed form of an unsigned transaction of the same family.
+export type SignedTxOf<T extends UnsignedTx> = T extends TronTransactionArtifact
+  ? TronTransactionArtifact
+  : EvmSignedTx;
 
-/** result of signing structured data (EIP-712 / TIP-712). `digest` is the hash that was signed;
- *  `primaryType` is echoed back (inferred when the caller omitted it) so a caller can assert what
- *  was signed without re-deriving it. */
+// SUN amounts are decimal strings; energy is in resource units.
+export interface TronFeeReport {
+  feeModel: "tron-resource";
+  energy?: number;
+  energyPriceSun?: string;
+  availableEnergy?: number;
+  feeSun?: Sun;
+  balanceSun?: string;
+  bandwidthBurnSunIfNoFreeze?: number;
+  createAccountFeeSun?: string;
+  systemContractFeeSun?: string;
+  minimumFeeSun?: string;
+  note?: string;
+}
+
+// Wei amounts are decimal strings; gasLimit is in gas units.
+export interface EvmFeeReport {
+  feeModel: "eip1559" | "legacy";
+  maxCostWei: string;
+  gasLimit: string;
+  maxPerGasWei?: string;
+}
+
+export type FeeReport = TronFeeReport | EvmFeeReport;
+
+// EIP-712/TIP-712 signature, signed digest, and resolved primary type.
 export interface TypedDataSignature {
   signature: string;
   digest: string;
   primaryType: string;
 }
 
-/** Lossless JSON projection of one complete TRON protocol.Transaction artifact. */
+// TRON protocol JSON as TronWeb and the node produce it.
+export type TronProtocolValue =
+  string | number | boolean | null | TronProtocolValue[] | TronProtocolObject;
+
+export interface TronProtocolObject {
+  [field: string]: TronProtocolValue;
+}
+
+export interface TronTransactionContract {
+  type: string;
+  Permission_id?: number;
+  parameter?: { value?: TronProtocolObject; type_url?: string };
+}
+
+// Lossless JSON projection of a complete TRON protocol.Transaction; signature holds prior approvals.
 export interface TronTransactionArtifact {
   visible?: boolean;
   txID: string;
   raw_data: {
-    contract: Array<{
-      type: string;
-      Permission_id?: number;
-      parameter?: { value?: Record<string, unknown>; type_url?: string };
-      [key: string]: unknown;
-    }>;
+    contract: TronTransactionContract[];
+    ref_block_bytes?: string;
+    ref_block_hash?: string;
     expiration?: number;
     timestamp?: number;
-    [key: string]: unknown;
+    fee_limit?: number;
+    data?: string;
   };
   raw_data_hex: string;
   signature?: string[];
-  [key: string]: unknown;
+  // 41-prefixed hex address a deployment creates; present only on CreateSmartContract transactions.
+  contract_address?: string;
 }
 
+// ethers TransactionLike. Built transactions carry chainId and nonce as safe integers and quantities as
+// decimal strings; decoded ones carry chainId as a decimal string and null for absent fields. A payment SDK
+// may pass bigint or 0x hex quantities.
+export interface EvmUnsignedTx {
+  type?: number | null;
+  to?: string | null;
+  data?: string;
+  value?: string | bigint | null;
+  nonce?: number;
+  gasLimit?: string | bigint | null;
+  gasPrice?: string | bigint | null;
+  maxPriorityFeePerGas?: string | bigint | null;
+  maxFeePerGas?: string | bigint | null;
+  chainId?: number | string | bigint | null;
+  accessList?: Array<{ address: string; storageKeys: string[] }> | null;
+  sig?: { r: string; s: string; v: number; networkV: string | null } | null;
+}
+
+// 0x hex of the signed serialization and its hash.
+export interface EvmSignedTx {
+  raw: string;
+  hash: string;
+}
+
+// alreadyKnown means the node already holds the transaction.
 export interface BroadcastResult {
   txId?: string;
   hash?: string;
-  [k: string]: unknown;
+  alreadyKnown?: boolean;
 }
 
-/** broadcast stages: `submitted` (node accepted, not yet mined — the default, non-blocking),
- *  or `confirmed`/`failed` after `--wait` polls the tx on-chain. */
+// submitted means node acceptance; confirmed/failed require an on-chain result.
 export type BroadcastStage = "submitted" | "confirmed" | "failed";
 
 export type TxOutcome =
   | { stage: "plan"; tx: UnsignedTx; fee: FeeReport }
   | { stage: "built"; tx: UnsignedTx; hex: string; fee: FeeReport }
-  // `fee` is absent when the caller supplied the transaction (tx sign): nothing was estimated.
+  // No fee estimate for caller-supplied transactions.
   | {
       stage: "signed";
       signed: SignedTx;
@@ -62,51 +122,59 @@ export type TxOutcome =
       address?: string;
       txId?: string;
     }
-  | ({ stage: BroadcastStage } & BroadcastResult);
+  | ({ stage: BroadcastStage } & BroadcastResult & Partial<TxConfirmation>);
 
-// ════════════════════ per-command typed text outputs ══════════════════════
-// Flat, family-agnostic shapes: shared transaction contracts carry no `family` — the active
-// chain is already known from the request (the renderer reads `ctx.net.family`), so duplicating
-// it in the payload is redundant. `tx status` carries a `failed` the command computes (tron:
-// receipt result ≠ SUCCESS). `tx info` is a superset of on-chain fields — each family populates
-// its own subset and the per-family render table (FAMILY_RENDER[ctx.net.family]) shapes the rows.
-/** four-state confirmation status.
- *  - `confirmed`/`failed`: has a block + receipt (result = SUCCESS ⇒ confirmed, else failed)
- *  - `pending`: the node knows the tx (getTransactionById) but it is not yet in a block
- *  - `not_found`: the node has no record of the tx (never broadcast, dropped, or not yet propagated) */
+// A mined transaction's receipt. TRON fees are SUN and resources are units; EVM quantities are decimal strings.
+export interface TxConfirmation {
+  confirmed: true;
+  failed: boolean;
+  blockNumber?: number;
+  feeSun?: number;
+  energyUsed?: number;
+  netUsed?: number;
+  energyFeeSun?: number;
+  netFeeSun?: number;
+  withdrawnSun?: Sun;
+  assetIssueID?: string;
+  unfreezeAmount?: Sun;
+  exchangeId?: number;
+  exchangeReceived?: string;
+  exchangeInjectedOther?: string;
+  exchangeWithdrawnOther?: string;
+  // TRON receipt.result as the node reported it.
+  result?: string;
+  gasUsed?: string;
+  feeWei?: string;
+  effectiveGasPriceWei?: string;
+  contractAddress?: string;
+}
+
+// pending means known but unmined; not_found means absent from this node.
 export type TxState = "confirmed" | "failed" | "pending" | "not_found";
 
 export interface TxStatusView {
   txid: string;
   state: TxState;
-  /** kept for back-compat: `state === "confirmed"`. */
+  // state === "confirmed".
   confirmed: boolean;
-  /** kept for back-compat: `state === "failed"`. */
+  // state === "failed".
   failed: boolean;
   blockNumber?: number | string;
-  /**
-   * Head height minus the transaction's block — how much chain has been built on top of it.
-   *
-   * Present only once there IS a block, and best-effort: the head read is a second call, and a
-   * failed one costs this field rather than the answer the command was asked for. `--wait` stops
-   * at the receipt, so this is the number a caller reads to decide whether that is enough.
-   */
+  // Head height minus transaction block; omitted if the head read fails.
   confirmations?: number;
 }
 
-/** decoded transfer parties of a tx (best-effort from the raw tx). */
+// Best-effort transfer details decoded from the raw transaction.
 export interface TxParties {
   from?: string;
   to?: string;
   amount?: string;
-  /** the same amount in base units — the exact integer, beside the scaled display value. */
+  // Exact base units, before display scaling.
   rawAmount?: string;
   symbol?: string;
   contract?: string;
 }
 
-/** which action a broadcast receipt describes — drives the summary verb + extra rows.
- *  A typed discriminant replaces matching on the stringly command id. */
 export type TxReceiptKind =
   | "send"
   | "broadcast"
@@ -142,15 +210,8 @@ export type TxReceiptKind =
   | "exchange-withdraw"
   | "exchange-trade";
 
-/**
- * Canonical tx receipt the signing commands return (dry-run / sign-only / broadcast stages).
- * Shared transaction fields remain flat; feature-specific results are nested.
- * The text formatter narrows on `kind` (+ `ctx.net.family` for the
- * per-family fee/amount hooks) and reads fixed keys instead of probing aliases. Commands populate
- * the subset relevant to their action.
- */
 export interface TxReceiptView {
-  /** ERC-8004 write results; absent from unrelated transaction receipts. */
+  // ERC-8004 write results.
   identity?: {
     agentId?: string;
     operator?: string;
@@ -167,8 +228,7 @@ export interface TxReceiptView {
   stage?: BroadcastStage;
   txId?: string;
   hash?: string;
-  // plan / sign-only
-  /** address that produced the signature (sign-only outcomes). */
+  // Signer address for sign-only outcomes.
   address?: string;
   payer?: string;
   field?: "name" | "id";
@@ -179,11 +239,10 @@ export interface TxReceiptView {
   hex?: string;
   transaction?: import("./multisig.js").TxApprovalView;
   multiSignFeeSun?: number;
-  /** pre-broadcast checks a dry run ran; a blocker throws, so these are what held or was skipped. */
+  // Completed or skipped dry-run checks; blockers throw.
   checks?: Array<{ name: string; status: "ok" | "warning" | "skipped"; detail: string }>;
-  // transfer / stake inputs
   rawAmount?: string;
-  amountSun?: string | number;
+  amountSun?: Sun;
   token?: string;
   contract?: string;
   assetId?: string;
@@ -194,16 +253,18 @@ export interface TxReceiptView {
   resource?: string;
   votes?: Array<{ witness: string; count: number }>;
   totalVotes?: number;
-  rewardSun?: string | number;
-  // contract
+  // Time until cast votes are tallied.
+  maintenanceIntervalMs?: number;
+  rewardSun?: Sun;
+  // Minimum time between reward withdrawals.
+  withdrawIntervalMs?: number;
   method?: string;
   contractAddress?: string;
-  /** approve(address,uint256) only: who was approved, and for how much in token units
-   *  ("unlimited" for 2^256-1). The command line carries a scaled uint256 nobody can read. */
+  // Approval spender and token-unit allowance; "unlimited" denotes 2^256-1.
   spender?: string;
   allowance?: string;
   allowanceDecimals?: number;
-  // TRC10 assets — quantities in the asset's minimal units, rendered with `precision`
+  // TRC10 quantities use minimal units, scaled by precision for display.
   name?: string;
   abbr?: string;
   issuerAddress?: string;
@@ -222,7 +283,7 @@ export interface TxReceiptView {
   frozenSupply?: Array<{ amount: string; days: number }>;
   paidSun?: string;
   receivedAmount?: string;
-  // Bancor exchange — quantities in each token's minimal units, rendered with its own decimals
+  // Bancor quantities use each token's minimal units.
   exchangeId?: number;
   pair?: string;
   creatorAddress?: string;
@@ -257,75 +318,82 @@ export interface TxReceiptView {
   minReceivedQuant?: string;
   releasedAmount?: string;
   stillFrozenAmount?: string;
-  // confirmed / failed on-chain numbers
   blockNumber?: number;
   energyUsed?: number;
-  feeSun?: string | number;
+  feeSun?: number;
   feeWei?: string;
-  /** gas actually burnt (EVM); pairs with effectiveGasPriceWei to explain feeWei. */
-  gasUsed?: string | number;
-  /** the per-gas price the chain settled at (EVM), decimal wei. */
+  // Gas consumed (EVM), decimal gas units.
+  gasUsed?: string;
+  // Settled gas price in decimal wei.
   effectiveGasPriceWei?: string;
-  /**
-   * The transaction's own nonce (EVM).
-   *
-   * Captured while building rather than read back from a receipt: it is decided before the
-   * transaction is signed, and it is the entry point for diagnosing a stuck transaction —
-   * which is exactly the case where no receipt will ever arrive.
-   */
+  // EVM nonce captured before signing, available without a receipt.
   nonce?: number | string;
-  withdrawnSun?: string | number;
+  withdrawnSun?: Sun;
   result?: string;
   failed?: boolean;
 }
 
-/** `tx info` output: flat normalized display fields (superset across families) + the raw
- *  tx/receipt blobs (kept for JSON detail). Each family populates only its own subset. */
+declare const rawNodePayload: unique symbol;
+
+// Node JSON passed through verbatim for output; opaque so inner layers cannot read it.
+export interface RawNodePayload {
+  readonly [rawNodePayload]: true;
+}
+
+// JSON as a node returned it, passed through for output; inner layers do not branch on it.
+export type NodeJson =
+  string | number | boolean | null | NodeJson[] | { readonly [field: string]: NodeJson };
+
+// A mined EVM receipt; quantities are decimal strings.
+export interface EvmReceipt {
+  readonly success: boolean;
+  readonly gasUsed?: string;
+  readonly feeWei?: string;
+  readonly effectiveGasPriceWei?: string;
+  readonly blockNumber?: number;
+  readonly contractAddress?: string;
+  readonly raw: NodeJson;
+}
+
+// Normalized fields across families, plus raw transaction/receipt data for JSON output.
 export interface TxInfoView extends TxParties {
   txid: string;
-  /** coarse kind: transfer / contract-call / contract-creation (EVM). */
+  // EVM: transfer, contract-call, or contract-creation.
   type?: string;
-  /** the transaction's own nonce (EVM). */
   nonce?: number;
-  /** the including block's timestamp, Unix SECONDS — the same unit `chain node` reports. */
+  // Including block timestamp in Unix seconds.
   blockTime?: number;
-  /** the per-gas price the chain settled at (EVM), decimal wei. */
+  // Settled gas price in decimal wei.
   effectiveGasPriceWei?: string;
   status?: string;
   blockNumber?: number | string;
-  /** head height minus this transaction's block; best-effort, see TxStatusView.confirmations. */
+  // Head height minus transaction block, when available.
   confirmations?: number;
   energyUsed?: number; // tron execution resource
   gasUsed?: string; // evm execution resource
   feeSun?: number; // tron native fee (sun)
-  // EVM native fee. A separate field rather than a shared `fee`: the UNIT is in the name, so a
-  // reader can never mistake one family's magnitude for the other's (18 decimals vs 6).
   feeWei?: string;
-  transaction: unknown;
-  info?: unknown; // tron
-  receipt?: unknown; // tron
+  transaction: RawNodePayload | NodeJson;
+  info?: RawNodePayload | NodeJson; // tron
+  // EVM; null while pending.
+  receipt?: EvmReceipt | null;
 }
 
-// ════════════════════════════ signing ports ═══════════════════════════════
 export interface SignerSignOpts {
   signal?: AbortSignal;
-  /** Surface a signing-mode fallback before asking the device for approval. */
+  // Report a signing-mode fallback before requesting device approval.
   onWarning?: (message: string) => void;
 }
 export interface Signer {
   kind: "software" | "device";
   address: string;
-  precheck?(): Promise<void>;
+  precheck?(signal: AbortSignal): Promise<void>;
   sign(tx: UnsignedTx, opts: SignerSignOpts): Promise<SignedTx>;
-  /** raw message signing (not via TxPipeline). */
   signMessage(message: string, opts: SignerSignOpts): Promise<string>;
-  /** structured-data signing (EIP-712 / TIP-712); hashing is family-specific and lives behind the
-   *  strategy (software) or the device port (Ledger). */
+  // EIP-712/TIP-712; hashing depends on the chain family.
   signTypedData(payload: TypedDataPayload, opts: SignerSignOpts): Promise<TypedDataSignature>;
 }
 
-/** per-family signing behaviour; SoftwareSigner delegates to this (no `if family`).
- * A port whose concrete adapter is supplied by application wiring. */
 export interface SignStrategy {
   sign(pkHex: string, tx: UnsignedTx): Promise<SignedTx>;
   signMessage(pkHex: string, message: string): Promise<string>;

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { TronVoteService } from "./vote-service.js";
-import { TronStakeService } from "./stake-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { WalletError } from "../../../domain/errors/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -22,29 +25,45 @@ const SR2 = "TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
+
+function votingPower(total: number, used: number) {
+  return {
+    energy: { used: 0, limit: 0 },
+    bandwidth: { used: 0, limit: 0 },
+    votingPower: { total, used },
+  };
+}
 
 function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) {
   const g = gateway as TronGateway;
   const gateways = { get: () => g } as unknown as ChainGatewayProvider;
   const pipe = {
     assertCanSign: () => {},
-    run: async () => ({ stage: "submitted", txId: "txid" }),
+    runTron: async () => ({ stage: "submitted", txId: "txid" }),
     ...pipeline,
   } as unknown as TxPipeline;
-  // voting power now comes from the injected stake service (reads getAccountResources).
-  return new TronVoteService(gateways, pipe, new TronStakeService(gateways, pipe));
+  return new TronVoteService(gateways, pipe);
 }
 
 describe("TronVoteService.cast", () => {
+  it("refuses more vote entries than one transaction carries", async () => {
+    const svc = service({ getAccountResources: async () => votingPower(100, 0) });
+    const entries = Array.from({ length: 31 }, () => `${SR1}=1`);
+    await expect(svc.cast(scope, NET, { for: entries })).rejects.toMatchObject({
+      code: "invalid_value",
+      message: "for accepts at most 30 entries",
+    });
+  });
+
   it("rejects a full vote allocation above voting power", async () => {
     const svc = service({
-      getAccountResources: async () => ({ tronPowerLimit: 100, tronPowerUsed: 0 }) as never,
+      getAccountResources: async () => votingPower(100, 0),
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=101`] })).rejects.toMatchObject({
       code: "insufficient_voting_power",
@@ -54,7 +73,6 @@ describe("TronVoteService.cast", () => {
   it("capability gate wins over the voting-power rule: watch-only fails before any RPC", async () => {
     const svc = service(
       {
-        // must never be reached — a watch-only account can't sign, so no voting-power lookup runs.
         getAccountResources: async () => {
           throw new Error("voting power must not be read for a watch-only account");
         },
@@ -75,23 +93,89 @@ describe("TronVoteService.cast", () => {
 
   it("echoes parsed votes and total votes after pipeline submission", async () => {
     const svc = service({
-      getAccountResources: async () => ({ tronPowerLimit: 1000, tronPowerUsed: 0 }) as never,
-      buildVoteWitness: async () => ({}),
+      getAccountResources: async () => votingPower(1000, 0),
+      buildVoteWitness: async () => ({}) as never,
+      getChainParameters: async () => [{ key: "getMaintenanceTimeInterval", value: 1_800_000 }],
     });
     await expect(svc.cast(scope, NET, { for: [`${SR1}=6`, `${SR2}=4`] })).resolves.toMatchObject({
       kind: "vote-cast",
       stage: "submitted",
       txId: "txid",
       totalVotes: 10,
+      maintenanceIntervalMs: 1_800_000,
       votes: [
         { witness: SR1, count: 6 },
         { witness: SR2, count: 4 },
       ],
     });
   });
+
+  it.each([
+    ["the read fails", async () => Promise.reject(new Error("node down"))],
+    ["the parameter is missing", async () => [{ key: "getEnergyFee", value: 100 }]],
+    ["the parameter has no value", async () => [{ key: "getMaintenanceTimeInterval" }]],
+  ])("omits the maintenance interval after the vote is sent when %s", async (_case, read) => {
+    const svc = service({
+      getAccountResources: async () => votingPower(1000, 0),
+      buildVoteWitness: async () => ({}) as never,
+      getChainParameters: read as TronGateway["getChainParameters"],
+    });
+    const result = await svc.cast(scope, NET, { for: [`${SR1}=1`] });
+    expect(result).toMatchObject({ stage: "submitted", txId: "txid" });
+    expect(result).not.toHaveProperty("maintenanceIntervalMs");
+  });
+});
+
+describe("TronVoteService.cast maintenance interval at the deadline", () => {
+  it.each([
+    ["plan", true],
+    ["built", true],
+    ["signed", true],
+    ["submitted", false],
+  ])(
+    "%s vote: deadline expiry during the interval read fails the command = %s",
+    async (stage, fails) => {
+      const svc = service(
+        {
+          getAccountResources: async () => votingPower(1000, 0),
+          buildVoteWitness: async () => ({}) as never,
+          getChainParameters: () => Promise.reject(new DeadlineExpiredError()),
+        },
+        { runTron: async () => ({ stage, txId: "txid" }) as never },
+      );
+      const cast = svc.cast(scope, NET, { for: [`${SR1}=1`] });
+      if (fails) await expect(cast).rejects.toMatchObject({ code: "timeout" });
+      else await expect(cast).resolves.not.toHaveProperty("maintenanceIntervalMs");
+    },
+  );
 });
 
 describe("TronVoteService.list/status", () => {
+  it("fails on a malformed vote count instead of ranking the witness last", async () => {
+    const svc = service({
+      getWitnesses: async () => [
+        { address: SR1, voteCount: "100" },
+        { address: SR2, voteCount: "1e3" },
+      ],
+      getBrokerage: async () => 20,
+    });
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 2 })).rejects.toMatchObject({
+      code: "invalid_node_response",
+    });
+  });
+
+  it("ranks vote counts beyond the safe-integer range exactly", async () => {
+    const svc = service({
+      getWitnesses: async () => [
+        { address: SR1, voteCount: "9007199254740992" },
+        { address: SR2, voteCount: "9007199254740993" },
+      ],
+      getBrokerage: async () => 20,
+    });
+    const { witnesses } = await svc.list(NO_DEADLINE, NET, { limit: 2 });
+    expect(witnesses.map((witness) => witness.address)).toEqual([SR2, SR1]);
+  });
+
   it("sorts witnesses by vote count and converts brokerage to reward ratio", async () => {
     const svc = service({
       getWitnesses: async () => [
@@ -100,7 +184,7 @@ describe("TronVoteService.list/status", () => {
       ],
       getBrokerage: async (address) => (address === SR2 ? 100 : 20),
     });
-    await expect(svc.list(NET, { limit: 2 })).resolves.toEqual({
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 2 })).resolves.toEqual({
       witnesses: [
         {
           rank: 1,
@@ -128,8 +212,8 @@ describe("TronVoteService.list/status", () => {
     const warnings: string[] = [];
     const warnScope = { ...scope, warn: (m: string) => warnings.push(m) };
     const svc = service({
-      getAccount: async () => ({ votes: [{ vote_address: SR2, vote_count: "400" }] }),
-      getAccountResources: async () => ({ tronPowerLimit: 1500, tronPowerUsed: 400 }) as never,
+      getAccountState: async () => ({ votes: [{ witness: SR2, count: "400" }] }) as never,
+      getAccountResources: async () => votingPower(1500, 400),
       getReward: async () => "12345678",
       getWitnesses: async () => [{ address: SR2, voteCount: "200", url: "https://beta.example" }],
       getBrokerage: async () => 100,
@@ -150,7 +234,6 @@ describe("TronVoteService.list/status", () => {
         },
       ],
     });
-    // zero-ratio warning now goes through the standard warn channel, not a data key.
     expect(result).not.toHaveProperty("__walletCliWarnings");
     expect(warnings).toEqual([
       `400 votes on ${SR2} (beta.example) earn nothing: reward ratio is 0%`,

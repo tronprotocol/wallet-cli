@@ -20,7 +20,6 @@ describe("normalizeTypedData", () => {
     expect(p).toEqual({ domain: DOMAIN, types: TYPES, message: { trader: "T1", size: "1" } });
   });
 
-  // MetaMask-style payloads include EIP712Domain in `types`; ethers' TypedDataEncoder throws on it.
   it("strips EIP712Domain from types", () => {
     const p = normalizeTypedData({
       domain: DOMAIN,
@@ -55,14 +54,72 @@ describe("normalizeTypedData", () => {
     expect(() => normalizeTypedData({ domain: "x", types: TYPES, message: {} })).toThrow(/domain/);
   });
 
+  it.each([
+    ["a function", { trader: () => "T1" }],
+    ["a class instance", { trader: new Date(0) }],
+    ["a non-finite number", { size: Number.NaN }],
+    ["a nested non-JSON member", { trader: { inner: [Symbol("x")] } }],
+  ])("rejects a message with %s", (_label, message) => {
+    expect(() => normalizeTypedData({ domain: DOMAIN, types: TYPES, message })).toThrow(/message/);
+  });
+
+  it("rejects a domain with a non-JSON member", () => {
+    expect(() =>
+      normalizeTypedData({ domain: { chainId: new Map() }, types: TYPES, message: {} }),
+    ).toThrow(/domain/);
+  });
+
+  it("accepts bigint uint values and nested JSON members", () => {
+    const message = { trader: "T1", size: 10n ** 30n, extra: { list: [1, true, null] } };
+    expect(normalizeTypedData({ domain: DOMAIN, types: TYPES, message }).message).toEqual(message);
+  });
+
+  it("drops undefined members so the payload holds only JSON values", () => {
+    const p = normalizeTypedData({
+      domain: { ...DOMAIN, salt: undefined },
+      types: TYPES,
+      message: { trader: "T1", size: "1", extra: { inner: undefined } },
+    });
+    expect(Object.keys(p.domain)).not.toContain("salt");
+    expect(p.message).toStrictEqual({ trader: "T1", size: "1", extra: {} });
+  });
+
+  it("rejects an undefined array element", () => {
+    expect(() =>
+      normalizeTypedData({ domain: DOMAIN, types: TYPES, message: { list: [1, undefined] } }),
+    ).toThrow(/message/);
+  });
+
   it("rejects a primaryType that is not declared", () => {
     expect(() =>
       normalizeTypedData({ domain: DOMAIN, types: TYPES, primaryType: "Nope", message: {} }),
     ).toThrow(/not declared in types/);
   });
 
-  // A nested (non-root) type is referenced by another struct, so it can never be what actually gets
-  // signed — ethers signs the root regardless. Reject it rather than sign one thing and report another.
+  it.each(["toString", "constructor", "hasOwnProperty"])(
+    "rejects the inherited member %s as an undeclared primaryType",
+    (primaryType) => {
+      expect(() =>
+        normalizeTypedData({ domain: DOMAIN, types: TYPES, primaryType, message: {} }),
+      ).toThrow(
+        expect.objectContaining({
+          code: "invalid_value",
+          message: expect.stringMatching(/not declared in types/),
+        }),
+      );
+    },
+  );
+
+  it("treats a field typed as an inherited member name as a non-struct type", () => {
+    const p = normalizeTypedData({
+      domain: DOMAIN,
+      types: { Mail: [{ name: "a", type: "constructor" }] },
+      primaryType: "Mail",
+      message: {},
+    });
+    expect(Object.keys(p.types)).toEqual(["Mail"]);
+  });
+
   const NESTED = {
     Outer: [
       { name: "who", type: "address" },
@@ -112,9 +169,6 @@ describe("normalizeTypedData", () => {
     ).toThrow(/without a name\/type/);
   });
 
-  // BUG-V413-020: a payload missing/malformed at the top-level shape is invalid_payload — "the
-  // payload does not decode as what --typed-data says it is" — exit 2 (a caller can fix the JSON
-  // and rerun), not invalid_value.
   describe("missing top-level fields report invalid_payload, exit 2", () => {
     const cases: Array<[string, unknown]> = [
       ["whole payload not an object", "not an object"],
@@ -134,16 +188,11 @@ describe("normalizeTypedData", () => {
       expect(error).toBeInstanceOf(CliError);
       const cliError = error as CliError;
       expect(cliError.code).toBe("invalid_payload");
-      expect(cliError.exitCode()).toBe(2);
+      expect(cliError.kind).toBe("usage");
     });
   });
 });
 
-// `primaryType` is what the EIP-712 JSON-RPC schema uses to say WHICH struct is being signed, and
-// it exists precisely because the type map alone does not determine the root. A payload may
-// therefore declare types the chosen root never reaches — a dApp shipping one shared dictionary for
-// `Permit` / `Order` / `Cancel` is the ordinary case. Handing that whole map to an encoder makes it
-// see several roots and refuse, so narrow `types` to the closure the declared root actually reaches.
 describe("normalizeTypedData narrows types to the primaryType's closure", () => {
   const Person = [
     { name: "name", type: "string" },
@@ -203,8 +252,6 @@ describe("normalizeTypedData narrows types to the primaryType's closure", () => 
     expect(Object.keys(p.types).sort()).toEqual(["Grid", "Person"]);
   });
 
-  // A self-referencing type references itself, so the existing root rule already refuses it as the
-  // declared root — narrowing must not quietly start accepting one.
   it("still refuses a self-referencing type as the root", () => {
     expect(() =>
       normalizeTypedData({
@@ -221,7 +268,6 @@ describe("normalizeTypedData narrows types to the primaryType's closure", () => 
     ).toThrow(/not a root type/);
   });
 
-  // A cycle BELOW the root passes that rule, so the walk itself has to terminate.
   it("terminates on a cycle reached from the root", () => {
     const p = normalizeTypedData({
       domain: DOMAIN,
@@ -237,8 +283,6 @@ describe("normalizeTypedData narrows types to the primaryType's closure", () => 
     expect(Object.keys(p.types).sort()).toEqual(["A", "B", "Root"]);
   });
 
-  // Narrowing must never change what an already-signable payload hashes to. Every type in a
-  // single-root payload is reachable from that root by definition, so the closure is the whole map.
   it("leaves a payload whose types are all reachable untouched", () => {
     const p = normalizeTypedData({
       domain: DOMAIN,
@@ -249,8 +293,6 @@ describe("normalizeTypedData narrows types to the primaryType's closure", () => 
     expect(p.types).toEqual({ Person, Mail });
   });
 
-  // Without a declared root there is nothing to compute a closure from; the encoder infers it,
-  // which is only well-defined when exactly one root exists. Unchanged behaviour.
   it("leaves types alone when no primaryType is declared", () => {
     const p = normalizeTypedData({
       domain: DOMAIN,

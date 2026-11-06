@@ -1,73 +1,32 @@
-/**
- * The Universal Router call, checked against the swap it is supposed to be.
- *
- * The calldata is built by the SDK from a route object, and it is the only place the protections
- * actually live: the minimum output, the recipient and the deadline are ABI words inside
- * `execute(bytes,bytes[],uint256)`, not fields anyone can read off the plan. Two measured facts
- * make checking them necessary rather than ceremonial:
- *
- * - The route's own `amountOutMinimum` field comes back EQUAL to `amountOut` even when slippage was
- *   requested. Reading it would tell a caller there is no floor when there is one. The real floor
- *   is applied while the calldata is built, from `slippageBips`.
- * - The fee limit defaults to 500000000 SUN — 500 TRX — when it is not set.
- *
- * WHAT THIS PROVES, and what it does not. The scalar checks are exact: the target, the selector,
- * the call value, the fee limit and the deadline are single values and are compared directly.
- * Everything inside the encoded inputs — the minimum, the input amount, the recipient, and the
- * permit's amount and expiration — is checked by CONTAINMENT: the word must appear among the
- * calldata's ABI words. Their POSITION depends on which commands the route compiled to, and pinning
- * positions would make an ordinary V2/V3/V4 route mix fail as if it were an attack.
- *
- * So containment proves our figures reached the calldata; it does not prove no other figure is used
- * beside them. Two limits are known and were found by tests that PASSED when they should not have:
- *
- * - A recipient swapped for another address the call already mentions would not be caught. The
- *   first version of that test used the input token's own address and passed, because the input
- *   token is genuinely in the calldata. Only a recipient absent entirely is caught.
- * - Containment is meaningless for a value small enough to occur by accident. The word `1` is in
- *   almost any encoding, as an array length or a flag. Amounts, timestamps and addresses are
- *   specific enough; small integers are not.
- *
- * It catches the failure that actually happens — an encoder that stops applying the floor, or
- * applies it to a number other than the one we published — and, for the permit, it is paired with a
- * check that an unlimited grant is ABSENT, which is the one substitution worth naming by value.
- */
-import { tronHexAddress } from "../address/index.js";
+// Scalars are checked exactly; encoded inputs are checked only for word containment.
+// Containment does not prove field roles: another field or a small integer can satisfy a check.
+import { tronHash20Hex } from "../address/index.js";
 import { ChainError } from "../errors/index.js";
+import { sunAmount, type Sun } from "../amounts/index.js";
 
 const SELECTOR = "execute(bytes,bytes[],uint256)";
 
 export interface RouterCallExpectation {
-  /** The Universal Router, from the chain's own configuration. */
   readonly router: string;
-  /** Base units of the input token. */
+  // Input-token base units.
   readonly amountIn: string;
-  /** The floor we published and intend to enforce, base units of the output token. */
+  // Output-token base units.
   readonly minimumOut: string;
-  /** Where the output must go. A swap that succeeds and pays somebody else is the worst outcome. */
   readonly recipient: string;
-  /** TRX in travels as the call's value; a token in must carry none. */
+  // Native input travels as callValue in SUN; token input sends zero.
   readonly nativeIn: boolean;
-  readonly feeLimit: string;
-  /** Latest acceptable deadline, unix seconds. */
+  readonly feeLimit: Sun;
+  // Latest deadline and current time, Unix seconds.
   readonly notAfter: number;
   readonly now: number;
-  /**
-   * The permit the caller signed, when this swap carries one.
-   *
-   * Checked here as well as before signing, because this is the first point at which the grant and
-   * the calldata are the same object: the guard over the typed data proves what was signed, and
-   * this proves that THAT is what the transaction carries. An unlimited grant appearing between
-   * the two would otherwise be invisible.
-   */
+  // Signed permit values must also appear in calldata; unlimited grants are rejected.
   readonly permit?: { readonly amount: string; readonly expiration: string };
 }
 
-/** What the call turned out to be, for the receipt. */
 export interface RouterCallFacts {
   readonly target: string;
-  readonly callValue: string;
-  readonly feeLimit: string;
+  readonly callValue: Sun;
+  readonly feeLimit: Sun;
   readonly deadline: string;
 }
 
@@ -117,9 +76,7 @@ export function assertRouterCallMatches(
 
   const words = wordsOf(object(parameters[1], "the call's inputs").value);
   present(words, expected.minimumOut, `the minimum output of ${expected.minimumOut}`);
-  // Only for a token input. TRX travels as the call's value, which is compared EXACTLY above, and
-  // measured: a V1 route spending 1 TRX does not write the amount into its inputs at all, so
-  // requiring it there refused a correct call.
+  // Native input is checked as callValue; routes may omit it from encoded inputs.
   if (!expected.nativeIn) {
     present(words, expected.amountIn, `the input amount of ${expected.amountIn}`);
   }
@@ -135,16 +92,19 @@ export function assertRouterCallMatches(
       expected.permit.expiration,
       `the permit's expiration of ${expected.permit.expiration}`,
     );
-    // The grant we refused to sign, looked for by value: an encoder that widened a bounded permit
-    // into an unlimited one would otherwise leave no trace in anything we can read.
     absent(words, (2n ** 160n - 1n).toString(), "an unlimited Permit2 grant");
     absent(words, (2n ** 256n - 1n).toString(), "an unlimited token allowance");
   }
 
-  return { target: expected.router, callValue, feeLimit, deadline };
+  return {
+    target: expected.router,
+    callValue: sunAmount(callValue),
+    feeLimit: sunAmount(feeLimit),
+    deadline,
+  };
 }
 
-/** Every 32-byte word of every `bytes` input, as decimal strings. */
+// Complete 32-byte ABI words as decimal strings; trailing partial words are ignored.
 function wordsOf(value: unknown): ReadonlySet<string> {
   const inputs = array(value, "the call's inputs");
   const words = new Set<string>();
@@ -196,10 +156,7 @@ function array(value: unknown, label: string): readonly unknown[] {
 }
 
 function evm(address: string): string {
-  const text = address.trim();
-  if (/^0x[0-9a-fA-F]{40}$/.test(text)) return text.slice(2).toLowerCase();
-  if (/^(41)?[0-9a-fA-F]{40}$/.test(text)) return text.slice(-40).toLowerCase();
-  return tronHexAddress(text).slice(2).toLowerCase();
+  return tronHash20Hex(address.trim());
 }
 
 function refuse(because: string): ChainError {

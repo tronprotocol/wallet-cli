@@ -13,13 +13,7 @@ export interface ResolvedTarget {
   network?: NetworkDescriptor;
 }
 
-/**
- * Resolves WHICH network a command runs against. It deliberately does NOT judge the active
- * account against that network: a command may resolve a network without ever needing one
- * family's address (`current` picks which family's QR to draw), and the check prevented nothing
- * — a command that does need the address fails at `resolveAddress`, still before any RPC. The
- * guard therefore lives where the address is demanded, not where the network is chosen.
- */
+// Account-family checks belong at address resolution; selecting a network needs no address.
 export class TargetResolver {
   constructor(private readonly deps: TargetResolverDeps) {}
 

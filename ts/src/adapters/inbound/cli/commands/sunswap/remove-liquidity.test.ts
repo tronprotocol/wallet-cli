@@ -1,16 +1,10 @@
-/**
- * The flag × scenario matrix, checked where it is decided.
- *
- * These refusals depend on nothing remote, so they belong to the schema: they fire deterministically,
- * before a wallet is opened or a node is asked anything. Exercised through the spec's own fields and
- * refine, which is exactly what the shell composes.
- */
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import type { ZodObject, ZodRawShape } from "zod";
 import { CliError } from "../../../../../domain/errors/index.js";
 import { composeRefines, parseInputSchema } from "../../shell/index.js";
 import { sunswapRemoveLiquiditySpec } from "./remove-liquidity.js";
+import { exitCodeOf } from "../../output/errors.js";
 
 const schema = (
   sunswapRemoveLiquiditySpec.baseFields as unknown as {
@@ -44,19 +38,11 @@ describe("sunswap remove-liquidity — V4's flag matrix", () => {
     expect(schema.safeParse(V4).success).toBe(true);
   });
 
-  // V4 is the one scenario that needs both, because the pair is a cross-check rather than a
-  // selector. A missing side is a missing option, not something to infer from the position.
   it.each(["token0", "token1", "positionId"])("requires --%s", (flag) => {
     const rest = Object.fromEntries(Object.entries(V4).filter(([key]) => key !== flag));
     expect(refusals(rest)).toContainEqual({ path: flag, code: "missing_option" });
   });
 
-  /**
-   * `--recipient` is refused rather than ignored.
-   *
-   * A V4 withdrawal settles to the signing account and nowhere else, so a flag that was accepted and
-   * dropped would tell a caller their money was going somewhere it was not.
-   */
   it("refuses --recipient", () => {
     expect(refusals({ ...V4, recipient: "TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB" })).toContainEqual({
       path: "recipient",
@@ -71,11 +57,6 @@ describe("sunswap remove-liquidity — V4's flag matrix", () => {
     expect(schema.safeParse({ ...V4, slippage: "0.005" }).success).toBe(true);
   });
 
-  /**
-   * They COMBINE: --slippage is a tolerance that lowers --min0/--min1 further. Refusing the pair
-   * would refuse the one shape a careful caller wants — a floor they chose, with a little room
-   * under it.
-   */
   it("accepts --slippage together with an explicit minimum", () => {
     expect(refusals({ ...V4, slippage: "0.005", min0: "1" })).toEqual([]);
   });
@@ -102,18 +83,10 @@ describe("sunswap remove-liquidity — V4's flags elsewhere", () => {
       path: "protocol",
       code: "invalid_value",
     });
-    // Lower case too: the binding upper-cases it before the service ever sees it.
     expect(schema.safeParse({ ...V4, protocol: "v4" }).success).toBe(true);
   });
 });
 
-/**
- * A malformed `--recipient` is the caller's typo, not our crash.
- *
- * Unchecked, it travelled to the ABI encoder and came back as `internal_error` ("Invalid checksum")
- * at exit 1 — after the position had already been read. Refused here, it is `invalid_address` at
- * exit 2 before anything remote is asked. An EVM address is malformed on TRON for the same reason.
- */
 describe("sunswap remove-liquidity — a malformed --recipient", () => {
   it.each(["TNotAnAddress", "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"])(
     "refuses %s as invalid_address before any network call",
@@ -125,7 +98,7 @@ describe("sunswap remove-liquidity — a malformed --recipient", () => {
         recipient,
       });
       expect(error).toMatchObject({ code: "invalid_address" });
-      expect(error.exitCode()).toBe(2);
+      expect(exitCodeOf(error)).toBe(2);
       expect(error.message).toMatch(/^invalid --recipient: /);
     },
   );

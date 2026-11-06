@@ -62,7 +62,6 @@ describe("proposal text rendering", () => {
     const rows = GovernanceFormatters.proposalList(list).split("\n");
     expect(rows[1]).toContain("Parameter");
     expect(rows[1]?.trimEnd().endsWith("Value")).toBe(true);
-    // second parameter of #44 continues below it with the left-hand columns blank
     expect(rows[4]?.trimStart().startsWith("getMaxCpuTimeOfOneTx")).toBe(true);
     expect(rows[4]?.trimEnd().endsWith("80")).toBe(true);
   });
@@ -114,13 +113,6 @@ describe("proposal text rendering", () => {
   });
 });
 
-/**
- * `--build-only` and `--sign-only` exist to hand the transaction hex to the next step (collect a
- * co-signature, relay it offline). `tx send` prints that hex bare, so it pipes straight into a file
- * or another command; the governance renderer printed a receipt built around `data.unsignedHex`, a
- * field the pipeline never produces — the canonical name is `hex`. `kv()` drops empty rows, so the
- * artifact did not merely render blank, it vanished, and only `-o json` carried it.
- */
 describe("governance build-only / sign-only emit the transaction artifact", () => {
   const HEX = "0a83010a02c1112208bd2a9a677fccd7dc";
 

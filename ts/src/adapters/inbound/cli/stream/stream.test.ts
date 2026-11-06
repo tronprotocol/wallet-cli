@@ -1,5 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { PassThrough, Readable } from "node:stream";
 import { StreamManager } from "./index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,6 +33,23 @@ describe("StreamManager", () => {
     sm.diagnostic("info", "hello");
     expect(out).toEqual([]);
     expect(err).toEqual(["hello\n"]);
+  });
+
+  it("shows terminal controls in stderr text as visible escapes", () => {
+    const { sm, err } = capture("text", true);
+    const hostile = "a\u001b]0;PWNED\u0007\u001b[2J\u009b\u007f\tb\nc\u202e";
+    sm.diagnostic("warn", hostile);
+    sm.diagnostic("debug", hostile);
+    sm.errorLine(hostile);
+    const shown = "a\\x1b]0;PWNED\\x07\\x1b[2J\\x9b\\x7f\tb\nc<U+202E>";
+    expect(err).toEqual([`warning: ${shown}\n`, `${shown}\n`, `${shown}\n`]);
+  });
+
+  it("keeps warnings verbatim for the JSON envelope", () => {
+    const { sm, err } = capture("json");
+    sm.diagnostic("warn", "a\u001b[2J");
+    expect(sm.warnings()).toEqual(["a\u001b[2J"]);
+    expect(err).toEqual([]);
   });
 
   it("debug diagnostics need verbose", () => {
@@ -68,7 +88,7 @@ describe("StreamManager", () => {
   it("event writes an intermediate frame as a plain line to stderr, never stdout", () => {
     const { sm, out, err } = capture("json");
     sm.event('{"type":"signed"}');
-    expect(out).toEqual([]); // stdout stays reserved for the single terminal frame
+    expect(out).toEqual([]);
     expect(err).toEqual(['{"type":"signed"}\n']);
   });
 
@@ -77,7 +97,7 @@ describe("StreamManager", () => {
     sm.event(null);
     expect(err).toEqual([]);
     sm.event('{"type":"broadcasting"}');
-    sm.result("{}"); // still allowed: events are not terminal frames
+    sm.result("{}");
     expect(out).toEqual(["{}\n"]);
     expect(err).toEqual(['{"type":"broadcasting"}\n']);
   });
@@ -106,7 +126,6 @@ describe("AtomicFileStore", () => {
     const p = join(dir, "x.json");
     const r = fs.withLock(p, () => 42);
     expect(r).toBe(42);
-    // lock released → can acquire again
     expect(fs.withLock(p, () => "ok")).toBe("ok");
   });
 
@@ -114,9 +133,45 @@ describe("AtomicFileStore", () => {
     const dir = mkdtempSync(join(tmpdir(), "afs-"));
     const fs = new AtomicFileStore();
     const p = join(dir, "y.json");
-    // simulate a crashed holder: a lockfile owned by a PID that is not alive
     writeFileSync(`${p}.lock`, "999999999\n");
     const r = fs.withLock(p, () => "recovered", { timeoutMs: 2000 });
     expect(r).toBe("recovered");
+  });
+});
+
+describe("StreamManager stdin", () => {
+  const manager = (stdin: () => NodeJS.ReadableStream) =>
+    new StreamManager(
+      "json",
+      false,
+      () => {},
+      () => {},
+      stdin,
+    );
+
+  it("reads every chunk of stdin once, asynchronously", async () => {
+    const sm = manager(() => Readable.from([Buffer.from("ab"), Buffer.from("c")]));
+    await expect(sm.readStdinOnce(new AbortController().signal)).resolves.toBe("abc");
+    await expect(sm.readStdinOnce(new AbortController().signal)).rejects.toThrow(
+      "stdin already consumed",
+    );
+  });
+
+  it("stops a stalled read when the command deadline expires", async () => {
+    const stalled = new PassThrough();
+    const sm = manager(() => stalled);
+    const deadline = new CommandDeadline(20);
+    await expect(sm.readStdinOnce(deadline.signal)).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(stalled.listenerCount("data")).toBe(0);
+  });
+
+  it("does not open stdin after expiry", async () => {
+    const open = vi.fn(() => new PassThrough());
+    const controller = new AbortController();
+    controller.abort(new DeadlineExpiredError());
+    await expect(manager(open).readStdinOnce(controller.signal)).rejects.toBeInstanceOf(
+      DeadlineExpiredError,
+    );
+    expect(open).not.toHaveBeenCalled();
   });
 });

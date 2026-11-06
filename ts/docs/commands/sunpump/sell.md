@@ -6,7 +6,7 @@ Sell a token back to its SunPump bonding curve for TRX.
 
 ```
 wallet-cli sunpump sell <address> --amount <tokens>
-                        [--quote | --dry-run | --build-only | --wait [--wait-timeout <ms>]]
+                        [--quote | --dry-run | --build-only | --wait | --no-wait]
                         [--slippage <decimal> | --min-out <sun>] [--fee-limit <sun>] [options]
 ```
 
@@ -37,13 +37,14 @@ Before anything is approved, the account is checked: one the chain has no record
 |---|---|
 | `<address>` | **Required.** The SunPump token's contract address |
 | `--amount <tokens>` | **Required.** Whole tokens to sell |
-| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only`, `--slippage`, `--min-out` and `--wait` |
+| `--quote` | Price only — no account, no password, no transaction. Excludes `--dry-run`, `--build-only`, `--slippage`, `--min-out`, `--wait` and `--no-wait` |
 | `--slippage <decimal>` | Tolerance, e.g. `0.05`; **default `0.05`** (5%). Excludes `--min-out` |
 | `--min-out <sun>` | Least TRX to accept, in SUN. Excludes `--slippage` |
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transaction(s) in execution order — the approval first when one is needed |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--account <label\|accountId>` | Account to sell from; default the active account. Not used by `--quote` |
 | `--password-stdin` | Master password from stdin; needed only when sending |
 
@@ -71,7 +72,7 @@ wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount 1000 --quote
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"platformFee":"10000","platformFeePercent":"25.38","tokensIn":"1000000000000000000000","mode":"quote","trxOutExpected":"29401"},"meta":{"durationMs":2395,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"platformFee":"10000","platformFeePercent":"25.38","platformFeeMinimum":"10000","tokensIn":"1000000000000000000000","mode":"quote","trxOutExpected":"29401"},"meta":{"durationMs":2395,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 The point of the warning: 1,000 tokens gross 0.039401 TRX, the fee floor takes 0.01 of it, and a quarter of the sale goes to the platform. A sale large enough that the fee is the plain 1% shows no rate and no warning.
@@ -79,7 +80,7 @@ The point of the warning: 1,000 tokens gross 0.039401 TRX, the fee floor takes 0
 Selling 1,000 Justin. As the first sale of this token from this account, the unlimited approval went first (`Approval tx`), then the sale:
 
 ```bash
-echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount 1000 --wait --password-stdin --account jh --network tron
+echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount 1000 --password-stdin --account jh --network tron
 ```
 
 ```console
@@ -99,11 +100,11 @@ echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount
 ```
 
 ```bash
-echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount 1000 --wait --password-stdin --account jh --network tron -o json
+echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount 1000 --password-stdin --account jh --network tron -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"slippage":"0.05","platformFee":"10000","platformFeePercent":"25.38","tokensIn":"1000000000000000000000","account":"TANkYWRT6NZ2YLtWkFfKYBEGJroMa6MTwn","trxOutExpected":"29401","trxOutMinimum":"27930","approvalTxIds":["9e4b1c7a2d5f8e03b6c9a4d1f7e2b5c8a0d3f6e9b2c5a8d1e4f7b0c3a6d9e2f5"],"stage":"confirmed","txId":"c5f2a8d1e7b40c9f3a6d2e8b5c1f7a04d9e3b6c2a8f5d1e7c4b0a9f3e6d2c8b1","confirmed":true,"blockNumber":86922988,"feeSun":7528400,"energyUsed":71834,"energyFeeSun":7183400,"netFeeSun":345000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"trxOut":"29401"},"meta":{"durationMs":19841,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunpump.sell","data":{"kind":"sunpump-sell","tokenAddress":"TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E","tokenSymbol":"Justin","tokenDecimals":18,"slippage":"0.05","platformFee":"10000","platformFeePercent":"25.38","platformFeeMinimum":"10000","tokensIn":"1000000000000000000000","account":"TANkYWRT6NZ2YLtWkFfKYBEGJroMa6MTwn","trxOutExpected":"29401","trxOutMinimum":"27930","approvalTxIds":["9e4b1c7a2d5f8e03b6c9a4d1f7e2b5c8a0d3f6e9b2c5a8d1e4f7b0c3a6d9e2f5"],"stage":"confirmed","txId":"c5f2a8d1e7b40c9f3a6d2e8b5c1f7a04d9e3b6c2a8f5d1e7c4b0a9f3e6d2c8b1","confirmed":true,"blockNumber":86922988,"feeSun":7528400,"energyUsed":71834,"energyFeeSun":7183400,"netFeeSun":345000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"trxOut":"29401"},"meta":{"durationMs":19841,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 ## Output
@@ -116,18 +117,20 @@ echo "$PW" | wallet-cli sunpump sell TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E --amount
 | `tokensIn` | string | Base units sold |
 | `trxOutExpected` | string | SUN **net** of the platform fee — what arrives |
 | `trxOutMinimum` / `slippage` | string | The floor on that net figure and the tolerance it came from; absent from a quote |
-| `platformFee` / `platformFeePercent` | string | SunPump's fee in SUN, and its share of the gross (`trxOutExpected + platformFee`) — only when the 0.01 TRX minimum pushed it above 1% |
+| `platformFee` / `platformFeePercent` / `platformFeeMinimum` | string | SunPump's fee in SUN, and its share of the gross (`trxOutExpected + platformFee`) with the minimum fee in SUN — the last two only when the 0.01 TRX minimum pushed it above 1% |
 | `account` | string | The selling address; absent from a quote |
-| `approvals[]` | array | The unlimited grant (`amount: "unlimited"`) with its spender, when one is needed |
+| `approvals[]` | array | The unlimited grant (`amount: "unlimited"`, `isUnlimited: true`) with its spender, when one is needed |
 | `fee` / `feeCovers` | — | The chain's energy estimate and what it covers (`approvals` while the grant is pending, else `all`) |
 | `approvalTxIds[]` | string[] | Once sent: the approval, beside the sale's own `txId` |
 | `trxOut` | string | Confirmed receipts only: the TRX that actually arrived, read from the transaction (`amountsEstimated: false`); otherwise `trxOutExpected` stands with `amountsEstimated: true` and a warning |
 
-The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
+
+A non-integer transaction call value built by the SunPump SDK fails with `provider_error`.
 
 ## Exit status
 
-`0` success (submitted, or quoted/built/estimated) · `1` execution failure (`launchpad_token_not_found`, `launchpad_trading_closed`, `account_not_active`, `insufficient_token_balance`, `slippage_exceeded`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `provider_error`, `timeout`) · `2` usage error (`missing_option` — no `<address>` or `--amount`; `invalid_option` — `--quote` with another mode, `--slippage`, `--min-out` or `--wait`, or `--slippage` with `--min-out`; `invalid_amount` — not a positive number, or a sale too small to pay anything; `invalid_value` — a `--slippage` out of range; `invalid_address`; `account_not_found`; `unsupported_network_capability`; `family_mismatch`).
+`0` success (submitted, or quoted/built/estimated) · `1` execution failure (`launchpad_token_not_found`, `launchpad_trading_closed`, `account_not_active`, `insufficient_token_balance`, `slippage_exceeded`, `watch_only_no_signer`, `auth_failed`, `transaction_rejected`, `provider_error`, `timeout`) · `2` usage error (`missing_option` — no `<address>` or `--amount`; `invalid_option` — `--quote` with another mode, `--slippage`, `--min-out`, `--wait` or `--no-wait`, or `--slippage` with `--min-out`; `invalid_amount` — not a positive number, or a sale too small to pay anything; `invalid_value` — a `--slippage` out of range; `invalid_address`; `account_not_found`; `unsupported_network_capability`; `family_mismatch`).
 
 ## See also
 

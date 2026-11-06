@@ -1,24 +1,5 @@
-/**
- * The V4 reads, over the pool manager and the CL position manager.
- *
- * Kept out of `liquidity-contracts.ts` because V4 answers the same questions in a different shape —
- * a pool id rather than a pair, a packed word rather than fields — and mixing the two would make the
- * V2/V3 file the place where a reader has to work out which protocol a helper belongs to.
- *
- * Two traps run through everything here, both measured rather than inferred:
- *
- * - **V4 does not wrap TRX.** A pool key's `currency0` may be the native marker, where V2 and V3
- *   would carry WTRX. The wrapped pair names a pool that also EXISTS, so getting this wrong deposits
- *   into a different market and returns a perfectly good receipt.
- * - **The zero address means two unrelated things.** `hooks` is the zero address when a pool has no
- *   hook, and on TRON that base58 string is the same one the market API uses for native TRX. So the
- *   data cannot distinguish "no hook" from "hooked to TRX", and nothing here pretends otherwise:
- *   `describeHooks` in the domain is what turns it into words.
- *
- * The position manager is the AUTHORITY on what a position is in. Its pool key is read rather than
- * reconstructed, and the packed word it returns is checked against that key before anything else
- * uses either — see `assertPositionPool`.
- */
+// V4 currency0 can be native TRX; replacing it with WTRX selects a different pool.
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import {
   buildV4CollectAction,
   buildV4DecreaseLiquidityAction,
@@ -40,8 +21,6 @@ import {
   normalizeV4PoolKey,
 } from "@sun-protocol/sun-sdk-sunswap-v4";
 import { getContractAddress } from "@sun-protocol/sun-sdk-chains";
-// The builders' own return type: `#liquidityCall` passes one straight back into `encodeV4ContractCallAction`,
-// so a structural stand-in would not satisfy it.
 import type { ContractCallAction } from "@sun-protocol/sun-sdk-core";
 import type {
   ContractCallPayload,
@@ -57,17 +36,18 @@ import type {
   V4Position,
 } from "../../../application/ports/sunswap/liquidity.js";
 import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../../application/ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../../application/ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { isTronNetwork } from "../../../domain/types/network.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { tronBytesToBase58 } from "../../../domain/address/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { tronAddressFromHash20 } from "../../../domain/address/index.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 import { normalisePoolId } from "../../../domain/sunswap/protocol.js";
 import { assertPositionPool, decodeV4PositionInfo } from "../../../domain/sunswap/v4-position.js";
 import { decodeV4LiquidityReceipt } from "./v4-liquidity-receipt.js";
 import { V4_NO_HOOKS } from "../../../domain/sunswap/v4-pool.js";
+import { sunAmount, baseUnitAmount } from "../../../domain/amounts/index.js";
 
-/** The SDK's own network names, which its V4 builders take. */
 const SDK_NETWORKS: Readonly<Record<string, string>> = {
   "tron:728126428": "mainnet",
   "tron:3448148188": "nile",
@@ -80,9 +60,10 @@ export class SunSwapV4Contracts {
     network: NetworkDescriptor,
     txId: string,
     query: V4LiquidityReceiptQuery,
+    check: DispatchCheck,
   ): Promise<V4LiquidityResult | undefined> {
     const sdkNetwork = this.#network(network);
-    const info = await this.gateways.get(network, "tron").getTransactionInfoById(txId);
+    const info = await this.gateways.get(network, "tron", check).getTransactionInfoById(txId);
     return decodeV4LiquidityReceipt(
       info,
       query,
@@ -91,35 +72,33 @@ export class SunSwapV4Contracts {
     );
   }
 
-  /**
-   * A pool, by id.
-   *
-   * `exists` is decided by the price, not by an error: an uninitialised pool answers zero rather
-   * than reverting, and a caller who is told "it does not exist" looks for a different id while a
-   * caller told "it has no price" knows to initialise it.
-   */
-  async poolState(network: NetworkDescriptor, poolId: string): Promise<V4PoolState> {
+  // Uninitialised pools return a zero price rather than reverting.
+  async poolState(
+    network: NetworkDescriptor,
+    poolId: string,
+    check: DispatchCheck,
+  ): Promise<V4PoolState> {
     const id = `0x${normalisePoolId(poolId)}`;
     const sdkNetwork = this.#network(network);
     const [slot0, liquidity, key] = await Promise.all([
-      this.#read(network, buildV4PoolSlot0Read({ network: sdkNetwork, poolId: id } as never)),
-      this.#read(network, buildV4PoolLiquidityRead({ network: sdkNetwork, poolId: id } as never)),
-      this.#read(network, buildV4PoolKeyRead({ network: sdkNetwork, poolId: id } as never)),
+      this.#read(
+        network,
+        buildV4PoolSlot0Read({ network: sdkNetwork, poolId: id } as never),
+        check,
+      ),
+      this.#read(
+        network,
+        buildV4PoolLiquidityRead({ network: sdkNetwork, poolId: id } as never),
+        check,
+      ),
+      this.#read(network, buildV4PoolKeyRead({ network: sdkNetwork, poolId: id } as never), check),
     ]);
 
     const sqrtPriceX96 = word(slot0, 0);
-    /*
-     * An id nothing has ever been stored under answers with an ALL-ZERO key, and a zero key decodes
-     * to a tick spacing of zero. That used to be reported as `provider_error: a V4 pool's parameters
-     * decoded to a tick spacing of 0` — an internal detail, raised as if the node had misbehaved,
-     * for the ordinary case of asking about a pool that does not exist. It is `exists: false` here,
-     * and the caller says what it means in the caller's own terms.
-     */
+    // An unknown pool id returns an all-zero key with no valid tick spacing.
     const poolKey = isAbsentPoolKey(key) ? ABSENT_POOL_KEY : readPoolKey(key);
     return {
       poolId: normalisePoolId(poolId),
-      // Zero price is the honest signal for "nothing has initialised this". The pool manager has no
-      // per-pool existence flag; a pool is a key that has been written to.
       exists: sqrtPriceX96 !== "0",
       sqrtPriceX96,
       currentTick: signedWord(slot0, 1),
@@ -128,29 +107,33 @@ export class SunSwapV4Contracts {
     };
   }
 
-  /**
-   * A position, as the position manager describes it.
-   *
-   * The pair, the tier, the spacing and the range all come from ITS reads. Nothing here rebuilds a
-   * pool key from what the caller asked for: the caller may be wrong about which pool a position is
-   * in, and the position is not.
-   */
-  async position(network: NetworkDescriptor, tokenId: string): Promise<V4Position> {
+  // Read the position manager's pool key; caller-supplied pool details may be wrong.
+  async position(
+    network: NetworkDescriptor,
+    tokenId: string,
+    check: DispatchCheck,
+  ): Promise<V4Position> {
     const sdkNetwork = this.#network(network);
     const id = assertTokenId(tokenId);
     const [info, liquidity, owner] = await Promise.all([
       this.#read(
         network,
         buildV4PoolAndPositionInfoRead({ network: sdkNetwork, tokenId: id } as never),
+        check,
       ),
       this.#read(
         network,
         buildV4PositionLiquidityRead({ network: sdkNetwork, tokenId: id } as never),
+        check,
       ),
-      this.#read(network, buildV4PositionOwnerRead({ network: sdkNetwork, tokenId: id } as never)),
+      this.#read(
+        network,
+        buildV4PositionOwnerRead({ network: sdkNetwork, tokenId: id } as never),
+        check,
+      ),
     ]);
 
-    // `(poolKey, uint256 info)`: five words of key, then the packed word.
+    // getPoolAndPositionInfo returns five key words followed by packed position info.
     assertWords(info, 6, "getPoolAndPositionInfo");
     assertWords(liquidity, 1, "getPositionLiquidity");
     assertWords(owner, 1, "ownerOf");
@@ -166,7 +149,6 @@ export class SunSwapV4Contracts {
         parameters: poolKey.parameters,
       } as never),
     );
-    // The cross-check: the id packed into the position must be the id its own key hashes to.
     assertPositionPool(packed, String(poolId));
 
     return {
@@ -185,23 +167,11 @@ export class SunSwapV4Contracts {
     };
   }
 
-  /**
-   * What the position is owed, from the LP fee helper — or nothing at all.
-   *
-   * `getLPFees(address,bytes32,address,int24,int24,bytes32)` rebuilds the pool manager's position
-   * key from the POSITION MANAGER as owner and the token id as salt, which is how V4 stores every
-   * position minted through the manager, and returns `(uint256 feesOwed0, uint256 feesOwed1)`.
-   * Two words, in the key's currency order, so `amount0` belongs to `currency0`.
-   *
-   * It returns `undefined` rather than zeros when the answer cannot be decoded with confidence —
-   * a short return, or one that is not hex. Zero is a MEASUREMENT here and undefined is the
-   * absence of one, and collapsing the two would tell a caller their position earned nothing on
-   * the strength of a reply nobody could read. Transport failures are left to throw; the caller
-   * decides whether a collection can proceed without the figure.
-   */
+  // Fees follow currency order; undecodable replies return undefined, while transport failures throw.
   async owedFees(
     network: NetworkDescriptor,
     position: V4OwedFeesQuery,
+    check: DispatchCheck,
   ): Promise<V4OwedFees | undefined> {
     const words = await this.#read(
       network,
@@ -212,28 +182,14 @@ export class SunSwapV4Contracts {
         tickLower: position.tickLower,
         tickUpper: position.tickUpper,
       } as never),
+      check,
     );
     const data = hex(words);
-    // Two uint256 words and nothing less. A shorter return is not a smaller number.
     if (data.length < 2 * 64 || !/^[0-9a-f]+$/i.test(data.slice(0, 2 * 64))) return undefined;
-    return { amount0: word(words, 0), amount1: word(words, 1) };
+    return { amount0: baseUnitAmount(word(words, 0)), amount1: baseUnitAmount(word(words, 1)) };
   }
 
-  /**
-   * The deposit call, in the shape measured on Nile.
-   *
-   * Existing pool without permits: a bare `modifyLiquidities`. Otherwise `multicall(bytes[])`
-   * initializes a new pool first, forwards any Permit2 grants and then deposits.
-   * Order matters and is not incidental — a forward call after the deposit would authorize a pull that
-   * has already been attempted.
-   *
-   * `sweepRecipient` is always set, and MEASURED to matter only where a native currency is involved.
-   * On a token pair it changes nothing: the contract pulls exactly what it needs through Permit2, so
-   * there is never an excess sitting in the position manager. On a native pair the CEILING is sent up
-   * front as the call's value, so whatever the pool does not take must be returned — and then the
-   * recipient is encoded. Set on both anyway, because one request shape serves both and a caller
-   * should not have to know which pools make it load-bearing.
-   */
+  // Set sweepRecipient to return unused native TRX from the sent ceiling.
   depositPayload(network: NetworkDescriptor, request: V4DepositRequest): ContractCallPayload {
     const sdkNetwork = this.#network(network);
     const mint = buildV4MintPositionAction({
@@ -271,14 +227,6 @@ export class SunSwapV4Contracts {
     );
   }
 
-  /**
-   * The increase call: more liquidity into a position that already exists.
-   *
-   * Same shape as the deposit above and same ceiling — an increase IS a deposit, so `amount0Max` /
-   * `amount1Max` bound it from ABOVE and a native pair sends the ceiling as the call's value with the
-   * remainder swept back. What the position already fixes is not passed: its range is its own, and
-   * there is no owner because nothing is being minted.
-   */
   increasePayload(network: NetworkDescriptor, request: V4IncreaseRequest): ContractCallPayload {
     const sdkNetwork = this.#network(network);
     const increase = buildV4IncreaseLiquidityAction({
@@ -294,17 +242,8 @@ export class SunSwapV4Contracts {
     return this.#payload(this.#liquidityCall(sdkNetwork, increase, request.owner, request.permits));
   }
 
-  /**
-   * A liquidity action preceded by initialization (when creating) and then its grants.
-   *
-   * Initialization and the deposit share one multicall, so a failed deposit rolls back creation.
-   * Permits precede the deposit: forwarding a grant after the spend would be too late.
-   *
-   * THE CALL VALUE IS CARRIED ACROSS. `buildV4MulticallAction` computes none of its own — only the
-   * inner action knows a native pair sends its ceiling as the value — so a multicall built without
-   * this would forward the grants and then send a native deposit worth nothing. Shared by the mint
-   * and the increase because the trap is the same on both.
-   */
+  // Initialize and deposit atomically; forward permits before spending.
+  // Carry the native call value: the multicall builder does not derive it.
   #liquidityCall(
     sdkNetwork: never,
     action: ContractCallAction,
@@ -329,14 +268,7 @@ export class SunSwapV4Contracts {
     });
   }
 
-  /**
-   * The withdrawal call.
-   *
-   * One call rather than V3's multicall of two: V4's `decreaseLiquidity` settles the pair itself, so
-   * there is no separate collect to pack beside it. That is a real difference between the protocols and
-   * not an omission — V3 needed the multicall because `decreaseLiquidity` there only credits the
-   * position and transfers nothing.
-   */
+  // V4 decrease settles principal and fees without a separate collect call.
   removePayload(network: NetworkDescriptor, request: V4RemoveRequest): ContractCallPayload {
     const sdkNetwork = this.#network(network);
     const call = buildV4DecreaseLiquidityAction({
@@ -352,7 +284,7 @@ export class SunSwapV4Contracts {
     return this.#payload(call);
   }
 
-  /** The fee collection. Everything owed, because the contract offers no "how much". */
+  // V4 collection takes all owed fees; there is no amount parameter.
   collectPayload(
     network: NetworkDescriptor,
     request: {
@@ -373,7 +305,6 @@ export class SunSwapV4Contracts {
     return this.#payload(call);
   }
 
-  /** A pool key as the SDK wants it, from the key we were given rather than rebuilt. */
   #poolKey(sdkNetwork: never, pool: V4RemoveRequest["pool"]) {
     return normalizeV4PoolKey({
       network: sdkNetwork,
@@ -385,7 +316,6 @@ export class SunSwapV4Contracts {
     } as never);
   }
 
-  /** An encoder action as this codebase's own payload. */
   #payload(call: ContractCallAction): ContractCallPayload {
     return {
       target: call.target,
@@ -393,11 +323,10 @@ export class SunSwapV4Contracts {
       parameters: (call.parameters ?? []).map(plainParameter),
       ...(call.callValue === undefined || call.callValue === 0n
         ? {}
-        : { callValueSun: call.callValue.toString() }),
+        : { callValueSun: sunAmount(call.callValue) }),
     };
   }
 
-  /** The Permit2 contract, from the SDK's own chain config — the source its encoders use. */
   permit2(network: NetworkDescriptor): string {
     return this.#contract(network, "permit2", "Permit2 contract");
   }
@@ -406,13 +335,7 @@ export class SunSwapV4Contracts {
     return this.#contract(network, "sunswapV4PositionManager", "SunSwap V4 position manager");
   }
 
-  /**
-   * One of the SDK's own configured contracts.
-   *
-   * From the SDK's chain config rather than ours, because that is the source its encoders use — the
-   * same reason `#network` cross-checks our recorded position manager against it rather than trusting
-   * either alone.
-   */
+  // Use the same contract config as the SDK encoders.
   #contract(network: NetworkDescriptor, key: string, label: string): string {
     const address = String(getContractAddress(this.#network(network), key as never));
     if (address.length === 0) {
@@ -421,12 +344,10 @@ export class SunSwapV4Contracts {
     return address;
   }
 
-  /** A tick spacing as a pool key's `parameters` word. Only for a pool being created. */
   parametersFor(tickSpacing: number): string {
     return encodeParameters(tickSpacing);
   }
 
-  /** The pool id a key hashes to. The same derivation the pool manager uses. */
   poolIdOf(
     network: NetworkDescriptor,
     key: {
@@ -454,19 +375,17 @@ export class SunSwapV4Contracts {
   async #read(
     network: NetworkDescriptor,
     spec: { target: string; functionSelector: string; parameters?: readonly unknown[] },
+    check: DispatchCheck,
   ): Promise<readonly string[]> {
-    const gateway: TronGateway = this.gateways.get(network, "tron");
+    const gateway: TronGateway = this.gateways.get(network, "tron", check);
     return gateway.triggerConstantContract(
       spec.target,
       spec.functionSelector,
       [...((spec.parameters ?? []) as { type: string; value: string }[])],
-      // A constant call is executed as if sent by somebody. Nothing here depends on who, so the
-      // zero address is used rather than a caller's, which would imply it did.
       ZERO_ADDRESS,
     );
   }
 
-  /** The SDK's name for this network, which its V4 builders take. */
   #network(network: NetworkDescriptor): never {
     const name = SDK_NETWORKS[network.id];
     if (name === undefined || !isTronNetwork(network)) {
@@ -479,19 +398,11 @@ export class SunSwapV4Contracts {
   }
 }
 
-/**
- * Whether a pool key came back as nothing at all.
- *
- * The pool manager stores no key for an id it has never seen, so the read succeeds and returns
- * zeroes. Every field of a REAL key is non-zero somewhere — currency1 is never the zero address, and
- * the tick spacing is never 0 — so an all-zero head is unambiguous.
- */
 function isAbsentPoolKey(words: readonly string[]): boolean {
   const data = hex(words);
   return data.length >= 5 * 64 && /^0+$/.test(data.slice(0, 5 * 64));
 }
 
-/** What a pool that does not exist reports in place of a key. Nothing reads it: `exists` is false. */
 const ABSENT_POOL_KEY = {
   currency0: V4_NO_HOOKS,
   currency1: V4_NO_HOOKS,
@@ -501,7 +412,6 @@ const ABSENT_POOL_KEY = {
   tickSpacing: 0,
 } as const;
 
-/** The pool key's five words, wherever they sit at the front of a return. */
 function readPoolKey(words: readonly string[]): {
   currency0: string;
   currency1: string;
@@ -536,21 +446,13 @@ function readPoolKey(words: readonly string[]): {
   };
 }
 
-/** The tick spacing back into a `parameters` word, which is where V4 keeps it. */
 function encodeParameters(tickSpacing: number): string {
-  // The layout the live pools use: tick spacing in bits 16–39, hook registrations below it. Taken
-  // from a real pool's own value — 0x…0a0000 is spacing 10, 0x…3c0000 is spacing 60.
+  // Tick spacing occupies bits 16–39; lower bits hold hook registrations.
   return `0x${(BigInt(tickSpacing) << 16n).toString(16).padStart(64, "0")}`;
 }
 
 const hex = (words: readonly string[]): string => words.join("").replace(/^0x/, "");
 
-/**
- * A position read that holds at least `count` words, or a refusal saying the node's answer was bad.
- *
- * Checked before decoding so a short answer reports `invalid_node_response` with the method
- * and expected length, instead of an unclassified decoding failure.
- */
 function assertWords(words: readonly string[], count: number, method: string): void {
   const data = hex(words);
   if (!/^[0-9a-fA-F]*$/.test(data) || data.length < count * 64) {
@@ -564,15 +466,15 @@ function assertWords(words: readonly string[], count: number, method: string): v
 const word = (words: readonly string[], index: number): string =>
   BigInt(`0x${hex(words).slice(index * 64, (index + 1) * 64) || "0"}`).toString();
 
-/** An int24 or int256 word. Ticks are signed and a pool below its reference price has a negative one. */
+// ABI signed integers are sign-extended to 256 bits.
 function signedWord(words: readonly string[], index: number): number {
   const raw = BigInt(`0x${hex(words).slice(index * 64, (index + 1) * 64) || "0"}`);
   return Number(raw >= 1n << 255n ? raw - (1n << 256n) : raw);
 }
 
-/** An address-typed word: the low 20 bytes, as base58. */
+// Decode the low 20 bytes as TRON base58.
 function addressFromWord(data: string): string {
-  return tronBytesToBase58(Uint8Array.from(Buffer.from(`41${data.slice(24, 64)}`, "hex")));
+  return tronAddressFromHash20(data.slice(24, 64));
 }
 
 function assertTokenId(tokenId: string): string {
@@ -580,21 +482,15 @@ function assertTokenId(tokenId: string): string {
   if (!/^\d+$/.test(text)) {
     throw new UsageError(
       "invalid_value",
-      `--position-id must be a whole number; ${tokenId} is not one`,
+      errorMessage`${inputRef("positionId")} must be a whole number; ${tokenId} is not one`,
     );
   }
   return text;
 }
 
-/** The zero address, used here only as "nobody in particular is asking". */
-const ZERO_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+const ZERO_ADDRESS = FAMILIES.tron.zeroAddress;
 
-/**
- * One encoder parameter in this codebase's own terms.
- *
- * The encoder emits `bigint` for a `uint256` and a string array for `bytes[]`; both become strings,
- * because the gateway re-encodes from `{type, value}` and a bigint would not survive the trip.
- */
+// Use strings across the gateway boundary; bigint cannot cross JSON.
 function plainParameter(parameter: { type: string; value: unknown }): ContractParameter {
   const { type, value } = parameter;
   if (Array.isArray(value)) return { type, value: value.map((item) => String(item)) };

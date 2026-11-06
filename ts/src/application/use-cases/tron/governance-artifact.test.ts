@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
 import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -20,23 +21,15 @@ const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
 
-/**
- * Every governance WRITE must hand the pipeline an `artifact` hook.
- *
- * Without it `--build-only` fails outright ("this chain adapter cannot produce transaction hex") and
- * `--sign-only` silently omits `hex` — while both flags stay advertised in the command's help. All
- * nine writes shipped that way, because the flags are wired generically and nothing asserted the
- * hook was present. This test is per-command for that reason: the hook is passed at each call site.
- */
 function harness(overrides: Partial<TronGateway> = {}) {
-  const captured: TxPipelineParams[] = [];
+  const captured: TronTxPipelineParams[] = [];
   const gateway = {
     encodeTransactionHex: vi.fn(() => "0a02deadbeef"),
     getWitness: async () => ({ address: OWNER, voteCount: "1", url: "u" }),
@@ -87,7 +80,7 @@ function harness(overrides: Partial<TronGateway> = {}) {
 
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: async (params: TxPipelineParams) => {
+    runTron: async (params: TronTxPipelineParams) => {
       captured.push(params);
       return { stage: "submitted", txId: "tx", feeSun: 0 } as never;
     },
@@ -125,18 +118,14 @@ describe("every governance write supplies the --build-only / --sign-only artifac
 
   it.each(calls)("`%s` passes artifact", async (_label, call) => {
     const h = harness();
-    await call(h); // a guard rejecting here would mean the double is wrong, not the hook
+    await call(h);
     expect(h.captured).toHaveLength(1);
     const { artifact } = h.captured[0]!;
     expect(typeof artifact).toBe("function");
     expect(artifact!({} as never)).toBe("0a02deadbeef");
   });
 
-  // `witness create` is the ninth write; it burns 9999 TRX so its own success path is not
-  // exercised on chain, which makes the hook assertion here the only coverage it gets.
   it("`witness create` passes artifact too", async () => {
-    // The ninth write. Its success path is never exercised on chain (it burns 9999 TRX), so this is
-    // the only coverage the hook gets there. Needs a gateway that reports "not yet a witness".
     const h = harness({ getWitness: async () => null });
     await h.witness.create(scope, NET, { url: "https://sr.example" });
     expect(h.captured).toHaveLength(1);

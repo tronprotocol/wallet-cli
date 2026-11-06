@@ -1,10 +1,11 @@
+import { X402Service } from "../../../../application/use-cases/x402-service.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContactService } from "../../../../application/use-cases/contact-service.js";
 import type { ContactRepository } from "../../../../application/ports/contact-repository.js";
-import { CliError, normalizeError, UsageError } from "../../../../domain/errors/index.js";
+import { CliError, UsageError, ChainError, errorMessage } from "../../../../domain/errors/index.js";
 import { Keystore } from "../../../outbound/keystore/index.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { readBoundedTextFile } from "../commands/artifact.js";
@@ -17,6 +18,9 @@ import { registerWalletCommands } from "../commands/wallet.js";
 import { CommandRegistry } from "../registry/index.js";
 import { SignerResolver } from "../../../../application/services/signer/index.js";
 import { X402PaymentClient } from "../../../outbound/x402/payment-client.js";
+import { unsentPaymentError } from "../../../outbound/x402/payment-error.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
+import { normalizeCliError } from "./errors.js";
 
 function thrown(action: () => unknown): CliError {
   try {
@@ -36,8 +40,8 @@ function render(error: CliError, mode: "text" | "json"): string {
     (s) => frames.push(s),
     (s) => frames.push(s),
   );
-  // Runner normalizes before formatting; the original CliError must keep its safe text view.
-  createOutputFormatter(mode, streams, 0).error(normalizeError(error));
+  // Match the runner's normalize-then-format path.
+  createOutputFormatter(mode, streams, 0).error(normalizeCliError(error));
   return frames.join("");
 }
 
@@ -58,7 +62,7 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
   const launch = sunpumpLaunchTronBinding(service as never);
   const registry = new CommandRegistry();
   registerX402Commands(registry, service as never);
-  registerWalletCommands(registry, { walletService: {} as never, ledger: {} as never });
+  registerWalletCommands(registry, { walletService: {} as never });
   const pay = registry.resolveNeutral(["x402", "pay"])!;
   const importKeystore = registry.resolveNeutral(["import", "keystore"])!;
   const fileCommands = [
@@ -170,7 +174,7 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
   it("preserves a keystore error's safe text through payment preparation", () => {
     const keystore = new Keystore(root(), new AtomicFileStore(), () => "unused");
     const resolver = new SignerResolver(keystore, {} as never, {} as never);
-    const client = new X402PaymentClient(resolver);
+    const client = new X402Service(new X402PaymentClient(), resolver, {} as never, {} as never);
     const error = thrown(() =>
       client.prepare({ activeAccount: "missing\nFAKE_LOG" } as never, { family: "tron" } as never),
     );
@@ -212,6 +216,97 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
     expect(text).toContain("watch\\nFAKE_LOG");
     expect(JSON.parse(render(error, "json")).error.details.matches[0].label).toBe(
       "watch\nFAKE_LOG",
+    );
+  });
+});
+
+describe("submission error output", () => {
+  it("escapes text while retaining raw message and transaction ID in JSON", () => {
+    const txId = "abc\nforged\u001b[31m";
+    const error = new ChainError("timeout", errorMessage`node: ${"lost\nreply"}`, { txId });
+    const text = render(error, "text");
+    expect(text).toContain("node: lost\\nreply");
+    expect(text).toContain("Transaction ID: abc\\nforged");
+    expect(text).toContain("Check with tx status before sending again.");
+    expect(text).not.toContain("\u001b");
+    expect(JSON.parse(render(error, "json")).error).toEqual({
+      code: "timeout",
+      message: "node: lost\nreply",
+      details: { txId },
+    });
+  });
+});
+
+describe("x402 not-sent errors keep CLI input spelling", () => {
+  const net = { id: "eip155:56", family: "evm", chainId: "56" } as never;
+  const scope = { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never;
+
+  async function responseError(body: Uint8Array, contentType: string): Promise<CliError> {
+    const fetcher = vi.fn<typeof fetch>(
+      async () => new Response(new Uint8Array(body), { headers: { "content-type": contentType } }),
+    );
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      { resolve: vi.fn(), assertCanSign: vi.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+    const error = await client
+      .pay(scope, net, { url: "https://api.example/resource", method: "GET", headers: [] })
+      .catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(CliError);
+    return error as CliError;
+  }
+
+  it.each([
+    {
+      name: "binary",
+      body: new TextEncoder().encode("binary content"),
+      contentType: "application/octet-stream",
+      message:
+        "binary response requires --out to save its bytes; check payment details before any further payment",
+    },
+    {
+      name: "invalid UTF-8",
+      body: Uint8Array.from([0xff, 0xfe]),
+      contentType: "text/plain",
+      message:
+        "endpoint returned invalid UTF-8; --out is required to save raw bytes; check payment details before any further payment",
+    },
+  ])("renders the $name response error with --out", async ({ body, contentType, message }) => {
+    const error = await responseError(body, contentType);
+    expect(error.parts).toContainEqual({ input: "out" });
+    expect(render(error, "text")).toContain(`]: ${message}\n`);
+    expect(JSON.parse(render(error, "json")).error.message).toBe(message);
+  });
+
+  it.each([
+    {
+      sdk: "All payment requirements were rejected by spendControls.maxAmountPerPayment ($1, including USDT). Raise maxAmountPerPayment, set it to false to disable, set allowedAssets[].maxAmountPerPayment for a per-asset atomic cap, or set spendControls: false to disable all spend controls.",
+      message:
+        "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount, or --max-raw-amount with --token or --asset, to authorize it",
+    },
+    {
+      sdk: "All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed. Add an allowedAssets entry for non-default tokens, set allowedAssets: true, or set spendControls: false.",
+      message:
+        "no offered payment route uses an asset the built-in spend control allows; pass --max-amount, or --max-raw-amount with --token or --asset, to set the ceiling yourself",
+    },
+  ])("renders a spend-control refusal through the not-sent conversion", ({ sdk, message }) => {
+    const error = unsentPaymentError(
+      new Error(`Failed to create payment payload: ${sdk}`),
+      "create_payment",
+    );
+    expect(render(error, "text")).toContain(`]: ${message}\n`);
+    expect(JSON.parse(render(error, "json")).error).toMatchObject({
+      message,
+      details: { paymentStatus: "not_sent" },
+    });
+  });
+
+  it("still replaces the reconcile advice when nothing was sent", () => {
+    const error = unsentPaymentError(new Error("socket hang up"), "create_payment");
+    expect(JSON.parse(render(error, "json")).error.message).toBe(
+      "x402 request or payment failed; no payment was sent",
     );
   });
 });

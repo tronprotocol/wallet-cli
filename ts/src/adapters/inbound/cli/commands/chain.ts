@@ -4,9 +4,6 @@ import type { TronChainService } from "../../../../application/use-cases/tron/ch
 import type { EvmChainService } from "../../../../application/use-cases/evm/chain-service.js";
 import { TextFormatters } from "../render/index.js";
 
-/** `chain node` is its own export, not part of the TRON bundle below: every family can report
- *  node status, so the spec is shared and each family brings its own binding. */
-/** `chain prices` is shared: every family prices transactions somehow, though the fields differ. */
 export const chainPricesSpec: ChainSpec = {
   path: ["chain", "prices"],
   network: "optional",
@@ -26,11 +23,11 @@ export const chainPricesSpec: ChainSpec = {
 };
 
 export const chainPricesTronBinding = (service: TronChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.prices(net),
+  run: async (ctx, net) => service.prices(ctx.deadline, net),
 });
 
 export const chainPricesEvmBinding = (service: EvmChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.prices(net),
+  run: async (ctx, net) => service.prices(ctx.deadline, net),
 });
 
 export const chainNodeSpec: ChainSpec = {
@@ -52,11 +49,11 @@ export const chainNodeSpec: ChainSpec = {
 };
 
 export const chainNodeTronBinding = (service: TronChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.node(net),
+  run: async (ctx, net) => service.node(ctx.deadline, net),
 });
 
 export const chainNodeEvmBinding = (service: EvmChainService): FamilyBinding => ({
-  run: async (_ctx, net) => service.node(net),
+  run: async (ctx, net) => service.node(ctx.deadline, net),
 });
 
 export function chainDefinitions(
@@ -83,7 +80,7 @@ export function chainDefinitions(
         ],
         formatText: TextFormatters.chainParams,
       },
-      binding: { run: async (_ctx, net, input) => service.params(net, input.key) },
+      binding: { run: async (ctx, net, input) => service.params(ctx.deadline, net, input.key) },
     },
   ];
 }

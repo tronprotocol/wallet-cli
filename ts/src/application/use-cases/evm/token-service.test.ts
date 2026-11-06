@@ -1,19 +1,19 @@
-/**
- * EvmTokenService — the ERC-20 half of the `token` group.
- *
- * `token add` is the single point where a token's decimals are checked against the chain: once an
- * entry is in the book, `tx send --token SYMBOL` takes its contract and decimals verbatim and
- * never asks the chain again. So a missing `decimals` has to be refused here, while a symbol the
- * contract spells in the legacy `bytes32` form must not cost the user the entry.
- */
 import { describe, it, expect } from "vitest";
 import { EvmTokenService } from "./token-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { NetworkDescriptor, TokenEntry } from "../../../domain/types/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+import { DeadlineExpiredError } from "../../contracts/deadline.js";
 
-const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xOWNER" };
+const NO_DEADLINE = new CommandDeadline(0);
+
+const scope: AccountScope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => "0xOWNER",
+};
 const net = { id: "eip155:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
 const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
 
@@ -57,6 +57,21 @@ describe("EvmTokenService.balance", () => {
     });
   });
 
+  it("fails the read when the deadline ends the metadata lookup", async () => {
+    const expired = new DeadlineExpiredError();
+    const gateway = {
+      getErc20Balance: async () => "5000000",
+      getErc20Metadata: async () => {
+        throw expired;
+      },
+    };
+    const timed = new EvmTokenService(
+      { get: () => gateway } as unknown as ChainGatewayProvider,
+      {} as TokenRepository,
+    );
+    await expect(timed.balance(scope, net, { contract: USDT })).rejects.toBe(expired);
+  });
+
   it("still reports the balance when metadata is unreadable", async () => {
     const { svc } = service({});
     const out = await svc.balance(scope, net, { contract: USDT });
@@ -81,7 +96,6 @@ describe("EvmTokenService.add", () => {
     expect(out).toMatchObject({ network: "eip155:1", action: "added" });
   });
 
-  // The load-bearing rule: `tx send --token` trusts this number for every later transfer.
   it("refuses to add a token whose decimals the chain did not report", async () => {
     const { svc, added } = service({ symbol: "USDT" });
 
@@ -120,7 +134,7 @@ describe("EvmTokenService.info", () => {
   it("reports the contract's metadata", async () => {
     const { svc } = service({ symbol: "USDT", decimals: 6, name: "Tether USD" });
 
-    await expect(svc.info(net, { contract: USDT })).resolves.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, net, { contract: USDT })).resolves.toMatchObject({
       contract: USDT,
       symbol: "USDT",
       decimals: 6,
@@ -128,22 +142,18 @@ describe("EvmTokenService.info", () => {
     });
   });
 
-  /**
-   * Metadata is read best-effort, so a thin token still reports. But a contract that answers
-   * NOTHING is not a token with thin metadata — it is not a token, and `{contract}` alone under
-   * `success` reads as "this token has no metadata". `add` and `balance` already refuse the same
-   * address; this is the third command agreeing with them.
-   */
   it("still reports a token that answers only some of its metadata", async () => {
     const { svc } = service({ decimals: 6 });
 
-    await expect(svc.info(net, { contract: USDT })).resolves.toMatchObject({ decimals: 6 });
+    await expect(svc.info(NO_DEADLINE, net, { contract: USDT })).resolves.toMatchObject({
+      decimals: 6,
+    });
   });
 
   it("refuses an address that answers none of it, rather than echoing it back", async () => {
     const { svc } = service({});
 
-    await expect(svc.info(net, { contract: USDT })).rejects.toMatchObject({
+    await expect(svc.info(NO_DEADLINE, net, { contract: USDT })).rejects.toMatchObject({
       code: "token_metadata_unavailable",
       message: expect.stringContaining("may not be a token contract"),
     });

@@ -1,16 +1,10 @@
-/**
- * The flag × scenario matrix, checked where it is decided.
- *
- * These refusals depend on nothing remote, so they belong to the schema: they fire
- * deterministically, before a wallet is opened or a node is asked anything. Exercised through the
- * spec's own fields and refine, which is exactly what the shell composes.
- */
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import type { ZodObject, ZodRawShape } from "zod";
 import { CliError } from "../../../../../domain/errors/index.js";
 import { composeRefines, parseInputSchema } from "../../shell/index.js";
 import { sunswapCollectFeesSpec } from "./collect-fees.js";
+import { exitCodeOf } from "../../output/errors.js";
 
 const schema = (
   sunswapCollectFeesSpec.baseFields as unknown as {
@@ -39,12 +33,6 @@ describe("sunswap collect-fees — which protocols have claimable fees", () => {
     expect(schema.safeParse({ protocol, positionId: "1" }).success).toBe(true);
   });
 
-  /**
-   * V2 is `invalid_value`, not an unknown protocol.
-   *
-   * Its fees are real; they are simply not separable. "Unknown protocol" would send a caller
-   * looking for a spelling error instead of telling them how a V2 pool works.
-   */
   it("refuses V2 by explaining that its fees are not separable", () => {
     const parsed = schema.safeParse({ protocol: "V2", positionId: "1" });
     expect(refusals({ protocol: "V2", positionId: "1" })).toContainEqual({
@@ -71,12 +59,6 @@ describe("sunswap collect-fees — V4's flag matrix", () => {
     expect(schema.safeParse({ ...V4, deadline: 1790000000 }).success).toBe(true);
   });
 
-  /**
-   * `--recipient` is refused rather than ignored.
-   *
-   * A V4 collection settles to the signing account and nowhere else, so a flag that was accepted
-   * and dropped would tell a caller their money was going somewhere it was not.
-   */
   it("refuses --recipient", () => {
     expect(refusals({ ...V4, recipient: "TM56HhEWoaw2UevQh86k9AUjJqj9QVvmFC" })).toContainEqual({
       path: "recipient",
@@ -84,7 +66,6 @@ describe("sunswap collect-fees — V4's flag matrix", () => {
     });
   });
 
-  // One side names no pair at all. The pair is optional; half of it is a mistake.
   it.each([
     ["token0", "token1"],
     ["token1", "token0"],
@@ -118,20 +99,13 @@ describe("sunswap collect-fees — V4's flags elsewhere", () => {
   });
 });
 
-/**
- * A malformed `--recipient` is the caller's typo, not our crash.
- *
- * Unchecked, it travelled to the ABI encoder and came back as `internal_error` ("Invalid checksum")
- * at exit 1 — after the position had already been read. Refused here, it is `invalid_address` at
- * exit 2 before anything remote is asked. An EVM address is malformed on TRON for the same reason.
- */
 describe("sunswap collect-fees — a malformed --recipient", () => {
   it.each(["TNotAnAddress", "0x742d35Cc6634C0532925a3b844Bc454e4438f44e"])(
     "refuses %s as invalid_address before any network call",
     (recipient) => {
       const error = recipientRefusal({ protocol: "V3", positionId: "686", recipient });
       expect(error).toMatchObject({ code: "invalid_address" });
-      expect(error.exitCode()).toBe(2);
+      expect(exitCodeOf(error)).toBe(2);
       expect(error.message).toMatch(/^invalid --recipient: /);
     },
   );

@@ -1,8 +1,4 @@
-/**
- * Official token address-book — curated per-network defaults that ship with the
- * binary. Users cannot remove these; they layer their own on top via `token add`.
- * Native TRX is NOT listed here — `portfolio` prepends it implicitly.
- */
+// Built-in tokens cannot be removed; native assets are supplied separately.
 import type { TokenEntry } from "../../../domain/types/index.js";
 
 export const OFFICIAL_TOKENS: Record<string, TokenEntry[]> = {
@@ -46,16 +42,7 @@ export const OFFICIAL_TOKENS: Record<string, TokenEntry[]> = {
     },
   ],
   "tron:2494104990": [],
-  /**
-   * `eip155:1` ships USDT / USDC; testnets stay empty, as `tron:2494104990` already is.
-   *
-   * Each address, symbol and decimals below was read FROM ETHEREUM MAINNET (eth_call for
-   * symbol() / decimals() / name()) and cross-checked against Circle's published USDC address
-   * and Etherscan's USDT token page. That verification matters because `tx send --token USDT`
-   * takes the contract AND the decimals straight from here without asking the chain — a wrong
-   * address sends to the wrong contract, and wrong decimals scale the amount by a power of ten.
-   * Note USDT is 6 decimals here but 18 on BNB Smart Chain: never copy an entry between chains.
-   */
+  // Transfers trust these contracts and decimals without a chain lookup; verify each network separately.
   "eip155:1": [
     {
       kind: "erc20",
@@ -72,8 +59,6 @@ export const OFFICIAL_TOKENS: Record<string, TokenEntry[]> = {
       name: "USD Coin",
     },
   ],
-  // Not specified, and BSC is where the decimals differ (USDT is 18 there) — left for a
-  // deliberate, sourced pass rather than filled from memory.
   "eip155:56": [],
   "eip155:11155111": [],
   "eip155:97": [],

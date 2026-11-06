@@ -3,7 +3,7 @@ interface HidTransport {
   device?: { close(): void };
 }
 
-/** Ledger's normal close waits for exchangeBusyPromise. Cancellation must close HID first. */
+// Ledger close waits for pending APDUs; cancellation must close HID directly.
 export function hidHandle(transport: HidTransport) {
   let stopped = false;
   let closing: Promise<void> | undefined;
@@ -20,7 +20,7 @@ export function hidHandle(transport: HidTransport) {
       try {
         transport.device.close();
       } catch {
-        /* Disconnection may already have closed it. */
+        // Disconnection may already have closed it.
       }
     } else {
       void close().catch(() => {});

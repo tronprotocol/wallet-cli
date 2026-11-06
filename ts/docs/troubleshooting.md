@@ -4,7 +4,7 @@ Remedies for humans, keyed by the [error codes](machine-interface.md#error-codes
 
 ## `migration_required` (exit 2)
 
-Your local wallet data was written by an older version and has to be upgraded before a command that uses it can run. The upgrade gate runs ahead of the command you typed, and that command is deliberately not executed. `--help`, `--version`, `--json-schema`, and a bare `wallet-cli` never read wallet data, so they skip the gate.
+Local wallet data whose schema requires an upgrade must be upgraded before a command that uses it can run. The upgrade gate runs ahead of the command you typed, and that command is deliberately not executed. `--help`, `--version`, `--json-schema`, and a bare `wallet-cli` never read wallet data, so they skip the gate.
 
 - **At a terminal**: re-run it. The gate asks for consent first, then for the master password when the upgrade has to re-derive account data.
 - **Non-interactive (CI, pipes)**: pass `--password-stdin`. Ledger-only and watch-only wallets hold no secret to re-encrypt and upgrade without a password; a wallet holding a seed or a private key needs one, and this code is what you get when it is missing.
@@ -15,15 +15,18 @@ The full behaviour, including the `migration` result envelope, is in [startup wa
 
 ## `encoding_error`: an account this build cannot read (exit 1)
 
-The opposite direction of `migration_required` — a wallet registry written by a **newer** wallet-cli, holding an account whose storage kind this build has no reader for.
+A wallet registry can hold an account whose storage kind this build has no reader for.
 
 - [`list`](commands/list.md) degrades instead of failing: it shows every account it can read and warns, naming the wallet ids it skipped. The address scan behaves the same way, so an address you can still see keeps resolving.
 - Naming an unreadable account — `--account`, or by label or address — is refused with `encoding_error` **before the command acts**, so nothing is written and no receipt is half-built.
-- The remedy is to upgrade wallet-cli to a version that understands the format. Nothing local is corrupt.
+- Use a wallet-cli build that understands that storage kind.
+- Malformed `wallets.json`, `tokens.json` or `contacts.json` also fails with `encoding_error`. Restore the affected file from a verified backup; do not replace it with an empty file. Token-book validation also applies when adding or removing an official token.
+
+Stored contact addresses may be duplicated, but contact names must be unique across families. Stored wallet labels may exceed 64 characters; added or changed labels must satisfy the 1–64 character rule. Writes preserve unchanged records.
 
 ## `legacy_derivation` (exit 1)
 
-The account is a TRON account #1 or later in a wallet created before 4.13.1, and uses a derivation path this version no longer signs with. The same error stops `derive` from adding accounts to that wallet. Nothing is lost: follow [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) **before deleting anything**.
+The seed account uses `m/44'/195'/<index>'/0/0` with index greater than zero, which the CLI refuses to sign as a seed account. The same error stops `derive` from adding accounts to that wallet. Nothing is lost: follow [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) **before deleting anything**.
 
 ## `derivation_mismatch` (exit 1)
 
@@ -35,13 +38,13 @@ The command was malformed — a flag is unknown, missing, conflicting, or has a 
 
 - Re-run with `--help` on the exact subcommand: `wallet-cli tx send --help`.
 - Common conflicts: `--amount` vs `--raw-amount`; `--token` vs `--contract` vs `--asset-id`; `--dry-run` vs `--sign-only`; `--constructor-args` vs `--constructor-params`; `--artifact` vs `--code` vs `--code-file` on `contract deploy`; two `*-stdin` flags in one run.
-- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `waitTimeoutMs`, `networks`, `aliases`, `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}`, and the credential keys `gasfreeApiKey`, `gasfreeApiSecret`, `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `baiApiKey`) and values (`defaultOutput` is `text` or `json`).
+- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `networks`, `aliases`, `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}`, and the credential keys `gasfreeApiKey`, `gasfreeApiSecret`, `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `baiApiKey`) and values (`defaultOutput` is `text` or `json`; `timeoutMs` is an integer from 0 to 2147483647).
 
 ## `family_mismatch` (exit 2)
 
 The command, the account, or the transaction does not belong to the selected network's chain family — for example `stake freeze --network sepolia`, or a TRON-only watch-only account used on an EVM network.
 
-- Check which family the command serves: `wallet-cli <command> --help` names it, and [the command reference](commands/index.md#which-commands-run-on-which-networks) lists every TRON-only command.
+- Check which family the command serves: its `families` in `wallet-cli --json-schema` names it, and [the command reference](commands/index.md#which-commands-run-on-which-networks) lists every TRON-only command.
 - Check which network you actually selected — with `--network` omitted it is `config.defaultNetwork`. `wallet-cli config defaultNetwork` shows it.
 - If the account is the mismatch: a seed or private-key account works on both families, but a **watch-only or Ledger account has one address and one family**. `wallet-cli list -o json` shows each account's `addresses` and its `family`.
 
@@ -76,12 +79,13 @@ A credential, secret, or signing-device approval was needed but none was availab
 
 ## `timeout` (exit 1)
 
-The node or the Ledger device didn't answer within `--timeout` (default 60000 ms).
+The command did not finish within `--timeout` (default 90000 ms), which covers the whole command, or a node, service or Ledger device did not answer in time.
 
 - Check basic connectivity to the network; if you are behind a proxy, verify the CLI's traffic actually goes through it.
-- Raise the bound: `--timeout 120000`.
+- Raise the limit: `--timeout 180000`. A `--timeout` below 2000 never submits a transaction or payment.
+- A transaction that was accepted but not yet confirmed when the time runs out returns `stage: "submitted"` and a warning instead of `timeout`; check it with `tx status`.
 - Ledger: confirm the device is unlocked and the app the account was registered with (`--app tron` or `--app ethereum`) is open, then retry.
-- **If this happened on `tx send`**: the transaction may still have been submitted. Recover the txid if you have it and check `tx status` before resending.
+- **If `error.details.outcome` is `"unknown"`**, the transaction, payment or service write may have taken effect. When `error.details.txId` is present, check `tx status` with that id before resending; otherwise reconcile with the command's own evidence (the GasFree `nonce` or `traceId`, `candidateTxHash`, the B.AI order, `sunpump token-search`). See [unknown outcome](machine-interface.md#unknown-outcome-errordetailsoutcome).
 
 ## `rpc_error` (exit 1)
 
@@ -89,9 +93,9 @@ The node accepted the connection but rejected the request — a TRON API call, o
 
 - *Transaction not found*: wrong `--txid`, wrong `--network` (a Nile txid queried on mainnet), or the tx hasn't propagated yet — retry after a few seconds.
 - *Insufficient balance / bandwidth / energy*: fund the account, or stake for resources (`stake freeze`) — see [Networks](concepts/networks.md) for how resources work; on Nile use the faucet.
-- *TRC20 send reverting* (`estimateEnergy failed: REVERT opcode executed`): work through it in this order — (1) **the token balance is too low** for the amount you asked for, by far the most common cause: check it with `token balance --contract <address>`, and remember a TRX faucet does not give you tokens; (2) the recipient or the contract address is wrong; (3) only once both are ruled out, consider raising `--fee-limit` (default 100000000 SUN) — raising it does not fix an insufficient balance, it only lets a genuinely expensive call through.
+- *TRC20 send reverting* (`execution_reverted`, "TRON constant call reverted"): work through it in this order — (1) the recipient or the contract address is wrong; (2) only once that is ruled out, consider raising `--fee-limit` (default 100000000 SUN) — it only lets a genuinely expensive call through. A token balance too low for the amount fails before this, with `insufficient_token_balance`: check it with `token balance --contract <address>`, and remember a TRX faucet does not give you tokens.
 
-- *`Request failed with status code 429`*: the public TronGrid endpoint is rate-limiting you. Space the calls out and retry, or configure an API key with `config networks.<id>.apiKey`. (A 429 from the SunSwap or SunPump services is `provider_rate_limited` instead.)
+- *`Request failed with status code 429`*: the public TronGrid endpoint is rate-limiting you. Space the calls out and retry, or configure an API key with `config networks.<id>.apiKey --api-key-stdin`. (A 429 from GasFree, TronLink, B.AI, x402, the SunSwap or SunPump services, or `account history` is `provider_rate_limited` instead.)
 
 ## `unsupported_network_capability` (exit 2)
 

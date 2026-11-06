@@ -2,6 +2,13 @@ import { expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
 import { gasfreeRelayClient } from "./gasfree-relay.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 const network = {
   id: "tron:3448148188",
   family: "tron",
@@ -10,8 +17,8 @@ const network = {
 } as NetworkDescriptor;
 it("keeps official credential-free and rejects missing Open API credentials early", () => {
   const fetcher = vi.fn();
-  expect(gasfreeRelayClient(network, undefined, {}, 1000, fetcher)).toBeUndefined();
-  expect(() => gasfreeRelayClient(network, "gasfree", {}, 1000, fetcher)).toThrow(
+  expect(gasfreeRelayClient(network, undefined, {}, NO_CHECK, fetcher)).toBeDefined();
+  expect(() => gasfreeRelayClient(network, "gasfree", {}, NO_CHECK, fetcher)).toThrow(
     expect.objectContaining({ code: "gasfree_credentials_missing" }),
   );
   expect(fetcher).not.toHaveBeenCalled();
@@ -19,7 +26,7 @@ it("keeps official credential-free and rejects missing Open API credentials earl
 it("signs only the configured GasFree Open API path and never leaks credentials to custom relays", async () => {
   const fetcher = vi.fn(async () => Response.json({ code: 200, data: { providers: [] } }));
   const creds = { gasfreeApiKey: "test-key", gasfreeApiSecret: "test-secret" };
-  await gasfreeRelayClient(network, "gasfree", creds, 1000, fetcher)!.getProviders();
+  await gasfreeRelayClient(network, "gasfree", creds, NO_CHECK, fetcher)!.getProviders();
   const [url, init] = fetcher.mock.calls[0]! as unknown as [string, RequestInit];
   expect(url).toBe("https://open-test.gasfree.io/nile/api/v1/config/provider/all");
   const headers = init.headers as Record<string, string>;
@@ -32,7 +39,7 @@ it("signs only the configured GasFree Open API path and never leaks credentials 
     network,
     "https://relay.example/nile",
     creds,
-    1000,
+    NO_CHECK,
     fetcher,
   )!.getProviders();
   const customInit = (fetcher.mock.calls[0] as unknown as [string, RequestInit])[1];
@@ -41,7 +48,7 @@ it("signs only the configured GasFree Open API path and never leaks credentials 
 it("does not fall back after the selected relay fails", async () => {
   const fetcher = vi.fn(async () => new Response("SECRET", { status: 503 }));
   await expect(
-    gasfreeRelayClient(network, "https://relay.example", {}, 1000, fetcher)!.getProviders(),
+    gasfreeRelayClient(network, "https://relay.example", {}, NO_CHECK, fetcher)!.getProviders(),
   ).rejects.toMatchObject({ code: "provider_error", details: { retryPayment: false } });
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
@@ -50,20 +57,15 @@ it.each([
   "https://user:secret@relay.example",
   "https://relay.example?key=secret",
 ])("rejects unsafe relay URL %s", (url) => {
-  expect(() => gasfreeRelayClient(network, url, {}, 1000, vi.fn())).toThrow(
+  expect(() => gasfreeRelayClient(network, url, {}, NO_CHECK, vi.fn())).toThrow(
     expect.objectContaining({ code: "invalid_value" }),
   );
 });
 
-/**
- * A selected relay's failures used to collapse into one `provider_error`, so a script could not
- * tell a rate limit from a timeout from a malformed answer. Each keeps its class and the safe
- * retry metadata; none echoes the relay's text, and none falls back to another relay.
- */
-const relay = (fetcher: typeof fetch, timeout = 1000) =>
-  gasfreeRelayClient(network, "https://relay.example", {}, timeout, fetcher)!;
+const relay = (fetcher: typeof fetch, check: DispatchCheck = NO_CHECK) =>
+  gasfreeRelayClient(network, "https://relay.example", {}, check, fetcher)!;
 
-it("classifies HTTP 429 as provider_rate_limited with a numeric Retry-After only", async () => {
+it("classifies HTTP 429 as provider_rate_limited with a readable Retry-After only", async () => {
   const fetcher = vi.fn(
     async () => new Response("SECRET", { status: 429, headers: { "retry-after": "7" } }),
   );
@@ -100,7 +102,12 @@ it("keeps a transport timeout as timeout", async () => {
         init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
       }),
   );
-  await expect(relay(fetcher as unknown as typeof fetch, 5).getProviders()).rejects.toMatchObject({
+  await expect(
+    relay(
+      fetcher as unknown as typeof fetch,
+      requestDispatchCheck(new CommandDeadline(50)),
+    ).getProviders(),
+  ).rejects.toMatchObject({
     code: "timeout",
     details: { retryPayment: false },
   });
@@ -125,4 +132,48 @@ it.each([
     details: { retryPayment: false },
   });
   expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+it("reads the official relay under the command deadline and sends nothing after expiry", async () => {
+  const global = vi.fn(async () => Response.json({ code: 200, data: { providers: [] } }));
+  vi.stubGlobal("fetch", global);
+  try {
+    const deadline = new CommandDeadline(60_000);
+    const relay = gasfreeRelayClient(
+      network,
+      "official",
+      {},
+      requestDispatchCheck(deadline),
+      vi.fn(),
+    )!;
+    await relay.getProviders();
+    const [url, init] = global.mock.calls[0]! as unknown as [string, RequestInit];
+    expect(url).toBe("https://facilitator.bankofai.io/nile/api/v1/config/provider/all");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    const expired = new CommandDeadline(1, 0, { now: () => 10 });
+    await expect(
+      gasfreeRelayClient(
+        network,
+        undefined,
+        {},
+        requestDispatchCheck(expired),
+        vi.fn(),
+      )!.getAddressInfo("TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ"),
+    ).rejects.toMatchObject({ code: "timeout" });
+    expect(global).toHaveBeenCalledTimes(1);
+    deadline.dispose();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});
+it("leaves the official relay to the SDK for networks it does not serve", () => {
+  expect(
+    gasfreeRelayClient(
+      { ...network, id: "tron:1", chainId: "1" },
+      undefined,
+      {},
+      NO_CHECK,
+      vi.fn(),
+    ),
+  ).toBeUndefined();
 });

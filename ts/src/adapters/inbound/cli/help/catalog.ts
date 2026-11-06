@@ -1,43 +1,38 @@
-/**
- * Help catalog — the machine-readable half of HelpService: the structured global/stdin flag
- * model and the `--json-schema` command catalog. The human text renderer lives in./index.
- * Single structured source: the flag model is rendered as text in command --help AND emitted as
- * `globalFlags` in the root catalog.
- */
 import { z } from "zod";
 import type { ChainFamily } from "../../../../domain/types/index.js";
 import { isChainCommand } from "../contracts/index.js";
 import type {
   ChainCommandDefinition,
   CommandDefinition,
+  ExclusiveGroup,
   StdinChannel,
 } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
+import type { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, type GlobalFlagSpec } from "../globals/index.js";
 import { ERROR_CODES } from "../../../../domain/errors/codes.js";
+import { exclusiveGroupsFor, exclusiveRefine } from "../schemas/exclusive.js";
 
-// Flags accepted on every command (kubectl-style globals + secret channels). The flag model — arity,
-// descriptions, defaults, and the global-vs-command-scoped split — is owned by domain metadata
-// GLOBAL_FLAG_SPECS; this layer is the rendered shape (`--flag`/`-alias` tokens) and a pure
-// projection over it. GLOBAL_FLAGS = the globally-listed flags; STDIN_FLAGS = the command-scoped ones.
 export interface GlobalFlag {
   flag: string;
   alias?: string;
   type: "string" | "number" | "boolean";
   values?: string[];
+  minimum?: number;
+  maximum?: number;
   description: string;
   optional?: boolean;
   defaultValue?: string | number | boolean;
 }
 
-/** spec → rendered GlobalFlag (adds the `--`/`-` token prefixes the help/catalog surface use). */
 function globalFlagDoc(f: GlobalFlagSpec): GlobalFlag {
   return {
     flag: `--${f.name}`,
     ...(f.alias ? { alias: `-${f.alias}` } : {}),
     type: f.kind === "value" ? f.valueType! : "boolean",
     ...(f.choices ? { values: [...f.choices] } : {}),
+    ...(f.bounds ? { minimum: f.bounds.minimum, maximum: f.bounds.maximum } : {}),
     description: f.description,
     ...(f.defaultValue !== undefined ? { defaultValue: f.defaultValue } : {}),
   };
@@ -45,9 +40,15 @@ function globalFlagDoc(f: GlobalFlagSpec): GlobalFlag {
 
 export const GLOBAL_FLAGS: readonly GlobalFlag[] = GLOBAL_FLAG_SPECS.filter(
   (f) => !f.commandScoped,
-).map(globalFlagDoc);
+).flatMap((f) =>
+  f.negation === undefined
+    ? [globalFlagDoc(f)]
+    : [
+        globalFlagDoc(f),
+        { flag: `--no-${f.name}`, type: "boolean" as const, description: f.negation },
+      ],
+);
 
-// stdin channel → its documented --*-stdin flag, derived from the command-scoped specs (keyed by secretKey).
 const STDIN_FLAGS = Object.fromEntries(
   GLOBAL_FLAG_SPECS.filter((f) => f.commandScoped).map((f) => [f.secretKey, globalFlagDoc(f)]),
 ) as Record<NonNullable<CommandDefinition["stdin"]>, GlobalFlag>;
@@ -56,12 +57,11 @@ export function inputFlagsFor(cmd: { stdin?: StdinChannel }): readonly GlobalFla
   return cmd.stdin ? [STDIN_FLAGS[cmd.stdin]] : [];
 }
 
-/** usage line: the typed path is complete for both kinds (neutral = full, chain = logical). */
 export function commandUsage(cmd: CommandDefinition): string {
   return `wallet-cli ${cmd.path.join(" ")} [options]`;
 }
 
-/** never let one un-convertible schema break the whole catalog. */
+// One unsupported schema must not break the catalog.
 function commandInputSchema(input: z.ZodType): unknown {
   try {
     return z.toJSONSchema(input as z.ZodType);
@@ -70,12 +70,26 @@ function commandInputSchema(input: z.ZodType): unknown {
   }
 }
 
-/** machine-readable catalog of the whole command surface — the agent's single discovery call. */
+// Per-network support of each capability, from the capability predicates.
+export type CapabilitySupportSource = Pick<CapabilityRegistry, "supportByNetwork">;
+
 export function buildCatalog(
   registry: CommandRegistry,
   version: string,
   familyFilter?: ChainFamily,
+  capabilities?: CapabilitySupportSource,
 ): string {
+  const support = (capability: string | undefined, families: readonly string[]) =>
+    capability && capabilities
+      ? {
+          support: Object.fromEntries(
+            capabilities
+              .supportByNetwork(capability)
+              .filter((n) => families.includes(n.family))
+              .map((n) => [n.network, n.support]),
+          ),
+        }
+      : {};
   const commands = registry
     .all()
     .filter((cmd) =>
@@ -94,8 +108,14 @@ export function buildCatalog(
             summary: cmd.spec.summary ?? "",
             requires: { network: cmd.spec.network, auth: cmd.spec.auth, wallet: cmd.spec.wallet },
             ...(cmd.spec.capability ? { capability: cmd.spec.capability } : {}),
+            ...support(
+              cmd.spec.capability,
+              familyFilter ? [familyFilter] : Object.keys(cmd.families),
+            ),
             examples: cmd.spec.examples.map((e: { cmd: string }) => e.cmd),
-            ...(cmd.spec.exclusive?.length ? { exclusive: cmd.spec.exclusive } : {}),
+            ...exclusiveEntry(
+              exclusiveGroupsFor(cmd.spec.exclusive, mergedFields(cmd, familyFilter)),
+            ),
             ...(cmd.spec.stdin ? { inputFlags: inputFlagsFor(cmd.spec) } : {}),
             inputSchema: commandInputSchema(mergedInput(cmd, familyFilter)),
           }
@@ -107,15 +127,14 @@ export function buildCatalog(
             summary: cmd.summary ?? "",
             requires: { network: cmd.network, auth: cmd.auth, wallet: cmd.wallet },
             ...(cmd.capability ? { capability: cmd.capability } : {}),
+            ...support(cmd.capability, familyFilter ? [familyFilter] : registry.families()),
             examples: cmd.examples.map((e: { cmd: string }) => e.cmd),
-            ...(cmd.exclusive?.length ? { exclusive: cmd.exclusive } : {}),
+            ...exclusiveEntry(exclusiveGroupsFor(cmd.exclusive, cmd.fields)),
             ...(inputFlagsFor(cmd).length ? { inputFlags: inputFlagsFor(cmd) } : {}),
             inputSchema: commandInputSchema(cmd.input),
           },
     )
     .sort((a, b) => a.id.localeCompare(b.id));
-  // The error index travels with the command surface: an agent discovering what it can call also
-  // learns, in the same call, every `error.code` those calls can answer with.
   return JSON.stringify({
     tool: "wallet-cli",
     version,
@@ -125,15 +144,41 @@ export function buildCatalog(
   });
 }
 
-function mergedInput(def: ChainCommandDefinition, family?: ChainFamily): z.ZodType {
-  let shape = { ...def.spec.baseFields.shape };
-  const bindings = family ? [def.families[family]] : Object.values(def.families);
-  for (const binding of bindings) {
-    if (binding?.fields) shape = { ...shape, ...binding.fields.shape };
+function exclusiveEntry(groups: ExclusiveGroup[]): { exclusive?: ExclusiveGroup[] } {
+  return groups.length ? { exclusive: groups } : {};
+}
+
+// A shared field is required only when every family requires it.
+export function mergedFields(
+  def: ChainCommandDefinition,
+  family?: ChainFamily,
+): z.ZodObject<z.ZodRawShape> {
+  const shapes = bindingsFor(def, family).map((binding): z.ZodRawShape => ({
+    ...def.spec.baseFields.shape,
+    ...binding?.fields?.shape,
+  }));
+  const shape: Record<string, z.ZodRawShape[string]> = Object.assign({}, ...shapes);
+  const acceptsAbsent = (field: z.ZodRawShape[string] | undefined) =>
+    field !== undefined && z.safeParse(field, undefined).success;
+  for (const [name, field] of Object.entries(shape)) {
+    if (!acceptsAbsent(field) && shapes.some((s) => acceptsAbsent(s[name]))) {
+      shape[name] = z.optional(field);
+    }
   }
-  let input: z.ZodType = z.object(shape);
+  return z.object(shape);
+}
+
+function bindingsFor(def: ChainCommandDefinition, family?: ChainFamily) {
+  return family ? [def.families[family]] : Object.values(def.families);
+}
+
+function mergedInput(def: ChainCommandDefinition, family?: ChainFamily): z.ZodType {
+  const fields = mergedFields(def, family);
+  let input: z.ZodType = fields;
+  const exclusive = exclusiveRefine(def.spec.exclusive, fields);
+  if (exclusive) input = input.superRefine(exclusive);
   if (def.spec.baseRefine) input = input.superRefine(def.spec.baseRefine);
-  for (const binding of bindings) {
+  for (const binding of bindingsFor(def, family)) {
     if (binding?.refine) input = input.superRefine(binding.refine);
   }
   return input;

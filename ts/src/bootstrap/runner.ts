@@ -1,169 +1,151 @@
 import packageMetadata from "../../package.json" with { type: "json" };
-import { runMigrationGate, type PendingUpgrade } from "./migration-gate.js";
-import { migrationSteps } from "./migration-steps.js";
-import { MigrationRunner } from "../adapters/outbound/persistence/migration.js";
-import { hideBin } from "yargs/helpers";
 import type { ExitCode, OutputMode } from "../domain/types/index.js";
-import { normalizeError, UsageError } from "../domain/errors/index.js";
-import { redactErrorMessage } from "../domain/errors/redact.js";
+import { CONFIG_DEFAULTS } from "../application/contracts/config-defaults.js";
+import { redactErrorMessage, setRedactedHomeDirectory } from "../domain/errors/redact.js";
 import { HelpService, hasMeta } from "../adapters/inbound/cli/help/index.js";
 import { assertNoTailFlags, buildCli } from "../adapters/inbound/cli/shell/index.js";
+import { commandId } from "../adapters/inbound/cli/command-id.js";
 import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js";
+import { maskCredentials } from "../adapters/inbound/cli/output/mask.js";
+import { exitCodeOf, normalizeCliError } from "../adapters/inbound/cli/output/errors.js";
 import { StreamManager } from "../adapters/inbound/cli/stream/index.js";
-import { hasCommand, parseGlobals } from "./argv.js";
+import {
+  commandPathOf,
+  commandTokens,
+  hasCommand,
+  invalidGlobalError,
+  parseGlobals,
+  stdinConflictError,
+} from "../adapters/inbound/cli/globals/argv.js";
+import {
+  cliMigrationPrompt,
+  renderMigrationOutcome,
+} from "../adapters/inbound/cli/migration/index.js";
 import { composeCliRuntime } from "./composition.js";
-import { basename } from "node:path";
+import { homedir } from "node:os";
+import { reportFatal } from "../adapters/inbound/cli/output/fatal.js";
 
 export const VERSION = packageMetadata.version;
 
-/**
- * Report a failure raised while the composition root was still being built — an unreadable,
- * insecure, or malformed `config.yaml`. These happen before the runtime exists, so they cannot use
- * the normal error path, and without this they escape `main()` entirely and land on the last-resort
- * guard in `index.ts` as a bare `fatal:` line at exit 1 — no envelope, and the wrong exit code for
- * what is a UsageError.
- *
- * Everything here depends on argv alone: the config that would have supplied the default output
- * mode is precisely what failed, so only an explicit `-o` is honoured and text is the fallback.
- * `normalizeError` still does the redacting — a YAML parse error quotes the offending line, which
- * may sit next to a service credential, so it is classified to a generic `internal_error` rather
- * than surfaced.
- */
+// Bootstrap failures use argv output settings because config may be unreadable.
 function reportBootstrapFailure(
   error: unknown,
   globals: { output?: OutputMode; verbose?: boolean },
   startedAt: number,
 ): ExitCode {
-  const output = globals.output ?? "text";
-  const normalized = normalizeError(error);
+  const output = globals.output ?? CONFIG_DEFAULTS.defaultOutput;
+  const normalized = normalizeCliError(error);
   const streams = new StreamManager(output, globals.verbose ?? false);
   if (normalized.code === "internal_error") {
-    // same --verbose-gated escape hatch the main path offers, minus paths/URLs
     streams.diagnostic("debug", `bootstrap error: ${redactErrorMessage(String(error))}`);
   }
   createOutputFormatter(output, streams, startedAt).error(normalized);
-  return normalized.exitCode();
+  return exitCodeOf(normalized);
 }
 
-/** Execute one CLI invocation. Dependency construction is delegated to the composition root. */
+// Callable from tests: never ends the process.
 export async function main(argv: string[]): Promise<ExitCode> {
-  const startedAt = Date.now();
-  const tokens = hideBin(argv);
-  const { globals, secretPaths, invalid, stdinFlags } = parseGlobals(tokens);
+  return (await runCommand(argv)).code;
+}
 
-  // Reject more than one `--*-stdin` flag before anything else runs: stdin (fd 0) can serve only
-  // one secret channel per invocation, so this is a flag COMBINATION error (invalid_option, exit
-  // 2), not a read failure — it must be caught before the migration gate or any command logic
-  // gets a chance to read a secret, not discovered later as secret_source_error when the second
-  // read finds stdin already consumed.
-  if (stdinFlags.length > 1) {
-    return reportBootstrapFailure(
-      new UsageError(
-        "invalid_option",
-        `${stdinFlags.join(" and ")} cannot be combined: only one secret may be read from stdin per run`,
-      ),
-      globals,
-      startedAt,
-    );
+interface CommandEnd {
+  code: ExitCode;
+  // A server is still listening; the process must not be ended.
+  longLived: boolean;
+}
+
+/**
+ * Runs one command as the whole process: waits until stdout and stderr have accepted everything
+ * written, then ends the process unless a server keeps it. A reader that never drains the pipe can
+ * delay the end; nothing else outlives the command.
+ */
+export async function runProcess(
+  argv: string[],
+  io: {
+    stdout: NodeJS.WritableStream;
+    stderr: NodeJS.WritableStream;
+    exit: (code: ExitCode) => void;
+  } = { stdout: process.stdout, stderr: process.stderr, exit: (code) => process.exit(code) },
+): Promise<void> {
+  // A reader that closed the pipe early must not turn into a crash report on top of the result.
+  io.stdout.on("error", () => {});
+  io.stderr.on("error", () => {});
+  let end: CommandEnd;
+  try {
+    end = await runCommand(argv);
+  } catch (error) {
+    end = { code: reportFatal(error), longLived: false };
+  }
+  await Promise.all([written(io.stdout), written(io.stderr)]);
+  if (end.longLived) process.exitCode = end.code;
+  else io.exit(end.code);
+}
+
+// Resolves once everything written before it has been handed to the OS, or the stream failed.
+function written(stream: NodeJS.WritableStream): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      stream.write("", () => resolve());
+    } catch {
+      resolve();
+    }
+  });
+}
+
+async function runCommand(argv: string[]): Promise<CommandEnd> {
+  const monotonicStart = performance.now();
+  const startedAt = Date.now();
+  setRedactedHomeDirectory(homedir());
+  const tokens = commandTokens(argv);
+  const { globals, secretPaths, invalid, stdinFlags, intentError } = parseGlobals(tokens);
+
+  // Reject competing stdin secrets before migration or command logic can consume stdin.
+  const stdinConflict = stdinConflictError(stdinFlags);
+  if (stdinConflict) {
+    return { code: reportBootstrapFailure(stdinConflict, globals, startedAt), longLived: false };
   }
 
   let runtime: ReturnType<typeof composeCliRuntime>;
   try {
-    runtime = composeCliRuntime({ globals, secretPaths, startedAt });
+    runtime = composeCliRuntime({ globals, secretPaths, startedAt, monotonicStart });
   } catch (error) {
-    return reportBootstrapFailure(error, globals, startedAt);
+    return { code: reportBootstrapFailure(error, globals, startedAt), longLived: false };
   }
+  const end = (code: ExitCode): CommandEnd => ({ code, longLived: runtime.lifetime.longLived });
 
   try {
     if (hasMeta(tokens) || !hasCommand(tokens)) {
-      const help = new HelpService(runtime.registry, runtime.streams, VERSION);
-      return help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]);
-    }
-
-    // Commands that can use wallet state must pass migration before dispatch.
-    // Public help, version and schema discovery above never read or migrate wallet data.
-    const migration = await runMigrationGate(
-      new MigrationRunner(runtime.store),
-      migrationSteps(runtime.root, runtime.store),
-      {
-        notice: (pending, needsPassword) => {
-          for (const line of upgradeNotice(pending, needsPassword)) {
-            runtime.streams.diagnostic("info", line);
-          }
-        },
-        confirm: async (_pending) => {
-          const { prompter } = runtime.deps;
-          // Non-interactive secretless plans migrate automatically; password-bearing plans fall
-          // through to password(), which raises migration_required if no stdin source exists.
-          if (!prompter.isTTY()) return true;
-          return prompter.select({
-            label: "Wallet data upgrade",
-            choices: [
-              { value: true, label: "Upgrade now" },
-              { value: false, label: "Exit without upgrading" },
-            ],
-          });
-        },
-        password: async () => {
-          const { secrets, keystore, prompter } = runtime.deps;
-          if (!secrets.hasMasterPassword() && !prompter.isTTY()) return null;
-          runtime.streams.diagnostic("info", "==> Verifying master password");
-          await secrets.primePassword({
-            mode: "verify",
-            verify: (pw) => keystore.verifyPassword(pw),
-          });
-          return secrets.masterPassword();
-        },
-        applying: () => {
-          runtime.streams.diagnostic("info", "==> Backing up and upgrading wallet data");
-        },
-      },
-    );
-
-    // Startup changed durable wallet state. End this invocation at that boundary instead of
-    // silently dispatching the command the user typed before they saw the upgrade.
-    if (migration.status === "cancelled") {
-      const data = {
-        upgraded: false,
-        cancelled: true,
-        files: migration.files.map(({ path, from, to }) => ({ path, from, to })),
-        originalCommandExecuted: false,
-      };
-      runtime.streams.result(
-        runtime.formatter.success("migration", undefined, data, () =>
-          upgradeCancelledNotice(migration.files).join("\n"),
-        ),
+      const help = new HelpService(
+        runtime.registry,
+        runtime.streams,
+        VERSION,
+        runtime.capabilities,
       );
-      return 0;
+      return end(help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]));
     }
 
-    if (migration.status === "upgraded") {
-      const data = {
-        upgraded: true,
-        files: migration.files.map(({ path, from, to, backup }) => ({ path, from, to, backup })),
-        originalCommandExecuted: false,
-      };
-      runtime.streams.result(
-        runtime.formatter.success("migration", undefined, data, () =>
-          upgradeCompleteNotice(migration.files).join("\n"),
-        ),
+    // Secrets on stdin are read once, asynchronously, so the deadline can stop a stalled pipe.
+    // The read precedes dispatch, so a failure here names the command argv gave, if any.
+    await runtime.deps.secrets.loadStdin(runtime.deadline.signal).catch((error: unknown) => {
+      const path = commandPathOf(
+        tokens,
+        (p) =>
+          runtime.registry.resolveNeutral(p) !== null || runtime.registry.resolveChain(p) !== null,
       );
-      return 0;
-    }
+      if (path) runtime.session.current = { commandId: commandId({ path }) };
+      throw error;
+    });
 
-    // A supplied global flag with an out-of-range/invalid value is a usage error — never a silent
-    // fall-back to the default. Reported before command dispatch, so no RPC is attempted.
-    if (invalid.length > 0) {
-      const bad = invalid[0]!;
-      throw new UsageError(
-        "invalid_value",
-        `invalid ${bad.flag} value "${bad.value}": ${bad.reason}`,
-      );
-    }
+    // Migrate before dispatch; public help and discovery bypass this gate. The original command
+    // never runs after a cancelled or completed upgrade.
+    const migration = await runtime.migrations.run(cliMigrationPrompt(runtime.deps));
+    if (renderMigrationOutcome(migration, runtime.streams, runtime.formatter)) return end(0);
 
-    // yargs stores a grouped command's tail in argv.group/verb/args, so those names must stay in
-    // the per-command flag allowlist — which leaves a user-typed `--args` indistinguishable from
-    // plumbing once parsed. The raw tokens still tell them apart.
+    const invalidGlobal = invalidGlobalError(invalid);
+    if (invalidGlobal) throw invalidGlobal;
+    if (intentError) throw intentError;
+
+    // Reject reserved tail flags before yargs makes them indistinguishable from command fields.
     assertNoTailFlags(tokens);
 
     const cli = buildCli({
@@ -177,64 +159,23 @@ export async function main(argv: string[]): Promise<ExitCode> {
       session: runtime.session,
     });
     await cli.parseAsync(tokens);
-    return 0;
+    return end(0);
   } catch (error) {
-    const normalized = normalizeError(error);
+    const normalized = normalizeCliError(error);
     if (normalized.code === "internal_error") {
-      runtime.streams.diagnostic("debug", `internal error: ${String(error)}`);
+      runtime.streams.diagnostic(
+        "debug",
+        maskCredentials(`internal error: ${String(error)}`, runtime.credentials),
+      );
     }
     runtime.formatter.error(normalized, {
       commandId: runtime.session.current?.commandId,
       net: runtime.session.current?.net,
     });
-    return normalized.exitCode();
+    return end(exitCodeOf(normalized));
   } finally {
-    runtime.deps.secrets.clearPrimed(); // release cached secrets at end of the invocation
+    runtime.deps.secrets.clearPrimed();
     runtime.prompter.close();
+    runtime.deadline.dispose();
   }
-}
-
-/** Goes to stderr at `info`, so stdout stays reserved for command output. */
-export function upgradeNotice(pending: PendingUpgrade[], needsPassword = true): string[] {
-  return [
-    "",
-    "Updating wallet-cli wallet data...",
-    "==> An older wallet data format was detected; an upgrade is required",
-    "",
-    ...pending.flatMap((f) => [
-      `==> ${f.path}`,
-      `    Schema: v${f.from} \u2192 v${f.to}`,
-      `    Backup: ${f.backup}`,
-    ]),
-    "",
-    "==> The backup is kept permanently; this upgrade runs only once",
-    ...(needsPassword
-      ? ["==> Your master password is required to update derived account data"]
-      : []),
-    "Release details: https://github.com/tronprotocol/wallet-cli/releases",
-    "",
-  ];
-}
-
-export function upgradeCompleteNotice(upgraded: PendingUpgrade[]): string[] {
-  return [
-    "✓ Wallet data upgrade completed successfully.",
-    ...upgraded.map((file) => `  Backup saved: ${file.backup}`),
-    "",
-    "🎉 Upgrade complete. Please run your command again.",
-  ];
-}
-
-export function upgradeCancelledNotice(pending: PendingUpgrade[]): string[] {
-  return [
-    "Wallet data was not upgraded. No changes were made.",
-    "",
-    "This version of wallet-cli does not support the existing wallet data format:",
-    ...pending.map(
-      (file) => `  ${basename(file.path)}: schema v${file.from} (requires v${file.to})`,
-    ),
-    "",
-    "To continue without upgrading, use a compatible earlier release:",
-    "https://github.com/tronprotocol/wallet-cli/releases",
-  ];
 }

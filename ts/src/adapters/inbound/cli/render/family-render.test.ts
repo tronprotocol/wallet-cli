@@ -39,8 +39,6 @@ describe("FAMILY_RENDER evm", () => {
     expect(FAMILY_RENDER.evm.addressLabel).toBe("EVM address");
   });
 
-  // The cross-cutting rule is that EVM reuses TRON's field set and only changes values and
-  // units — with the fee as the stated exception, because the unit is IN the field name.
   it("renders gas used and the fee in ETH", () => {
     const rows = FAMILY_RENDER.evm.txInfoRows(
       {
@@ -63,8 +61,6 @@ describe("FAMILY_RENDER evm", () => {
     expect(Object.fromEntries(rows).Fee).toBe("");
   });
 
-  // TxInfoView is a cross-family superset; each family picks only the fields it populates, so
-  // the EVM rows must not carry TRON's resource accounting.
   it("omits TRON-only rows from its tx info", () => {
     const labels = FAMILY_RENDER.evm
       .txInfoRows(
@@ -85,18 +81,12 @@ describe("renderFamily", () => {
     ).toBe("evm");
   });
 
-  // The old default was "tron". With one family that was unreachable; with two it silently
-  // renders wei amounts as TRX — a wrong-currency receipt, which is the worst way to be wrong.
-  // Chain commands always resolve a network before rendering, so this really is unreachable;
-  // the point is that if it ever happens it must be loud.
   it("refuses to guess when no network was resolved", () => {
     expect(() => renderFamily({ command: "tx.info" })).toThrow();
     expect(() => renderFamily(undefined)).toThrow();
   });
 });
 
-// The regression this exists to prevent: FAMILY_RENDER is keyed by FAMILY, so eip155:1 and eip155:56
-// share one hook. With the symbol baked into the hook, 0.5 BNB on BSC rendered as "0.5 ETH".
 describe("the native symbol comes from the network, not the family", () => {
   it.each([
     ["evm", "ETH", "0.5 ETH"],
@@ -120,13 +110,6 @@ describe("the native symbol comes from the network, not the family", () => {
   });
 });
 
-/**
- * `account info` and `chain prices` — the two commands whose text output was TRON-only.
- *
- * Both were rendered by a single TRON formatter for every family. On EVM that printed
- * "Balance 0 TRX" for an account holding 0.412 ETH, and three empty TRON price labels with none
- * of the EVM fee data. The JSON was correct in both cases, so this is purely the text side.
- */
 describe("FAMILY_RENDER accountInfoRows", () => {
   const EVM_ACCOUNT = {
     address: "0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961",
@@ -141,7 +124,6 @@ describe("FAMILY_RENDER accountInfoRows", () => {
     const rows = FAMILY_RENDER.evm.accountInfoRows(EVM_ACCOUNT, "ETH");
 
     expect(rows).toContainEqual(["Balance", "0.41209 ETH"]);
-    // The exact failure this replaces: a real balance reported as an empty TRON account.
     expect(rows.map((r) => r[1])).not.toContain("0 TRX");
   });
 
@@ -149,15 +131,12 @@ describe("FAMILY_RENDER accountInfoRows", () => {
     const rows = FAMILY_RENDER.evm.accountInfoRows(EVM_ACCOUNT, "ETH");
 
     expect(rows).toContainEqual(["Nonce", "16"]);
-    // Uppercase `EOA` — the standard name, and the text twin of json's `eoa`.
     expect(rows).toContainEqual(["Type", "EOA"]);
     expect(
       FAMILY_RENDER.evm.accountInfoRows({ ...EVM_ACCOUNT, type: "contract" }, "ETH"),
     ).toContainEqual(["Type", "contract"]);
   });
 
-  // A contract gets its code size and an EOA none: an EOA is not a contract with zero
-  // bytes, and a row reading "0 bytes" would say it is.
   it("sizes a contract's code and leaves the row off an EOA", () => {
     expect(
       FAMILY_RENDER.evm.accountInfoRows(
@@ -183,19 +162,39 @@ describe("FAMILY_RENDER accountInfoRows", () => {
     const rows = FAMILY_RENDER.tron.accountInfoRows(
       {
         address: "TXP3YPS3mgoHRioz42gMhL6x5VvusPTMk6",
-        account: {
-          balance: "9000000000",
-          owner_permission: { threshold: 1, keys: [{}] },
-          active_permission: [{}],
-        },
+        account: { balance: "1", owner_permission: { threshold: 9, keys: [] } },
+        balanceSun: "9000000000",
+        staked: { energySun: "0", bandwidthSun: "0", tronPowerSun: "0", totalSun: "0" },
+        createdAt: 1700000000000,
+        permissions: { ownerThreshold: 1, ownerKeys: 1, activeGroups: 1 },
         resources: { energy: { used: 12, limit: 65 }, bandwidth: { used: 6, limit: 15 } },
       },
       "TRX",
     );
 
     expect(rows).toContainEqual(["Balance", "9,000 TRX"]);
+    expect(rows).toContainEqual(["Created", "2023-11-14"]);
     expect(rows).toContainEqual(["Permissions", "owner 1-of-1, 1 active group"]);
     expect(rows.map((r) => r[0])).toContain("Energy");
+    expect(rows.map((r) => r[0])).not.toContain("Staked");
+  });
+
+  it("shows no permission summary for an account without permissions", () => {
+    const rows = FAMILY_RENDER.tron.accountInfoRows(
+      {
+        address: "TXP3YPS3mgoHRioz42gMhL6x5VvusPTMk6",
+        account: {},
+        balanceSun: "0",
+        staked: { energySun: "0", bandwidthSun: "0", tronPowerSun: "0", totalSun: "0" },
+        createdAt: null,
+        permissions: null,
+        resources: {},
+      },
+      "TRX",
+    );
+
+    expect(rows).toContainEqual(["Permissions", "—"]);
+    expect(rows).toContainEqual(["Created", ""]);
   });
 });
 
@@ -207,8 +206,6 @@ describe("FAMILY_RENDER chainPricesRows", () => {
     gasPriceWei: "960341983",
   };
 
-  // gwei, not wei: it is the unit --max-fee and --priority-fee accept, and quoting the output in
-  // a different unit than the input would leave the reader converting nine zeros by hand.
   it("prices EVM gas in gwei", () => {
     const rows = FAMILY_RENDER.evm.chainPricesRows(EVM_PRICES, "ETH");
 
@@ -217,8 +214,6 @@ describe("FAMILY_RENDER chainPricesRows", () => {
     expect(rows).toContainEqual(["Gas price", "0.960341 gwei"]);
   });
 
-  // A legacy chain reports no base fee. The row is absent rather than blank — an empty value is
-  // what the TRON formatter produced on EVM, and it says nothing.
   it("omits the base fee on a legacy chain instead of printing a blank row", () => {
     const rows = FAMILY_RENDER.evm.chainPricesRows(
       { feeModel: "legacy", gasPriceWei: "5000000000" },
@@ -245,16 +240,11 @@ describe("FAMILY_RENDER chainPricesRows", () => {
       "TRX",
     );
 
-    expect(rows[0]![1]).toContain("100 SUN / unit");
+    expect(rows[0]![1]).toContain("100 sun / unit");
     expect(rows).toContainEqual(["Memo fee", "1 TRX"]);
   });
 });
 
-/**
- * The settlement rows: what a transaction cost, how deep it is, and what a block or
- * a node actually reports. All four were in the JSON already — only the text layer read TRON's
- * fields and so printed nothing (or nothing useful) on EVM.
- */
 describe("FAMILY_RENDER — receipt settlement rows", () => {
   it("states the EVM fee AND what it is the product of", () => {
     const rows = FAMILY_RENDER.evm.receiptSettlementRows(
@@ -270,8 +260,6 @@ describe("FAMILY_RENDER — receipt settlement rows", () => {
     expect(rows).toEqual([["Fee", "0.000441 ETH  (21,000 gas × 21 gwei)"]]);
   });
 
-  // A receipt from a node that omitted effectiveGasPrice still has to state the total: the fee was
-  // paid whether or not its breakdown came back.
   it("falls back to the bare total when the breakdown is missing", () => {
     const rows = FAMILY_RENDER.evm.receiptSettlementRows(
       { kind: "send", feeWei: "441000000000000" } as never,
@@ -293,8 +281,6 @@ describe("FAMILY_RENDER — receipt settlement rows", () => {
     ]);
   });
 
-  // The nonce is the entry point for diagnosing a stuck transaction — the case where no
-  // receipt ever arrives — so it is a receipt row, not a confirmation one.
   it("gives EVM receipts a Nonce row and TRON none", () => {
     expect(FAMILY_RENDER.evm.receiptIdentityRows({ kind: "send", nonce: 42 } as never)).toEqual([
       ["Nonce", "42"],
@@ -332,7 +318,6 @@ describe("FAMILY_RENDER — chain node rows", () => {
     ]);
   });
 
-  // "the node would not say" is not the same claim as "it is behind".
   it("dashes the sync row when the node did not answer eth_syncing", () => {
     const rows = FAMILY_RENDER.evm.chainNodeRows({ ...EVM_NODE, inSync: null } as never);
     expect(rows).toContainEqual(["Syncing", "—"]);

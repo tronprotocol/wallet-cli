@@ -20,7 +20,6 @@ describe("token-book notes", () => {
     expect(notes[0]).toContain(`MYUSD is ${USDT} (from your token book).`);
   });
 
-  // The liquidity receipts keep addresses out of their rows; the note is the one place it shows.
   it("is appended under a liquidity receipt", () => {
     const out = TextFormatters.sunswapRemoveLiquidity(
       {

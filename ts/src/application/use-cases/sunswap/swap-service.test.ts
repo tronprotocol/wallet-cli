@@ -1,0 +1,1402 @@
+import { describe, expect, it, vi } from "vitest";
+import { utils as tronUtils } from "tronweb";
+import type { NetworkDescriptor, TypedDataPayload } from "../../../domain/types/index.js";
+import type { TransactionScope } from "../../contracts/execution-scope.js";
+import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
+import type { LaunchpadPort } from "../../ports/sunpump/launchpad.js";
+import type { TxPipeline } from "../../services/pipeline/index.js";
+import type { SunSwapTokenResolver } from "../../services/sunswap/sunswap-token-resolver.js";
+import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";
+import type { RouterPort, RouterRoute, RouterWireRoute } from "../../ports/sunswap/router.js";
+import type { LiquidityPort } from "../../ports/sunswap/liquidity.js";
+import type { RouterExecutionPort } from "../../ports/sunswap/router-execution.js";
+import type { Permit2Grant, Permit2Port } from "../../ports/sunswap/permit2.js";
+import type { SignerResolver } from "../../services/signer/index.js";
+import { SunSwapSwapService } from "./swap-service.js";
+import { LiquidityTransactions } from "./liquidity-transactions.js";
+import { SigningService } from "../../services/signing/signing-service.js";
+import { baseUnitAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
+
+const UNIVERSAL_ROUTER = "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4";
+const PERMIT2 = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
+const NOW = Math.floor(Date.now() / 1000);
+// Owner address as 20-byte calldata hex.
+const OWNER_HEX = "27c5d3a60860342244436a07f15b3b3186225aec";
+// Public fixture key 1; real signatures must recover to this owner.
+const SIGNING_OWNER = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";
+const SIGNING_OWNER_HEX = "7e5f4552091a69125d5dfcb7b8c2659029395bdf";
+const SIGNING_KEY = `${"0".repeat(63)}1`;
+const BEST_OUT = 34376047n;
+const BEST_FLOOR = ((BEST_OUT * 9950n) / 10000n).toString();
+
+function permitTypedData(): TypedDataPayload {
+  return {
+    primaryType: "PermitSingle",
+    domain: {
+      name: "Permit2",
+      chainId: 728126428,
+      verifyingContract: "0xbe365314f2e77fd1257d60c346bb32dbda369403",
+    },
+    types: {
+      PermitDetails: [
+        { name: "token", type: "address" },
+        { name: "amount", type: "uint160" },
+        { name: "expiration", type: "uint48" },
+        { name: "nonce", type: "uint48" },
+      ],
+      PermitSingle: [
+        { name: "details", type: "PermitDetails" },
+        { name: "spender", type: "address" },
+        { name: "sigDeadline", type: "uint256" },
+      ],
+    },
+    message: {
+      details: {
+        token: "0xa614f803b6fd780986a42c78ec9c7f77e6ded13c",
+        amount: "100000000",
+        expiration: String(NOW + 3600),
+        nonce: "0",
+      },
+      spender: "0xa31d689a84244bc01be56e07aeafb7686f56bb89",
+      sigDeadline: String(NOW + 3600),
+    },
+  };
+}
+
+function routerCall(
+  callValue = "0",
+  recipientHex = OWNER_HEX,
+  floor = BEST_FLOOR,
+): Record<string, unknown> {
+  const word = (value: string) => BigInt(value).toString(16).padStart(64, "0");
+  return {
+    target: UNIVERSAL_ROUTER,
+    functionSelector: "execute(bytes,bytes[],uint256)",
+    callValue,
+    feeLimit: "100000000",
+    parameters: [
+      { type: "bytes", value: "0x1204" },
+      {
+        type: "bytes[]",
+        value: [
+          `0x${word("100000000")}${word(floor)}${word(`0x${recipientHex}`)}${word(String(NOW + 3600))}`,
+        ],
+      },
+      { type: "uint256", value: String(NOW + 1800) },
+    ],
+  };
+}
+
+const LAUNCHPAD = "TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw";
+const TRX = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
+const TOKEN = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
+const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+const OWNER = "TDbWLnRxt8f7e81BBccGEKoSoDGR4pmnuJ";
+const PURCHASE = "purchaseToken(address,uint256)";
+const SALE = "saleToken(address,uint256,uint256)";
+const APPROVE = "approve(address,uint256)";
+
+const NETWORK = {
+  id: "tron:728126428",
+  family: "tron",
+  nativeSymbol: "TRX",
+  chainId: "728126428",
+  sunpump: { launchpad: LAUNCHPAD },
+} as unknown as NetworkDescriptor;
+
+const BOOKED = "TSSMHYeV2uE9qYH95DqyoCuNCzEL1NvU3S";
+const resolveFixture = (value: string) =>
+  ({ TRX, USDT, JUSTIN: TOKEN, BOOKED })[value.toUpperCase()] ?? value;
+const resolveToken = vi.fn((_n: NetworkDescriptor, value: string, _lookup: unknown) => ({
+  address: resolveFixture(value),
+  fromTokenBook: value.toUpperCase() === "BOOKED",
+}));
+const resolver = {
+  resolve: (_n: NetworkDescriptor, value: string) => resolveFixture(value),
+  resolveToken,
+  resolveSymbol: (_n: NetworkDescriptor, value: string) => value,
+  label: () => "tron",
+} as unknown as SunSwapTokenResolver;
+
+function makePort(overrides: Partial<LaunchpadPort> = {}): LaunchpadPort {
+  return {
+    tokenState: vi.fn(async () => LAUNCHPAD_STATE.TRADING),
+    tokenFacts: vi.fn(async () => ({ address: TOKEN, decimals: 18, symbol: "Justin" })),
+    balanceOf: vi.fn(async () => "99999999999999999999999999"),
+    allowance: vi.fn(async () => "0"),
+    approvalPayload: vi.fn((_n: NetworkDescriptor, token: string) => ({
+      target: token,
+      method: APPROVE,
+      parameters: [],
+    })),
+    quoteBuy: vi.fn(async () => ({
+      tokenAmount: "25125337148664452174594",
+      feeSun: "10000",
+    })),
+    quoteSell: vi.fn(async () => ({ trxAmountSun: "22728", feeSun: "10000" })),
+    minimumSellAmount: vi.fn(async () => "507595914512855548755"),
+    applyFloor: vi.fn((expected: string, bips: number) =>
+      ((BigInt(expected) * BigInt(10000 - bips)) / 10000n).toString(),
+    ),
+    launchpadAddress: vi.fn(() => LAUNCHPAD),
+    buyPayload: vi.fn(() => ({ target: LAUNCHPAD, method: PURCHASE, parameters: [] })),
+    sellPayload: vi.fn(() => ({ target: LAUNCHPAD, method: SALE, parameters: [] })),
+    ...overrides,
+  } as unknown as LaunchpadPort;
+}
+
+interface PipelineParams {
+  mode?: string;
+  build: (from: string) => Promise<unknown>;
+  estimate: (tx: unknown) => Promise<Record<string, unknown>>;
+}
+
+const routerRoutes: RouterRoute[] = [
+  {
+    amountInRaw: "100000000",
+    amountOutRaw: "34344609",
+    fee: "0.050000",
+    priceImpactPercent: "0.000000",
+    path: [
+      { address: TRX, symbol: "TRX" },
+      { address: USDT, symbol: "USDT" },
+    ],
+    protocols: ["V2", "V3"],
+    poolFees: ["500", "0"],
+    containsUnverifiedHook: false,
+    source: {} as RouterWireRoute,
+  },
+  {
+    amountInRaw: "100000000",
+    amountOutRaw: "34376047",
+    fee: "0.349846",
+    priceImpactPercent: "-0.000078",
+    path: [
+      { address: TRX, symbol: "TRX" },
+      { address: USDT, symbol: "USDT" },
+    ],
+    protocols: ["V1", "V4"],
+    poolFees: ["3000", "0"],
+    containsUnverifiedHook: false,
+    source: {} as RouterWireRoute,
+  },
+];
+
+function makeHarness(
+  port: LaunchpadPort = makePort(),
+  withAccount = true,
+  owner = OWNER,
+  account: Record<string, unknown> = { address: "41owner", balance: "1000000000" },
+) {
+  const gateway = {
+    getAccount: vi.fn(async (): Promise<Record<string, unknown>> => account),
+    triggerSmartContract: vi.fn(async (_f, _t, method) => ({ txID: `built:${method}` })),
+    estimateResources: vi.fn(async () => ({ feeModel: "tron-resource" as const, energy: 48395 })),
+  };
+  const pipeline = {
+    assertCanSign: vi.fn(),
+    runTron: vi.fn(async (p: PipelineParams) => {
+      const tx = (await p.build(OWNER)) as { txID: string };
+      const fee = await p.estimate(tx);
+      if (p.mode === "dry-run") return { stage: "plan", tx, fee };
+      if (p.mode === "build-only") return { stage: "built", tx, hex: "0abc", fee };
+      return { stage: "confirmed", txId: `tx:${tx.txID}`, blockNumber: 1, fee };
+    }),
+  } as unknown as TxPipeline;
+  const resolveAddress = vi.fn(() => {
+    if (!withAccount) throw new Error("resolveAddress must not be called without an account");
+    return owner;
+  });
+  const scope = {
+    deadline: NO_DEADLINE,
+    activeAccount: {},
+    wait: false,
+    waitTimeoutMs: 1_000,
+    resolveAddress,
+    warn: vi.fn(),
+  } as unknown as TransactionScope;
+  const router = {
+    routes: vi.fn(async () => routerRoutes),
+  } as unknown as RouterPort;
+
+  // Reject native-token contract reads and model allowance changes across approvals.
+  let granted = "0";
+  const liquidity = {
+    balanceOf: vi.fn(async () => "99999999999999999999999999"),
+    allowance: vi.fn(async () => granted),
+    permit2Address: vi.fn(() => PERMIT2),
+    approvalPayload: vi.fn(
+      (_n: NetworkDescriptor, token: string, spender: string, amount: string) => {
+        granted = amount;
+        return {
+          target: token,
+          method: APPROVE,
+          parameters: [{ type: "address", value: spender }],
+        };
+      },
+    ),
+    tokenFacts: vi.fn(async (_n: NetworkDescriptor, address: string) => {
+      if (address === TRX)
+        throw new Error("TRON triggerConstantContract failed: Smart contract is not exist.");
+      return {
+        address,
+        decimals: address === USDT ? 6 : 18,
+        symbol: address === USDT ? "USDT" : "Justin",
+      };
+    }),
+  } as unknown as LiquidityPort;
+  const permits = {
+    planPermit: vi.fn(async () => ({
+      permit2: PERMIT2,
+      spender: UNIVERSAL_ROUTER,
+      typedData: permitTypedData(),
+      grant: { details: { amount: "100000000" } },
+      amount: "100000000",
+      expiration: String(NOW + 3600),
+      mode: "typed-data",
+    })),
+  } as unknown as Permit2Port;
+  const routerExec = {
+    routerAddress: vi.fn(() => UNIVERSAL_ROUTER),
+    // Fix chain time so the deadline sits exactly on the allowed boundary.
+    transactionTime: vi.fn(async () => NOW),
+    buildSwapCall: vi.fn(async (_n: unknown, request: { permit?: unknown }) =>
+      routerCall(
+        request.permit === undefined ? "100000000" : "0",
+        owner === SIGNING_OWNER ? SIGNING_OWNER_HEX : OWNER_HEX,
+      ),
+    ),
+  } as unknown as RouterExecutionPort;
+  // Sign real typed data so address recovery is exercised.
+  const signTypedData = vi.fn(
+    async (payload: { domain: never; types: never; message: never; primaryType?: string }) => {
+      const td = tronUtils.typedData;
+      return {
+        signature: td.signTypedData(payload.domain, payload.types, payload.message, SIGNING_KEY),
+        digest: td.TypedDataEncoder.hash(payload.domain, payload.types, payload.message),
+        primaryType: payload.primaryType ?? td.TypedDataEncoder.from(payload.types).primaryType,
+      };
+    },
+  );
+  const signers = {
+    resolve: vi.fn(() => ({ kind: "software", address: owner, signTypedData })),
+  } as unknown as SignerResolver;
+  const service = new SunSwapSwapService(
+    port,
+    { get: () => gateway } as unknown as ChainGatewayProvider,
+    pipeline,
+    resolver,
+    router,
+    liquidity,
+    routerExec,
+    permits,
+    signers,
+    new SigningService({} as never),
+  );
+  return {
+    deadline: NO_DEADLINE,
+    service,
+    scope,
+    pipeline,
+    gateway,
+    port,
+    resolveAddress,
+    router,
+    liquidity,
+    routerExec,
+    permits,
+    signers,
+    signTypedData,
+  };
+}
+
+describe("choosing the market", () => {
+  it.each([
+    ["dry-run", { dryRun: true }],
+    ["build-only", { buildOnly: true }],
+    ["quote", { quote: true }],
+    ["execute", {}],
+  ])("reaches the curve for TRX against an unlaunched token in %s", async (_name, mode) => {
+    const { service, scope } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      ...mode,
+    })) as Record<string, unknown>;
+    expect(result.market).toBe("sunpump");
+  });
+
+  it("does not consult the curve when neither side is TRX", async () => {
+    const { service, scope, port } = makeHarness();
+    await service
+      .swap(scope, NETWORK, { tokenIn: USDT, tokenOut: TOKEN, amountIn: "1", quote: true })
+      .catch(() => {});
+    expect(port.tokenState).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["LAUNCHED", LAUNCHPAD_STATE.LAUNCHED],
+    ["READY_TO_LAUNCH", LAUNCHPAD_STATE.READY_TO_LAUNCH],
+    ["NOT_EXIST", LAUNCHPAD_STATE.NOT_EXIST],
+  ])("routes a %s token to the router, not the curve", async (_name, state) => {
+    const port = makePort({ tokenState: vi.fn(async () => state) as never });
+    const { service, scope } = makeHarness(port);
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      quote: true,
+    })) as Record<string, unknown>;
+    expect(result.market).toBe("sunswap");
+    expect(port.quoteBuy).not.toHaveBeenCalled();
+  });
+
+  it("stops with provider_error when the curve's state cannot be read", async () => {
+    const port = makePort({
+      tokenState: vi.fn(async () => {
+        throw new Error("node unavailable");
+      }) as never,
+    });
+    const { service, scope } = makeHarness(port);
+    await expect(
+      service.swap(scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: TOKEN,
+        amountIn: "1",
+        quote: true,
+      }),
+    ).rejects.toMatchObject({ code: "provider_error" });
+  });
+
+  it("never quotes after a failed probe", async () => {
+    const port = makePort({
+      tokenState: vi.fn(async () => {
+        throw new Error("node unavailable");
+      }) as never,
+    });
+    const { service, scope } = makeHarness(port);
+    await service
+      .swap(scope, NETWORK, { tokenIn: "TRX", tokenOut: TOKEN, amountIn: "1", quote: true })
+      .catch(() => {});
+    expect(port.quoteBuy).not.toHaveBeenCalled();
+    expect(port.quoteSell).not.toHaveBeenCalled();
+  });
+
+  it("refuses a swap of a token for itself", async () => {
+    const { service, scope } = makeHarness();
+    await expect(
+      service.swap(scope, NETWORK, { tokenIn: "TRX", tokenOut: "TRX", amountIn: "1", quote: true }),
+    ).rejects.toMatchObject({ code: "same_token" });
+  });
+});
+
+describe("the curve branch", () => {
+  it("buys when TRX goes in, and approves nothing", async () => {
+    const { service, scope, gateway } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+    })) as Record<string, unknown>;
+    expect(gateway.triggerSmartContract.mock.calls.map((call) => call[2])).toEqual([PURCHASE]);
+    expect(result).not.toHaveProperty("approvalTxIds");
+  });
+
+  it("sells when the token goes in, approving the launchpad without limit", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: TOKEN,
+      tokenOut: "TRX",
+      amountIn: "1000",
+      dryRun: true,
+    })) as { approvals: { spender: string; amount: string }[] };
+    expect(result.approvals).toEqual([
+      expect.objectContaining({ spender: LAUNCHPAD, amount: "unlimited", isUnlimited: true }),
+    ]);
+  });
+
+  it("takes --min-out as the floor and publishes no slippage", async () => {
+    const { service, scope, port } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      minOut: "1000",
+      dryRun: true,
+    })) as Record<string, unknown>;
+    expect(result.amountOutMinimum).toBe("1000");
+    expect(result).not.toHaveProperty("slippage");
+    expect(port.buyPayload).toHaveBeenCalledWith(
+      NETWORK,
+      expect.objectContaining({ minTokenAmount: "1000" }),
+    );
+  });
+
+  it("refuses a --min-out above the curve's quote before building anything", async () => {
+    const { service, scope, gateway } = makeHarness();
+    await expect(
+      service.swap(scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: TOKEN,
+        amountIn: "1",
+        minOut: "25125337148664452174595",
+      }),
+    ).rejects.toMatchObject({ code: "slippage_exceeded" });
+    expect(gateway.triggerSmartContract).not.toHaveBeenCalled();
+  });
+
+  it("floors at swap's 0.5%, not sunpump's 5%", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      dryRun: true,
+    })) as Record<string, unknown>;
+    expect(result.slippage).toBe("0.005");
+    expect(result.amountOutExpected).toBe("25125337148664452174594");
+    expect(result.amountOutMinimum).toBe("24999710462921129913721");
+  });
+
+  it("publishes routes as an array with routesAvailable, not flat fields", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      quote: true,
+    })) as Record<string, never>;
+    expect(Object.keys(result).sort()).toEqual([
+      "kind",
+      "market",
+      "mode",
+      "routes",
+      "routesAvailable",
+    ]);
+    expect(result.routesAvailable).toBe(1);
+    const routes = result.routes as unknown as Record<string, unknown>[];
+    expect(routes).toHaveLength(1);
+    expect(routes[0]).toMatchObject({
+      amountIn: "1000000",
+      amountOut: "25125337148664452174594",
+      protocols: ["SUNPUMP"],
+      poolFees: ["0", "0"],
+      tradingFee: "10000",
+    });
+    expect(routes[0]).not.toHaveProperty("priceImpactPercent");
+  });
+
+  it("gives every hop its decimals", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      quote: true,
+    })) as Record<string, never>;
+    const path = (
+      result.routes as unknown as { path: { symbol: string; decimals: number }[] }[]
+    )[0]!.path;
+    expect(path).toEqual([
+      { address: TRX, symbol: "TRX", decimals: 6 },
+      { address: TOKEN, symbol: "Justin", decimals: 18 },
+    ]);
+  });
+
+  it("reports the TRX side as the curve quotes it when selling", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: TOKEN,
+      tokenOut: "TRX",
+      amountIn: "1000",
+      quote: true,
+    })) as { routes: { amountOut: string; tradingFee: string }[] };
+    expect(result.routes[0]!.amountOut).toBe("22728");
+    expect(result.routes[0]!.tradingFee).toBe("10000");
+  });
+
+  it("floors a sale on what the seller receives", async () => {
+    const { service, scope } = makeHarness();
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: TOKEN,
+      tokenOut: "TRX",
+      amountIn: "1000",
+      dryRun: true,
+    })) as Record<string, unknown>;
+    expect(result.amountOutExpected).toBe("22728");
+    expect(result.amountOutMinimum).toBe("22614");
+  });
+
+  it("lets a small sale through when it pays the seller anything", async () => {
+    const port = makePort({
+      quoteSell: vi.fn(async () => ({ trxAmountSun: "473", feeSun: "10000" })) as never,
+    });
+    const { service, scope } = makeHarness(port);
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: TOKEN,
+      tokenOut: "TRX",
+      amountIn: "320",
+      quote: true,
+    })) as { routes: { amountOut: string }[] };
+    expect(result.routes[0]!.amountOut).toBe("473");
+  });
+
+  it.each([
+    [
+      "the curve will not price it",
+      vi.fn(async () => {
+        throw new Error("TRON constant call reverted");
+      }),
+    ],
+    [
+      "it would pay the seller nothing",
+      vi.fn(async () => ({ trxAmountSun: "0", feeSun: "10000" })),
+    ],
+  ])("refuses a sale too small to pay the seller: %s", async (because, quoteSell) => {
+    const { service, scope } = makeHarness(makePort({ quoteSell: quoteSell as never }));
+    await expect(
+      service.swap(scope, NETWORK, {
+        tokenIn: TOKEN,
+        tokenOut: "TRX",
+        amountIn: "1",
+        quote: true,
+      }),
+    ).rejects.toMatchObject({
+      code: "invalid_amount",
+      message: `this sale is too small: ${because}. Sell at least 507595914512855548755 Justin in base units`,
+    });
+  });
+
+  it("refuses a buy the account cannot fund", async () => {
+    const { service, scope, port } = makeHarness(makePort(), true, OWNER, {
+      address: "41owner",
+      balance: "1",
+    });
+    await expect(
+      service.swap(scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: TOKEN,
+        amountIn: "1",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({
+      code: "insufficient_balance",
+      message: "this swap spends 1000000 SUN and the account holds 1",
+    });
+    expect(port.buyPayload).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["buy", "TRX", TOKEN],
+    ["sell", TOKEN, "TRX"],
+  ])(
+    "refuses a %s from an account that is not activated as account_not_active",
+    async (_side, tokenIn, tokenOut) => {
+      const { service, scope, port } = makeHarness(makePort(), true, OWNER, {});
+      await expect(
+        service.swap(scope, NETWORK, { tokenIn, tokenOut, amountIn: "1000", dryRun: true }),
+      ).rejects.toMatchObject({ code: "account_not_active" });
+      expect(port.balanceOf).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses a sale the account cannot cover", async () => {
+    const port = makePort({ balanceOf: vi.fn(async () => "1") as never });
+    const { service, scope } = makeHarness(port);
+    await expect(
+      service.swap(scope, NETWORK, {
+        tokenIn: TOKEN,
+        tokenOut: "TRX",
+        amountIn: "1000",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "insufficient_token_balance" });
+  });
+});
+
+describe("the amount in", () => {
+  it.each(["0", "0.0", "000"])(
+    "refuses %s as invalid_amount without asking either market",
+    async (amountIn) => {
+      const harness = makeHarness();
+      await expect(
+        harness.service.swap(harness.scope, NETWORK, {
+          tokenIn: "TRX",
+          tokenOut: "USDT",
+          amountIn,
+          quote: true,
+        }),
+      ).rejects.toMatchObject({ code: "invalid_amount" });
+      expect(harness.port.tokenState).not.toHaveBeenCalled();
+      expect(harness.router.routes).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("--quote", () => {
+  it("touches no account", async () => {
+    const { service, scope, resolveAddress } = makeHarness(makePort(), false);
+    await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      quote: true,
+    });
+    expect(resolveAddress).not.toHaveBeenCalled();
+  });
+
+  it("publishes no slippage and no minimum, anywhere in the payload", async () => {
+    const { service, scope } = makeHarness(makePort(), false);
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      quote: true,
+    })) as { routes: Record<string, unknown>[] };
+    expect(result).not.toHaveProperty("slippage");
+    expect(result).not.toHaveProperty("amountOutMinimum");
+    expect(result.routes[0]).not.toHaveProperty("amountOutMinimum");
+    expect(result.routes[0]!.amountOut).toBe("25125337148664452174594");
+  });
+
+  it("still says which market answered", async () => {
+    const { service, scope } = makeHarness(makePort(), false);
+    const result = (await service.swap(scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+      quote: true,
+    })) as Record<string, unknown>;
+    expect(result.market).toBe("sunpump");
+  });
+});
+
+describe("the router branch", () => {
+  const launched = () =>
+    makeHarness(makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }));
+
+  const quoteUsdt = async (harness: ReturnType<typeof makeHarness>, all = false) =>
+    (await harness.service.swap(harness.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: "USDT",
+      amountIn: "100",
+      quote: true,
+      ...(all ? { all: true } : {}),
+    })) as { routes: Record<string, unknown>[]; routesAvailable: number };
+
+  it("never asks a contract what native TRX is", async () => {
+    const harness = launched();
+    const result = await quoteUsdt(harness);
+    expect(harness.liquidity.tokenFacts).not.toHaveBeenCalledWith(NETWORK, TRX, expect.anything());
+    expect(result.routes[0]!.amountIn).toBe("100000000");
+  });
+
+  it("shows the best route by output, not the first returned", async () => {
+    const result = await quoteUsdt(launched());
+    expect(result.routes).toHaveLength(1);
+    expect(result.routes[0]!.amountOut).toBe("34376047");
+    expect(result.routesAvailable).toBe(2);
+  });
+
+  it("lists every candidate under --all, in the order returned", async () => {
+    const result = await quoteUsdt(launched(), true);
+    expect(result.routes.map((route) => route.amountOut)).toEqual(["34344609", "34376047"]);
+    expect(result.routesAvailable).toBe(2);
+  });
+
+  it("derives the trading fee in the input token's base units", async () => {
+    const result = await quoteUsdt(launched(), true);
+    expect(result.routes.map((route) => route.tradingFee)).toEqual(["50000", "349846"]);
+  });
+
+  it("publishes a negative price impact as measured", async () => {
+    const result = await quoteUsdt(launched());
+    expect(result.routes[0]!.priceImpactPercent).toBe("-0.000078");
+  });
+
+  it("scales the two ends it resolved and leaves an intermediate unscaled", async () => {
+    const harness = launched();
+    vi.mocked(harness.router.routes).mockResolvedValueOnce([
+      {
+        amountInRaw: "100000000",
+        amountOutRaw: "34343073",
+        fee: "0.349846",
+        priceImpactPercent: "0",
+        path: [
+          { address: TRX, symbol: "TRX" },
+          { address: TOKEN, symbol: "TRX" },
+          { address: USDT, symbol: "USDT" },
+        ],
+        protocols: ["V2", "V2"],
+        poolFees: ["300", "300"],
+        containsUnverifiedHook: false,
+        source: {} as RouterWireRoute,
+      },
+    ]);
+    const result = await quoteUsdt(harness);
+    expect(result.routes[0]!.path).toEqual([
+      { address: TRX, symbol: "TRX", decimals: 6 },
+      { address: TOKEN, symbol: "TRX" },
+      { address: USDT, symbol: "USDT", decimals: 6 },
+    ]);
+  });
+
+  it("stops with no_matching_route when the router offers nothing", async () => {
+    const harness = launched();
+    vi.mocked(harness.router.routes).mockResolvedValueOnce([]);
+    await expect(
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: "USDT",
+        amountIn: "100",
+        quote: true,
+      }),
+    ).rejects.toMatchObject({ code: "no_matching_route" });
+  });
+
+  it("stops with no_matching_route before any account read when executing", async () => {
+    const harness = launched();
+    vi.mocked(harness.router.routes).mockResolvedValueOnce([]);
+    await expect(
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: "USDT",
+        amountIn: "100",
+        dryRun: true,
+      }),
+    ).rejects.toMatchObject({ code: "no_matching_route" });
+    expect(harness.gateway.getAccount).not.toHaveBeenCalled();
+  });
+
+  it("refuses --build-only when the swap spends a token", async () => {
+    const harness = launched();
+    await expect(
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "USDT",
+        tokenOut: "TRX",
+        amountIn: "100",
+        buildOnly: true,
+      }),
+    ).rejects.toMatchObject({ code: "invalid_option" });
+  });
+
+  it("allows --build-only when the swap spends TRX", async () => {
+    const harness = launched();
+    const result = (await harness.service.swap(harness.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: "USDT",
+      amountIn: "100",
+      buildOnly: true,
+    })) as Record<string, unknown>;
+    expect(result.market).toBe("sunswap");
+    expect(harness.permits.planPermit).not.toHaveBeenCalled();
+  });
+});
+
+describe("sending a router swap", () => {
+  const sending = () =>
+    makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      SIGNING_OWNER,
+    );
+
+  const sell = async (harness: ReturnType<typeof makeHarness>, extra = {}) =>
+    (await harness.service.swap(harness.scope, NETWORK, {
+      tokenIn: "USDT",
+      tokenOut: "TRX",
+      amountIn: "100",
+      ...extra,
+    })) as Record<string, unknown>;
+
+  it("approves exactly the amount, to Permit2", async () => {
+    const harness = sending();
+    await sell(harness);
+    expect(harness.permits.planPermit).toHaveBeenCalledWith(
+      NETWORK,
+      expect.objectContaining({ amount: "100000000", ttlSeconds: 3600 }),
+      expect.anything(),
+    );
+    // A fresh harness is required because the first swap leaves sufficient mock allowance.
+    const approvals = (await sell(sending())).approvals as { spender: string; amount: string }[];
+    expect(approvals).toEqual([
+      expect.objectContaining({ spender: PERMIT2, amount: "100000000", isUnlimited: false }),
+    ]);
+  });
+
+  it("does not approve again when the allowance already covers the trade", async () => {
+    const harness = sending();
+    await sell(harness);
+    const second = await sell(harness);
+    expect(second.approvals).toEqual([]);
+    expect(second.approvalTxIds).toBeUndefined();
+  });
+
+  it("publishes the grant it authorized, not just that it authorized one", async () => {
+    const result = await sell(sending());
+    expect(result.permit).toEqual({
+      permit2: PERMIT2,
+      spender: UNIVERSAL_ROUTER,
+      amount: "100000000",
+      expiration: String(NOW + 3600),
+      ttlSeconds: 3600,
+    });
+  });
+
+  it("says the Permit2 allowance outlives a swap that failed on chain", async () => {
+    const harness = sending();
+    const run = vi.mocked(harness.pipeline.runTron);
+    const confirm = run.getMockImplementation()!;
+    run.mockImplementation(async (params) => {
+      const outcome = (await confirm(params)) as unknown as Record<string, unknown>;
+      return (
+        String(outcome.txId).includes("execute")
+          ? { ...outcome, stage: "failed", result: "REVERT" }
+          : outcome
+      ) as never;
+    });
+    const result = await sell(harness);
+    expect(result.stage).toBe("failed");
+    expect(result.approvalRemains).toBe(true);
+  });
+
+  it("does not say so when the swap confirmed", async () => {
+    const result = await sell(sending());
+    expect(result.stage).toBe("confirmed");
+    expect(result).not.toHaveProperty("approvalRemains");
+  });
+
+  it("enforces its own floor and publishes it", async () => {
+    const result = await sell(sending());
+    expect(result.amountOutMinimum).toBe(BEST_FLOOR);
+    expect(result.amountOutExpected).toBe(String(BEST_OUT));
+    expect(result.slippage).toBe("0.005");
+  });
+
+  it("asks the encoder for the floor it publishes", async () => {
+    const harness = sending();
+    await sell(harness);
+    expect(vi.mocked(harness.routerExec.buildSwapCall).mock.calls[0]![1]).toMatchObject({
+      amountOutMinimum: BEST_FLOOR,
+    });
+  });
+
+  it("encodes --min-out as the floor and publishes no slippage", async () => {
+    const harness = sending();
+    const minOut = "34000000";
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce(
+      routerCall("0", SIGNING_OWNER_HEX, minOut) as never,
+    );
+    const result = await sell(harness, { minOut });
+    expect(vi.mocked(harness.routerExec.buildSwapCall).mock.calls[0]![1]).toMatchObject({
+      amountOutMinimum: minOut,
+    });
+    expect(result.stage).toBe("confirmed");
+    expect(result.amountOutMinimum).toBe(minOut);
+    expect(result).not.toHaveProperty("slippage");
+  });
+
+  it("encodes a --min-out given with leading zeros by its numeric value", async () => {
+    const harness = sending();
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce(
+      routerCall("0", SIGNING_OWNER_HEX, "34000000") as never,
+    );
+    const result = await sell(harness, { minOut: "034000000" });
+    expect(result.stage).toBe("confirmed");
+    expect(result.amountOutMinimum).toBe("34000000");
+  });
+
+  it("refuses --min-out beside slippage", async () => {
+    const harness = sending();
+    await expect(sell(harness, { minOut: "1", slippage: "0.01" })).rejects.toMatchObject({
+      code: "invalid_option",
+    });
+  });
+
+  it.each([
+    ["send", {}],
+    ["dry-run", { dryRun: true }],
+  ])(
+    "refuses a --min-out above the quote before approving or signing (%s)",
+    async (_mode, flags) => {
+      const harness = sending();
+      const minOut = String(BEST_OUT + 1n);
+      await expect(sell(harness, { minOut, ...flags })).rejects.toMatchObject({
+        code: "slippage_exceeded",
+        details: { amountOutExpected: String(BEST_OUT), amountOutMinimum: minOut },
+      });
+      expect(harness.permits.planPermit).not.toHaveBeenCalled();
+      expect(harness.signTypedData).not.toHaveBeenCalled();
+      expect(harness.gateway.triggerSmartContract).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses a --min-out above the quote under --build-only", async () => {
+    const harness = sending();
+    await expect(
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "TRX",
+        tokenOut: "USDT",
+        amountIn: "100",
+        buildOnly: true,
+        minOut: String(BEST_OUT + 1n),
+      }),
+    ).rejects.toMatchObject({ code: "slippage_exceeded" });
+    expect(harness.routerExec.buildSwapCall).not.toHaveBeenCalled();
+    expect(harness.gateway.triggerSmartContract).not.toHaveBeenCalled();
+  });
+
+  it("encodes the call only after the permit is signed", async () => {
+    const harness = sending();
+    await sell(harness);
+    const signedAt = harness.signTypedData.mock.invocationCallOrder[0]!;
+    const encodedAt = vi.mocked(harness.routerExec.buildSwapCall).mock.invocationCallOrder[0]!;
+    expect(signedAt).toBeLessThan(encodedAt);
+  });
+
+  it("refuses to sign an unlimited grant", async () => {
+    const harness = sending();
+    const typedData = permitTypedData();
+    (typedData.message as { details: { amount: string } }).details.amount = (
+      2n ** 160n -
+      1n
+    ).toString();
+    vi.mocked(harness.permits.planPermit).mockResolvedValueOnce({
+      permit2: PERMIT2,
+      spender: UNIVERSAL_ROUTER,
+      typedData,
+      grant: {} as Permit2Grant,
+      amount: (2n ** 160n - 1n).toString(),
+      expiration: String(NOW + 3600),
+      mode: "typed-data",
+    });
+    await expect(sell(harness)).rejects.toMatchObject({ code: "permit_mismatch" });
+    expect(harness.signTypedData).not.toHaveBeenCalled();
+  });
+
+  it("refuses to sign a grant that outlives the hour it asked for", async () => {
+    const harness = sending();
+    const typedData = permitTypedData();
+    (typedData.message as { details: { expiration: string } }).details.expiration = String(
+      NOW + 30 * 86400,
+    );
+    vi.mocked(harness.permits.planPermit).mockResolvedValueOnce({
+      permit2: PERMIT2,
+      spender: UNIVERSAL_ROUTER,
+      typedData,
+      grant: {} as Permit2Grant,
+      amount: "100000000",
+      expiration: String(NOW + 30 * 86400),
+      mode: "typed-data",
+    });
+    await expect(sell(harness)).rejects.toMatchObject({ code: "permit_mismatch" });
+    expect(harness.signTypedData).not.toHaveBeenCalled();
+  });
+
+  it("refuses a signature that recovers to another account", async () => {
+    const harness = makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      OWNER,
+    );
+    await expect(sell(harness)).rejects.toMatchObject({ code: "signing_rejected" });
+    expect(harness.routerExec.buildSwapCall).not.toHaveBeenCalled();
+  });
+
+  it("refuses an encoded call whose floor is not the one published", async () => {
+    const harness = sending();
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce(
+      routerCall("0", SIGNING_OWNER_HEX) as never,
+    );
+    // Changing slippage makes the expected floor differ from the fixed calldata.
+    await expect(sell(harness, { slippage: "0.01" })).rejects.toMatchObject({
+      code: "router_call_mismatch",
+    });
+    expect(harness.gateway.triggerSmartContract).toHaveBeenCalledTimes(1);
+    const [, target, method] = vi.mocked(harness.gateway.triggerSmartContract).mock.calls[0]!;
+    expect([target, method]).toEqual([USDT, APPROVE]);
+  });
+
+  it("sends nothing when the encoded call is refused", async () => {
+    const harness = sending();
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce({
+      ...routerCall("0", SIGNING_OWNER_HEX),
+      target: USDT,
+    } as never);
+    await expect(sell(harness)).rejects.toMatchObject({ code: "router_call_mismatch" });
+  });
+});
+
+describe("--dry-run on a router swap", () => {
+  const dry = async (owner: string) => {
+    const harness = makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      owner,
+    );
+    const result = (await harness.service.swap(harness.scope, NETWORK, {
+      tokenIn: "USDT",
+      tokenOut: "TRX",
+      amountIn: "100",
+      dryRun: true,
+    })) as Record<string, unknown>;
+    return { harness, result };
+  };
+
+  it("signs nothing", async () => {
+    const { harness } = await dry(SIGNING_OWNER);
+    expect(harness.signTypedData).not.toHaveBeenCalled();
+  });
+
+  it("does not encode the call it cannot price", async () => {
+    const { harness } = await dry(SIGNING_OWNER);
+    expect(harness.routerExec.buildSwapCall).not.toHaveBeenCalled();
+  });
+
+  it("says the fee covers the approval only", async () => {
+    const { result } = await dry(SIGNING_OWNER);
+    expect(result.mode).toBe("dry-run");
+    expect(result.feeCovers).toBe("approvals");
+  });
+
+  it("publishes the grant it would ask for", async () => {
+    const { result } = await dry(SIGNING_OWNER);
+    expect(result.permit).toEqual(
+      expect.objectContaining({ amount: "100000000", spender: UNIVERSAL_ROUTER }),
+    );
+  });
+});
+
+describe("when the grant already covers the trade", () => {
+  const covered = () => {
+    const harness = makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      SIGNING_OWNER,
+    );
+    vi.mocked(harness.permits.planPermit).mockResolvedValueOnce(undefined);
+    // Override the default native-value fixture for a token swap with a standing grant.
+    vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValueOnce(
+      routerCall("0", SIGNING_OWNER_HEX) as never,
+    );
+    return harness;
+  };
+  const sell = async (harness: ReturnType<typeof makeHarness>, extra = {}) =>
+    (await harness.service.swap(harness.scope, NETWORK, {
+      tokenIn: "USDT",
+      tokenOut: "TRX",
+      amountIn: "100",
+      ...extra,
+    })) as Record<string, unknown>;
+
+  it("sends the swap without a permit and signs nothing", async () => {
+    const harness = covered();
+    const result = await sell(harness);
+    expect(harness.signTypedData).not.toHaveBeenCalled();
+    const [, request] = vi.mocked(harness.routerExec.buildSwapCall).mock.calls[0]!;
+    expect(request.permit).toBeUndefined();
+    expect(result.permit).toBeUndefined();
+    expect(result.txId).toBe("tx:built:execute(bytes,bytes[],uint256)");
+  });
+
+  it("still approves the token to Permit2 when that allowance is short", async () => {
+    const result = await sell(covered());
+    expect(result.approvals).toEqual([
+      expect.objectContaining({ spender: PERMIT2, amount: "100000000" }),
+    ]);
+  });
+
+  it("prices the swap itself on a dry run once the allowance covers it", async () => {
+    const harness = covered();
+    vi.mocked(harness.liquidity.allowance).mockResolvedValue(baseUnitAmount("100000000"));
+    const result = await sell(harness, { dryRun: true });
+    expect(result.mode).toBe("dry-run");
+    expect(result.feeCovers).toBe("all");
+    expect(result.permit).toBeUndefined();
+    expect(harness.signTypedData).not.toHaveBeenCalled();
+  });
+
+  it("names the Universal Router as the spender", async () => {
+    const harness = makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      SIGNING_OWNER,
+    );
+    await harness.service.swap(harness.scope, NETWORK, {
+      tokenIn: "USDT",
+      tokenOut: "TRX",
+      amountIn: "100",
+    });
+    expect(harness.permits.planPermit).toHaveBeenCalledWith(
+      NETWORK,
+      expect.objectContaining({ spender: UNIVERSAL_ROUTER, ttlSeconds: 3600 }),
+      expect.anything(),
+    );
+  });
+});
+
+describe("swap receipt output", () => {
+  it.each(["sunpump", "sunswap"])("reads confirmed %s proceeds", async (market) => {
+    const h = makeHarness(
+      makePort({
+        tokenState: vi.fn(async () =>
+          market === "sunpump" ? LAUNCHPAD_STATE.TRADING : LAUNCHPAD_STATE.NOT_EXIST,
+        ),
+      }),
+    );
+    const receivedAmount = vi.fn(async () => "12345");
+    Object.assign(h.gateway, { receivedAmount });
+    const out = await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: market === "sunpump" ? "1" : "100",
+    });
+    expect(out).toMatchObject({ amountOut: "12345", amountsEstimated: false });
+    expect(receivedAmount).toHaveBeenCalledWith(expect.any(String), TOKEN, OWNER);
+  });
+  it("keeps the estimate with a warning when receipt evidence is missing", async () => {
+    const h = makeHarness();
+    Object.assign(h.gateway, { receivedAmount: vi.fn(async () => undefined) });
+    const out = await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: TOKEN,
+      amountIn: "1",
+    });
+    expect(out.amountsEstimated).toBe(true);
+    expect(out).not.toHaveProperty("amountOut");
+    expect(h.scope.warn).toHaveBeenCalled();
+  });
+});
+
+describe("balances on a router swap", () => {
+  const harness = () =>
+    makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      SIGNING_OWNER,
+    );
+  const MODES = [
+    ["dry-run", { dryRun: true }],
+    ["execute", {}],
+  ] as const;
+
+  it.each(MODES)("refuses a short token balance in %s, approving nothing", async (_n, mode) => {
+    const h = harness();
+    vi.mocked(h.liquidity.balanceOf).mockResolvedValue(baseUnitAmount("0"));
+    const withApprovals = vi.spyOn(LiquidityTransactions.prototype, "withApprovals");
+    try {
+      await expect(
+        h.service.swap(h.scope, NETWORK, {
+          tokenIn: "USDT",
+          tokenOut: "TRX",
+          amountIn: "1",
+          ...mode,
+        }),
+      ).rejects.toMatchObject({
+        code: "insufficient_token_balance",
+        message: "this swap sells 1000000 of USDT in base units and the account holds 0",
+      });
+      expect(h.permits.planPermit).not.toHaveBeenCalled();
+      expect(h.liquidity.allowance).not.toHaveBeenCalled();
+      expect(withApprovals).not.toHaveBeenCalled();
+      expect(h.pipeline.runTron).not.toHaveBeenCalled();
+    } finally {
+      withApprovals.mockRestore();
+    }
+  });
+
+  it.each([...MODES, ["build-only", { buildOnly: true }]] as const)(
+    "refuses a short TRX balance in %s",
+    async (_n, mode) => {
+      const h = harness();
+      h.gateway.getAccount.mockResolvedValue({ address: SIGNING_OWNER, balance: "5" });
+      await expect(
+        h.service.swap(h.scope, NETWORK, {
+          tokenIn: "TRX",
+          tokenOut: "USDT",
+          amountIn: "1",
+          ...mode,
+        }),
+      ).rejects.toMatchObject({
+        code: "insufficient_balance",
+        message: "this swap spends 1000000 SUN and the account holds 5",
+      });
+      expect(h.routerExec.buildSwapCall).not.toHaveBeenCalled();
+      expect(h.pipeline.runTron).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["TRX", "USDT"],
+    ["USDT", "TRX"],
+  ])("refuses an account that is not activated, spending %s", async (tokenIn, tokenOut) => {
+    const h = harness();
+    h.gateway.getAccount.mockResolvedValue({});
+    await expect(
+      h.service.swap(h.scope, NETWORK, { tokenIn, tokenOut, amountIn: "1", dryRun: true }),
+    ).rejects.toMatchObject({ code: "account_not_active" });
+    expect(h.permits.planPermit).not.toHaveBeenCalled();
+    expect(h.pipeline.runTron).not.toHaveBeenCalled();
+  });
+
+  it("goes ahead when the balance covers the trade exactly", async () => {
+    const h = harness();
+    vi.mocked(h.liquidity.balanceOf).mockResolvedValue(baseUnitAmount("100000000"));
+    const result = await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "USDT",
+      tokenOut: "TRX",
+      amountIn: "100",
+      dryRun: true,
+    });
+    expect(result.mode).toBe("dry-run");
+  });
+});
+
+describe("symbols from the account's token book", () => {
+  const launched = () =>
+    makeHarness(makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }));
+
+  it("resolves through the account the command uses, for a quote too", async () => {
+    const h = launched();
+    Object.assign(h.scope, { activeAccount: "wlt_main.0" });
+    await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: "USDT",
+      amountIn: "1",
+      quote: true,
+    });
+    expect(resolveToken).toHaveBeenCalledWith(NETWORK, "USDT", {
+      caller: "swap",
+      account: "wlt_main.0",
+    });
+  });
+
+  it("publishes which address came from the book", async () => {
+    const h = launched();
+    const result = await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: "BOOKED",
+      amountIn: "1",
+      quote: true,
+    });
+    expect(result.fromTokenBook).toEqual([BOOKED]);
+  });
+
+  it("adds no key when every side is official", async () => {
+    const h = launched();
+    const result = await h.service.swap(h.scope, NETWORK, {
+      tokenIn: "TRX",
+      tokenOut: "USDT",
+      amountIn: "1",
+      quote: true,
+    });
+    expect(result).not.toHaveProperty("fromTokenBook");
+  });
+});
+
+describe("a router swap's approvals under the command deadline", () => {
+  const APPROVAL_TX = `tx:built:${APPROVE}`;
+
+  // Approval results follow `approval`; allowance reads honour the dispatch check as adapters do.
+  function timed(
+    approval: "confirmed" | "pending-at-expiry" | "confirmed-at-expiry",
+    standing = false,
+  ) {
+    const harness = makeHarness(
+      makePort({ tokenState: vi.fn(async () => LAUNCHPAD_STATE.LAUNCHED) as never }),
+      true,
+      SIGNING_OWNER,
+    );
+    let now = 0;
+    const deadline = new CommandDeadline(60_000, 0, { now: () => now });
+    Object.assign(harness.scope, { deadline });
+    if (standing) {
+      vi.mocked(harness.permits.planPermit).mockResolvedValue(undefined);
+      vi.mocked(harness.routerExec.buildSwapCall).mockResolvedValue(
+        routerCall("0", SIGNING_OWNER_HEX) as never,
+      );
+    }
+    const read = vi.mocked(harness.liquidity.allowance).getMockImplementation()!;
+    vi.mocked(harness.liquidity.allowance).mockImplementation(async (...args) => {
+      args[4].assertDispatchable();
+      return read(...args);
+    });
+    vi.mocked(harness.pipeline.runTron).mockImplementation(async (p) => {
+      p.ctx.deadline.assertActive();
+      const tx = (await p.build(OWNER)) as { txID: string };
+      if (tx.txID !== `built:${APPROVE}`) {
+        return { stage: "confirmed", txId: `tx:${tx.txID}`, blockNumber: 2, fee: {} } as never;
+      }
+      if (approval !== "confirmed") now = 60_000;
+      return {
+        stage: approval === "pending-at-expiry" ? "submitted" : "confirmed",
+        txId: APPROVAL_TX,
+        blockNumber: 1,
+        fee: {},
+      } as never;
+    });
+    const sell = () =>
+      harness.service.swap(harness.scope, NETWORK, {
+        tokenIn: "USDT",
+        tokenOut: "TRX",
+        amountIn: "100",
+      }) as Promise<Record<string, unknown>>;
+    return {
+      harness,
+      deadline,
+      sell,
+      reset: () => Object.assign(harness.scope, { deadline: NO_DEADLINE }),
+    };
+  }
+
+  describe.each([
+    ["a new Permit2 signature", false],
+    ["a standing Permit2 grant", true],
+  ])("with %s", (_name, standing) => {
+    it("returns the approval ids in order with the swap", async () => {
+      const { sell, deadline } = timed("confirmed", standing);
+      await expect(sell()).resolves.toMatchObject({
+        approvalTxIds: [APPROVAL_TX],
+        stage: "confirmed",
+      });
+      deadline.dispose();
+    });
+
+    it("ends with timeout and the approval id when the approval is still pending at expiry", async () => {
+      const { harness, sell, deadline } = timed("pending-at-expiry", standing);
+      await expect(sell()).rejects.toMatchObject({
+        code: "timeout",
+        details: { approvalTxIds: [APPROVAL_TX] },
+      });
+      expect(harness.pipeline.runTron).toHaveBeenCalledOnce();
+      expect(harness.signTypedData).not.toHaveBeenCalled();
+      deadline.dispose();
+    });
+
+    it("keeps the confirmed approval and sends nothing dependent once the time is spent", async () => {
+      const { harness, sell, deadline } = timed("confirmed-at-expiry", standing);
+      await expect(sell()).rejects.toMatchObject({
+        code: "timeout",
+        details: { approvalTxIds: [APPROVAL_TX] },
+      });
+      expect(harness.pipeline.runTron).toHaveBeenCalledOnce();
+      expect(harness.signTypedData).not.toHaveBeenCalled();
+      deadline.dispose();
+    });
+
+    it("skips the approval on a rerun once it is sufficient", async () => {
+      const { harness, sell, deadline, reset } = timed("confirmed-at-expiry", standing);
+      await expect(sell()).rejects.toMatchObject({ code: "timeout" });
+      reset();
+      const second = await sell();
+      expect(second.approvals).toEqual([]);
+      expect(second.approvalTxIds).toBeUndefined();
+      expect(harness.pipeline.runTron).toHaveBeenCalledTimes(2);
+      deadline.dispose();
+    });
+  });
+});

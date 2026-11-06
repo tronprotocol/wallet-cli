@@ -10,7 +10,7 @@ wallet-cli asset issue --name <name> --supply <n> --price <trx>:<tokens>
                        [--abbr <s>] [--precision <0-6>] [--description <s>]
                        [--free-net-per-account <n>] [--public-free-net <n>]
                        [--freeze <amount>:<days> ...]
-                       [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                       [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                        [--permission-id <n>] [options]
 ```
 
@@ -30,7 +30,7 @@ Constraints checked locally before broadcast: `--name` and `--abbr` are 1–32 v
 
 The Ledger TRON app cannot sign TRC10 issuance contract types. A Ledger account can dry-run or build unsigned hex; signing modes fail with `ledger_unsupported` before the device is touched.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -53,7 +53,8 @@ The Ledger TRON app cannot sign TRC10 issuance contract types. A Ledger account 
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -65,7 +66,7 @@ In the examples, `$PW` is your master password (from an environment variable, pa
 ```bash
 echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 1000000000 --price 1:100 --precision 6 \
   --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --description "Demo TRC10" \
-  --freeze 100000000:30 --freeze 50000000:90 --network nile --wait --password-stdin
+  --freeze 100000000:30 --freeze 50000000:90 --network nile --password-stdin
 ```
 
 ```console
@@ -92,7 +93,7 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 ```bash
 echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 1000000000 --price 1:100 --precision 6 \
   --start 2026-08-01 --end 2026-08-31 --url https://mytoken.io --description "Demo TRC10" \
-  --freeze 100000000:30 --freeze 50000000:90 --network nile --wait --password-stdin -o json
+  --freeze 100000000:30 --freeze 50000000:90 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -105,14 +106,14 @@ echo "$PW" | wallet-cli asset issue --name MyToken --abbr MTK --supply 100000000
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "asset-issue"`, `stage: "submitted"`, `txId`, and the token definition below except `assetId` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
+| `--no-wait` (submitted) | `kind: "asset-issue"`, `stage: "submitted"`, `txId`, and the token definition below except `assetId` |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), `failed`, and `assetId` — assigned by the chain, so known only once confirmed |
 
 Definition fields: `issuerAddress`, `name`, `abbr`, `totalSupply` (raw decimal string), `precision`, `price` (a `trx:tokens` string derived back from the stored pair, so it is the **reduced** rate, not necessarily what you typed — `--price 2:200 --precision 6` reports `"1:100"`) with the stored `trxNum` / `num` pair, `startTime` / `endTime` (ms since epoch), `url`, `description`, `freeAssetNetLimit`, `publicFreeAssetNetLimit`, and `frozenSupply[]` (`amount` raw decimal string, `days`). Confirmation settlement fields are flat — there is no `resource` object, and the bandwidth field is `netUsed`.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `transaction_rejected` — the node refused it, e.g. the balance cannot cover the issuance fee or a chain-side bound was exceeded, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — a malformed or non-positive rate, precision, supply or frozen tranche, a malformed date, `--start` not in the future, `--end` not after `--start`, or the rate exceeding int32 after reduction).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`already_issued_asset` — this account already issued one, `transaction_rejected` — the node refused it, e.g. the balance cannot cover the issuance fee or a chain-side bound was exceeded, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`missing_option` — a required flag is absent; `invalid_asset_name` — name or abbreviation outside 1–32 visible ASCII; `invalid_value` — a malformed or non-positive rate, precision, supply or frozen tranche, a malformed date, `--start` not in the future, `--end` not after `--start`, or the rate exceeding int32 after reduction).
 
 ## See also
 

@@ -1,11 +1,14 @@
-/**
- * Amounts — the single base-unit ⇄ human-decimal converter pair. Replaces the three
- * near-identical `humanAmount`/`formatRawAmount` copies (which disagreed on negatives) and the
- * standalone `parseDecimalAmount`. All string math — no floating point.
- */
-import { ChainError, UsageError } from "../errors/index.js";
+// Use string arithmetic to preserve amount precision.
+import {
+  ChainError,
+  errorMessage,
+  inputRef,
+  UsageError,
+  type InputRef,
+  type UserMessage,
+} from "../errors/index.js";
 
-/** CLI-supported token precision; validate remote metadata before allocating scaled amounts. */
+// Bounds remote precision before allocating scaled amounts.
 export function checkedTokenDecimals(decimals: number): number {
   if (!Number.isInteger(decimals) || decimals < 0 || decimals > 77) {
     throw new ChainError(
@@ -16,11 +19,44 @@ export function checkedTokenDecimals(decimals: number): number {
   return decimals;
 }
 
-/**
- * Integer base-unit value → human decimal string (e.g. "1204560000", 6 → "1204.56").
- * Negatives are preserved; trailing/leading zeros are trimmed. A non-integer input is
- * returned unchanged (lenient passthrough for values that are already human-readable).
- */
+// True for decimal or integer text whose value is zero.
+export function isZeroAmount(text: string): boolean {
+  return /^0+(\.0+)?$/.test(text);
+}
+
+// Amounts that move value must be greater than zero.
+export function assertPositiveAmount(value: bigint, label: string | InputRef): bigint {
+  if (value <= 0n) {
+    throw new UsageError("invalid_amount", errorMessage`${label} must be greater than zero`);
+  }
+  return value;
+}
+
+export function isPositive(value: bigint | number): boolean {
+  return value > 0;
+}
+
+// Counts and protocol parameters; money uses assertPositiveAmount and its invalid_amount code.
+export function assertPositive<T extends bigint | number>(
+  value: T,
+  label: string | InputRef | UserMessage,
+): T {
+  if (!isPositive(value)) {
+    throw new UsageError("invalid_value", errorMessage`${label} must be greater than zero`);
+  }
+  return value;
+}
+
+// Base units are integer text.
+export function positiveBaseUnits(raw: string, label: string): string {
+  if (!/^\d+$/.test(raw)) {
+    throw new UsageError("invalid_amount", `${label} must be an integer amount in base units`);
+  }
+  assertPositiveAmount(BigInt(raw), label);
+  return raw;
+}
+
+// Converts integer base units to decimals; passes non-integer input through.
 export function fromBaseUnits(value: string | number | bigint, decimals: number): string {
   checkedTokenDecimals(decimals);
   const raw = String(value);
@@ -34,37 +70,59 @@ export function fromBaseUnits(value: string | number | bigint, decimals: number)
   return neg ? `-${out}` : out;
 }
 
-/**
- * Human decimal amount → integer base-unit string (e.g. "1204.56", 6 → "1204560000").
- * Rejects negative, over-precise, or non-numeric input with a usage error; `unitLabel` names
- * the unit in the message.
- *
- * `flag` names the option the value came from. Several commands take a decimal amount under a
- * name of their own (`--pay`, `--amounts`, `--min-received`), and a message that always said
- * `--amount` sent the caller to fix a flag they had not typed — one that, on `asset participate`,
- * does not exist. Callers whose option really is `--amount` need not pass it.
- */
+// Converts non-negative decimals to base units; input names the offending input in errors.
 export function toBaseUnits(
   value: string,
   decimals: number,
   unitLabel: string,
-  flag = "--amount",
+  input: string | InputRef = inputRef("amount"),
 ): string {
   checkedTokenDecimals(decimals);
   const v = value.trim();
   if (!/^\d+(\.\d+)?$/.test(v)) {
     throw new UsageError(
       "invalid_amount",
-      `${flag} must be a non-negative decimal ${unitLabel} amount`,
+      errorMessage`${input} must be a non-negative decimal ${unitLabel} amount`,
     );
   }
   const [whole, frac = ""] = v.split(".");
   if (frac.length > decimals) {
     throw new UsageError(
       "invalid_amount",
-      `${flag} has too many decimal places for ${unitLabel} (max ${decimals})`,
+      errorMessage`${input} has too many decimal places for ${unitLabel} (max ${decimals})`,
     );
   }
   const digits = `${whole}${frac.padEnd(decimals, "0")}`.replace(/^0+(?=\d)/, "");
   return digits === "" ? "0" : digits;
+}
+
+declare const amountUnit: unique symbol;
+
+// Non-negative integer decimal text; the brand names the unit so amounts of different units do not mix.
+type UnitAmount<Unit extends string> = string & { readonly [amountUnit]: Unit };
+
+export type Sun = UnitAmount<"sun">;
+export type Wei = UnitAmount<"wei">;
+// Base units of a token whose decimals are known separately.
+export type BaseUnits = UnitAmount<"base-units">;
+
+// Callers validate user and node input first; a value rejected here is a programming error.
+function unitAmount(value: string | bigint, unit: string): string {
+  const text = typeof value === "bigint" ? value.toString() : value;
+  if (!/^\d+$/.test(text)) {
+    throw new RangeError(`${unit} amount must be non-negative integer text`);
+  }
+  return text;
+}
+
+export function sunAmount(value: string | bigint): Sun {
+  return unitAmount(value, "SUN") as Sun;
+}
+
+export function weiAmount(value: string | bigint): Wei {
+  return unitAmount(value, "wei") as Wei;
+}
+
+export function baseUnitAmount(value: string | bigint): BaseUnits {
+  return unitAmount(value, "base-unit") as BaseUnits;
 }

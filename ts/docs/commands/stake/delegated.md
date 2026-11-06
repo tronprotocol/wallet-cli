@@ -81,7 +81,7 @@ Delegations (1)
 |---|---|---|
 | `address` | string | Queried account |
 | `direction` | string | `out` / `in` |
-| `canDelegateMaxSun` | object | `{energy, bandwidth}` SUN strings — max still delegatable (out only) |
+| `canDelegateMaxSun` | object | `{energy, bandwidth}` SUN strings — max still delegatable (out only); with `--resource`, only that resource's key |
 | `delegations[]` | array | Each: `receiver` (out) or `from` (in), `resource`, `amountSun` (string), `lockedUntil` (epoch ms or `null`) |
 
 ## Exit status

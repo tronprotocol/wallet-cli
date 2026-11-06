@@ -3,61 +3,73 @@ import {
   constants,
   fchmodSync,
   fsyncSync,
-  lstatSync,
   mkdirSync,
   openSync,
-  renameSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { randomBytes } from "node:crypto";
 import { dirname } from "node:path";
-import { ExecutionError } from "../../../domain/errors/index.js";
+import { ExecutionError, UsageError } from "../../../domain/errors/index.js";
 import type { TransactionArtifactWriter } from "../../../application/ports/transaction-artifact-writer.js";
 
-/** Atomic, non-secret transaction artifact writer. Published files are mode 0644. */
+// Transaction artifacts require exclusive creation and mode 0600; an existing path is never replaced.
 export class SecureTransactionArtifactWriter implements TransactionArtifactWriter {
   write(path: string, hex: string): void {
     if (!path) throw new ExecutionError("io_error", "transaction artifact path is empty");
+    const dir = dirname(path);
     try {
-      const current = lstatSync(path, { throwIfNoEntry: false });
-      if (current?.isSymbolicLink()) {
-        throw new ExecutionError(
-          "io_error",
-          "refusing to replace a symbolic-link transaction artifact",
-        );
-      }
-      const dir = dirname(path);
-      mkdirSync(dir, { recursive: true });
-      const tmp = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
-      let fd: number | undefined;
-      try {
-        fd = openSync(tmp, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL, 0o644);
-        fchmodSync(fd, 0o644);
-        writeFileSync(fd, `${hex}\n`, "utf8");
-        fsyncSync(fd);
-        closeSync(fd);
-        fd = undefined;
-        renameSync(tmp, path);
-        if (process.platform !== "win32") {
-          const dirFd = openSync(dir, constants.O_RDONLY);
-          try {
-            fsyncSync(dirFd);
-          } finally {
-            closeSync(dirFd);
-          }
-        }
-      } catch (error) {
-        if (fd !== undefined) closeSync(fd);
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+    } catch (error) {
+      throw new ExecutionError(
+        "io_error",
+        `could not write transaction artifact: ${(error as Error).message}`,
+      );
+    }
+    let fd: number | undefined;
+    let created = false;
+    try {
+      fd = openSync(
+        path,
+        constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
+        0o600,
+      );
+      // Mark ownership only after exclusive creation succeeds.
+      created = true;
+      fchmodSync(fd, 0o600);
+      writeFileSync(fd, `${hex}\n`, "utf8");
+      fsyncSync(fd);
+      // A failed close must not be retried: the descriptor is released either way.
+      const written = fd;
+      fd = undefined;
+      closeSync(written);
+      if (process.platform !== "win32") {
+        const dirFd = openSync(dir, constants.O_RDONLY);
         try {
-          unlinkSync(tmp);
-        } catch {
-          // best-effort cleanup
+          fsyncSync(dirFd);
+        } finally {
+          closeSync(dirFd);
         }
-        throw error;
       }
     } catch (error) {
-      if (error instanceof ExecutionError) throw error;
+      if (fd !== undefined) {
+        try {
+          closeSync(fd);
+        } catch {
+          // The unlink and io_error below must still run.
+        }
+      }
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EEXIST" || code === "ELOOP") {
+        throw new UsageError("output_exists", `refusing to overwrite existing file: ${path}`);
+      }
+      // Remove unfinished files so exclusive creation permits a retry.
+      if (created) {
+        try {
+          unlinkSync(path);
+        } catch {
+          // Preserve the original write failure.
+        }
+      }
       throw new ExecutionError(
         "io_error",
         `could not write transaction artifact: ${(error as Error).message}`,

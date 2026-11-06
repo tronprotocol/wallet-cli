@@ -1,44 +1,23 @@
-import { creditActiveDeadline, throwIfDeadlineExpired } from "../../../domain/async/index.js";
+import { abortableDelay, abortReason, activeDispatch, dispatchNow } from "./dispatch-context.js";
 import type { HttpRequest, HttpTransport } from "./index.js";
 
 export interface RequestPacerOptions {
-  /**
-   * Minimum spacing between consecutive request *starts*. This is the constraint that actually
-   * keeps a public node happy: TronGrid's anonymous tier admits ~3 requests per second on
-   * account-scoped endpoints and rejects the rest with HTTP 429 — identically whether they arrive
-   * concurrently or strictly sequentially, so serialising alone does not help. Measured: starts
-   * 300ms apart still drew 429s, 350ms ran clean, and 400ms is the shipped value for margin.
-   */
+  // Space request starts; limiting concurrency alone does not prevent rate limits.
   minIntervalMs: number;
-  /**
-   * Cap on requests in flight at once. Secondary: once starts are paced, concurrency barely rises
-   * on its own. It bounds open sockets, and it keeps one slow response from stalling the schedule —
-   * with a cap of 1 the next start waits for the previous *response* rather than the next slot.
-   */
   maxInFlight: number;
 }
 
-/**
- * Paces outbound requests to one endpoint: a FIFO queue that admits at most `maxInFlight` at a
- * time and starts them no closer together than `minIntervalMs`.
- *
- * Callers keep whatever concurrency they like — a `Promise.all` still creates every promise at
- * once — and this decides what reaches the wire and when.
- *
- * Waiting here is progress, not a hang, so the time a request spends queued or paced is credited
- * back to the deadline it is running under (see `withDeadline`). Without that, a wide fan-out
- * reports a timeout for requests the node never received.
- *
- * One wait is not covered: time spent queued behind requests that are already in flight is only
- * credited once the permit arrives, so a deadline shorter than those requests take can still fire
- * while queued. That is the honest answer — the endpoint really is slower than the caller's
- * budget — whereas pacing is self-imposed and must never be charged. A request that loses its
- * deadline that way is dropped rather than sent: nobody is left to read the result.
- */
+interface Waiter {
+  readonly grant: () => void;
+}
+
+// Requests wait under the dispatch check of their call: an aborted wait leaves the queue and the
+// pacing schedule without a slot, and the check runs again after the wait, right before the
+// request starts.
 export class RequestPacer {
   readonly #minIntervalMs: number;
   readonly #maxInFlight: number;
-  readonly #queue: Array<() => void> = [];
+  readonly #queue: Waiter[] = [];
   #active = 0;
   #nextStartAt = 0;
 
@@ -48,66 +27,70 @@ export class RequestPacer {
   }
 
   async run<T>(fn: () => Promise<T>): Promise<T> {
-    const queuedFrom = Date.now();
-    await this.#acquire();
+    const context = activeDispatch();
+    const signal = context?.check.signal;
+    await this.#acquire(signal);
     try {
-      creditActiveDeadline(Date.now() - queuedFrom);
-      // Queue time is the one wait that is not credited up front, so the caller may already have
-      // given up. Checked before claiming a start slot, so an abandoned request costs neither a
-      // request to the endpoint nor a place in the schedule.
-      throwIfDeadlineExpired();
-      await this.#pace();
+      await this.#awaitStart(context);
+      // Time passes across the await above; check again in the same turn as the send.
+      dispatchNow(context);
       return await fn();
     } finally {
       this.#release();
     }
   }
 
-  #acquire(): Promise<void> {
+  #acquire(signal: AbortSignal | undefined): Promise<void> {
+    if (signal?.aborted) return Promise.reject(abortReason(signal));
     if (this.#active < this.#maxInFlight) {
       this.#active += 1;
       return Promise.resolve();
     }
-    return new Promise<void>((resolve) => this.#queue.push(resolve));
+    return new Promise<void>((resolve, reject) => {
+      const onAbort = () => {
+        const index = this.#queue.indexOf(waiter);
+        if (index >= 0) this.#queue.splice(index, 1);
+        reject(abortReason(signal!));
+      };
+      const waiter: Waiter = {
+        grant: () => {
+          signal?.removeEventListener("abort", onAbort);
+          resolve();
+        },
+      };
+      this.#queue.push(waiter);
+      signal?.addEventListener("abort", onAbort, { once: true });
+    });
   }
 
-  /**
-   * The permit is handed straight to the next runner in line rather than released and re-acquired:
-   * a caller arriving in the window between a release and the queued runner resuming would
-   * otherwise slip past the cap.
-   */
+  // Transfer the permit directly so new callers cannot exceed the cap.
   #release(): void {
     const next = this.#queue.shift();
-    if (next) next();
+    if (next) next.grant();
     else this.#active -= 1;
   }
 
-  /**
-   * Claim the next start slot, then wait for it. Claiming before the await is what stops two
-   * concurrent runners from taking the same slot.
-   *
-   * The credit is paid before the sleep, not after: a deadline shorter than the wait would
-   * otherwise fire part-way through and reject a request that had not even been sent.
-   */
-  #pace(): Promise<void> {
-    if (this.#minIntervalMs <= 0) return Promise.resolve();
-    const now = Date.now();
-    const startAt = Math.max(now, this.#nextStartAt);
-    this.#nextStartAt = startAt + this.#minIntervalMs;
-    const wait = startAt - now;
-    if (wait <= 0) return Promise.resolve();
-    creditActiveDeadline(wait);
-    return new Promise((resolve) => setTimeout(resolve, wait));
+  // A runner claims a start slot only when it is free, synchronously after waking, so concurrent
+  // runners never share one. The dispatch check runs before the claim, so an expired runner claims
+  // none even when its abort timer has not fired yet.
+  async #awaitStart(context: ReturnType<typeof activeDispatch>): Promise<void> {
+    if (this.#minIntervalMs <= 0) {
+      dispatchNow(context);
+      return;
+    }
+    for (;;) {
+      const now = Date.now();
+      if (now >= this.#nextStartAt) {
+        dispatchNow(context);
+        this.#nextStartAt = now + this.#minIntervalMs;
+        return;
+      }
+      await abortableDelay(this.#nextStartAt - now, context?.check.signal);
+    }
   }
 }
 
-/**
- * An HttpTransport that runs every request through a pacer. Decorating the transport rather than
- * each call site means a caller cannot forget: whatever reaches `requestText` is paced.
- *
- * One pacer instance is one budget, so share it between everything talking to the same endpoint —
- * a transport wrapped with its own private pacer paces only itself.
- */
+// Share one pacer across all transports using the same endpoint budget.
 export class PacedHttpTransport implements HttpTransport {
   constructor(
     private readonly inner: HttpTransport,

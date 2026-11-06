@@ -1,6 +1,7 @@
 import { baiRechargeText, baiUsageText, baiRecordsText, baiOrdersText } from "../render/bai.js";
 import {
   assertBaiRechargeMinimum,
+  assertBaiRechargePrecision,
   baiRechargeAmount,
 } from "../../../../domain/bai/recharge-policy.js";
 import { integerLiteral, rawPaymentAmount, paymentAmount } from "../schemas/payment-values.js";
@@ -8,6 +9,10 @@ import { z } from "zod";
 import type { CommandDefinition, ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { BaiService } from "../../../../application/use-cases/bai-service.js";
+import { isBaiTxHash } from "../../../../domain/bai/chains.js";
+import { isUserMessage } from "../../../../domain/errors/index.js";
+import { cliMessage } from "../output/errors.js";
+import { defaultToken } from "../../../../application/services/default-token.js";
 
 const requires = ["config baiApiKey"];
 
@@ -63,7 +68,7 @@ export const baiRechargeSpec: ChainSpec = {
   wallet: "optional",
   auth: "conditional",
   broadcasts: true,
-  supportsWait: false,
+  rejectsWait: "the recharge payment follows its own workflow and is reported to B.AI",
   capability: "bai.recharge",
   requires,
   positionals: [{ field: "amount" }],
@@ -71,6 +76,13 @@ export const baiRechargeSpec: ChainSpec = {
   description:
     "Recharge B.AI using the selected network and token. Each recharge checks wallet binding with B.AI and signs a binding message if needed before creating an order or paying. Dry-run checks binding but never signs or binds. Omit --to to recharge the API-key account, or set --to to the recipient's email or wallet address. Both modes use the same recharge flow. Recharge uses local x402 on mainnet (exact, or TRON exact_gasfree): TRON USDT/USDD, BSC USDT, or Base USDC. USDT/USDC minimum: 1. Token and amount precision are checked before an order is created.",
   baseFields: rechargeFields,
+  exclusive: [
+    {
+      label: "GasFree fee limit",
+      flags: ["max-gasfree-fee", "max-gasfree-fee-raw"],
+      select: "at-most-one",
+    },
+  ],
   examples: [
     { cmd: "wallet-cli bai recharge 10 --token USDT --network tron --password-stdin" },
     {
@@ -82,11 +94,27 @@ export const baiRechargeSpec: ChainSpec = {
   ],
 };
 
+// The result's warning field is a string; follow-up commands are spelled for the CLI.
+function spelledWarning<T extends object>(result: T) {
+  return "warning" in result && isUserMessage(result.warning)
+    ? { ...result, warning: cliMessage(result.warning).message }
+    : result;
+}
+
 export function baiRechargeBinding(service: BaiService): FamilyBinding {
   return {
     refine: (input, ctx) => {
+      let amount: ReturnType<typeof baiRechargeAmount>;
       try {
-        assertBaiRechargeMinimum(input.token ?? "USDT", baiRechargeAmount(input.amount));
+        amount = baiRechargeAmount(input.amount);
+      } catch {
+        // The amount schema reports it.
+        return;
+      }
+      try {
+        // Without a token the network decides the default, so the recharge itself checks the minimum.
+        if (input.token !== undefined) assertBaiRechargeMinimum(input.token, amount);
+        assertBaiRechargePrecision(amount);
       } catch (error) {
         ctx.addIssue({
           code: "custom",
@@ -95,18 +123,12 @@ export function baiRechargeBinding(service: BaiService): FamilyBinding {
           params: { errorCode: "invalid_amount" },
         });
       }
-      if (input.maxGasfreeFee !== undefined && input.maxGasfreeFeeRaw !== undefined)
-        ctx.addIssue({
-          code: "custom",
-          message: "GasFree fee limits are mutually exclusive",
-          params: { errorCode: "invalid_option" },
-        });
     },
     run: async (ctx, network, input) => {
       if (!network) throw new Error("B.AI recharge requires a resolved network");
-      return service.recharge(ctx, network, {
+      const result = await service.recharge(ctx, network, {
         amount: input.amount,
-        token: input.token ?? (network.id === "eip155:8453" ? "USDC" : "USDT"),
+        token: input.token ?? defaultToken("bai.recharge", network.id),
         to: input.to,
         apiKey: ctx.config.baiApiKey,
         dryRun: input.dryRun,
@@ -115,6 +137,7 @@ export function baiRechargeBinding(service: BaiService): FamilyBinding {
         maxGasfreeFee: input.maxGasfreeFee,
         maxGasfreeFeeRaw: input.maxGasfreeFeeRaw,
       });
+      return spelledWarning(result);
     },
   };
 }
@@ -156,9 +179,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
       "Recover a failed B.AI report using the original API key, chain, hash, amount and recipient. For recipient recharge, supply both original --to and --target-id; omit both only for self recharge. Reconcile any unconfirmed candidate hash before reporting. This command does not create an order, sign, pay, or resolve a new recipient. B.AI verifies whether the reported transaction can be credited.",
     fields: reportFields,
     input: reportFields.superRefine((value, ctx) => {
-      if (
-        !(value.chain === "tron" ? /^[0-9a-fA-F]{64}$/ : /^0x[0-9a-fA-F]{64}$/).test(value.txHash)
-      )
+      if (!isBaiTxHash(value.chain, value.txHash))
         ctx.addIssue({
           code: "custom",
           path: ["txHash"],
@@ -179,7 +200,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
         type: "activity",
         message: "Submitting the existing transaction hash to B.AI; no new payment will be sent…",
       });
-      return service.rechargeReport(input);
+      return spelledWarning(await service.rechargeReport(ctx.deadline, input));
     },
   } satisfies CommandDefinition);
 
@@ -199,7 +220,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     examples: [{ cmd: "wallet-cli bai usage-summary" }],
     run: async (ctx) => {
       ctx.emit({ type: "activity", message: "Fetching B.AI credit balance and usage summary…" });
-      return service.usage();
+      return service.usage(ctx.deadline);
     },
   } satisfies CommandDefinition);
 
@@ -224,7 +245,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     examples: [{ cmd: "wallet-cli bai usage-records --limit 20" }],
     run: async (ctx, _network, input) => {
       ctx.emit({ type: "activity", message: "Fetching B.AI usage records…" });
-      return service.usageList(input);
+      return service.usageList(ctx.deadline, input);
     },
   } satisfies CommandDefinition);
 
@@ -241,7 +262,7 @@ export function registerBaiCommands(registry: CommandRegistry, service: BaiServi
     examples: [{ cmd: "wallet-cli bai recharge-orders --limit 20" }],
     run: async (context, _network, input) => {
       context.emit({ type: "activity", message: "Fetching B.AI recharge orders…" });
-      const { warnings, ...result } = await service.rechargeList(input);
+      const { warnings, ...result } = await service.rechargeList(context.deadline, input);
       for (const warning of warnings ?? []) context.warn(warning);
       return result;
     },

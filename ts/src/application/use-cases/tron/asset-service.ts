@@ -1,38 +1,43 @@
-/**
- * TRC10 assets — the `asset` command group.
- *
- * TRC10 is a chain-native token with issuance, an ICO window and frozen supply, which is why it is
- * a group of its own rather than part of `token` (TRC20 contracts). Transfer is deliberately not
- * here: `tx send` with an asset id already covers it.
- *
- * Two conventions run through everything below:
- *   - command input and text output use whole tokens; json and the chain use minimal units.
- *   - local rejection is limited to what we can compute exactly or read for free while building
- *     Chain bounds we cannot read are left to the node — a rejected
- *     transaction never enters a block, so it costs neither fee nor bandwidth.
- */
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
+// Inputs use whole tokens; chain quantities and returned supply amounts use minimal units.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { toBaseUnits } from "../../../domain/amounts/index.js";
-import { icoPriceLabel, icoRate, icoTokensFor, type IcoRate } from "../../../domain/asset/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { assertPositive, toBaseUnits } from "../../../domain/amounts/index.js";
+import {
+  icoPriceLabel,
+  icoRate,
+  icoTokensFor,
+  trc10Description,
+  trc10Precision,
+  trc10Supply,
+  trc10Symbol,
+  trc10Url,
+  type IcoRate,
+} from "../../../domain/tron/asset/index.js";
 import { tronHexToBase58 } from "../../../domain/address/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAsset, TronAssetTranche, TronGateway } from "../../ports/chain/tron-gateway.js";
+import type {
+  TronAsset,
+  TronAssetTranche,
+  TronGateway,
+} from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
+  receiptOf,
   transactionMode,
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 
 const DAY_MS = 86_400_000;
-const TRX_DECIMALS = 6;
-/** name/abbr accept printable ASCII only — the chain rejects spaces and any non-ASCII byte. */
-const VISIBLE_ASCII = /^[\x21-\x7E]{1,32}$/;
+const TRX_DECIMALS = FAMILIES.tron.nativeDecimals;
 
 export interface AssetIssueInput extends TransactionModeInput {
   name: string;
@@ -71,14 +76,16 @@ export class TronAssetService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
-  // ── reads ────────────────────────────────────────────────────────────────────
-  async info(network: NetworkDescriptor, input: AssetInfoInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async info(deadline: ExecutionDeadline, network: NetworkDescriptor, input: AssetInfoInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     if ((input.assetRef === undefined) === (input.issuer === undefined)) {
-      throw new UsageError("invalid_value", "provide exactly one of <asset> or --issuer");
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`provide exactly one of <asset> or ${inputRef("issuer")}`,
+      );
     }
     const asset =
       input.issuer !== undefined
@@ -88,8 +95,8 @@ export class TronAssetService {
     return { kind: "asset-info" as const, ...assetView(asset) };
   }
 
-  async list(network: NetworkDescriptor, input: AssetListInput) {
-    const gateway = this.gateways.get(network, "tron");
+  async list(deadline: ExecutionDeadline, network: NetworkDescriptor, input: AssetListInput) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     const assets = await gateway.listAssets(input.limit, input.offset);
     return {
       kind: "asset-list" as const,
@@ -104,32 +111,34 @@ export class TronAssetService {
     };
   }
 
-  // ── writes ───────────────────────────────────────────────────────────────────
   async issue(scope: TransactionScope, network: NetworkDescriptor, input: AssetIssueInput) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
 
-    const precision = input.precision ?? 0;
-    const name = requireVisibleAscii(input.name, "--name");
-    const abbr = input.abbr === undefined ? "" : requireVisibleAscii(input.abbr, "--abbr");
-    const url = requireByteLength(input.url, 256, "--url", { allowEmpty: false });
-    const description = requireByteLength(input.description ?? "", 200, "--description", {
-      allowEmpty: true,
-    });
-    const supply = requirePositiveInteger(input.supply, "--supply");
+    const precision = trc10Precision(input.precision ?? 0);
+    const name = trc10Symbol(input.name, "name");
+    const abbr = input.abbr === undefined ? "" : trc10Symbol(input.abbr, "abbr");
+    const url = trc10Url(input.url);
+    const description = trc10Description(input.description ?? "");
+    const supply = trc10Supply(input.supply);
     const rate = parsePrice(input.price, precision);
-    const startTime = parseUtcDateTime(input.start, "--start");
-    const endTime = parseUtcDateTime(input.end, "--end");
+    const startTime = parseUtcDateTime(input.start, "start");
+    const endTime = parseUtcDateTime(input.end, "end");
     if (startTime <= this.now())
-      throw new UsageError("invalid_value", "--start must be in the future");
-    if (endTime <= startTime)
-      throw new UsageError("invalid_value", "--end must be later than --start");
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`${inputRef("start")} must be in the future`,
+      );
+    if (endTime <= startTime) {
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`${inputRef("end")} must be later than ${inputRef("start")}`,
+      );
+    }
     const scale = 10n ** BigInt(precision);
     const frozenSupply = (input.freeze ?? []).map((entry) => parseTranche(entry, scale));
 
-    // `asset issue` burns the issuance fee and an account may issue only once, ever — worth one
-    // read to refuse before that is spent. Every other bound is left to the node.
     if (await gateway.getAssetByIssuer(owner)) {
       throw new ChainError(
         "already_issued_asset",
@@ -142,7 +151,7 @@ export class TronAssetService {
       abbr,
       description,
       url,
-      totalSupply: toSafeInteger(supply * scale, "--supply"),
+      totalSupply: toSafeInteger(supply * scale, "supply"),
       trxNum: rate.trxNum,
       num: rate.num,
       precision,
@@ -153,13 +162,14 @@ export class TronAssetService {
       frozenSupply,
     };
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) => gateway.buildAssetIssue(from, issuance),
       estimate: async () => ({
@@ -171,8 +181,10 @@ export class TronAssetService {
     return {
       kind: "asset-issue" as const,
       ...data,
-      // the chain assigns the id; it does not exist until the transaction confirms
-      ...(data.assetIssueID === undefined ? {} : { assetId: String(data.assetIssueID) }),
+      // The chain assigns the asset ID on confirmation.
+      ...(receiptOf(data).assetIssueID === undefined
+        ? {}
+        : { assetId: String(receiptOf(data).assetIssueID) }),
       issuerAddress: owner,
       name,
       abbr,
@@ -196,7 +208,7 @@ export class TronAssetService {
 
   async update(scope: TransactionScope, network: NetworkDescriptor, input: AssetUpdateInput) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     if (
       input.description === undefined &&
@@ -206,29 +218,29 @@ export class TronAssetService {
     ) {
       throw new UsageError(
         "invalid_value",
-        "give at least one of --description, --url, --free-net-per-account, --public-free-net",
+        errorMessage`give at least one of ${inputRef("description")}, ${inputRef("url")}, ${inputRef("freeNetPerAccount")}, ${inputRef("publicFreeNet")}`,
       );
     }
     const asset = await this.#requireOwnAsset(gateway, owner);
 
-    // The chain overwrites all four fields, so anything not given is read back and rewritten
-    // unchanged — otherwise omitting a flag would silently blank it.
+    // The chain overwrites all four fields; preserve omitted values.
     const update = {
       description: input.description ?? asset.description ?? "",
       url: input.url ?? asset.url ?? "",
       freeAssetNetLimit: input.freeNetPerAccount ?? asset.free_asset_net_limit ?? 0,
       publicFreeAssetNetLimit: input.publicFreeNet ?? asset.public_free_asset_net_limit ?? 0,
     };
-    requireByteLength(update.url, 256, "--url", { allowEmpty: false });
-    requireByteLength(update.description, 200, "--description", { allowEmpty: true });
+    trc10Url(update.url);
+    trc10Description(update.description);
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) => gateway.buildAssetUpdate(from, update),
       estimate: async () => ({
@@ -255,7 +267,7 @@ export class TronAssetService {
     input: AssetParticipateInput,
   ) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     const asset = await this.#resolveAsset(gateway, input.assetRef);
     if (!asset) throw new ChainError("asset_not_found", `no TRC10 matches ${input.assetRef}`);
@@ -271,25 +283,24 @@ export class TronAssetService {
         `${asset.name} is not accepting participation right now`,
       );
     }
-    // TRX carries 6 decimals, so --pay is a decimal amount, not whole TRX only.
     const paidSun = BigInt(toBaseUnits(input.pay, TRX_DECIMALS, "TRX"));
-    if (paidSun <= 0n) throw new UsageError("invalid_value", "--pay must be greater than zero");
     const rate: IcoRate = { trxNum: asset.trx_num, num: asset.num };
     const received = icoTokensFor(paidSun, rate);
     if (received === 0n) {
       throw new UsageError(
         "invalid_value",
-        "--pay is too small to buy even one unit of this token at its ICO rate",
+        errorMessage`${inputRef("pay")} is too small to buy even one unit of this token at its ICO rate`,
       );
     }
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) =>
         gateway.buildAssetParticipate(from, issuer, String(asset.id), String(paidSun)),
@@ -306,7 +317,6 @@ export class TronAssetService {
       issuerAddress: issuer,
       participantAddress: owner,
       paidSun: String(paidSun),
-      // exact integer arithmetic from the asset's fixed rate — no receipt field needed
       receivedAmount: String(received),
       precision: asset.precision ?? 0,
     };
@@ -314,7 +324,7 @@ export class TronAssetService {
 
   async unfreeze(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
     if (transactionRequiresSigner(input)) this.#assertSignable(scope);
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
     const asset = await this.#requireOwnAsset(gateway, owner);
 
@@ -322,8 +332,7 @@ export class TronAssetService {
     if (tranches.length === 0) {
       throw new ChainError("no_frozen_supply", `${asset.name} has no frozen supply to release`);
     }
-    // Each tranche's unlock is fixed at issuance: start_time + days, regardless of when the
-    // issuance actually landed. The chain releases every matured tranche in one transaction.
+    // Unlocks are relative to start_time, not the block that included issuance.
     const now = this.now();
     const matured = tranches.filter((t) => asset.start_time + t.frozen_days * DAY_MS <= now);
     if (matured.length === 0) {
@@ -336,13 +345,14 @@ export class TronAssetService {
     const releasing = matured.reduce((sum, t) => sum + BigInt(t.frozen_amount), 0n);
     const stillFrozen = tranches.reduce((sum, t) => sum + BigInt(t.frozen_amount), 0n) - releasing;
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (from) => gateway.buildAssetUnfreeze(from),
       estimate: async () => ({
@@ -357,16 +367,14 @@ export class TronAssetService {
       assetId: String(asset.id),
       name: asset.name,
       issuerAddress: owner,
-      // the receipt is authoritative once confirmed; before that we can only state our own plan
-      releasedAmount: String(data.unfreezeAmount ?? releasing),
+      // Prefer the confirmed receipt over the projected release amount.
+      releasedAmount: String(receiptOf(data).unfreezeAmount ?? releasing),
       stillFrozenAmount: String(stillFrozen),
       precision: asset.precision ?? 0,
     };
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────────────
-  /** The Ledger TRON app cannot parse any TRC10 issuance contract type — refuse before the
-   *  device is touched rather than after. */
+  // Ledger cannot sign these TRC10 issuance operations.
   #assertSignable(scope: TransactionScope): void {
     this.pipeline.assertCanSign(scope.activeAccount, "tron", { requireSoftware: true });
   }
@@ -379,14 +387,11 @@ export class TronAssetService {
     return asset;
   }
 
-  /** numeric reference → id lookup; anything else → name lookup, which may be ambiguous. */
   async #resolveAsset(gateway: TronGateway, reference: string): Promise<TronAsset | undefined> {
     if (/^\d+$/.test(reference)) return gateway.getAssetById(reference);
     const matches = await gateway.getAssetsByName(reference);
     if (matches.length > 1) {
-      // `assetIds` is the machine-readable answer ("which ids do I re-run with?"); `matches` carries
-      // the columns a human needs to actually pick one, and is what the text renderer tables up.
-      // Quantities stay raw (minimal units) here, exactly as the success payload reports them.
+      // Quantities use minimal units.
       throw new ChainError(
         "ambiguous_asset_name",
         `${matches.length} TRC10 tokens are named ${reference}; re-run with the id`,
@@ -406,7 +411,6 @@ export class TronAssetService {
   }
 }
 
-/** the full read view of an asset, shared by `asset info`. */
 function assetView(asset: TronAsset) {
   const precision = asset.precision ?? 0;
   const rate: IcoRate = { trxNum: asset.trx_num, num: asset.num };
@@ -441,83 +445,56 @@ function priceLabel(rate: IcoRate, precision: number): string {
 
 function parsePrice(value: string, precision: number): IcoRate {
   const match = /^(\d+):(\d+)$/.exec(value.trim());
-  if (!match) throw new UsageError("invalid_value", "--price must be <trx>:<tokens>, e.g. 1:100");
+  if (!match) {
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("price")} must be <trx>:<tokens>, e.g. 1:100`,
+    );
+  }
   return icoRate(BigInt(match[1]!), BigInt(match[2]!), precision);
 }
 
-/** `<amount>:<days>` in whole tokens → a chain tranche in minimal units. */
+// Parse whole-token <amount>:<days> into minimal units.
 function parseTranche(value: string, scale: bigint): TronAssetTranche {
   const match = /^(\d+):(\d+)$/.exec(value.trim());
-  if (!match)
-    throw new UsageError("invalid_value", "--freeze must be <amount>:<days>, e.g. 100000000:30");
-  const amount = BigInt(match[1]!);
-  const days = Number(match[2]!);
-  if (amount <= 0n)
-    throw new UsageError("invalid_value", "--freeze amount must be greater than zero");
-  if (days <= 0) throw new UsageError("invalid_value", "--freeze days must be greater than zero");
-  return { frozen_amount: toSafeInteger(amount * scale, "--freeze"), frozen_days: days };
+  if (!match) {
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef("freeze")} must be <amount>:<days>, e.g. 100000000:30`,
+    );
+  }
+  const amount = assertPositive(BigInt(match[1]!), errorMessage`${inputRef("freeze")} amount`);
+  const days = assertPositive(Number(match[2]!), errorMessage`${inputRef("freeze")} days`);
+  return { frozen_amount: toSafeInteger(amount * scale, "freeze"), frozen_days: days };
 }
 
-/** `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss`, always read as UTC so it is reproducible anywhere. */
-function parseUtcDateTime(value: string, flag: string): number {
+function parseUtcDateTime(value: string, field: string): number {
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/.exec(value.trim());
   if (!match) {
     throw new UsageError(
       "invalid_value",
-      `${flag} must be YYYY-MM-DD or "YYYY-MM-DD HH:mm:ss" (read as UTC)`,
+      errorMessage`${inputRef(field)} must be YYYY-MM-DD or "YYYY-MM-DD HH:mm:ss" (read as UTC)`,
     );
   }
   const [, y, mo, d, h = "00", mi = "00", s = "00"] = match;
   const stamp = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
-  // Date.UTC rolls over out-of-range parts (month 13 → next January); reject rather than reinterpret.
-  // Comparing the whole instant, not just the date: `12:60:00` rolls to 13:00:00 WITHIN the same
-  // day, so a date-only check waves it through — and an issuance is irreversible.
+  // Reject Date.UTC rollover in both date and time components.
   const iso = new Date(stamp).toISOString();
   if (iso.slice(0, 19) !== `${y}-${mo}-${d}T${h}:${mi}:${s}`) {
-    throw new UsageError("invalid_value", `${flag} is not a real date and time`);
+    throw new UsageError(
+      "invalid_value",
+      errorMessage`${inputRef(field)} is not a real date and time`,
+    );
   }
   return stamp;
 }
 
-function requireVisibleAscii(value: string, flag: string): string {
-  if (!VISIBLE_ASCII.test(value)) {
-    throw new UsageError(
-      "invalid_asset_name",
-      `${flag} must be 1-32 visible ASCII characters, with no spaces`,
-    );
-  }
-  return value;
-}
-
-function requireByteLength(
-  value: string,
-  max: number,
-  flag: string,
-  opts: { allowEmpty: boolean },
-): string {
-  const bytes = Buffer.byteLength(value, "utf8");
-  if (!opts.allowEmpty && bytes === 0)
-    throw new UsageError("invalid_value", `${flag} must not be empty`);
-  if (bytes > max) throw new UsageError("invalid_value", `${flag} must be at most ${max} bytes`);
-  return value;
-}
-
-function requirePositiveInteger(value: string, flag: string): bigint {
-  if (!/^\d+$/.test(value.trim())) {
-    throw new UsageError("invalid_value", `${flag} must be a whole number`);
-  }
-  const parsed = BigInt(value.trim());
-  if (parsed <= 0n) throw new UsageError("invalid_value", `${flag} must be greater than zero`);
-  return parsed;
-}
-
-/** protobuf int64 fields travel as JS numbers through tronweb; refuse anything that would lose
- *  precision rather than issue a token with a silently wrong supply. */
-function toSafeInteger(value: bigint, flag: string): number {
+// TronWeb passes int64 fields as JS numbers; reject precision loss.
+function toSafeInteger(value: bigint, field: string): number {
   if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
     throw new UsageError(
       "invalid_value",
-      `${flag} is too large to represent exactly at this precision`,
+      errorMessage`${inputRef(field)} is too large to represent exactly at this precision`,
     );
   }
   return Number(value);

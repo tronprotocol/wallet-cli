@@ -1,7 +1,17 @@
-import { X402HttpServer } from "../../adapters/outbound/x402/server.js";
+import { X402FacilitatorClient } from "../../adapters/outbound/x402/facilitator-client.js";
+import { X402PaywallHttpServer } from "../../adapters/inbound/http/x402/paywall-server.js";
+import { paywallTerms } from "./x402-paywall.js";
 import { expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
+import type { X402PaymentResult, X402ResponseResult } from "../ports/x402-payment.js";
+import type { X402ServeDetails } from "../ports/x402-server.js";
+import type { BaiRawOrder } from "../ports/bai-recharge.js";
+import { CommandDeadline } from "../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
+
+const rawOrder = (value: object) => value as unknown as BaiRawOrder;
 const payer = "0x1111111111111111111111111111111111111111";
 const txHash = "0x" + "a".repeat(64);
 const network = { id: "eip155:56", chainId: "56", family: "evm" } as const;
@@ -18,11 +28,11 @@ function fixture(
     bind: vi.fn(),
     createOrder: vi.fn(async () => {
       calls.push("order");
-      return { id: 1 };
+      return { orderId: "1" };
     }),
     reportTxHash: vi.fn(async () => {
       calls.push("report");
-      return { success: true as const, order: { id: 1, points: 100000 } };
+      return { success: true as const, order: rawOrder({ id: 1, points: 100000 }) };
     }),
   };
   const payments = {
@@ -31,12 +41,13 @@ function fixture(
     roundtrip: vi.fn(async () => {
       calls.push("pay");
       return {
-        serve: {},
+        serve: {} as X402ServeDetails,
         pay: {
           settled: true,
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
-        },
+        } as unknown as X402PaymentResult,
+        settlement: { success: true, transaction: txHash, network: "eip155:56" },
       };
     }),
   };
@@ -45,12 +56,16 @@ function fixture(
     payTo,
   });
   const run = (to?: string, amount = "10", token = "USDT") =>
-    service.recharge({ resolveAddress: () => payer, emit: vi.fn() } as never, network as never, {
-      amount,
-      token,
-      apiKey: "secret",
-      to,
-    });
+    service.recharge(
+      { deadline: NO_DEADLINE, resolveAddress: () => payer, emit: vi.fn() } as never,
+      network as never,
+      {
+        amount,
+        token,
+        apiKey: "secret",
+        to,
+      },
+    );
   return { api, payments, calls, run };
 }
 it("resolves another recipient, then reuses exactly that target for preorder and report", async () => {
@@ -69,15 +84,19 @@ it("resolves another recipient, then reuses exactly that target for preorder and
       amount: "10",
       rechargeTarget: target,
     }),
+    expect.anything(),
   );
-  expect(api.reportTxHash).toHaveBeenCalledWith({
-    chain: "bnb",
-    amount: "10",
-    txHash,
-    rechargeTarget: target,
-  });
+  expect(api.reportTxHash).toHaveBeenCalledWith(
+    {
+      chain: "bnb",
+      amount: "10",
+      txHash,
+      rechargeTarget: target,
+    },
+    expect.anything(),
+  );
   expect(result).toMatchObject({ creditStatus: "credited", txHash });
-  expect(api.isBound).toHaveBeenCalledWith({ chain: "bnb", address: payer });
+  expect(api.isBound).toHaveBeenCalledWith({ chain: "bnb", address: payer }, expect.anything());
 });
 it.each([
   ["TRX", "14.999999", "15"],
@@ -128,6 +147,7 @@ it.each([undefined, payer, payer.toUpperCase().replace("0X", "0x")])(
     expect(api.resolveTarget).not.toHaveBeenCalled();
     expect(api.createOrder).toHaveBeenCalledWith(
       expect.not.objectContaining({ rechargeTarget: expect.anything() }),
+      expect.anything(),
     );
   },
 );
@@ -164,10 +184,9 @@ it.each([
   "validates BSC token and precision before target resolution and preorder: %s %s",
   async (token, amount) => {
     const { payments, api, run } = fixture();
-    const server = new X402HttpServer();
-    payments.validate.mockImplementation((...args: unknown[]) =>
-      server.validate(args[0] as never, args[1] as never),
-    );
+    payments.validate.mockImplementation((...args: unknown[]) => {
+      paywallTerms(args[0] as never, args[1] as never, new X402FacilitatorClient());
+    });
     await expect(run("recipient", amount, token)).rejects.toMatchObject({
       code: token === "USDT" ? "invalid_amount" : "invalid_value",
     });
@@ -187,10 +206,18 @@ it("previews a recipient recharge without creating an order or obtaining any sig
     }),
   };
   const payments = new X402Service(
-    new X402PaymentClient(signing as never),
+    new X402PaymentClient(),
+    signing as never,
     {} as never,
     {} as never,
-    new X402HttpServer(undefined, 1000, () => {}),
+    {
+      facilitator: new X402FacilitatorClient(undefined),
+      requestTimeoutMs: 0,
+      host: new X402PaywallHttpServer(
+        () => {},
+        () => {},
+      ),
+    },
   );
   const api = {
     isBound: vi.fn(async () => true),
@@ -204,7 +231,7 @@ it("previews a recipient recharge without creating an order or obtaining any sig
   });
   const emit = vi.fn();
   const result = await service.recharge(
-    { resolveAddress: () => payer, timeoutMs: 1000, emit } as never,
+    { resolveAddress: () => payer, deadline: new CommandDeadline(0), emit } as never,
     network as never,
     { amount: "1", token: "USDT", apiKey: "test-key", dryRun: true, to: "recipient@example.com" },
   );
@@ -250,7 +277,7 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
     },
   );
   await expect(
-    service.recharge({ activeAccount: payer } as never, network as never, {
+    service.recharge({ deadline: NO_DEADLINE, activeAccount: payer } as never, network as never, {
       amount: "1",
       token: "USDT",
       apiKey: "test-key",
@@ -267,21 +294,25 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
 it("checks relay configuration before creating any preorder", async () => {
   const { X402Service } = await import("./x402-service.js");
   const { X402PaymentClient } = await import("../../adapters/outbound/x402/payment-client.js");
-  const { X402HttpServer } = await import("../../adapters/outbound/x402/server.js");
   const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
-  const payments = new X402Service(
-    new X402PaymentClient({} as never),
-    {} as never,
-    {} as never,
-    new X402HttpServer(),
-  );
+  const payments = new X402Service(new X402PaymentClient(), {} as never, {} as never, {} as never, {
+    facilitator: new X402FacilitatorClient(),
+    requestTimeoutMs: 0,
+    host: new X402PaywallHttpServer(
+      () => {},
+      () => {},
+    ),
+  });
   const service = new BaiService({} as never, undefined, payments, undefined, api as never, {
     facilitatorUrl: "https://fake.invalid",
     payTo: { tron: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" },
   });
   await expect(
     service.recharge(
-      { resolveAddress: () => "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ" } as never,
+      {
+        deadline: NO_DEADLINE,
+        resolveAddress: () => "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
+      } as never,
       { id: "tron:728126428", family: "tron", chainId: "728126428" } as never,
       {
         amount: "1",
@@ -301,11 +332,16 @@ it("rejects token precision before account and binding checks", async () => {
   const resolveAccount = vi.fn();
   const createOrder = vi.fn();
   const roundtrip = vi.fn();
-  const server = new X402HttpServer();
   const service = new BaiService(
     {} as never,
     undefined,
-    { prepare: vi.fn(), validate: (net, input) => server.validate(net, input), roundtrip },
+    {
+      prepare: vi.fn(),
+      validate: (net, input) => {
+        paywallTerms(net, input, new X402FacilitatorClient());
+      },
+      roundtrip,
+    },
     undefined,
     { isBound, createOrder } as never,
     { facilitatorUrl: "https://facilitator.example", payTo: { bnb: payer } },
@@ -314,7 +350,7 @@ it("rejects token precision before account and binding checks", async () => {
     { resolveAccount },
   );
   await expect(
-    service.recharge({ resolveAddress } as never, network as never, {
+    service.recharge({ deadline: NO_DEADLINE, resolveAddress } as never, network as never, {
       amount: "1.0000000000000000001",
       token: "USDT",
       apiKey: "test-key",
@@ -360,16 +396,18 @@ function liveBindingFixture() {
     roundtrip: vi.fn(async () => {
       calls.push("pay");
       return {
-        serve: {},
+        serve: {} as X402ServeDetails,
         pay: {
           settled: true,
           payer: { address: payer },
           paymentResponse: { success: true, transaction: txHash, network: "eip155:56" },
-        },
+        } as unknown as X402PaymentResult,
+        settlement: { success: true, transaction: txHash, network: "eip155:56" },
       };
     }),
   };
   const scope = {
+    deadline: NO_DEADLINE,
     activeAccount: "selected",
     resolveAddress: () => payer,
     emit: vi.fn(),
@@ -427,3 +465,73 @@ it("previews an unbound wallet with a warning without unlocking, signing, bindin
   expect(f.payments.prepare).not.toHaveBeenCalled();
   expect(f.api.createOrder).not.toHaveBeenCalled();
 });
+
+it.each([false, true])(
+  "runs application signer preparation before binding and preorder (failure=%s)",
+  async (failure) => {
+    const { X402Service } = await import("./x402-service.js");
+    const { WalletError } = await import("../../domain/errors/index.js");
+    const f = liveBindingFixture();
+    const prepare = vi.fn(() => {
+      f.calls.push("prepare");
+      if (failure) throw new WalletError("watch_only_no_signer", "cannot sign");
+    });
+    const close = vi.fn(async () => {});
+    const request = vi.fn(async () => {
+      f.calls.push("pay");
+      return {
+        kind: "response" as const,
+        result: {
+          settled: true,
+          payer: { address: payer },
+          paymentResponse: { success: true, transaction: txHash, network: network.id },
+          settlement: { success: true, transaction: txHash, network: network.id },
+        } as unknown as X402ResponseResult,
+      };
+    });
+    const payments = new X402Service(
+      { request, facts: () => ({ tokenDecimals: () => 18 }) },
+      { prepare } as never,
+      {} as never,
+      {} as never,
+      {
+        facilitator: new X402FacilitatorClient(),
+        requestTimeoutMs: 0,
+        host: {
+          start: async () => ({
+            details: {
+              payUrl: "https://example.test",
+              asset: "0x55d398326f99059fF775485246999027B3197955",
+              rawAmount: "1000000000000000000",
+            } as X402ServeDetails,
+            close,
+          }),
+        },
+      },
+    );
+    const service = new BaiService({} as never, undefined, payments, f.binding, f.api as never, {
+      facilitatorUrl: "https://example.test",
+      payTo: { bnb: payer },
+    });
+    const pending = service.recharge(f.scope, network as never, {
+      amount: "1",
+      token: "USDT",
+      apiKey: "key",
+    });
+    if (failure) {
+      await expect(pending).rejects.toMatchObject({
+        code: "watch_only_no_signer",
+        details: { phase: "sign", paymentStatus: "not_sent", retryPayment: false },
+      });
+      expect(f.calls).toEqual(["check", "prepare"]);
+      expect(f.binding.bind).not.toHaveBeenCalled();
+      expect(f.api.createOrder).not.toHaveBeenCalled();
+      expect(request).not.toHaveBeenCalled();
+    } else {
+      await expect(pending).resolves.toMatchObject({ txHash });
+      expect(f.calls).toEqual(["check", "prepare", "bind", "order", "pay"]);
+      expect(close).toHaveBeenCalledOnce();
+    }
+    expect(prepare).toHaveBeenCalledWith("selected", "evm");
+  },
+);

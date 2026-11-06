@@ -1,3 +1,11 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
+import {
+  barBroadcasts,
+  processBroadcastGuard,
+} from "../../../application/services/broadcast-guard.js";
 import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -5,8 +13,14 @@ import type {
   NetworkDescriptor,
   TronTransactionArtifact,
 } from "../../../domain/types/index.js";
+import { ExecutionError } from "../../../domain/errors/index.js";
+import { ERROR_CODES, type ErrorCode } from "../../../domain/errors/codes.js";
 import { signTronLinkRequest } from "./auth.js";
 import { TronLinkClient } from "./client.js";
+import { expiredCheck, expiringCheck } from "../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const ADDRESS = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
 const UUID = "00000000-0000-4000-8000-000000000001";
@@ -58,12 +72,17 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
     );
-    await client.list(NETWORK, ADDRESS, { state: 0, isSigned: false, start: 20, limit: 10 });
+    await client.list(
+      NETWORK,
+      ADDRESS,
+      { state: "open", isSigned: false, start: 20, limit: 10 },
+      NO_CHECK,
+    );
 
     const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(calledUrl.pathname).toBe("/multi/list");
@@ -86,20 +105,18 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
   });
 
-  // The service authenticates POSTs over exactly this key set; one extra signed field is rejected
-  // with code 4000, so pin the signed set rather than only the body.
   it("signs POSTs over the fixed auth set plus address, and nothing else", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
       response({ code: 0, data: {} }),
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
     );
-    await client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact);
+    await client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact, NO_CHECK);
 
     const calledUrl = new URL(String(fetchMock.mock.calls[0]![0]));
     expect(calledUrl.pathname).toBe("/multi/transaction");
@@ -135,7 +152,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
@@ -146,7 +163,7 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
       raw_data: { contract: [] },
       raw_data_hex: "00",
     } as TronTransactionArtifact;
-    await client.submit(NETWORK, ADDRESS, transaction);
+    await client.submit(NETWORK, ADDRESS, transaction, NO_CHECK);
     expect(JSON.parse(String(fetchMock.mock.calls[0]![1]?.body))).toEqual({
       address: ADDRESS,
       transaction,
@@ -165,13 +182,13 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const messages: unknown[] = [];
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
+      processBroadcastGuard,
       globalThis.fetch,
       () => NOW,
       () => UUID,
       factory,
     );
-    const watching = client.watch(NETWORK, ADDRESS, controller.signal, (message) =>
+    const watching = client.watch(NETWORK, ADDRESS, controller.signal, NO_CHECK, (message) =>
       messages.push(message),
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -179,31 +196,183 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     expect(connectedUrl?.searchParams.get("address")).toBe(ADDRESS);
     expect(socket.sent).toEqual([JSON.stringify({ address: ADDRESS, version: "v1" })]);
 
-    socket.emit("message", Buffer.from('[{"state":0,"is_sign":0}]'));
+    socket.emit("message", Buffer.from('[{"state":0,"is_sign":0},{"state":0,"is_sign":1}]'));
+    socket.emit("message", Buffer.from('[{"state":0,"is_sign":"maybe"}]'));
+    socket.emit("message", Buffer.from('{"state":0,"is_sign":0}'));
     controller.abort();
     await watching;
-    expect(messages).toEqual([[{ state: 0, is_sign: 0 }]]);
+    expect(messages).toEqual([1]);
   });
 
-  // The business code alone cannot tell a rejected signature (4000) from a bad parameter (20004)
-  // or a stale signature (20305). Carry the service's own wording through to the caller.
+  it("builds no socket once the deadline has expired", async () => {
+    const factory = vi.fn();
+    const client = new TronLinkClient(
+      CONFIG,
+      processBroadcastGuard,
+      globalThis.fetch,
+      () => NOW,
+      () => UUID,
+      factory as never,
+    );
+    await expect(
+      client.watch(NETWORK, ADDRESS, new AbortController().signal, expiredCheck(), () => {}),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("ends a watch with timeout when the deadline expires, and closes the socket", async () => {
+    const socket = new FakeSocket();
+    const factory = () => {
+      queueMicrotask(() => socket.open());
+      return socket as never;
+    };
+    const client = new TronLinkClient(
+      CONFIG,
+      processBroadcastGuard,
+      globalThis.fetch,
+      () => NOW,
+      () => UUID,
+      factory,
+    );
+    const error = await client
+      .watch(NETWORK, ADDRESS, new AbortController().signal, expiringCheck(20), () => {})
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: "timeout" });
+    expect(socket.readyState).toBe(3);
+  });
+
+  it("normalizes list rows and keeps a malformed row with its claimed id", async () => {
+    const txId = "AB".repeat(32);
+    const row = {
+      hash: `0x${txId}`,
+      contract_type: "TransferContract",
+      state: "0",
+      is_sign: "true",
+      current_weight: 1,
+      threshold: "2",
+      contract_data: { owner_address: "417445076632894b7b844887d2bcd2e8c30bb6c6f2" },
+      originator_address: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+      current_transaction: { raw_data_hex: "00" },
+      signature_progress: [
+        {
+          address: "417445076632894b7b844887d2bcd2e8c30bb6c6f2",
+          weight: 1,
+          is_sign: 1,
+          sign_time: 1_900_000_001,
+        },
+      ],
+    };
+    const fetchMock = vi.fn(async () =>
+      response({ code: 0, data: { range_total: 2, data: [row, { ...row, state: 3 }] } }),
+    );
+    const client = new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as never);
+    const page = await client.list(
+      NETWORK,
+      ADDRESS,
+      { state: "all", start: 0, limit: 20 },
+      NO_CHECK,
+    );
+
+    expect(page.entries[0]).toEqual({
+      kind: "record",
+      claimedTxId: txId.toLowerCase(),
+      record: {
+        txId: txId.toLowerCase(),
+        contractType: "TransferContract",
+        status: "open",
+        signed: true,
+        currentWeight: 1,
+        threshold: 2,
+        ownerAddress: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+        originatorAddress: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+        signatureProgress: [
+          {
+            address: "TLZz5XKerAAebbRdScB3jmSPr5DHSpGJJP",
+            weight: 1,
+            signed: true,
+            signedAt: 1_900_000_001_000,
+          },
+        ],
+        currentTransaction: { raw_data_hex: "00" },
+      },
+    });
+    expect(page.entries[1]).toMatchObject({
+      kind: "malformed",
+      claimedTxId: txId.toLowerCase(),
+      error: {
+        code: "provider_error",
+        message: "TronLink returned unsupported transaction state 3",
+      },
+    });
+  });
+
+  it("classifies a malformed record hash as bad provider data", async () => {
+    const fetchMock = vi.fn(async () =>
+      response({ code: 0, data: { range_total: 1, data: [{ hash: "not-a-hash" }] } }),
+    );
+    const client = new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as never);
+    const page = await client.list(
+      NETWORK,
+      ADDRESS,
+      { state: "all", start: 0, limit: 20 },
+      NO_CHECK,
+    );
+
+    const entry = page.entries[0];
+    expect(entry).toMatchObject({ kind: "malformed", claimedTxId: null });
+    if (entry?.kind !== "malformed") throw new Error("expected a malformed entry");
+    expect(entry.error).toBeInstanceOf(ExecutionError);
+    expect(entry.error.code).toBe("provider_error");
+    expect(ERROR_CODES[entry.error.code as ErrorCode].exit).toBe(1);
+  });
+
   it("carries the service's rejection message into the error details", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
       response({ code: 4000, message: "Authentication failed." }),
     );
     const client = new TronLinkClient(
       CONFIG,
-      1_000,
+      processBroadcastGuard,
       fetchMock as typeof fetch,
       () => NOW,
       () => UUID,
     );
     await expect(
-      client.list(NETWORK, ADDRESS, { state: 255, start: 0, limit: 20 }),
+      client.list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 }, NO_CHECK),
     ).rejects.toMatchObject({
       code: "provider_error",
       details: { providerCode: 4000, providerMessage: "Authentication failed." },
     });
+  });
+
+  it.each([
+    [() => response({}, 404), "not_found", undefined],
+    [() => response({}, 500), "provider_error", { status: 500 }],
+    [() => new Response("{nope"), "provider_error", undefined],
+    [() => new Response("x".repeat(1024 * 1024 + 1)), "provider_error", undefined],
+    [
+      () => new Response("", { status: 429, headers: { "retry-after": "9" } }),
+      "provider_rate_limited",
+      { httpStatus: 429, retryAfterSeconds: 9 },
+    ],
+    [() => new Response("", { status: 429 }), "provider_rate_limited", { httpStatus: 429 }],
+  ])("maps a service answer to its error (%#)", async (answer, code, details) => {
+    const fetchMock = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
+      answer(),
+    );
+    const client = new TronLinkClient(
+      CONFIG,
+      processBroadcastGuard,
+      fetchMock as typeof fetch,
+      () => NOW,
+      () => UUID,
+    );
+    const error = (await client
+      .list(NETWORK, ADDRESS, { state: "all", start: 0, limit: 20 }, NO_CHECK)
+      .catch((caught: unknown) => caught)) as { code: string; details?: unknown };
+    expect(error.code).toBe(code);
+    expect(error.details).toEqual(details);
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "error" });
   });
 
   it("bounds the service message and drops non-string or control-character noise", async () => {
@@ -211,18 +380,23 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     const client = (body: unknown) =>
       new TronLinkClient(
         CONFIG,
-        1_000,
+        processBroadcastGuard,
         vi.fn(async () => response(body)) as unknown as typeof fetch,
         () => NOW,
         () => UUID,
       );
     let rejection: { details?: { providerMessage?: string } } = {};
     try {
-      await client({ code: 20004, message: noisy }).list(NETWORK, ADDRESS, {
-        state: 255,
-        start: 0,
-        limit: 20,
-      });
+      await client({ code: 20004, message: noisy }).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      );
     } catch (error) {
       rejection = error as { details?: { providerMessage?: string } };
     }
@@ -232,39 +406,72 @@ describe("TronLink REST/WebSocket collaboration adapter", () => {
     expect(message.startsWith("xy[31mzzz")).toBe(true);
 
     await expect(
-      client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
-        state: 255,
-        start: 0,
-        limit: 20,
-      }),
+      client({ code: 20004, message: { nested: true } }).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "provider_error", details: { providerCode: 20004 } });
     await expect(
-      client({ code: 20004, message: { nested: true } }).list(NETWORK, ADDRESS, {
-        state: 255,
-        start: 0,
-        limit: 20,
-      }),
+      client({ code: 20004, message: { nested: true } }).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      ),
     ).rejects.not.toHaveProperty("details.providerMessage");
   });
 
   it("requires complete credentials and rejects insecure endpoints before a request", async () => {
     const fetchMock = vi.fn();
     await expect(
-      new TronLinkClient({} as Config, 1_000, fetchMock as typeof fetch).list(NETWORK, ADDRESS, {
-        state: 255,
-        start: 0,
-        limit: 20,
-      }),
+      new TronLinkClient({} as Config, processBroadcastGuard, fetchMock as typeof fetch).list(
+        NETWORK,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "tronlink_credentials_missing" });
 
     const insecure = { ...NETWORK, tronlinkHttpEndpoint: "http://api.walletadapter.org" };
     await expect(
-      new TronLinkClient(CONFIG, 1_000, fetchMock as typeof fetch).list(insecure, ADDRESS, {
-        state: 255,
-        start: 0,
-        limit: 20,
-      }),
+      new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as typeof fetch).list(
+        insecure,
+        ADDRESS,
+        {
+          state: "all",
+          start: 0,
+          limit: 20,
+        },
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "invalid_config" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("TronLinkClient.submit dry-run guard", () => {
+  it("refuses while broadcasting is barred and sends nothing", async () => {
+    const fetchMock = vi.fn(async () => response({ code: 0, data: {} }));
+    const client = new TronLinkClient(CONFIG, processBroadcastGuard, fetchMock as typeof fetch);
+    await barBroadcasts("tx multisig --dry-run", async () => {
+      await expect(
+        client.submit(NETWORK, ADDRESS, { visible: true } as TronTransactionArtifact, NO_CHECK),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

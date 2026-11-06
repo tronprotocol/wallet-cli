@@ -1,36 +1,14 @@
-/**
- * Zod shapes for the SunSwap market API responses.
- *
- * The SDK client returns `unknown`, so this is where a response stops being whatever the remote
- * sent and becomes something with a checked shape.
- *
- * Every numeric field is captured as an opaque LITERAL, never as a `number`. The body is parsed
- * with `lossless-json`, so a numeric arrives as a `LosslessNumber` holding the exact source text;
- * `literal` records that text verbatim. Doing arithmetic — or even letting Zod coerce — would
- * reintroduce the float truncation the lossless parser exists to prevent: `position_liquidity`
- * is 21 digits and `lpBalanceUsd` 25, and `number` keeps 15.
- *
- * Unknown keys pass validation but never reach a caller: the mapper forwards an explicit list,
- * so the API can add fields without breaking us and without leaking them into our contract.
- */
+// Preserve numeric literals as text; number coercion loses monetary precision.
 import { z } from "zod";
 import { isLosslessNumber } from "lossless-json";
 
-/**
- * A numeric field, kept as the exact characters the remote sent.
- *
- * Accepts the three forms one can arrive in: a `LosslessNumber` (the normal case under the
- * lossless parser), a plain string (fields the API already quotes), and a `number` (only if a
- * caller parsed with `JSON.parse` — the value is already damaged by then, but rejecting it here
- * would turn a precision bug into a crash and hide which field lost digits).
- */
+// LosslessNumber and string inputs preserve digits; number inputs may already be rounded.
 export const literal = z
   .union([z.string(), z.number(), z.custom<unknown>(isLosslessNumber)])
   .transform((value) => String(value));
 
 const literalArray = z.array(literal);
 
-/** `data.meta` — the server's paging answer. */
 export const metaSchema = z
   .object({
     pageNo: literal.optional(),
@@ -78,11 +56,7 @@ export const positionsResponseSchema = z
 export type RawPosition = z.infer<typeof rawPositionSchema>;
 export type PositionsResponse = z.infer<typeof positionsResponseSchema>;
 
-/**
- * `/apiv2/price` answers with an OBJECT keyed by address, not a list, and quotes each one under
- * `quote.USD`. A missing or unpriced address simply does not appear, which is not an error: the
- * service also returns a successful `"0"` for an address it has never heard of.
- */
+// Unpriced addresses may be absent or carry a zero price.
 export const pricesResponseSchema = z.record(
   z.string(),
   z
@@ -125,7 +99,6 @@ export const rawTokenSchema = z
   })
   .loose();
 
-/** `/apiv2/tokens` and `/apiv2/tokens/search` answer with the same record shape. */
 export const tokensResponseSchema = z
   .object({
     list: z.array(rawTokenSchema).default([]),
@@ -173,7 +146,6 @@ export const rawPoolSchema = z
   })
   .loose();
 
-/** `/apiv2/pools` and `/apiv2/pools/search` answer with the same record shape. */
 export const poolsResponseSchema = z
   .object({
     list: z.array(rawPoolSchema).default([]),
@@ -181,7 +153,6 @@ export const poolsResponseSchema = z
   })
   .loose();
 
-/** `/apiv2/pools/search/count` answers with a bare number under `data`. */
 export const poolCountSchema = literal;
 
 export type RawPool = z.infer<typeof rawPoolSchema>;

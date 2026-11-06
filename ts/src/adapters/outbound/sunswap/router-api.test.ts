@@ -1,7 +1,14 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it } from "vitest";
 import { SunSwapRouterApi } from "./router-api.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { tronHexAddress } from "../../../domain/address/index.js";
+import { expiringCheck } from "../http/__test-support__/dispatch.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const MAINNET = {
   id: "tron:728126428",
@@ -32,14 +39,9 @@ const ROUTE = {
   containsUnverifiedHook: false,
 };
 
-/**
- * The adapter over a fetch that answers with one canned response.
- *
- * Only the socket is replaced, so the adapter's own timeout, size cap and 429 interception run —
- * the wrapper these cases exist to check. Same seam as the market API's tests.
- */
-function apiServing(response: () => Promise<Response> | Response, timeoutMs = 1_000) {
-  return new SunSwapRouterApi(timeoutMs, {
+// Inject below the deadline, size-cap, and 429 wrappers so they remain under test.
+function apiServing(response: () => Promise<Response> | Response) {
+  return new SunSwapRouterApi({
     fetchImpl: (async () => response()) as typeof globalThis.fetch,
   });
 }
@@ -54,7 +56,7 @@ function evmHex(address: string): string {
 
 describe("SunSwapRouterApi request binding", () => {
   it("accepts a route whose endpoints and input amount match the request", async () => {
-    const [route] = await apiServing(() => routeResponse(ROUTE)).routes(MAINNET, REQUEST);
+    const [route] = await apiServing(() => routeResponse(ROUTE)).routes(MAINNET, REQUEST, NO_CHECK);
 
     expect(route).toMatchObject({
       amountInRaw: REQUEST.amountInRaw,
@@ -70,7 +72,7 @@ describe("SunSwapRouterApi request binding", () => {
     };
 
     await expect(
-      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST, NO_CHECK),
     ).resolves.toHaveLength(1);
   });
 
@@ -81,7 +83,7 @@ describe("SunSwapRouterApi request binding", () => {
     };
 
     await expect(
-      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST, NO_CHECK),
     ).resolves.toHaveLength(1);
   });
 
@@ -89,7 +91,7 @@ describe("SunSwapRouterApi request binding", () => {
     const route = { ...ROUTE, tokens: [REQUEST.fromToken, OTHER_TOKEN] };
 
     await expect(
-      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST, NO_CHECK),
     ).rejects.toMatchObject({ code: "provider_error" });
   });
 
@@ -97,7 +99,7 @@ describe("SunSwapRouterApi request binding", () => {
     const route = { ...ROUTE, tokens: [OTHER_TOKEN, REQUEST.toToken] };
 
     await expect(
-      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST, NO_CHECK),
     ).rejects.toMatchObject({ code: "provider_error" });
   });
 
@@ -105,8 +107,29 @@ describe("SunSwapRouterApi request binding", () => {
     const route = { ...ROUTE, amountInRaw: "999999" };
 
     await expect(
-      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST),
+      apiServing(() => routeResponse(route)).routes(MAINNET, REQUEST, NO_CHECK),
     ).rejects.toMatchObject({ code: "provider_error" });
+  });
+});
+
+describe("SunSwapRouterApi zero quotes", () => {
+  it.each(["0", "000"])("drops a route quoting %s output", async (amountOutRaw) => {
+    await expect(
+      apiServing(() => routeResponse({ ...ROUTE, amountOutRaw })).routes(
+        MAINNET,
+        REQUEST,
+        NO_CHECK,
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it("keeps the routes that quote an output", async () => {
+    const response = new Response(
+      JSON.stringify({ code: 0, data: [{ ...ROUTE, amountOutRaw: "0" }, ROUTE] }),
+      { status: 200 },
+    );
+    const routes = await apiServing(() => response).routes(MAINNET, REQUEST, NO_CHECK);
+    expect(routes.map((route) => route.amountOutRaw)).toEqual([ROUTE.amountOutRaw]);
   });
 });
 
@@ -115,7 +138,7 @@ describe("SunSwapRouterApi error mapping", () => {
     const api = apiServing(
       () => new Response("slow down", { status: 429, headers: { "retry-after": "30" } }),
     );
-    await expect(api.routes(MAINNET, REQUEST)).rejects.toMatchObject({
+    await expect(api.routes(MAINNET, REQUEST, NO_CHECK)).rejects.toMatchObject({
       code: "provider_rate_limited",
       message: "SunSwap route service rate limit exceeded",
       details: { httpStatus: 429, retryAfterSeconds: 30 },
@@ -124,21 +147,23 @@ describe("SunSwapRouterApi error mapping", () => {
 
   it("still reports the rate limit when no Retry-After was sent", async () => {
     const error = await apiServing(() => new Response("slow down", { status: 429 }))
-      .routes(MAINNET, REQUEST)
+      .routes(MAINNET, REQUEST, NO_CHECK)
       .catch((e) => e);
     expect(error.code).toBe("provider_rate_limited");
     expect(error.details).toEqual({ httpStatus: 429 });
   });
 
-  it("honours the call's timeout", async () => {
+  it("honours the command deadline", async () => {
     const stalling = ((_input: unknown, init?: RequestInit) =>
       new Promise<Response>((_resolve, reject) => {
         init?.signal?.addEventListener("abort", () =>
           reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
         );
       })) as typeof globalThis.fetch;
-    const api = new SunSwapRouterApi(20, { fetchImpl: stalling });
-    await expect(api.routes(MAINNET, REQUEST)).rejects.toMatchObject({ code: "timeout" });
+    const api = new SunSwapRouterApi({ fetchImpl: stalling });
+    await expect(api.routes(MAINNET, REQUEST, expiringCheck(20))).rejects.toMatchObject({
+      code: "timeout",
+    });
   });
 
   it("refuses an oversized response as response_too_large", async () => {
@@ -149,14 +174,14 @@ describe("SunSwapRouterApi error mapping", () => {
           headers: { "content-length": String(64 * 1024 * 1024) },
         }),
     );
-    await expect(api.routes(MAINNET, REQUEST)).rejects.toMatchObject({
+    await expect(api.routes(MAINNET, REQUEST, NO_CHECK)).rejects.toMatchObject({
       code: "response_too_large",
     });
   });
 
   it("maps another non-2xx to provider_error", async () => {
     const api = apiServing(() => new Response("upstream exploded", { status: 503 }));
-    await expect(api.routes(MAINNET, REQUEST)).rejects.toMatchObject({
+    await expect(api.routes(MAINNET, REQUEST, NO_CHECK)).rejects.toMatchObject({
       code: "provider_error",
     });
   });
@@ -165,7 +190,7 @@ describe("SunSwapRouterApi error mapping", () => {
     const api = apiServing(
       () => new Response(JSON.stringify({ code: 1, message: "INVALID AMOUNT" }), { status: 200 }),
     );
-    await expect(api.routes(MAINNET, REQUEST)).rejects.toMatchObject({
+    await expect(api.routes(MAINNET, REQUEST, NO_CHECK)).rejects.toMatchObject({
       code: "provider_error",
       message: expect.stringContaining("INVALID AMOUNT"),
     });

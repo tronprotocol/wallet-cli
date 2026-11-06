@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { allRefines } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunPumpMarketQueryService } from "../../../../../application/use-cases/tron/sunpump/market-query-service.js";
+import type { SunPumpMarketQueryService } from "../../../../../application/use-cases/sunpump/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 import {
   limitField,
@@ -13,13 +13,7 @@ import {
 } from "./market-shared.js";
 
 const fields = z.object({
-  /**
-   * Empty is refused here rather than sent.
-   *
-   * The service treats a missing or blank search term as "no filter" and answers with the whole
-   * catalogue, ranked, at HTTP 200 — which reads exactly like a successful search that happened
-   * to match everything.
-   */
+  // A blank keyword returns the unfiltered catalogue.
   keyword: z
     .string()
     .refine((value) => value.trim() !== "", { message: "must not be empty" })
@@ -67,8 +61,8 @@ export const sunpumpTokenSearchSpec: ChainSpec = {
 export const sunpumpTokenSearchTronBinding = (
   service: SunPumpMarketQueryService,
 ): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.tokenSearch(net, {
+  run: async (ctx, net, input) =>
+    service.tokenSearch(ctx.deadline, net, {
       keyword: input.keyword,
       orderBy: input.orderBy,
       sort: input.sort,

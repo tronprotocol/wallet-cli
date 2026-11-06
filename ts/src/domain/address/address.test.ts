@@ -5,12 +5,18 @@ import {
   evmAddressFromPublicKey,
   evmChecksumAddress,
   isEvmAddress,
+  isTronHexAddress,
   tronAddressBytes,
+  tronAddressFromEvmHex,
+  tronAddressFromHash20,
+  tronAddressToEvmHex,
+  tronHash20Hex,
+  tronHexFromHash20,
 } from "./index.js";
 import { Derivation } from "../derivation/index.js";
 import { hexToBytes } from "@noble/hashes/utils.js";
 
-// Canonical EIP-55 vectors (https://eips.ethereum.org/EIPS/eip-55).
+// EIP-55 test vectors.
 const CHECKSUMMED = [
   "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
   "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
@@ -25,8 +31,6 @@ describe("isEvmAddress", () => {
 });
 
 describe("isEvmAddress rejects a broken checksum", () => {
-  // A checksummed address with ONE character altered must fail. Letting it through turns
-  // "typed one character wrong" and "clipboard was swapped" straight into fund loss.
   it.each([
     ["0x5aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed", "A->a at index 2"],
     ["0xfb6916095ca1df60bB79Ce92cE3Ea74c37c5d359", "B->b at index 1"],
@@ -38,9 +42,6 @@ describe("isEvmAddress rejects a broken checksum", () => {
 });
 
 describe("isEvmAddress accepts unchecksummed input", () => {
-  // All-lower and all-upper carry no case information, so there is nothing to verify —
-  // EIP-55 itself says clients may accept them. Both forms below are the same address as the
-  // first CHECKSUMMED vector, whose checksum form is neither all-lower nor all-upper.
   it("accepts an all-lowercase address", () => {
     expect(isEvmAddress("0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")).toBe(true);
   });
@@ -51,15 +52,10 @@ describe("isEvmAddress accepts unchecksummed input", () => {
 });
 
 describe("isEvmAddress accepts an uppercase 0X prefix", () => {
-  // 0X is valid hex notation; only our downstream library insists on lowercase 0x. Refusing it
-  // would make the caller carry our implementation detail.
   it("accepts an all-lowercase body with an uppercase 0X prefix", () => {
     expect(isEvmAddress("0X5aaeb6053f3e94c9b9a09f33669435e7ef1beaed")).toBe(true);
   });
 
-  // The trap: evmChecksumAddress() returns a lowercase-0x string, so comparing the WHOLE input
-  // string against it (rather than just the body) makes a correctly-checksummed 0X… address fail
-  // the very check meant to accept it. This is the case that catches that mistake.
   it("accepts a correctly-checksummed body with an uppercase 0X prefix", () => {
     expect(isEvmAddress("0X5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed")).toBe(true);
   });
@@ -74,7 +70,6 @@ describe("isEvmAddress rejects malformed input", () => {
     ["non-hex character", "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAeg"],
     ["leading whitespace", " 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"],
     ["trailing whitespace", "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed "],
-    // cross-family: a TRON address must never validate as EVM (drives `familyOf` detection)
     ["a TRON base58 address", "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"],
     ["a TRON hex address", "0x41e2e1a54926527fbb4e4420de4c6bab82beaee24d"],
   ])("rejects %s", (_label, address) => {
@@ -83,8 +78,7 @@ describe("isEvmAddress rejects malformed input", () => {
 });
 
 describe("evmAddressFromPublicKey", () => {
-  // Anvil / Hardhat account #0 — a widely published key/address pair, so this anchors the
-  // derivation to an external fact rather than to our own implementation.
+  // Published Anvil / Hardhat account #0.
   const ANVIL_KEY = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
   const ANVIL_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -98,9 +92,6 @@ describe("evmAddressFromPublicKey", () => {
     expect(isEvmAddress(evmAddressFromPublicKey(pub))).toBe(true);
   });
 
-  // The wallets.json v1 → v2 migration leans on this: a privateKey wallet's EVM address is a
-  // pure RE-ENCODING of its cached TRON address, so that half of the migration needs no secret
-  // and no password.
   it("shares its 20-byte body with the TRON address of the same key", () => {
     const pub = Derivation.publicKeyFromPrivate(hexToBytes(ANVIL_KEY));
     const tron = new TronAddress().fromPublicKey(pub);
@@ -111,12 +102,6 @@ describe("evmAddressFromPublicKey", () => {
   });
 });
 
-/**
- * Input accepts more spellings than output prints: an all-lower or all-upper EVM address offers no
- * checksum to verify, so it is valid input — but everything this CLI stores and shows is EIP-55.
- * Without the normalising step the same address appears in two spellings depending on which
- * command wrote it, and a user comparing them concludes they are different addresses.
- */
 describe("AddressCodec.canonical", () => {
   const codec = new EvmAddress();
   const CHECKSUMMED = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
@@ -137,14 +122,51 @@ describe("AddressCodec.canonical", () => {
     expect(codec.canonical(`0X${CHECKSUMMED.slice(2).toLowerCase()}`)).toBe(CHECKSUMMED);
   });
 
-  // Not this function's job to decide a non-address is wrong: callers hand it labels and refs too.
+  // Callers also pass labels and references.
   it("passes a value that is not an address through unchanged", () => {
     expect(codec.canonical("not-an-address")).toBe("not-an-address");
   });
 
-  // Base58Check fixes every character of a TRON address, so there is only ever one spelling.
   it("is the identity for TRON", () => {
     const tron = "TBhCfAytweLuLLL2gr8xxxxxxxxxxxxxxx";
     expect(new TronAddress().canonical(tron)).toBe(tron);
+  });
+});
+
+describe("TRON hex conversions", () => {
+  const base58 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+  const hash20 = "a614f803b6fd780986a42c78ec9c7f77e6ded13c";
+
+  it("reads the 20-byte hash from every accepted form", () => {
+    for (const form of [
+      base58,
+      `41${hash20}`,
+      `0x41${hash20}`,
+      `0x${hash20}`,
+      hash20.toUpperCase(),
+    ]) {
+      expect(tronHash20Hex(form)).toBe(hash20);
+    }
+    expect(() => tronHash20Hex("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwc")).toThrow();
+  });
+
+  it("builds Base58Check and hex forms from the 20-byte hash", () => {
+    expect(tronAddressFromHash20(hash20)).toBe(base58);
+    expect(tronAddressFromHash20(hexToBytes(hash20))).toBe(base58);
+    expect(() => tronAddressFromHash20(hash20.slice(2))).toThrow();
+    expect(tronHexFromHash20(hash20)).toBe(`41${hash20}`);
+    expect(tronAddressToEvmHex(base58)).toBe(`0x${hash20}`);
+  });
+
+  it("converts only 0x-prefixed 20-byte hex from the EVM form", () => {
+    expect(tronAddressFromEvmHex(`0x${hash20}`)).toBe(base58);
+    expect(tronAddressFromEvmHex(`41${hash20}`)).toBe(`41${hash20}`);
+    expect(tronAddressFromEvmHex(base58)).toBe(base58);
+  });
+
+  it("recognizes unprefixed 21-byte TRON hex", () => {
+    expect(isTronHexAddress(`41${hash20}`)).toBe(true);
+    expect(isTronHexAddress(`0x41${hash20}`)).toBe(false);
+    expect(isTronHexAddress(`42${hash20}`)).toBe(false);
   });
 });

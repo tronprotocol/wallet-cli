@@ -1,17 +1,10 @@
-/**
- * `asset` — TRC10, the TRON protocol's own token type (issuance, ICO window, frozen supply).
- * TRC20 contracts live under `token`; TRC10 *transfer* is `tx send` with an asset id.
- *
- * Departures from the command spec for this group: Ledger cannot sign any of these contract
- * types, `asset list` defaults to one page rather than the whole chain, and an ambiguous token
- * name is an error rather than a differently-shaped result.
- */
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronAssetService } from "../../../../application/use-cases/tron/asset-service.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
+import { TRC10_MAX_PRECISION } from "../../../../domain/tron/asset/index.js";
 
 const LEDGER_NOTE =
   "The Ledger TRON app cannot decode TRC10 issuance contracts, so this command needs a software account.";
@@ -40,6 +33,7 @@ export const assetIssueSpec: ChainSpec = {
     "an account that has never issued a TRC10, with balance >= the issuance fee",
     LEDGER_NOTE,
   ],
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     name: z.string().min(1).describe("token name, 1-32 visible ASCII chars"),
     supply: z.string().min(1).describe("total supply, in whole tokens"),
@@ -53,7 +47,13 @@ export const assetIssueSpec: ChainSpec = {
     end: z.string().min(1).describe("ICO end, same format, must be after --start"),
     url: z.string().describe("project page, must not be empty"),
     abbr: z.string().optional().describe("token abbreviation"),
-    precision: z.coerce.number().int().min(0).max(6).default(0).describe("decimal places"),
+    precision: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(TRC10_MAX_PRECISION)
+      .default(0)
+      .describe("decimal places"),
     description: z.string().optional().describe("short description, up to 200 bytes"),
     freeNetPerAccount: z.coerce
       .number()
@@ -67,7 +67,6 @@ export const assetIssueSpec: ChainSpec = {
       .min(0)
       .optional()
       .describe("shared free bandwidth pool for holders"),
-    // repeatable: the arity layer sets yargs `array: true`, so this always arrives as string[]
     freeze: z
       .array(z.string().min(1))
       .optional()
@@ -99,6 +98,7 @@ export const assetUpdateSpec: ChainSpec = {
     "Pass only the fields you want to change; the others are read from chain and\n" +
     "written back unchanged. At least one field is required.",
   requires: ["an account that has issued a TRC10", LEDGER_NOTE],
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     description: z.string().optional().describe("new description, up to 200 bytes"),
     url: z.string().optional().describe("new project page, must not be empty"),
@@ -139,6 +139,7 @@ export const assetParticipateSpec: ChainSpec = {
     "token automatically.",
   requires: ["an account with enough TRX, other than the token's issuer", LEDGER_NOTE],
   positionals: [{ field: "assetRef", placeholder: "asset" }],
+  exclusive: [txModeExclusive],
   baseFields: z.object({
     assetRef: assetReference,
     pay: z.string().min(1).describe("TRX to spend (decimal, not the number of tokens)"),
@@ -164,6 +165,7 @@ export const assetUnfreezeSpec: ChainSpec = {
     "have not matured yet are untouched — run it again later for those.\n\n" +
     "This is unrelated to 'stake unfreeze', which releases staked TRX.",
   requires: ["an account that has issued a TRC10 and has matured frozen supply", LEDGER_NOTE],
+  exclusive: [txModeExclusive],
   baseFields: z.object({ ...txModeFields, ...tronTxModeFields }),
   examples: [{ cmd: "wallet-cli asset unfreeze --wait" }],
   formatText: TextFormatters.txReceipt,
@@ -182,8 +184,7 @@ export const assetInfoSpec: ChainSpec = {
     "Give exactly one of the <asset> argument or --issuer.\n\n" +
     "Token names are not guaranteed unique. A name matching more than one token is an\n" +
     "error listing the matching ids — re-run with the id you want.",
-  // The choice here is between a positional and a flag; `exclusive` groups model flag-vs-flag
-  // only, so the constraint is stated above and enforced in the service.
+  // Exclusive groups support flags only; the service checks positional-versus-flag exclusivity.
   positionals: [{ field: "assetRef", placeholder: "asset" }],
   baseFields: z.object({
     assetRef: assetReference.optional(),
@@ -243,7 +244,13 @@ export function assetDefinitions(
       spec: assetUnfreezeSpec,
       binding: { run: (ctx, net, input) => svc.unfreeze(ctx, net, input) },
     },
-    { spec: assetInfoSpec, binding: { run: (_ctx, net, input) => svc.info(net, input) } },
-    { spec: assetListSpec, binding: { run: (_ctx, net, input) => svc.list(net, input) } },
+    {
+      spec: assetInfoSpec,
+      binding: { run: (ctx, net, input) => svc.info(ctx.deadline, net, input) },
+    },
+    {
+      spec: assetListSpec,
+      binding: { run: (ctx, net, input) => svc.list(ctx.deadline, net, input) },
+    },
   ];
 }

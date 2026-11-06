@@ -1,3 +1,4 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,13 +7,15 @@ import { X402PaymentClient } from "./payment-client.js";
 import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
 import { CliError } from "../../../domain/errors/index.js";
+import { exitCodeOf } from "../../inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
 
 const net = { id: "eip155:56", family: "evm", chainId: "56" } as NetworkDescriptor;
 const signer = {
   kind: "software",
   address: "0x1111111111111111111111111111111111111111",
 } as Signer;
-const scope = { activeAccount: "payer", timeoutMs: 1000, emit() {} } as never;
+const scope = { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never;
 const input = { url: "https://api.example/resource", method: "GET", headers: [] };
 const transaction = "0x" + "a".repeat(64);
 const receipt = { success: true, network: net.id, transaction };
@@ -39,8 +42,13 @@ function harness(
   } as unknown as SignerResolver;
   const client =
     mode === "free"
-      ? new X402PaymentClient(resolver, fetcher)
-      : new X402PaymentClient(resolver, globalThis.fetch, async () => fetcher);
+      ? new X402Service(new X402PaymentClient(fetcher), resolver, {} as never, {} as never)
+      : new X402Service(
+          new X402PaymentClient(challengeFetch, async () => fetcher),
+          resolver,
+          {} as never,
+          {} as never,
+        );
   return { client, fetcher, resolver };
 }
 
@@ -69,7 +77,7 @@ describe("x402 response bytes", () => {
       kind: "usage",
       details: { paymentStatus: "not_sent", retryPayment: false },
     });
-    expect(error.exitCode()).toBe(2);
+    expect(exitCodeOf(error)).toBe(2);
     expect(fetcher).toHaveBeenCalledOnce();
     expect(resolver.resolve).not.toHaveBeenCalled();
   });
@@ -88,7 +96,7 @@ describe("x402 response bytes", () => {
         kind: "usage",
         details: { paymentStatus: mode === "free" ? "not_sent" : mode, retryPayment: false },
       });
-      expect(error.exitCode()).toBe(2);
+      expect(exitCodeOf(error)).toBe(2);
       if (mode === "settled")
         expect(error.details).toMatchObject({
           phase: "response",
@@ -97,6 +105,7 @@ describe("x402 response bytes", () => {
           paymentResponse: receipt,
           payer: { address: signer.address },
         });
+      if (mode === "settled") expect(error.details).not.toHaveProperty("outcome");
       expect(error.message).not.toMatch(/rerun|retry with|run again/i);
       expect(fetcher).toHaveBeenCalledOnce();
     },
@@ -139,7 +148,12 @@ describe("x402 response bytes", () => {
       "application/octet-stream",
       "settled",
     );
-    const client = new X402PaymentClient(resolver, fetcher);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      resolver,
+      {} as never,
+      {} as never,
+    );
     const error = await rejection(client.pay(scope, net, input));
     expect(error).toMatchObject({
       code: "invalid_option",
@@ -198,8 +212,60 @@ describe("x402 response bytes", () => {
           retryPayment: false,
         },
       });
+      expect(error.details).not.toHaveProperty("outcome");
       expect(error.message).toContain("UTF-8");
-      expect(error.exitCode()).toBe(1);
+      expect(exitCodeOf(error)).toBe(1);
     },
   );
+
+  it("keeps a settlement without an unknown outcome when the paid body fails to stream", async () => {
+    const headers = new Headers({
+      "payment-response": Buffer.from(JSON.stringify(receipt)).toString("base64"),
+    });
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error("stream broke"));
+      },
+    });
+    const { resolver } = harness(new Uint8Array());
+    const client = new X402Service(
+      new X402PaymentClient(
+        challengeFetch,
+        async () => async () => new Response(body, { headers }),
+      ),
+      resolver,
+      {} as never,
+      {} as never,
+    );
+    const error = await rejection(client.pay(scope, net, input));
+    expect(error).toMatchObject({
+      code: "provider_error",
+      details: {
+        paymentStatus: "settled",
+        settled: true,
+        txHash: transaction,
+        retryPayment: false,
+      },
+    });
+    expect(error.details).not.toHaveProperty("outcome");
+  });
 });
+
+function challengeFetch(): Promise<Response> {
+  return Promise.resolve(
+    Response.json(
+      {
+        accepts: [
+          {
+            scheme: "exact",
+            network: net.id,
+            amount: "1",
+            asset: "0x55d398326f99059fF775485246999027B3197955",
+            payTo: signer.address,
+          },
+        ],
+      },
+      { status: 402 },
+    ),
+  );
+}

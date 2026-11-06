@@ -2,23 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor, Signer } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
 import { TxPipeline } from "../../services/pipeline/index.js";
 import { TronWitnessService } from "./witness-service.js";
 import { TronProposalService } from "./proposal-service.js";
 import { TronContractService } from "./contract-service.js";
+import { withTronWeb } from "../../../adapters/outbound/chain/tron/__test-support__/tronweb.js";
+import { SigningService } from "../../services/signing/signing-service.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
-/**
- * The nine governance writes advertise `--permission-id` and `--expiration`. They once bound both
- * inside their own builders instead of through the pipeline's `prepare` hook, and the pipeline's
- * guard reads "no prepare hook ⇒ this adapter cannot apply these options" — so every non-default
- * value was rejected after the transaction had already been built, in every execution mode. The
- * multi-sig story for governance was simply unreachable.
- *
- * These tests drive the REAL `TxPipeline`. The other governance suites pass a fake pipeline that
- * records params, which is exactly why the guard never fired in test: only the real one has it.
- */
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
   family: "tron",
@@ -32,18 +25,15 @@ const CONTRACT = "TPgmqJ9ixVReY2Zc5FSYiC8qp4yZybbMhU";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0" as never,
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
-  wait: false,
-  waitTimeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
+  wait: undefined,
+
   emit: () => {},
   warn: () => {},
 };
 
 function harness(overrides: Partial<TronGateway> = {}) {
   const built = { raw_data: { timestamp: 1_000_000, expiration: 1_060_000, contract: [{}] } };
-  // Mirrors the observable half of the real `prepareTransaction`: binds Permission_id and sets
-  // expiration relative to the transaction's own timestamp. Clones, because the real one does
-  // (`structuredClone`) and because `built` is shared across the cases below.
   const prepareTransaction = vi.fn(
     (tx: unknown, options: { permissionId: number; expiration?: number }) => {
       const prepared = structuredClone(tx) as typeof built & {
@@ -113,7 +103,7 @@ function harness(overrides: Partial<TronGateway> = {}) {
     signTypedData: async () => ({ signature: "", digest: "", primaryType: "" }),
   };
   const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
-  const pipeline = new TxPipeline(signers);
+  const pipeline = new TxPipeline(signers, new SigningService({} as never));
   const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
   return {
     gateway,
@@ -177,7 +167,6 @@ describe("governance writes accept --permission-id through the real pipeline", (
     );
   });
 
-  // The ninth write; it burns 9999 TRX so it needs a gateway that reports "not yet a witness".
   it("`witness create` builds with --permission-id 2", async () => {
     const h = harness({ getWitness: async () => null });
     const result = (await h.witness.create(scope, NET, {
@@ -201,34 +190,22 @@ describe("governance writes accept --expiration through the real pipeline", () =
   });
 });
 
-/**
- * `--expiration` must mean the same thing on every command that offers it: the transaction expires
- * that many milliseconds after its own timestamp. `tx send`, `contract send` and `contract deploy`
- * all get that from the pipeline's `prepare` hook.
- *
- * The governance group instead extended the node's default window, so the same flag produced a
- * different window here (node default + N, i.e. ~60s more than asked) and the result depended on
- * whichever block timestamp the node happened to serve — the opposite of what an offline multi-sig
- * window needs. These tests pin the shared meaning; they run the real adapter so the transaction
- * bytes are the ones a node would receive.
- */
 describe("--expiration means the same on governance as everywhere else", () => {
-  // Anchored to the present: tronweb's extendExpiration refuses a window that has already passed,
-  // which would fail these tests for a reason that has nothing to do with the semantics they pin.
+  // TronWeb rejects expiration windows that have already passed.
   const NOW = Date.now();
 
   async function realGatewayHarness() {
     const { TronRpcClient } = await import("../../../adapters/outbound/chain/tron/tron.js");
-    const rpc = new TronRpcClient("https://node.invalid", 1000);
-    rpc.tronweb.trx.getCurrentRefBlockParams = (async () => ({
+    const { client: rpc, tronweb: rpcTronweb } = withTronWeb(
+      () => new TronRpcClient("https://node.invalid"),
+    );
+    rpcTronweb.trx.getCurrentRefBlockParams = (async () => ({
       ref_block_bytes: "4b6b",
       ref_block_hash: "4ad4875499feb0de",
       expiration: NOW + 60_000,
       timestamp: NOW,
     })) as never;
 
-    // Real transaction construction/preparation, faked reads: the expiration maths is what is
-    // under test, not the chain state the command happens to need.
     const gateway = {
       buildProposalCreate: rpc.buildProposalCreate.bind(rpc),
       prepareTransaction: rpc.prepareTransaction.bind(rpc),
@@ -247,7 +224,10 @@ describe("--expiration means the same on governance as everywhere else", () => {
     };
     const signers = { assertCanSign: () => {}, resolve: () => signer } as unknown as SignerResolver;
     const provider = { get: () => gateway } as unknown as ChainGatewayProvider;
-    return new TronProposalService(provider, new TxPipeline(signers));
+    return new TronProposalService(
+      provider,
+      new TxPipeline(signers, new SigningService({} as never)),
+    );
   }
 
   it.each([

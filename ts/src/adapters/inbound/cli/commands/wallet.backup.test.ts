@@ -1,8 +1,4 @@
-/**
- * `backup` password gating, exercised through real dispatch — the ordering only exists there.
- * A Ledger-only keystore has no master password sentinel, so verifying one can never succeed:
- * the account-type check must therefore win over the password gate.
- */
+// Ledger-only keystores may have no password; dispatch must check exportability first.
 import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,8 +17,9 @@ import { Prompter } from "../input/prompt/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import { registerWalletCommands } from "./wallet.js";
 import type { SessionRef } from "../contracts/index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
-// Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
+// Use a cheap KDF for test fixtures.
 vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
@@ -62,13 +59,22 @@ function fixture(opts: { tty: boolean }) {
     { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
     { append: () => {}, list: () => [] },
   );
-  registerWalletCommands(registry, { walletService, ledger: {} as any } as any);
+  registerWalletCommands(registry, { walletService });
 
   const session: SessionRef = {};
   const shellOpts: ShellOptions = {
     registry,
     globals: { output: "text", verbose: false },
-    deps: { config, networkRegistry, streams, secrets, keystore, prompter, formatter },
+    deps: {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts: walletService,
+      prompter,
+      formatter,
+    },
     targetResolver: new TargetResolver({ networkRegistry, keystore }),
     caps: new CapabilityRegistry(),
     streams,
@@ -98,7 +104,7 @@ describe("backup password gating", () => {
     await secrets.primePassword({ mode: "set" });
     const { accountId } = keystore.import({ secret: VALID_MNEMONIC, type: "seed" });
     secrets.clearPrimed();
-    spyPrime.mockClear(); // ignore the prime used to seed the wallet above
+    spyPrime.mockClear();
 
     await buildCli(shellOpts).parseAsync(["backup", accountId]);
 
@@ -107,11 +113,6 @@ describe("backup password gating", () => {
   });
 });
 
-/**
- * The log filters only mean anything in --records mode; accepting one on an export would silently
- * ignore what the caller asked for. --offset is the one that has to be asserted deliberately: it
- * reads as a plain pagination flag, so a default value would hide it from the guard entirely.
- */
 describe("backup --records flag gating", () => {
   for (const args of [
     ["--from", "2026-08-01"],
@@ -129,8 +130,6 @@ describe("backup --records flag gating", () => {
     });
   }
 
-  // BUG-V413-033: --keystore/--out describe an export, so combining either with --records is a
-  // flag conflict, not a bad value — machine-interface.md reserves invalid_option for that.
   for (const args of [["--keystore"], ["--out", "./out.json"]]) {
     it(`rejects ${args[0]} with --records as invalid_option`, async () => {
       const { shellOpts, spyPrime } = fixture({ tty: false });
@@ -151,7 +150,6 @@ describe("backup --records flag gating", () => {
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ offset: 1, limit: 5 }));
   });
 
-  // offset is optional now; the 0 has to come from the service, or the emitted pagination changes.
   it("still reports offset 0 when --offset is omitted", async () => {
     const { shellOpts, walletService } = fixture({ tty: false });
     const spy = vi.spyOn(walletService, "backupRecords");
@@ -163,13 +161,8 @@ describe("backup --records flag gating", () => {
   });
 });
 
-// A V3 keystore holds ONE private key, and a seed account has a different one per family (derivation puts
-// TRON at coin 195, EVM at coin 60). The selected network picks which — `family` is
-// never exposed as a flag, because it is an internal concept and --network already selects it
-// everywhere else in the CLI.
 describe("backup --keystore exports the selected network's key", () => {
-  // --network reaches the shell through parseGlobals, not through argv, so it is supplied the
-  // way the real runner supplies it.
+  // Supply globals separately, as the runner does.
   async function exportWith(network?: string) {
     const f = fixture({ tty: true });
     await f.secrets.primePassword({ mode: "set" });
@@ -193,9 +186,7 @@ describe("backup --keystore exports the selected network's key", () => {
     expect(await exportWith(network)).toBe(family);
   });
 
-  // No --family flag to forget, and no error either: the default network decides. The receipt
-  // names the family so the choice is never silent.
   it("falls back to the configured default network", async () => {
-    expect(await exportWith()).toBe("tron"); // built-in default is tron:728126428
+    expect(await exportWith()).toBe("tron");
   });
 });

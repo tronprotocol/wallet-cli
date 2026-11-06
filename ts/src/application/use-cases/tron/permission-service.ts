@@ -1,11 +1,15 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { AccountPermissionsView, NetworkDescriptor } from "../../../domain/types/index.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import {
   annotateLocalPermissionKeys,
   buildLocalPermissionInventory,
   permissionSafetyWarnings,
   validatePermissionStructure,
-} from "../../../domain/permission/index.js";
+} from "../../../domain/tron/permission/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { AccountStore } from "../../ports/account-store.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -16,19 +20,26 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { warnOnPostCheck } from "../../services/post-check.js";
-import { assertTronSignerAuthorized } from "./multisig-authorization.js";
+import { assertTronSignerAuthorized, tronTransactionHooks } from "./multisig-authorization.js";
 
 export class TronPermissionService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly accounts: Pick<AccountStore, "list">,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
-  async show(network: NetworkDescriptor, address: string): Promise<AccountPermissionsView> {
-    const permissions = await this.gateways.get(network, "tron").getAccountPermissions(address);
+  async show(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<AccountPermissionsView> {
+    const permissions = await this.gateways
+      .get(network, "tron", requestDispatchCheck(deadline))
+      .getAccountPermissions(address);
     return annotateLocalPermissionKeys(
       permissions,
       buildLocalPermissionInventory(this.accounts.list()),
@@ -41,7 +52,7 @@ export class TronPermissionService {
     input: TransactionModeInput,
     requested: unknown,
   ) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const address = scope.resolveAddress("tron");
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
     const inventory = buildLocalPermissionInventory(this.accounts.list());
@@ -56,9 +67,7 @@ export class TronPermissionService {
       gateway.getUpdateAccountPermissionFee(),
       gateway.getNativeBalance(address),
     ]);
-    // dry-run is included: its whole job is to answer "would this work", and an unfunded account
-    // makes the answer no. sign-only/build-only are not — those artifacts broadcast later, by which
-    // time the account can have been funded.
+    // Offline artifacts may be funded later; broadcast and dry-run require funds now.
     const paysNow = mode.mode === "broadcast" || mode.mode === "dry-run";
     if (paysNow && BigInt(balanceSun) < BigInt(feeSun)) {
       throw new ChainError(
@@ -67,24 +76,27 @@ export class TronPermissionService {
       );
     }
 
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
-      prepare: (tx, options) => gateway.prepareTransaction(tx, options),
-      artifact: (tx) => gateway.encodeTransactionHex(tx),
-      preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: (tx, signer) => assertTronSignerAuthorized(gateway, tx, signer, this.now()),
       confirm: tronConfirmation(gateway, scope),
       build: () => gateway.buildAccountPermissionUpdate(address, permissions),
-      estimate: async () => ({ feeModel: "tron-resource", feeSun, balanceSun }),
+      estimate: async () => ({
+        feeModel: "tron-resource",
+        feeSun: sunAmount(BigInt(feeSun)),
+        balanceSun,
+      }),
     });
 
     let resultPermissions: AccountPermissionsView | undefined;
     if (outcome.stage === "confirmed") {
       await warnOnPostCheck(scope, "permission_postcheck", async () => {
-        resultPermissions = await this.show(network, address);
+        resultPermissions = await this.show(scope.deadline, network, address);
         return canonicalPermissions(resultPermissions) === canonicalPermissions(permissions)
           ? undefined
           : "confirmed transaction permissions differ from the requested canonical structure";

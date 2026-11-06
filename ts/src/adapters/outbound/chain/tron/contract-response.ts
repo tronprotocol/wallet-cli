@@ -1,5 +1,9 @@
 import { z } from "zod";
-import type { TronContractMetadata } from "../../../../application/ports/chain/tron-gateway.js";
+import type {
+  TronContractMetadata,
+  TronRawContract,
+  TronRawContractInfo,
+} from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 
 const ContractEntrySchema = z.looseObject({
@@ -19,12 +23,7 @@ const ContractResponseSchema = z.preprocess(
   }),
 );
 
-/**
- * Whether a `trx.getContract` response describes a deployed contract. TronWeb returns an empty
- * object `{}` for an address with no contract (e.g. a plain account); a real contract carries a
- * `contract_address`/`bytecode` identity. Used to fail `contract info` as not_found rather than
- * normalize the empty response into a valid-but-empty contract.
- */
+// TronWeb returns {} for an address with no deployed contract.
 export function isDeployedContract(contract: unknown): boolean {
   if (!contract || typeof contract !== "object") return false;
   const c = contract as Record<string, unknown>;
@@ -47,7 +46,7 @@ export function normalizeContractResponses(contract: unknown, info: unknown): Tr
     name: contractView.name ?? infoView.name,
     methods,
     originAddress: origin === undefined ? undefined : tronHexToBase58(origin),
-    contract,
-    info: info ?? undefined,
+    contract: contract as TronRawContract,
+    info: (info ?? undefined) as TronRawContractInfo | undefined,
   };
 }

@@ -11,12 +11,12 @@ export interface LedgerAppState {
   ready: boolean;
 }
 
-/** Device capability required by application signing; transport details stay outbound. */
 export interface LedgerDevice {
   getAddress(
     family: ChainFamily,
     path: string,
-    options?: { display?: boolean; onWait?: () => void },
+    // `signal` closes the device connection; the operation then fails with the signal's reason.
+    options: { display?: boolean; onWait?: () => void; signal: AbortSignal },
   ): Promise<string>;
   signTransaction(
     family: ChainFamily,
@@ -31,14 +31,12 @@ export interface LedgerDevice {
     message: string,
     signal?: AbortSignal,
   ): Promise<string>;
-  /** structured-data signing. Takes the whole payload, not pre-computed hashes: the TRON app can
-   *  only sign the hashed form, but the Ethereum app also offers full clear-signing — a
-   *  hash-shaped port would lock a future EVM adapter out of it. */
+  // Pass the whole payload so devices can offer clear-signing instead of only hash signing.
   signTypedData(
     family: ChainFamily,
     path: string,
     payload: TypedDataPayload,
     signal?: AbortSignal,
   ): Promise<TypedDataSignature>;
-  appConfig(family: ChainFamily): Promise<LedgerAppState>;
+  appConfig(family: ChainFamily, signal: AbortSignal): Promise<LedgerAppState>;
 }

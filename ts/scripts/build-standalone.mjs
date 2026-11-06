@@ -87,9 +87,7 @@ try {
     for (const log of result.logs) console.error(log);
     process.exitCode = 1;
   } else {
-    // Bun emits an ad-hoc-signed Mach-O, but embedding the native HID payload can leave that
-    // signature invalid. Sign the staged bytes before publishing so the previous executable remains
-    // usable if signing fails.
+    // Embedding HID can invalidate Bun's Mach-O signature; sign before replacing the executable.
     if (process.platform === "darwin") {
       const signed = spawnSync("/usr/bin/codesign", ["--force", "--sign", "-", stagedOutfile], {
         stdio: "inherit",
@@ -103,11 +101,10 @@ try {
     console.log(`built ${outfile} (${target})`);
   }
 } finally {
-  // Failed compile/sign/publish attempts must not accumulate large embedded-runtime executables.
   try {
     if (existsSync(stagedOutfile)) unlinkSync(stagedOutfile);
   } catch {
-    // Preserve the primary build error; a stale, uniquely named staging file is safe to remove later.
+    // Preserve the primary build error.
   }
 }
 
@@ -145,9 +142,7 @@ async function publishExecutable(staged, destination) {
       lastError = error;
     }
 
-    // Windows cannot rename over an existing executable on every filesystem/runtime combination.
-    // Remove only after the new executable has built successfully; a running image remains locked
-    // and leaves the old destination intact.
+    // Windows may require unlinking before rename; a running executable remains locked.
     if (process.platform === "win32" && existsSync(destination)) {
       try {
         unlinkSync(destination);

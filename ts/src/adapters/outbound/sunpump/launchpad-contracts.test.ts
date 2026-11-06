@@ -1,3 +1,7 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import {
   createLaunchpadBuyAction,
@@ -9,6 +13,9 @@ import type { ChainGatewayProvider } from "../../../application/ports/chain/gate
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { LAUNCHPAD_STATE } from "../../../domain/sunpump/curve.js";
 import { SunPumpLaunchpadContracts } from "./launchpad-contracts.js";
+import { sunAmount, baseUnitAmount, type BaseUnits } from "../../../domain/amounts/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const LAUNCHPAD = "TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw";
 const TOKEN = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
@@ -35,13 +42,6 @@ function gatewayAnswering(answers: Record<string, string>) {
   } as unknown as ChainGatewayProvider;
 }
 
-/**
- * The reason our enum is not a transcription.
- *
- * Upstream's had three values and reported a launched token's `3` as something else, which would
- * let it through to a transaction that must revert. Ours must agree with the SDK's exactly, and
- * this is the assertion that says so rather than a comment claiming it.
- */
 describe("the curve states we recognise", () => {
   it("are exactly the SDK's", () => {
     expect(LAUNCHPAD_STATE.NOT_EXIST).toBe(LaunchpadTokenState.NOT_EXIST);
@@ -61,20 +61,14 @@ describe("tokenState", () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({ "getTokenState(address)": uint(raw) }),
     );
-    await expect(port.tokenState(NETWORK, TOKEN)).resolves.toBe(expected);
+    await expect(port.tokenState(NETWORK, TOKEN, NO_CHECK)).resolves.toBe(expected);
   });
 
-  /**
-   * A value we do not recognise is an error, not a guess.
-   *
-   * The enum already grew from three to four once. Treating an unknown fifth as tradeable is how
-   * a token in a state nobody has seen gets a transaction that must fail.
-   */
   it("refuses a state this release does not know rather than assuming it can trade", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({ "getTokenState(address)": uint(4) }),
     );
-    await expect(port.tokenState(NETWORK, TOKEN)).rejects.toMatchObject({
+    await expect(port.tokenState(NETWORK, TOKEN, NO_CHECK)).rejects.toMatchObject({
       code: "provider_error",
       message: expect.stringContaining("state 4"),
     });
@@ -82,37 +76,32 @@ describe("tokenState", () => {
 });
 
 describe("quotes", () => {
-  // The fee is the second word, and it is inside the TRX the caller named — not added to it.
   it("reads the token amount and the platform fee out of one buy quote", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({
         "getTokenAmountByPurchaseWithFee(address,uint256)": `${uint(25125337148664452174594n)}${uint(10000n)}`,
       }),
     );
-    await expect(port.quoteBuy(NETWORK, TOKEN, "1000000")).resolves.toEqual({
+    await expect(port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"), NO_CHECK)).resolves.toEqual({
       tokenAmount: "25125337148664452174594",
       feeSun: "10000",
     });
   });
 
-  // The first word is what the seller receives, already net: the fee is paid beside it.
   it("reads the seller's net TRX and the fee out of one sell quote, as quoted", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({
         "getTrxAmountBySaleWithFee(address,uint256)": `${uint(22728n)}${uint(10000n)}`,
       }),
     );
-    await expect(port.quoteSell(NETWORK, TOKEN, "1000")).resolves.toEqual({
-      trxAmountSun: "22728",
-      feeSun: "10000",
-    });
+    await expect(port.quoteSell(NETWORK, TOKEN, baseUnitAmount("1000"), NO_CHECK)).resolves.toEqual(
+      {
+        trxAmountSun: "22728",
+        feeSun: "10000",
+      },
+    );
   });
 
-  /**
-   * The smallest sale that pays the seller anything: the inverse quote for a net of ONE SUN.
-   * Not the inverse of the fee floor, which is the point where the seller's net EQUALS the fee
-   * and roughly doubles the true minimum.
-   */
   it("finds the minimum sale from the inverse quote for one SUN of proceeds", async () => {
     const triggerConstantContract = vi.fn(
       async (_contract: string, method: string, parameters: { value: unknown }[]) => {
@@ -126,18 +115,19 @@ describe("quotes", () => {
     const port = new SunPumpLaunchpadContracts({
       get: () => ({ triggerConstantContract }),
     } as unknown as ChainGatewayProvider);
-    await expect(port.minimumSellAmount(NETWORK, TOKEN)).resolves.toBe("292065903216294733861");
+    await expect(port.minimumSellAmount(NETWORK, TOKEN, NO_CHECK)).resolves.toBe(
+      "292065903216294733861",
+    );
     expect(triggerConstantContract).toHaveBeenCalledTimes(1);
   });
 
-  // Past what a double holds, which is why every amount here is a string.
   it("keeps a 23-digit token amount exact", async () => {
     const port = new SunPumpLaunchpadContracts(
       gatewayAnswering({
         "getTokenAmountByPurchaseWithFee(address,uint256)": `${uint(25125337148664452174594n)}${uint(0n)}`,
       }),
     );
-    const quote = await port.quoteBuy(NETWORK, TOKEN, "1000000");
+    const quote = await port.quoteBuy(NETWORK, TOKEN, sunAmount("1000000"), NO_CHECK);
     expect(quote.tokenAmount).toBe("25125337148664452174594");
     expect(Number(quote.tokenAmount).toString()).not.toBe(quote.tokenAmount);
   });
@@ -151,8 +141,6 @@ describe("the floor", () => {
     expect(port.applyFloor("25125337148664452174594", 500)).toBe("23869070291231229565864");
   });
 
-  // 25125337148664452174594 * 9999 / 10000, worked by hand. A double would round the input
-  // itself before the multiplication ever happened.
   it("stays exact past float precision", () => {
     expect(port.applyFloor("25125337148664452174594", 1)).toBe("25122824614949585729376");
   });
@@ -161,15 +149,11 @@ describe("the floor", () => {
 describe("payloads", () => {
   const port = new SunPumpLaunchpadContracts(gatewayAnswering({}));
 
-  /**
-   * The signature and the parameter order come from the SDK, not from this file. Asserting them
-   * here is what would catch an SDK rename before it became a wrong call on chain.
-   */
   it("builds a buy with TRX as the call value and the minimum as an argument", () => {
     const payload = port.buyPayload(NETWORK, {
       token: TOKEN,
-      trxSun: "1000000",
-      minTokenAmount: "23869070291231229565864",
+      trxSun: sunAmount("1000000"),
+      minTokenAmount: baseUnitAmount("23869070291231229565864"),
     });
     expect(payload).toEqual({
       target: LAUNCHPAD,
@@ -185,8 +169,8 @@ describe("payloads", () => {
   it("builds a sale with the amount and the floor, and no call value", () => {
     const payload = port.sellPayload(NETWORK, {
       token: TOKEN,
-      tokenAmount: "1000000000000000000000",
-      minTrxSun: "29401",
+      tokenAmount: baseUnitAmount("1000000000000000000000"),
+      minTrxSun: sunAmount("29401"),
     });
     expect(payload).toEqual({
       target: LAUNCHPAD,
@@ -200,12 +184,6 @@ describe("payloads", () => {
     expect(payload.callValueSun).toBeUndefined();
   });
 
-  /**
-   * The guard that exists because the SDK's parameter values are optional in its own types.
-   *
-   * A missing minimum would encode as an empty parameter — and a trade whose floor never arrived
-   * is a trade with no slippage protection, which succeeds and looks entirely normal.
-   */
   it("refuses an action the SDK built with an empty parameter", () => {
     const action = createLaunchpadBuyAction({
       launchpad: LAUNCHPAD,
@@ -217,8 +195,8 @@ describe("payloads", () => {
     expect(() =>
       port.buyPayload(NETWORK, {
         token: TOKEN,
-        trxSun: "1000000",
-        minTokenAmount: undefined as unknown as string,
+        trxSun: sunAmount("1000000"),
+        minTokenAmount: undefined as unknown as BaseUnits,
       }),
     ).toThrow(/empty uint256 parameter/);
   });
@@ -231,12 +209,14 @@ describe("payloads", () => {
       minTrxOut: "1",
     });
     expect(
-      port.sellPayload(NETWORK, { token: TOKEN, tokenAmount: "1", minTrxSun: "1" }).method,
+      port.sellPayload(NETWORK, {
+        token: TOKEN,
+        tokenAmount: baseUnitAmount("1"),
+        minTrxSun: sunAmount("1"),
+      }).method,
     ).toBe(action.functionSelector);
   });
 
-  // The one path in this codebase where unbounded is correct: the curve pulls tokens on every
-  // sale, and the contract is an upgradeable proxy that expects a standing allowance.
   it("takes the unlimited amount from the SDK rather than writing out 2^256-1", () => {
     expect(SunPumpLaunchpadContracts.UNLIMITED).toBe(MAX_UINT256.toString());
     expect(SunPumpLaunchpadContracts.UNLIMITED).toBe(
@@ -267,7 +247,7 @@ it.each([78, 255, 9999999999])("rejects unsupported token decimals %i", async (d
   const port = new SunPumpLaunchpadContracts(
     gatewayAnswering({ "decimals()": uint(decimals), "symbol()": uint(32) + uint(0) }),
   );
-  await expect(port.tokenFacts(NETWORK, TOKEN)).rejects.toMatchObject({
+  await expect(port.tokenFacts(NETWORK, TOKEN, NO_CHECK)).rejects.toMatchObject({
     code: "invalid_node_response",
   });
 });

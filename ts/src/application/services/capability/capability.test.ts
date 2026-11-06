@@ -15,13 +15,14 @@ const network = (id: string): NetworkDescriptor =>
     capabilities: [],
   }) as NetworkDescriptor;
 
-const market = [{ key: "sunswap.market", summary: "SunSwap queries" }];
-const poolList = { capability: "sunswap.market", path: ["sunswap", "pool-list"] };
+// A capability without a predicate is supported wherever it is registered.
+const market = ["demo.market"];
+const poolList = { capability: "demo.market", path: ["sunswap", "pool-list"] };
 
 describe("CapabilityRegistry.check", () => {
   it("passes when the network supports the capability", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(MAINNET, market);
+    caps.register(network(MAINNET), market);
     expect(() => caps.check(poolList, network(MAINNET))).not.toThrow();
   });
 
@@ -31,23 +32,20 @@ describe("CapabilityRegistry.check", () => {
     expect(() => caps.check(poolList, undefined)).not.toThrow();
   });
 
-  // The refusal answers "then where?", because that is the next thing the reader needs.
   it("names the one supporting network by its alias", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(MAINNET, market);
-    caps.register(NILE, []);
+    caps.register(network(MAINNET), market);
+    caps.register(network(NILE), []);
     expect(() => caps.check(poolList, network(NILE))).toThrow(
       "sunswap pool-list is available on tron only",
     );
   });
 
-  // Computed from registry state rather than stored on the command: a tester who opens Nile in
-  // config.yaml gets a message that says so, without anyone editing a string.
   it("lists every supporting network, in registration order", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(MAINNET, market);
-    caps.register(NILE, market);
-    caps.register("tron:2494104990", []);
+    caps.register(network(MAINNET), market);
+    caps.register(network(NILE), market);
+    caps.register(network("tron:2494104990"), []);
     expect(() => caps.check(poolList, network("tron:2494104990"))).toThrow(
       "sunswap pool-list is available on tron and nile only",
     );
@@ -55,10 +53,10 @@ describe("CapabilityRegistry.check", () => {
 
   it("reads as a sentence with three or more supporting networks", () => {
     const caps = new CapabilityRegistry({ ...ALIASES, shasta: "tron:2494104990" });
-    caps.register(MAINNET, market);
-    caps.register(NILE, market);
-    caps.register("tron:2494104990", market);
-    caps.register("eip155:1", []);
+    caps.register(network(MAINNET), market);
+    caps.register(network(NILE), market);
+    caps.register(network("tron:2494104990"), market);
+    caps.register(network("eip155:1"), []);
     expect(() => caps.check(poolList, network("eip155:1"))).toThrow(
       "sunswap pool-list is available on tron, nile and shasta only",
     );
@@ -66,25 +64,23 @@ describe("CapabilityRegistry.check", () => {
 
   it("falls back to the canonical id for a network no alias points at", () => {
     const caps = new CapabilityRegistry({});
-    caps.register(MAINNET, market);
+    caps.register(network(MAINNET), market);
     expect(() => caps.check(poolList, network(NILE))).toThrow(
       `sunswap pool-list is available on ${MAINNET} only`,
     );
   });
 
-  // Nothing supports it anywhere (a capability whose service is configured on no network), so
-  // there is no "then where?" to answer and the generic message is the honest one.
   it("keeps the generic message when the registry knows no supporter", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(NILE, []);
+    caps.register(network(NILE), []);
     expect(() => caps.check(poolList, network(NILE))).toThrow(
-      `${NILE} does not support sunswap.market`,
+      `${NILE} does not support demo.market`,
     );
   });
 
   it("raises unsupported_network_capability whichever message it picks", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(MAINNET, market);
+    caps.register(network(MAINNET), market);
     expect(() => caps.check(poolList, network(NILE))).toThrow(
       expect.objectContaining({ code: "unsupported_network_capability" }),
     );
@@ -92,11 +88,23 @@ describe("CapabilityRegistry.check", () => {
 });
 
 describe("CapabilityRegistry.register", () => {
-  it("dedupes by key and keeps the first summary", () => {
+  it("records the predicate result once per key", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(MAINNET, market);
-    caps.register(MAINNET, [{ key: "sunswap.market", summary: "second" }]);
-    expect(caps.supports(MAINNET, "sunswap.market")).toBe(true);
-    expect(() => caps.check(poolList, network(NILE))).toThrow(/available on tron only/);
+    caps.register(network(MAINNET), ["demo.market", "gasfree.info"]);
+    caps.register(network(MAINNET), ["demo.market"]);
+    expect(caps.support(MAINNET, "demo.market")).toBe("supported");
+    // The bare descriptor has no GasFree service configured.
+    expect(caps.support(MAINNET, "gasfree.info")).toBe("unsupported");
+    expect(caps.support(NILE, "demo.market")).toBe("unsupported");
+  });
+
+  it("reports every registered network for discovery", () => {
+    const caps = new CapabilityRegistry(ALIASES);
+    caps.register(network(MAINNET), market);
+    caps.register(network(NILE), []);
+    expect(caps.supportByNetwork("demo.market")).toEqual([
+      { network: MAINNET, family: "tron", support: "supported" },
+      { network: NILE, family: "tron", support: "unsupported" },
+    ]);
   });
 });

@@ -3,7 +3,7 @@ import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import { formatDecimal, formatInt, formatUtc, num } from "./scalars.js";
 import { type Obj, type Pair, asObj, kv, table, titled } from "./layout.js";
 
-/** whole tokens from minimal units — TRC10 quantities are always stored scaled by precision. */
+// TRC10 quantities are scaled by precision.
 function whole(raw: unknown, precision: unknown): string {
   return raw === undefined || raw === null
     ? ""
@@ -33,7 +33,6 @@ export const AssetFormatters = {
       ["Public free net", formatInt(d.publicFreeAssetNetLimit ?? 0)],
     ];
     const body = titled(`Asset ${d.name ?? ""} (id ${d.assetId ?? ""})`, rows);
-    // An empty collection is omitted entirely rather than printed as "Frozen (0)".
     const tranches = Array.isArray(d.frozenSupply) ? (d.frozenSupply as Obj[]) : [];
     if (tranches.length === 0) return body;
     const frozen = kv(
@@ -43,7 +42,6 @@ export const AssetFormatters = {
     return `${body}\n  Frozen (${tranches.length})\n${frozen}`;
   }) satisfies TextFormatter,
 
-  // Reserves/supply are whole tokens here at no cost: an asset record carries its own precision.
   assetList: ((data) => {
     const d = asObj(data);
     const assets = Array.isArray(d.assets) ? (d.assets as Obj[]) : [];

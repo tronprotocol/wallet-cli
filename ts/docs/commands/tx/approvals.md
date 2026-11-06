@@ -14,7 +14,7 @@ wallet-cli tx approvals (--hex <hex> | --file <path>) [options]
 
 A read-only view of a transaction hex's co-signing progress: the permission group and threshold it uses, the accumulated weight so far, the list of signers who have already approved, how much weight is still missing, and the expiration. It's the "look before you sign" companion to [`tx sign`](sign.md) — same information, no signature, no account or password needed.
 
-It needs a node (`--network`), because approval state — which signatures count, and for how much weight — is the chain's answer, not something derivable from the artifact alone. Files are read with a size cap of just over 1 MiB and must be regular files, not symlinks.
+It needs a node (`--network`), because approval state — which signatures count, and for how much weight — is the chain's answer, not something derivable from the artifact alone. The transaction must be for that network: its reference block is checked first, and one the node does not hold is `chain_id_mismatch` (one newer than the node's head is `rpc_error`; retry once the node has caught up), so no other chain's permissions are reported. Files are read with a size cap of just over 1 MiB and must be regular files, not symlinks.
 
 An expired transaction is still queryable (no error): the text `Expires` line shows the time followed by ` [EXPIRED]`, with a `!` hint to re-initiate, and the JSON `expired` field is `true`.
 
@@ -75,7 +75,7 @@ wallet-cli tx approvals --file tx.hex --network nile -o json
 
 ## Exit status
 
-`0` success · `1` execution failure (`invalid_transaction`, `rpc_error`) · `2` usage error (`invalid_value`).
+`0` success · `1` execution failure (`invalid_transaction`, `chain_id_mismatch`, `rpc_error`) · `2` usage error (`invalid_value` — malformed values; `invalid_option` — missing or conflicting input sources).
 
 ## See also
 

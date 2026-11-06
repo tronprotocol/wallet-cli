@@ -1,10 +1,13 @@
-/** Trusted deployment settings injected by the composition root, not user configuration. */
+import type { DispatchCheck } from "../contracts/deadline.js";
+import type { BaiRechargeAmount } from "../../domain/bai/recharge-policy.js";
+
+// Trusted deployment settings; not user configuration.
 export interface BaiRechargeConfig {
   readonly facilitatorUrl: string;
   readonly payTo: Readonly<Partial<Record<string, string>>>;
 }
 
-/** Confirmed credit recipient; distinct from the authenticated payer's wallet binding. */
+// Credit recipient, separate from the authenticated payer's wallet binding.
 export interface BaiRechargeTarget {
   input: { type: "personal"; identifier: string };
   confirmedTarget: { type: "personal"; targetId: string };
@@ -22,7 +25,7 @@ export interface BaiCreateOrderInput {
   channel: "crypto";
   chain: string;
   tokenName: string;
-  amount: string;
+  amount: BaiRechargeAmount;
   walletAddress: string;
   deviceType: "web";
   rechargeTarget?: BaiRechargeTarget;
@@ -31,27 +34,41 @@ export interface BaiReportTransactionInput {
   chain: string;
   txHash: string;
   rechargeTarget?: BaiRechargeTarget;
-  /** Listed in the parameter table but omitted in the documentation's request example. */
-  amount?: string;
+  amount?: BaiRechargeAmount;
 }
+
+declare const baiRawOrder: unique symbol;
+
+// B.AI order JSON passed through verbatim; inner layers never read it.
+export interface BaiRawOrder {
+  readonly [baiRawOrder]: true;
+}
+
+// A created preorder, normalized; orderId is absent when B.AI returned no usable id.
+export interface BaiCreatedOrder {
+  readonly orderId?: string;
+}
+
 export type BaiReportResult =
-  | { success: true; order: Record<string, unknown> }
-  | { success: false; code: string; message?: string };
+  { success: true; order: BaiRawOrder } | { success: false; code: string; message?: string };
 export interface BaiRechargeApi {
   resolveTarget(
     identifier: string,
+    check: DispatchCheck,
   ): Promise<{ type: "personal"; targetId: string; displayLabel: string }>;
-  isBound(input: BaiWalletBindingInput): Promise<boolean>;
-  bind(input: BaiBindWalletInput): Promise<{ userId: string; address: string; chain: string }>;
-  /** Response contract is not documented yet. Do not infer a payment destination. */
-  createOrder(input: BaiCreateOrderInput): Promise<Record<string, unknown>>;
-  reportTxHash(input: BaiReportTransactionInput): Promise<BaiReportResult>;
+  isBound(input: BaiWalletBindingInput, check: DispatchCheck): Promise<boolean>;
+  bind(
+    input: BaiBindWalletInput,
+    check: DispatchCheck,
+  ): Promise<{ userId: string; address: string; chain: string }>;
+  // Do not infer a payment destination from the order response.
+  createOrder(input: BaiCreateOrderInput, check: DispatchCheck): Promise<BaiCreatedOrder>;
+  reportTxHash(input: BaiReportTransactionInput, check: DispatchCheck): Promise<BaiReportResult>;
 }
 
-/** A payment implementation verified against B.AI's preorder destination and payer rules. */
 export interface BaiRechargePayment {
   pay(
-    order: Record<string, unknown>,
+    order: BaiCreatedOrder,
     input: BaiCreateOrderInput,
   ): Promise<{
     txHash: string;
@@ -60,8 +77,9 @@ export interface BaiRechargePayment {
   }>;
 }
 
-/** Pause between a fresh payment and its single report, so B.AI can index the transaction. */
+// Allow indexing between payment and its single report.
 export interface BaiReportDelay {
   readonly initialDelayMs: number;
-  wait(ms: number): Promise<void>;
+  // Ends early, resolving or rejecting, when the signal aborts.
+  wait(ms: number, signal: AbortSignal): Promise<void>;
 }

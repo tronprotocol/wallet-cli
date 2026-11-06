@@ -1,6 +1,6 @@
 import { TransportError } from "../../../domain/errors/index.js";
 
-/** Only documented or observed identifiers are exposed; never forward server prose. */
+// Expose only allowlisted identifiers; never forward server prose.
 const BUSINESS_ERRORS: Record<string, string> = {
   WalletInvalidSignature:
     "B.AI rejected the binding signature. Rebuild the BAI binding message with the correct origin, address, chain ID, expiration and nonce, then sign it with the selected wallet",
@@ -37,7 +37,6 @@ export function baiApiError(
   value: unknown,
   procedure: string,
   status: number,
-  retryAfterMs?: number,
 ): TransportError | undefined {
   const root = record(Array.isArray(value) ? value[0] : value);
   const error = record(root?.error);
@@ -52,12 +51,6 @@ export function baiApiError(
       "bai_auth_failed",
       "B.AI rejected this API key or its permissions; check the personal API key for this user",
       context,
-    );
-  if (status === 429)
-    return new TransportError(
-      "provider_rate_limited",
-      "B.AI rate limit exceeded; wait before retrying this API operation",
-      retryAfterMs === undefined ? context : { ...context, retryAfterMs },
     );
   const candidates = [detail?.message, detail?.code, record(detail?.data)?.code, payload?.code];
   for (const candidate of candidates) {
@@ -87,4 +80,9 @@ export function baiApiError(
       : "B.AI rejected the API request with an unrecognized error; check the operation parameters and contact B.AI support if it persists",
     context,
   );
+}
+
+// 401 and 403 are refused before the body is read.
+export function credentialRefusal(procedure: string, status: number): TransportError | undefined {
+  return status === 401 || status === 403 ? baiApiError(undefined, procedure, status) : undefined;
 }

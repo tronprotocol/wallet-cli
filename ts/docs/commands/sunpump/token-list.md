@@ -6,7 +6,7 @@ List tokens on the SunPump launchpad, ranked, or filtered to one creator.
 
 ```
 wallet-cli sunpump token-list [--order-by <field>] [--sort <asc|desc>]
-                              [--owner <address> | --contract <address>]
+                              [--owner <address>] [--contract <address>]
                               [--limit <n>] [--offset <n>]
 ```
 

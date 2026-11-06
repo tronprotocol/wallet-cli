@@ -4,15 +4,6 @@ import type { AddressInfo } from "node:net";
 import { TronRpcClient } from "./tron.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
-/**
- * A network `apiKey` travels as a request HEADER. `FetchHttpTransport` refuses to follow redirects
- * whenever it carries one, because fetch re-sends headers to the redirect target — handing the
- * credential to whoever the configured endpoint points at.
- *
- * tronweb does NOT use that transport: it builds its own axios instance, and axios follows
- * redirects by default. These tests pin the guard on that path by asserting what the redirect
- * TARGET received, not by asserting a config value that a tronweb upgrade could quietly ignore.
- */
 const API_KEY = "test-credential-value";
 
 let servers: Server[] = [];
@@ -29,7 +20,6 @@ function listen(handler: Parameters<typeof createServer>[1]): Promise<number> {
   );
 }
 
-/** a redirecting endpoint plus the target it points at; the target records what reached it. */
 async function redirectPair() {
   const received: Array<Record<string, unknown>> = [];
   const targetPort = await listen((req, res) => {
@@ -61,7 +51,7 @@ function network(endpoint: string, credentialed: boolean): NetworkDescriptor {
 describe("TronRpcClient does not leak an API key through a redirect", () => {
   it("refuses to follow a redirect on the tronweb path when a credential header is set", async () => {
     const { received, endpoint } = await redirectPair();
-    const client = new TronRpcClient(network(endpoint, true), 5_000);
+    const client = new TronRpcClient(network(endpoint, true));
 
     await expect(
       client.getAccountResources("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB"),
@@ -72,19 +62,16 @@ describe("TronRpcClient does not leak an API key through a redirect", () => {
 
   it("refuses to follow a redirect on the raw transport path too", async () => {
     const { received, endpoint } = await redirectPair();
-    const client = new TronRpcClient(network(endpoint, true), 5_000);
+    const client = new TronRpcClient(network(endpoint, true));
 
     await expect(client.getAccount("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB")).rejects.toBeTruthy();
 
     expect(received).toHaveLength(0);
   });
 
-  // The guard is deliberately conditional: with no credential there is nothing to leak, and a
-  // provider that legitimately redirects must keep working. Without this, a passing suite could
-  // just mean redirects are broken everywhere.
   it("still follows a redirect when no credential is configured", async () => {
     const { received, endpoint } = await redirectPair();
-    const client = new TronRpcClient(network(endpoint, false), 5_000);
+    const client = new TronRpcClient(network(endpoint, false));
 
     await client.getAccountResources("TNmoJ3Be59WFEq5dsW6eCkZjveiL3G8HVB").catch(() => undefined);
 

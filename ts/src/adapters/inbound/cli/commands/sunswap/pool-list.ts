@@ -1,6 +1,6 @@
-import { z, type RefinementCtx } from "zod";
+import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/tron/sunswap/market-query-service.js";
+import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/sunswap/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { limitField, offsetField, protocolFilterField } from "./shared.js";
 
@@ -27,29 +27,6 @@ const fields = z.object({
   limit: limitField,
   offset: offsetField,
 });
-
-/**
- * The service refuses `poolAddress` and `tokenAddress` together, and so must we — but as a usage
- * error, not as its error.
- *
- * Passed through, the refusal arrives as `provider_error`: exit 1, retry "same". That tells a
- * caller retrying the identical command might work, when it never can, and blames the service
- * for what the command line got wrong. Only this layer knows whose fault it is.
- */
-function refuseBothFilters(value: { pool?: string; token?: string }, ctx: RefinementCtx): void {
-  if (value.pool !== undefined && value.token !== undefined) {
-    ctx.addIssue({
-      code: "custom",
-      // the path names the offending flag, which the parser puts in front of this message
-      path: ["pool"],
-      message: "cannot be combined with --token; narrow by one or by neither",
-      // invalid_option is the code for two flags that cannot be given together. Left
-      // undeclared, a refine arrives as invalid_value, which describes a bad VALUE rather than a
-      // bad combination of flags that are each fine on their own.
-      params: { errorCode: "invalid_option" },
-    });
-  }
-}
 
 export const sunswapPoolListSpec: ChainSpec = {
   path: ["sunswap", "pool-list"],
@@ -78,7 +55,6 @@ export const sunswapPoolListSpec: ChainSpec = {
       select: "at-most-one",
     },
   ],
-  baseRefine: refuseBothFilters,
   examples: [
     { cmd: "wallet-cli sunswap pool-list --token USDT" },
     { cmd: "wallet-cli sunswap pool-list --order-by apr --min-tvl 100000" },
@@ -89,7 +65,7 @@ export const sunswapPoolListSpec: ChainSpec = {
 
 export const sunswapPoolListTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
   run: async (ctx, net, input) =>
-    service.poolList(ctx, net, {
+    service.poolList(ctx.deadline, ctx, net, {
       orderBy: input.orderBy,
       sort: input.sort,
       limit: input.limit,

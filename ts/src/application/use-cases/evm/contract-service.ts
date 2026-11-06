@@ -1,13 +1,16 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
 export type { EvmContractWriteInput } from "../../contracts/transaction-input.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { EvmFeeReport, NetworkDescriptor } from "../../../domain/types/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
-import { evmConfirmation } from "../../services/evm-confirmation.js";
+import { evmConfirmation } from "../../services/evm/evm-confirmation.js";
 import { approveRows } from "../../services/approve-receipt.js";
-import { buildEvmUnsignedTx } from "./tx-build.js";
+import { buildEvmUnsignedTx, type EvmCall } from "./tx-build.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
-import type { ChainGatewayProvider, EvmGateway } from "../../ports/chain/gateway-provider.js";
+import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
+import type { EvmGateway } from "../../ports/chain/evm/evm-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
@@ -15,24 +18,15 @@ import {
   transactionRequiresSigner,
 } from "../../services/transaction-mode.js";
 
-/**
- * Contract reads and writes.
- *
- * Writes go through the shared pipeline, so the fee model, the pending-nonce rule and the
- * broadcast guard are the same ones `tx send` uses rather than a second copy.
- */
 export class EvmContractService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
   ) {}
 
-  /**
-   * A read-only call. The result comes back as raw hex, exactly as TRON's already does: a
-   * signature declares its parameter types and nothing about its return, so there is nothing to
-   * decode against without guessing.
-   */
+  // Return raw hex: a method signature supplies parameter types, not return types.
   async call(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     contract: string,
     method: string,
@@ -41,12 +35,14 @@ export class EvmContractService {
     return {
       contract,
       method,
-      result: await this.gateways.get(network, "evm").callFunction(contract, method, params),
+      result: await this.gateways
+        .get(network, "evm", requestDispatchCheck(deadline))
+        .callFunction(contract, method, params),
     };
   }
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     let nonce: string | undefined;
     const data = gateway.encodeFunctionCall(
       input.method!,
@@ -57,8 +53,7 @@ export class EvmContractService {
         ? "0"
         : toBaseUnits(input.callValue, FAMILIES.evm.nativeDecimals, "call value");
 
-    // Resolved BEFORE the run so `--dry-run` carries it too: the allowance is the one thing a
-    // dry run of an approve exists to confirm (one of only two dry-run extras).
+    // Include approval details in dry-run output too.
     const approval = await this.#approval(gateway, input);
 
     const outcome = await this.#run(
@@ -81,7 +76,6 @@ export class EvmContractService {
     };
   }
 
-  /** The approve receipt; the shared helper does the work, this supplies the EVM specifics. */
   async #approval(
     gateway: EvmGateway,
     input: EvmContractWriteInput,
@@ -95,13 +89,9 @@ export class EvmContractService {
     });
   }
 
-  /**
-   * Deploy a contract. The transaction has no recipient — that is what makes it a deployment —
-   * and the address is derived from the sender and nonce rather than waited for, because CREATE
-   * determines it entirely from those two.
-   */
+  // CREATE determines the address from sender and nonce before mining.
   async deploy(scope: TransactionScope, network: NetworkDescriptor, input: EvmContractWriteInput) {
-    const gateway = this.gateways.get(network, "evm");
+    const gateway = this.gateways.get(network, "evm", requestDispatchCheck(scope.deadline));
     const data = gateway.encodeDeploy(input.bytecode!, input.constructorArgs ?? { source: "none" });
     let contractAddress: string | undefined;
     let nonce: string | undefined;
@@ -130,12 +120,12 @@ export class EvmContractService {
     network: NetworkDescriptor,
     gateway: EvmGateway,
     input: EvmContractWriteInput,
-    call: Record<string, unknown>,
+    call: EvmCall,
     onNonce?: (from: string, nonce: string) => void,
   ) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "evm");
-    let plan: Record<string, unknown> = {};
-    return this.pipeline.run({
+    let plan = {} as EvmFeeReport;
+    return this.pipeline.runEvm({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
@@ -146,6 +136,7 @@ export class EvmContractService {
       estimate: async () => plan,
       build: async (from) => {
         const built = await buildEvmUnsignedTx({
+          deadline: scope.deadline,
           gateway,
           network,
           from,

@@ -1,28 +1,9 @@
-/**
- * Error-detail rendering — the text-mode counterpart to `error.details`.
- *
- * Text mode prints one line per error (`error [code]: message`). A few errors are a *choice*
- * rather than a dead end — the caller has to pick one of several candidates — and a bare line
- * leaves a human with no way to pick. Those errors put the candidates in `details.matches`, and
- * this renders them as the same table the corresponding list command uses.
- *
- * Deliberately data-driven, not a per-error-code registry: the contract is `details.matches` (an
- * array of flat rows sharing one key set), so any future error can opt in by carrying that key,
- * without the output layer learning command names. JSON mode is untouched — it already carries
- * `details` verbatim.
- */
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import { singleLineErrorValue } from "../../../../domain/errors/index.js";
 import type { Obj } from "./layout.js";
 import { asObj, table } from "./layout.js";
 import { formatDecimal, formatInt, formatScalar, num } from "./scalars.js";
 
-/** key → column header; keys not listed fall back to their own name. */
-// `label` is deliberately NOT mapped here: it stays whatever key case a row carries. Mapping it
-// would collide with error-details.test.ts's "derives its columns from whatever keys the rows
-// carry" case, which uses an unmapped `label` key specifically to prove the fallback path works —
-// an existing test this batch must not edit to fit the implementation. `ambiguous_account`'s
-// label column therefore prints as the raw key ("label"), same as any other unmapped column.
 const HEADERS: Record<string, string> = {
   assetId: "ID",
   issuerAddress: "Issuer",
@@ -33,11 +14,6 @@ const HEADERS: Record<string, string> = {
   index: "Index",
 };
 
-/**
- * Rows report quantities raw (minimal units) so `details` stays machine-honest, but a human
- * picking between tokens needs the same whole-token figure `asset info` / `asset list` show —
- * hence the one semantic rule here: a row carrying `precision` scales its `totalSupply` by it.
- */
 function cell(key: string, row: Obj): string {
   const value = row[key];
   if (key === "totalSupply" && row.precision !== undefined) {
@@ -49,9 +25,20 @@ function cell(key: string, row: Obj): string {
   return formatScalar(value);
 }
 
-/** the candidate table for an error that carries one, or null when there is nothing to add. */
 export function renderErrorDetails(details: unknown): string | null {
-  const rows = asObj(details).matches;
+  const { txId, matches } = asObj(details);
+  const lines: string[] = [];
+  if (typeof txId === "string" && txId !== "") {
+    lines.push(
+      `Transaction ID: ${singleLineErrorValue(txId)}. Check with tx status before sending again.`,
+    );
+  }
+  const candidates = renderMatches(matches);
+  if (candidates) lines.push(candidates);
+  return lines.length === 0 ? null : lines.join("\n");
+}
+
+function renderMatches(rows: unknown): string | null {
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const objects = rows.map(asObj);
   const keys = Object.keys(objects[0] ?? {});

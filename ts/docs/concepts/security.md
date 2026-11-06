@@ -8,7 +8,7 @@ All secrets (seeds, private keys) are stored **encrypted under your master passw
 
 The master password is local protection only: it is never sent anywhere and **cannot be recovered**. It must be at least 8 characters with an uppercase letter, a lowercase letter, a digit, and a special character.
 
-The recovery object is the BIP39 mnemonic, but `create` never prints it — the seed is stored encrypted. Run [`backup`](../commands/backup.md) to export the plaintext mnemonic to a `0600` file and keep that file offline. Lose both password and backup and the funds are gone; lose only the password and `import mnemonic` (using the phrase from your backup) restores the wallet. The exception is TRON accounts #1 and later in a wallet created before 4.13.1 — back those up as keystores; see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+The recovery object is the BIP39 mnemonic, but `create` never prints it — the seed is stored encrypted. Run [`backup`](../commands/backup.md) to export the plaintext mnemonic to a `0600` file and keep that file offline. Lose both password and backup and the funds are gone; lose only the password and `import mnemonic` (using the phrase from your backup) restores the wallet. The exception is seed accounts at `m/44'/195'/<index>'/0/0` with index greater than zero — back those up as keystores; see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 One seed covers **every chain family** — the same phrase re-derives your TRON and your EVM addresses — so there is one thing to back up, not one per chain.
 
@@ -23,7 +23,7 @@ Corollary for scripts: source the piped secret from a secret store, not from a t
 
 ## Chain data cannot repaint your terminal
 
-Several fields you read before approving something are written by whoever put them on chain, or by a third-party service — permission names, token names and symbols, co-signer labels. In text mode every output frame is neutralised before it reaches the terminal: ANSI/OSC control bytes are stripped, and invisible formatting characters are replaced by a visible escape such as `<U+202E>`.
+Several fields you read before approving something are written by whoever put them on chain, or by a third-party service — permission names, token names and symbols, co-signer labels. In text mode every output frame is neutralised before it reaches the terminal: ANSI/OSC control bytes are stripped from results and errors and shown as a visible `\xNN` in warnings, and invisible formatting characters are replaced by a visible escape such as `<U+202E>`.
 
 That escape matters. `U+202E` reverses the display order of everything after it, which would let a permission name change how the address or weight printed beside it appears; zero-width characters can make two different names render identically. `<U+200B>` or `<U+202E>` appearing in a name means the underlying string really contains it — a red flag, not a rendering glitch. Ordinary right-to-left text (Arabic, Hebrew) contains no such characters and displays normally.
 
