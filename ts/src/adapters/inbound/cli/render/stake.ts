@@ -14,13 +14,13 @@ export const StakeFormatters = {
     const bandwidth = asObj(res.bandwidth);
     const unfreeze = asObj(d.unfreeze);
     const unfreezing = Array.isArray(d.unfreezing) ? d.unfreezing.map(asObj) : [];
-    const totalStaked =
-      BigInt(String(staked.energySun ?? "0")) + BigInt(String(staked.bandwidthSun ?? "0"));
+    const tronPower =
+      staked.tronPowerSun === "0" ? "" : ` + for TRON Power ${trx(staked.tronPowerSun)}`;
     const lines: Pair[] = [
       ["Label", ctx.accountLabel ?? ""],
       [
         "Staked",
-        `${trx(totalStaked.toString())}  (for energy ${trx(staked.energySun)} + for bandwidth ${trx(staked.bandwidthSun)})`,
+        `${trx(staked.totalSun)}  (for energy ${trx(staked.energySun)} + for bandwidth ${trx(staked.bandwidthSun)}${tronPower})`,
       ],
       [
         "Voting power",
@@ -34,8 +34,6 @@ export const StakeFormatters = {
       ],
     ];
     const body = query(lines);
-    // Tree-style unstake list, indented to the value column (label width + 2) and branched
-    // ├─ / └─; amounts are padded so the withdrawable column lines up across rows.
     const branchPad = " ".repeat(Math.max(...lines.map(([l]) => l.length)) + 2);
     const amounts = unfreezing.map((u) => trx(u.amountSun));
     const amtWidth = Math.max(0, ...amounts.map((a) => a.length));
@@ -63,8 +61,10 @@ export const StakeFormatters = {
         "Max delegatable",
         kv(
           [
-            ["Energy", `${trx(max.energy)}`],
-            ["Bandwidth", `${trx(max.bandwidth)}`],
+            ...(max.energy === undefined ? [] : [["Energy", `${trx(max.energy)}`] as Pair]),
+            ...(max.bandwidth === undefined
+              ? []
+              : [["Bandwidth", `${trx(max.bandwidth)}`] as Pair]),
           ],
           "  ",
         ),

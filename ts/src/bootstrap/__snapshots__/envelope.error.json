@@ -1,0 +1,18 @@
+{
+  "schema": "wallet-cli.result.v1",
+  "success": false,
+  "command": "gasfree.info",
+  "error": {
+    "code": "unsupported_network_capability",
+    "message": "gasfree info is available on tron and nile only"
+  },
+  "meta": {
+    "durationMs": 0,
+    "warnings": []
+  },
+  "chain": {
+    "family": "tron",
+    "network": "tron:2494104990",
+    "chainId": "2494104990"
+  }
+}

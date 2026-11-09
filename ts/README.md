@@ -44,11 +44,11 @@ Networks are identified by a canonical [CAIP-2](https://chainagnostic.org/CAIPs/
 
 Balances, tokens, and transactions are isolated per network. The family decides two things: **which address** a command acts as — one account holds a TRON base58 address and an EVM `0x` address, derived from the same seed — and **which commands exist**, since TRON protocol features (staking, SR voting, TRC10, the Bancor exchange, on-chain permissions, GasFree) have no EVM counterpart and are refused there with `family_mismatch`. Fees follow the family too: TRON's `tron-resource` model (bandwidth + energy) or EVM gas. See [networks](docs/concepts/networks.md), [accounts](docs/concepts/accounts-and-hd.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
-The TRON ids used before CAIP-2 (`tron:mainnet`, `tron:nile`, `tron:shasta`) remain permanent aliases, so existing invocations keep working — but **output** now reports the CAIP-2 id, so a consumer that string-matches `tron:nile` must be updated.
+`tron:mainnet`, `tron:nile` and `tron:shasta` are permanent aliases. Output reports canonical CAIP-2 network ids, such as `tron:3448148188` for Nile.
 
 ## Install
 
-**Prerequisites**: [Node.js](https://nodejs.org) **22.23.4+, 24.22.1+ or 26.12.1+** — the October 2026 security releases (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON or Ethereum app installed — see the [Ledger guide](docs/guide/ledger.md).
+**Prerequisites**: [Node.js](https://nodejs.org) **22.23.4+, 24.22.1+ or 26.12.1+** (`node --version` to check). Ledger signing additionally needs a supported Ledger device with the TRON or Ethereum app installed — see the [Ledger guide](docs/guide/ledger.md).
 
 ```bash
 npm install -g @tron-walletcli/wallet-cli

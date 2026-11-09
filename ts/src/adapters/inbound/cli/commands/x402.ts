@@ -1,3 +1,4 @@
+import type { ExecutionDeadline } from "../../../../application/contracts/deadline.js";
 import {
   paymentText,
   roundtripText,
@@ -9,10 +10,17 @@ import {
 } from "../render/x402.js";
 import { paymentAmount, rawPaymentAmount, integerLiteral } from "../schemas/payment-values.js";
 import { z } from "zod";
-import { SECRET_KINDS, type CommandDefinition } from "../contracts/index.js";
+import { SECRET_KINDS, type CommandDefinition, type ExclusiveGroup } from "../contracts/index.js";
 import { sanitizeText } from "../render/scalars.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
+import type { HttpHeader } from "../../../../application/ports/x402-payment.js";
+import { DEFAULT_X402_FACILITATOR_URL } from "../../../../application/services/x402/facilitator.js";
+import { defaultToken } from "../../../../application/services/default-token.js";
+import {
+  X402_DEFAULT_VALIDITY_SECONDS,
+  X402_MAX_VALIDITY_SECONDS,
+} from "../../../../domain/x402/payment-terms.js";
 import { readFile } from "node:fs/promises";
 import { errorMessage, UsageError } from "../../../../domain/errors/index.js";
 
@@ -47,22 +55,12 @@ const payFields = z.object({
     .regex(/^\d+(?:\.\d+)?$/)
     .optional()
     .describe("maximum GasFree relay fee in whole tokens"),
-  maxGasfreeFeeRaw: z
-    .string()
-    .regex(/^\d+$/)
+  maxGasfreeFeeRaw: rawPaymentAmount
     .optional()
     .describe("maximum GasFree relay fee in smallest units"),
 });
 const payInput = payFields.superRefine((value, context) => {
-  if (value.maxAmount && value.maxRawAmount) {
-    context.addIssue({
-      code: "custom",
-      params: { errorCode: "invalid_option" },
-      path: ["maxAmount"],
-      message: "cannot be combined with --max-raw-amount",
-    });
-  }
-  // A raw limit has no unit: unpinned, it would cap whatever token the seller names.
+  // Pin raw limits to a token so the seller cannot choose their units.
   if (value.maxRawAmount !== undefined && !value.token && !value.asset) {
     context.addIssue({
       code: "custom",
@@ -72,20 +70,13 @@ const payInput = payFields.superRefine((value, context) => {
         "requires --token or --asset; a raw limit has no unit, so pin it to one token or use --max-amount",
     });
   }
-  if (value.body !== undefined && value.bodyFile !== undefined) {
+  // HTTP fetch refuses a GET body, so refuse it here, before any request.
+  if (value.method === "GET" && (value.body !== undefined || value.bodyFile !== undefined)) {
     context.addIssue({
       code: "custom",
       params: { errorCode: "invalid_option" },
-      path: ["body"],
-      message: "cannot be combined with --body-file",
-    });
-  }
-  if (value.maxGasfreeFee && value.maxGasfreeFeeRaw) {
-    context.addIssue({
-      code: "custom",
-      params: { errorCode: "invalid_option" },
-      path: ["maxGasfreeFee"],
-      message: "cannot be combined with --max-gasfree-fee-raw",
+      path: [value.body !== undefined ? "body" : "bodyFile"],
+      message: "cannot be used with --method GET",
     });
   }
   if (value.decimals !== undefined && !value.asset) {
@@ -98,6 +89,12 @@ const payInput = payFields.superRefine((value, context) => {
   }
 });
 
+const gasfreeFeeLimitGroup: ExclusiveGroup = {
+  label: "GasFree fee limit",
+  flags: ["max-gasfree-fee", "max-gasfree-fee-raw"],
+  select: "at-most-one",
+};
+
 const payCommand: CommandDefinition = {
   path: ["x402", "pay"],
   formatText: paymentText,
@@ -105,7 +102,7 @@ const payCommand: CommandDefinition = {
   wallet: "optional",
   auth: "conditional",
   broadcasts: true,
-  supportsWait: false,
+  rejectsWait: "the payment is settled by the facilitator and follows its own workflow",
   capability: "x402.pay",
   positionals: [{ field: "url" }],
   summary: "Request an endpoint and pay an x402 challenge",
@@ -116,11 +113,7 @@ const payCommand: CommandDefinition = {
   exclusive: [
     { label: "request body", flags: ["body", "body-file"], select: "at-most-one" },
     { label: "payment limit", flags: ["max-amount", "max-raw-amount"], select: "at-most-one" },
-    {
-      label: "GasFree fee limit",
-      flags: ["max-gasfree-fee", "max-gasfree-fee-raw"],
-      select: "at-most-one",
-    },
+    gasfreeFeeLimitGroup,
   ],
   examples: [
     { cmd: "wallet-cli x402 pay https://service.example/resource --network bsc --password-stdin" },
@@ -156,15 +149,20 @@ const listFields = z.object({
 const serveFields = z.object({
   payTo: z.string().trim().min(1).describe("recipient address on the selected network"),
   amount: paymentAmount.optional().describe("human-readable token amount"),
-  token: z.string().trim().min(1).optional().describe("payment token symbol (default USDT)"),
-  rawAmount: rawPaymentAmount
+  token: z
+    .string()
+    .trim()
+    .min(1)
     .optional()
-    .describe("payment in smallest units; mutually exclusive with amount"),
+    .describe(
+      `payment token symbol (default ${defaultToken("x402.serve")} where the network registers it; otherwise pass --token or --asset with --decimals)`,
+    ),
+  rawAmount: rawPaymentAmount.optional().describe("payment in smallest units"),
   asset: z.string().trim().min(1).optional().describe("explicit payment asset address"),
   decimals: integerLiteral(0, 18).optional().describe("precision for an explicit asset"),
   resourceUrl: url.optional().describe("advertised resource URL"),
-  validForSeconds: integerLiteral(1, 86400)
-    .default(300)
+  validForSeconds: integerLiteral(1, X402_MAX_VALIDITY_SECONDS)
+    .default(X402_DEFAULT_VALIDITY_SECONDS)
     .describe("payment authorization validity in seconds"),
   daemon: z
     .boolean()
@@ -177,40 +175,31 @@ const serveFields = z.object({
     .string()
     .url()
     .refine((value) => value.startsWith("https://"), "must use HTTPS")
-    .default("https://facilitator.bankofai.io"),
+    .default(DEFAULT_X402_FACILITATOR_URL),
 });
 
-function serveRefinement(
-  value: { amount?: string; rawAmount?: string; token?: string; asset?: string; decimals?: number },
-  ctx: z.RefinementCtx,
-) {
-  for (const [invalid, message] of [
-    [
-      value.amount !== undefined && value.rawAmount !== undefined,
-      "--amount and --raw-amount are mutually exclusive",
-    ],
-    [
-      value.token !== undefined && value.asset !== undefined,
-      "--token and --asset are mutually exclusive",
-    ],
-    [value.decimals !== undefined && value.asset === undefined, "--decimals requires --asset"],
-  ] as const) {
-    if (invalid) ctx.addIssue({ code: "custom", message, params: { errorCode: "invalid_option" } });
+function serveRefinement(value: { asset?: string; decimals?: number }, ctx: z.RefinementCtx) {
+  if (value.decimals !== undefined && value.asset === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      params: { errorCode: "invalid_option" },
+      path: ["decimals"],
+      message: "requires --asset",
+    });
   }
 }
+
+const serveExclusive: ExclusiveGroup[] = [
+  { label: "the payment amount", flags: ["amount", "raw-amount"], select: "at-most-one" },
+  { label: "the payment token", flags: ["token", "asset"], select: "at-most-one" },
+];
 
 const roundtripFields = serveFields.omit({ host: true, resourceUrl: true, daemon: true }).extend({
   gasfreeRelay: payFields.shape.gasfreeRelay,
   maxGasfreeFee: payFields.shape.maxGasfreeFee,
   maxGasfreeFeeRaw: payFields.shape.maxGasfreeFeeRaw,
 });
-const roundtripInput = roundtripFields
-  .superRefine(serveRefinement)
-  .refine((value) => !(value.maxGasfreeFee !== undefined && value.maxGasfreeFeeRaw !== undefined), {
-    path: ["maxGasfreeFee"],
-    message: "cannot be combined with --max-gasfree-fee-raw",
-    params: { errorCode: "invalid_option" },
-  });
+const roundtripInput = roundtripFields.superRefine(serveRefinement);
 
 export function registerX402Commands(registry: CommandRegistry, service: X402Service): void {
   registry.add({
@@ -221,7 +210,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       return service.pay(ctx, network, {
         url: input.url,
         method: input.method,
-        headers: input.header,
+        headers: headerFields(input.header),
         ...(body === undefined ? {} : { body }),
         ...(input.token === undefined ? {} : { token: input.token }),
         ...(input.asset === undefined ? {} : { asset: input.asset }),
@@ -249,16 +238,20 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     broadcasts: false,
     capability: "x402.serve",
     summary: "Run a local x402-protected endpoint",
+    description:
+      "Run a local x402-protected endpoint. --timeout limits startup and each request's\n" +
+      "verify-and-settle; the ready server keeps running until stopped.",
     fields: serveFields,
     input: serveFields.superRefine(serveRefinement),
+    exclusive: serveExclusive,
     examples: [
       { cmd: "wallet-cli x402 serve --pay-to T... --amount 1 --token USDT --network tron" },
     ],
-    run: async (_ctx, network, input) => {
+    run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 serve requires a resolved network");
-      return service.serve(network, {
+      return service.serve(ctx.deadline, network, {
         ...input,
-        ...(_ctx.output === "text" ? { accessLog: "text" as const } : {}),
+        ...(ctx.output === "text" ? { accessLog: "text" as const } : {}),
       });
     },
   } satisfies CommandDefinition);
@@ -270,15 +263,23 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     wallet: "optional",
     auth: "conditional",
     broadcasts: true,
-    supportsWait: false,
+    rejectsWait: "the payment is settled by the facilitator and follows its own workflow",
     capability: "x402.pay",
     summary: "Start a local paywall, pay it, and exit",
+    description:
+      "Start a loopback x402 paywall, pay it, and exit, all within one command deadline.\n" +
+      "Prerequisite approvals confirm before the payment.",
     fields: roundtripFields,
     input: roundtripInput,
+    exclusive: [...serveExclusive, gasfreeFeeLimitGroup],
     examples: [{ cmd: "wallet-cli x402 roundtrip --pay-to T... --network tron --password-stdin" }],
     run: async (ctx, network, input) => {
       if (!network) throw new Error("x402 roundtrip requires a resolved network");
-      return service.roundtrip(ctx, network, { ...input, host: "127.0.0.1" });
+      const { serve, pay } = await service.roundtrip(ctx, network, {
+        ...input,
+        host: "127.0.0.1",
+      });
+      return { serve, pay };
     },
   } satisfies CommandDefinition);
 
@@ -295,15 +296,20 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       { cmd: "wallet-cli x402 provider-list" },
       { cmd: "wallet-cli x402 provider-list --network tron:728126428" },
     ],
-    run: async (_ctx, _network, input) => providerResult(_ctx, service.providerList(input)),
+    run: async (ctx, _network, input) =>
+      providerResult(ctx, service.providerList(ctx.deadline, input)),
   } satisfies CommandDefinition);
 
   for (const [verb, summary, run] of [
-    ["provider-show", "Show one x402 provider", (name: string) => service.providerShow(name)],
+    [
+      "provider-show",
+      "Show one x402 provider",
+      (deadline: ExecutionDeadline, name: string) => service.providerShow(deadline, name),
+    ],
     [
       "endpoint-list",
       "List one x402 provider's endpoints",
-      (name: string) => service.providerEndpoints(name),
+      (deadline: ExecutionDeadline, name: string) => service.providerEndpoints(deadline, name),
     ],
   ] as const) {
     const fields = z.object({ provider: fqn });
@@ -318,7 +324,7 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       fields,
       input: fields,
       examples: [{ cmd: `wallet-cli x402 ${verb} defillama` }],
-      run: async (_ctx, _network, input) => providerResult(_ctx, run(input.provider)),
+      run: async (ctx, _network, input) => providerResult(ctx, run(ctx.deadline, input.provider)),
     } satisfies CommandDefinition);
   }
 
@@ -333,8 +339,17 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli x402 update-catalog" }],
-    run: async (ctx) => providerResult(ctx, service.providerUpdate()),
+    run: async (ctx) => providerResult(ctx, service.providerUpdate(ctx.deadline)),
   } satisfies CommandDefinition);
+}
+
+// Splits each "Name: value" argument at its first colon.
+function headerFields(lines: readonly string[]): HttpHeader[] {
+  return lines.map((line) => {
+    const colon = line.indexOf(":");
+    if (colon <= 0) throw new UsageError("invalid_value", '--header must use "Name: value"');
+    return { name: line.slice(0, colon).trim(), value: line.slice(colon + 1).trim() };
+  });
 }
 
 async function requestBody(
@@ -344,8 +359,7 @@ async function requestBody(
 ): Promise<string | Uint8Array | undefined> {
   if (!path) return inline;
   if (path === "-") {
-    // Every `--<kind>-stdin` secret is bound to the same fd 0; reading it as the body would post
-    // the secret to the endpoint. Refuse before anything is read, whichever secret claims stdin.
+    // Reject shared stdin before reading to avoid posting a secret as the body.
     const claimed = SECRET_KINDS.find((kind) => ctx.secrets.has(kind));
     if (claimed !== undefined) {
       throw new UsageError(
@@ -353,7 +367,7 @@ async function requestBody(
         `--body-file - cannot share stdin with --${claimed.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}-stdin`,
       );
     }
-    return checkedBody(ctx.streams.readStdinBytesOnce(), "stdin");
+    return checkedBody(await ctx.streams.readStdinBytesOnce(ctx.deadline.signal), "stdin");
   }
   try {
     return checkedBody(await readFile(path), path);
@@ -375,11 +389,11 @@ function checkedBody(body: Uint8Array, source: string): Uint8Array {
 
 async function providerResult(
   ctx: Parameters<CommandDefinition["run"]>[0],
-  pending: Promise<Record<string, unknown>>,
+  pending: Promise<{ warnings?: unknown }>,
 ) {
   ctx.emit({ type: "activity", message: "Loading provider catalog data…" });
   const { warnings, ...data } = await pending;
-  // Remote text on the diagnostic channel bypasses the result renderer's sanitizing; do it here.
+  // Sanitize remote warnings; the diagnostic channel bypasses the result renderer.
   if (Array.isArray(warnings))
     for (const warning of warnings)
       if (typeof warning === "string") ctx.warn(sanitizeText(warning));

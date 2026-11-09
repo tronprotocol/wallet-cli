@@ -6,7 +6,7 @@ Set the account's on-chain name or account id.
 
 ```
 wallet-cli account set (--name <name> | --id <account-id>)
-                       [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                       [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                        [--permission-id <n>] [options]
 ```
 
@@ -29,9 +29,10 @@ Ledger support differs by field: the TRON app can sign `--name`, but not `--id` 
 | `--dry-run` | Build and estimate only; no signature/broadcast, no password. Excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build and sign, output the signed hex (feed [`tx broadcast`](../tx/broadcast.md)). Excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex (feed [`tx multisig --create`](../tx/multisig.md)). Excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s; [Ledger exception](../../guide/ledger.md#3-when-the-device-doesnt-respond)) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -43,7 +44,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 Set the on-chain name and wait for confirmation:
 
 ```bash
-echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --wait --password-stdin
+echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --password-stdin
 ```
 
 ```console
@@ -57,7 +58,7 @@ echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --wait
 ```
 
 ```bash
-echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --password-stdin -o json
 ```
 
 ```json
@@ -67,7 +68,7 @@ echo "$PW" | wallet-cli account set --name "Acme Treasury" --network nile --wait
 Set the account id instead (`--id`); the id's uniqueness is enforced on-chain:
 
 ```bash
-echo "$PW" | wallet-cli account set --id acme-treasury-01 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli account set --id acme-treasury-01 --network nile --password-stdin
 ```
 
 ```console
@@ -86,13 +87,13 @@ echo "$PW" | wallet-cli account set --id acme-treasury-01 --network nile --wait 
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "account-set"`, `stage: "submitted"`, `txId`, `field` (`name`/`id`), `value`, `address` |
-| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
+| `--no-wait` (submitted) | `kind: "account-set"`, `stage: "submitted"`, `txId`, `field` (`name`/`id`), `value`, `address` |
+| default or `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
 | `--dry-run` | `kind`, `mode: "dry-run"`, fee estimate, `field`, `value`, `address`; no `txId` |
 
 ## Exit status
 
-`0` submitted (or built/signed/dry-run in early-exit modes) · `1` execution failure (`name_already_set`, `id_already_set`, `id_taken`, `watch_only_no_signer`, `ledger_unsupported` — Ledger signing with `--id`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`, `invalid_option` — malformed or missing name/id).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed/dry-run in early-exit modes) · `1` execution failure (`name_already_set`, `id_already_set`, `id_taken`, `watch_only_no_signer`, `ledger_unsupported` — Ledger signing with `--id`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error (`invalid_value`, `invalid_option` — malformed or missing name/id).
 
 After a **confirmed** transaction the command reads the account back to verify the change took effect. That follow-up never turns an already-paid transaction into a command failure: a mismatch or an unreadable read is reported as a `meta.warnings` entry (`account_set_postcheck_mismatch` / `account_set_postcheck_unavailable`) with `success` still `true` and exit `0`.
 

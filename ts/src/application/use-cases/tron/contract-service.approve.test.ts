@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronContractService } from "./contract-service.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NETWORK = {
   id: "tron:3448148188",
@@ -19,9 +21,9 @@ const CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const scope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: vi.fn(),
   warn: vi.fn(),
 } as TransactionScope;
@@ -35,7 +37,7 @@ describe("TronContractService.send — approve", () => {
       estimateResources: vi.fn(async () => ({ feeModel: "tron-resource", energy: 1 })),
     } as unknown as TronGateway;
     const pipeline = {
-      run: vi.fn(async (params: TxPipelineParams) => ({
+      runTron: vi.fn(async (params: TronTxPipelineParams) => ({
         stage: "plan" as const,
         tx: await params.build(OWNER),
         fee: {},
@@ -54,8 +56,8 @@ describe("TronContractService.send — approve", () => {
           { type: "address", value: OPERATOR },
           { type: "uint256", value: "42" },
         ],
-        callValueSun: "0",
-        feeLimit: "100000000",
+        callValueSun: sunAmount("0"),
+        feeLimit: sunAmount("100000000"),
         dryRun: true,
         approvalKind: "erc721",
       }),

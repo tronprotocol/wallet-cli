@@ -1,8 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
-import { bindGroupedPositionals, gapFillRequiredFields, isInteractiveCommand } from "./index.js";
 import { accountRef } from "../arity/index.js";
-import type { CommandDefinition } from "../contracts/index.js";
 import type { Prompter as PrompterType } from "../input/prompt/index.js";
 
 describe("grouped leaf positionals", () => {
@@ -38,8 +36,6 @@ describe("grouped leaf positionals", () => {
     ).toThrow(/both positionally/);
   });
 });
-
-// ── fake prompter ─────────────────────────────────────────────────────────────
 
 interface FakePrompterOpts {
   tty?: boolean;
@@ -77,8 +73,6 @@ function makeFakePrompter(opts: FakePrompterOpts = {}): PrompterType & {
   } as any;
 }
 
-// ── minimal command builder for gapFillRequiredFields tests ──────────────────
-
 function makeCmd(
   shape: z.ZodRawShape,
   opts: Partial<Pick<CommandDefinition, "auth" | "wallet" | "network">> = {},
@@ -97,8 +91,6 @@ function makeCmd(
   } as unknown as CommandDefinition;
 }
 
-// ── isInteractiveCommand ─────────────────────────────────────────────────────
-
 describe("isInteractiveCommand", () => {
   it("allows interaction when the command opts in via interactive:true", () => {
     expect(isInteractiveCommand({ interactive: true } as unknown as CommandDefinition)).toBe(true);
@@ -111,8 +103,6 @@ describe("isInteractiveCommand", () => {
     );
   });
 });
-
-// ── gapFillRequiredFields unit tests ─────────────────────────────────────────
 
 describe("gapFillRequiredFields", () => {
   it("uses select for a required enum field missing under TTY", async () => {
@@ -161,9 +151,9 @@ describe("gapFillRequiredFields", () => {
   it("offers an optional field but Enter (empty) skips it → left unset", async () => {
     const cmd = makeCmd({ label: z.string().optional() });
     const argv: Record<string, unknown> = {};
-    const prompter = makeFakePrompter({ tty: true }); // no answer queued → "" (Enter)
+    const prompter = makeFakePrompter({ tty: true });
     await gapFillRequiredFields(cmd, argv, prompter);
-    expect(argv.label).toBeUndefined(); // skipped → command default applies
+    expect(argv.label).toBeUndefined();
     expect(prompter.textCalls).toHaveLength(1);
     expect(prompter.textCalls[0]!.label).toBe("Label (optional, press Enter to skip)");
   });
@@ -180,7 +170,7 @@ describe("gapFillRequiredFields", () => {
     const cmd = makeCmd({ label: z.string().optional() });
     cmd.promptHints = { label: "default-label" };
     const argv: Record<string, unknown> = {};
-    const prompter = makeFakePrompter({ tty: true }); // Enter accepts the generated default
+    const prompter = makeFakePrompter({ tty: true });
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv.label).toMatch(/^wallet_[0-9a-f]{6}$/);
     expect(prompter.textCalls).toHaveLength(1);
@@ -272,13 +262,17 @@ describe("gapFillRequiredFields", () => {
   });
 });
 
-// ── password-prime wiring test ────────────────────────────────────────────────
-
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { buildCli, ShellOptions } from "./index.js";
-import type { SessionRef } from "../contracts/index.js";
+import {
+  bindGroupedPositionals,
+  buildCli,
+  gapFillRequiredFields,
+  isInteractiveCommand,
+  ShellOptions,
+} from "./index.js";
+import type { CommandDefinition, SessionRef } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { TargetResolver } from "../../../../application/services/target/index.js";
@@ -287,10 +281,10 @@ import { createOutputFormatter } from "../output/index.js";
 import { ConfigLoader, NetworkRegistry } from "../../../outbound/config/index.js";
 import { AtomicFileStore } from "../../../outbound/persistence/fs/index.js";
 import { Keystore } from "../../../outbound/keystore/index.js";
+import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 import { SecretResolver } from "../input/secret/index.js";
 import { Prompter } from "../input/prompt/index.js";
-
-// ── positional parsing end-to-end ─────────────────────────────────────────────
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
 describe("grouped positional parsing through yargs", () => {
   function positionalFixture(_tokens: string[]): { shellOpts: ShellOptions; seen: () => unknown } {
@@ -311,13 +305,13 @@ describe("grouped positional parsing through yargs", () => {
     const streams = new StreamManager("text", false);
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
 
     let received: unknown;
     const fields = z.object({ input: z.string().min(1), label: z.string().optional() });
     const registry = new CommandRegistry();
-    // two leaves under one head → the `<head> [verb] [args..]` group form
     registry.add({
       path: ["encoding", "convert"],
       network: "none",
@@ -342,7 +336,6 @@ describe("grouped positional parsing through yargs", () => {
       examples: [],
       run: async () => ({}),
     } as unknown as CommandDefinition);
-    // mirrors `use [account]`: positional field named after the global --account flag
     const acctFields = z.object({ account: z.string().min(1) });
     registry.add({
       path: ["acct"],
@@ -370,7 +363,6 @@ describe("grouped positional parsing through yargs", () => {
       examples: [],
       run: async () => ({}),
     } as unknown as CommandDefinition);
-    // single-segment leaf: yargs binds the positional by field name, no `args..` capture
     registry.add({
       path: ["cfg"],
       network: "none",
@@ -392,7 +384,16 @@ describe("grouped positional parsing through yargs", () => {
       shellOpts: {
         registry,
         globals: { output: "text" as const, verbose: false },
-        deps: { config, networkRegistry, streams, secrets, keystore, prompter, formatter },
+        deps: {
+          config,
+          deadline: new CommandDeadline(0),
+          networkRegistry,
+          streams,
+          secrets,
+          accounts,
+          prompter,
+          formatter,
+        },
         targetResolver: new TargetResolver({ networkRegistry, keystore }),
         caps: new CapabilityRegistry(),
         streams,
@@ -415,9 +416,6 @@ describe("grouped positional parsing through yargs", () => {
     expect(seen()).toBe(expected);
   });
 
-  // A field exposed as a positional is documented under Args, not Flags — the `--<field>` spelling
-  // is not part of the contract. argv alone cannot tell the two apart (yargs writes both to the
-  // same key), so the rejection is driven by the raw tokens.
   it.each([
     ["grouped leaf", ["encoding", "convert", "--input", "0xdeadbeef"]],
     ["grouped leaf, = form", ["encoding", "convert", "--input=0xdeadbeef"]],
@@ -456,15 +454,11 @@ describe("grouped positional parsing through yargs", () => {
   it("leaves a command that declares no positionals alone", async () => {
     const tokens = ["encoding", "other", "--nope"];
     const { shellOpts } = positionalFixture(tokens);
-    // still rejected, but by assertKnownFlags — not by the positional guard
     await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
       message: /unknown option\(s\): --nope/,
     });
   });
 
-  // The token scan must not mistake a flag-shaped *value* for a flag the user typed. Both ways of
-  // passing a literal `--input` as data survive: `=` keeps it on the right-hand side, and `--`
-  // ends flag parsing entirely.
   it("does not treat a flag-shaped value as a typed flag", async () => {
     const tokens = ["encoding", "convert", "--label=--input", "0xdeadbeef"];
     const { shellOpts, seen } = positionalFixture(tokens);
@@ -472,8 +466,6 @@ describe("grouped positional parsing through yargs", () => {
     expect(seen()).toBe("0xdeadbeef");
   });
 
-  // `use [account]` / `rename` / `delete` / `backup` name their positional after the global
-  // --account flag. Rejecting it there would break a documented global on four real commands.
   it("does not reject a positional whose name is also a global flag", async () => {
     const tokens = ["acct", "--account", "main"];
     const { shellOpts, seen } = positionalFixture(tokens);
@@ -493,7 +485,6 @@ describe("dispatch password-prime wiring", () => {
   it("calls primePassword with mode='set' for auth=required command when keystore is uninitialized", async () => {
     const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-test-"));
     const store = new AtomicFileStore();
-    // Fake prompter that is a TTY and responds with a valid password for primePassword
     const fakeBackend = {
       isTTY: () => true,
       async question(_prompt: string, _hidden: boolean) {
@@ -511,6 +502,7 @@ describe("dispatch password-prime wiring", () => {
     const streams = new StreamManager("text", false);
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
 
     const spyPrime = vi.spyOn(secrets, "primePassword");
 
@@ -520,7 +512,7 @@ describe("dispatch password-prime wiring", () => {
     let ran = false;
     const registry = new CommandRegistry();
     registry.add({
-      path: ["create"], // an interactive command (passwordMode commands all are)
+      path: ["create"],
       network: "none",
       wallet: "none",
       auth: "required",
@@ -543,7 +535,16 @@ describe("dispatch password-prime wiring", () => {
       output: "text" as const,
       verbose: false,
     };
-    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const deps = {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts,
+      prompter,
+      formatter,
+    };
     const capabilityRegistry = new CapabilityRegistry();
 
     const shellOpts: ShellOptions = {
@@ -564,9 +565,6 @@ describe("dispatch password-prime wiring", () => {
     expect(ran).toBe(true);
   });
 
-  // Lazy auth: a command WITHOUT passwordMode is never eager-unlocked. The password is demanded
-  // only when its run() actually touches the key — so key-free paths (e.g. `tx send --dry-run`)
-  // succeed with no unlock, while a path that signs/decrypts surfaces auth_required from the keystore.
   function lazyAuthFixture(run: (secrets: SecretResolver) => Promise<unknown>) {
     const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-test-"));
     const store = new AtomicFileStore();
@@ -586,6 +584,7 @@ describe("dispatch password-prime wiring", () => {
     const streams = new StreamManager("text", false);
     const secrets = new SecretResolver(streams, {}, prompter);
     const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+    const accounts = new WalletService(keystore, {} as never, {} as never, {} as never);
     const spyPrime = vi.spyOn(secrets, "primePassword");
     const config = ConfigLoader.load();
     const networkRegistry = new NetworkRegistry(config);
@@ -596,7 +595,7 @@ describe("dispatch password-prime wiring", () => {
       network: "none",
       wallet: "none",
       auth: "required",
-      // no passwordMode — lazy guard path
+      // Omit passwordMode to exercise lazy authentication.
       fields: z.object({}),
       input: z.object({}),
       examples: [],
@@ -607,7 +606,16 @@ describe("dispatch password-prime wiring", () => {
     const formatter = createOutputFormatter("text", streams, startedAt);
     const session: SessionRef = {};
     const globals = { output: "text" as const, verbose: false };
-    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const deps = {
+      config,
+      deadline: new CommandDeadline(0),
+      networkRegistry,
+      streams,
+      secrets,
+      accounts,
+      prompter,
+      formatter,
+    };
     const shellOpts: ShellOptions = {
       registry,
       globals,

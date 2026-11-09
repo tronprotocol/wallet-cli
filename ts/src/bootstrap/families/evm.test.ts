@@ -1,13 +1,4 @@
 import type { AgentService } from "../../application/use-cases/agent-service.js";
-/**
- * The EVM family's command registrations.
- *
- * The signing commands come first because they need nothing from the chain: `MessageService` and
- * `TypedDataService` take only a SignerResolver, and the per-family hashing already lives behind
- * `evmSignStrategy`. So the same binding object serves both families, and the response contract
- * is family-invariant by construction — these tests pin that down so it cannot drift once
- * EVM-specific bindings start landing beside them.
- */
 import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
@@ -23,12 +14,14 @@ import type { TokenRepository } from "../../application/ports/token-repository.j
 import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { TxPipeline } from "../../application/services/pipeline/index.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
+import type { SigningService } from "../../application/services/signing/signing-service.js";
 
 function registry(): CommandRegistry {
   const reg = new CommandRegistry();
   registerEvmChainCommands(reg, {
     agents: {} as AgentService,
     signers: {} as SignerResolver,
+    signing: {} as SigningService,
     gateways: {} as ChainGatewayProvider,
     balances: {} as AccountBalanceService,
     tokens: {} as TokenRepository,
@@ -88,18 +81,11 @@ describe("registerEvmChainCommands", () => {
 
   it("declares no evm-only flags on the signing commands", () => {
     const reg = registry();
-    // A family flag that exists on one side only would show up in help tagged "(EVM only)". These two
-    // commands take the same input everywhere; anything else is a regression.
     expect(reg.resolveChain(["message", "sign"])?.families.evm?.fields).toBeUndefined();
     expect(reg.resolveChain(["typed-data", "sign"])?.families.evm?.fields).toBeUndefined();
   });
 });
 
-/**
- * The registration above is only worth anything if the composition root actually calls it.
- * Asserting on `registerEvmChainCommands` alone would stay green if the wiring line were deleted,
- * so this drives the real bootstrap and reads the catalog it produces.
- */
 describe("EVM commands reach the assembled CLI", () => {
   async function catalog() {
     const previous = process.env.WALLET_CLI_HOME;

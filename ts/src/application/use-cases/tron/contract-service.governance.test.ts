@@ -3,9 +3,11 @@ import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
-import type { TxPipeline, TxPipelineParams } from "../../services/pipeline/index.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
+import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/index.js";
 import { TronContractService } from "./contract-service.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -20,19 +22,19 @@ const OTHER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
   warn: () => {},
 };
 
 function createService(gateway: Partial<TronGateway>) {
   const concrete = gateway as TronGateway;
-  const captured: TxPipelineParams[] = [];
+  const captured: TronTxPipelineParams[] = [];
   const pipeline = {
     assertCanSign: vi.fn(),
-    run: async (params: TxPipelineParams) => {
+    runTron: async (params: TronTxPipelineParams) => {
       captured.push(params);
       await params.build(OWNER);
       return { stage: "submitted", txId: "tx-contract" } as never;
@@ -49,7 +51,7 @@ function createService(gateway: Partial<TronGateway>) {
 
 describe("TronContractService governance", () => {
   it("applies permission and expiration controls to contract send", async () => {
-    const trigger = vi.fn(async () => ({ raw_data: {} }));
+    const trigger = vi.fn(async () => ({ raw_data: {} }) as never);
     const { service, captured } = createService({
       triggerSmartContract: trigger,
       estimateResources: async () => ({ feeModel: "tron-resource", energy: 0 }),
@@ -59,8 +61,8 @@ describe("TronContractService governance", () => {
         contract: CONTRACT,
         method: "set(uint256)",
         parameters: [{ type: "uint256", value: "1" }],
-        callValueSun: "0",
-        feeLimit: "100000000",
+        callValueSun: sunAmount("0"),
+        feeLimit: sunAmount("100000000"),
         permissionId: 2,
         expiration: 120_000,
         signOnly: true,
@@ -80,7 +82,11 @@ describe("TronContractService governance", () => {
   it("requires SmartContract.origin_address to equal the selected account", async () => {
     const build = vi.fn();
     const { service } = createService({
-      getContractMetadata: async () => ({ methods: [], originAddress: OTHER, contract: {} }),
+      getContractMetadata: async () => ({
+        methods: [],
+        originAddress: OTHER,
+        contract: {} as never,
+      }),
       buildClearContractAbi: build,
     });
     await expect(
@@ -100,10 +106,23 @@ describe("TronContractService governance", () => {
     ).rejects.toMatchObject({ code: "contract_not_found" });
   });
 
+  it("refuses a user resource percent above 100 before building", async () => {
+    const build = vi.fn();
+    const { service } = createService({ buildUpdateUserResourcePercent: build });
+    await expect(
+      service.setUserResourcePercent(scope, NET, { address: CONTRACT, percent: 101 }),
+    ).rejects.toMatchObject({ code: "invalid_value" });
+    expect(build).not.toHaveBeenCalled();
+  });
+
   it("passes the caller-paid percentage through without reversing it", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const { service } = createService({
-      getContractMetadata: async () => ({ methods: [], originAddress: OWNER, contract: {} }),
+      getContractMetadata: async () => ({
+        methods: [],
+        originAddress: OWNER,
+        contract: {} as never,
+      }),
       buildUpdateUserResourcePercent: build,
     });
     await expect(
@@ -121,9 +140,13 @@ describe("TronContractService governance", () => {
   });
 
   it("accepts an energy limit above TronWeb's obsolete 10M client cap", async () => {
-    const build = vi.fn(async () => ({}));
+    const build = vi.fn(async () => ({}) as never);
     const { service } = createService({
-      getContractMetadata: async () => ({ methods: [], originAddress: OWNER, contract: {} }),
+      getContractMetadata: async () => ({
+        methods: [],
+        originAddress: OWNER,
+        contract: {} as never,
+      }),
       buildUpdateOriginEnergyLimit: build,
     });
     await expect(
@@ -135,4 +158,16 @@ describe("TronContractService governance", () => {
     ).resolves.toMatchObject({ originEnergyLimit: 50_000_000 });
     expect(build).toHaveBeenCalledWith(OWNER, CONTRACT, 50_000_000, { permissionId: 0 });
   });
+
+  it.each(["9223372036854775808", "0", -1])(
+    "refuses an energy limit outside a positive int64 (%j) before any node call",
+    async (energy) => {
+      const metadata = vi.fn();
+      const { service } = createService({ getContractMetadata: metadata });
+      await expect(
+        service.setOriginEnergyLimit(scope, NET, { address: CONTRACT, energy, permissionId: 0 }),
+      ).rejects.toMatchObject({ code: "invalid_value" });
+      expect(metadata).not.toHaveBeenCalled();
+    },
+  );
 });

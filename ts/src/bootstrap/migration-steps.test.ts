@@ -9,9 +9,9 @@ import { Derivation } from "../domain/derivation/index.js";
 import { evmAddressFromPublicKey } from "../domain/address/index.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
-const PASSWORD = "masterpw123A";
+const PASSWORD = "masterpw123A!";
 
-/** a REAL keystore with a REAL encrypted vault, then wound back to the v1 shape on disk. */
+// Seed a v1 document backed by a real encrypted vault.
 function realV1Keystore() {
   const root = mkdtempSync(join(tmpdir(), "mig-real-"));
   const store = new AtomicFileStore();
@@ -25,7 +25,7 @@ function realV1Keystore() {
   for (const byIndex of Object.values(
     doc.wallets[0].source.addresses as Record<string, Record<string, string>>,
   )) {
-    delete byIndex.evm; // wind back to what a pre-EVM keystore actually looks like
+    delete byIndex.evm;
   }
   writeFileSync(path, JSON.stringify(doc));
   return { root, store, path };

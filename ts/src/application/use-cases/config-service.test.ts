@@ -4,7 +4,7 @@ import type { ConfigDocumentRepository } from "../ports/config-document-reposito
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import type { Config } from "../../domain/types/index.js";
 
-const effective = { timeoutMs: 60_000, waitTimeoutMs: 60_000, networks: {} } as unknown as Config;
+const effective = { timeoutMs: 90_000, networks: {} } as unknown as Config;
 const networks = {} as NetworkRegistry;
 
 function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
@@ -16,53 +16,34 @@ function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
 }
 
 describe("ConfigService timeoutMs validation", () => {
-  it("rejects a non-positive timeoutMs (0ms bound aborts instantly)", () => {
+  it.each(["-5", "1.5", "", "1e3", "abc", "2147483648"])("rejects %j", (value) => {
     const { svc, update } = service();
-    expect(() => svc.execute({ key: "timeoutMs", value: "0" }, effective, networks)).toThrow(
-      /positive/,
+    expect(() => svc.execute({ key: "timeoutMs", value }, effective, networks)).toThrow(
+      /timeoutMs must be an integer from 0 to 2147483647/,
     );
-    expect(() => svc.execute({ key: "timeoutMs", value: "-5" }, effective, networks)).toThrow();
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("accepts a positive timeoutMs", () => {
+  it.each([
+    ["0", 0],
+    ["5000", 5000],
+    ["2147483647", 2147483647],
+  ])("accepts %s", (value, stored) => {
     const { svc } = service();
-    expect(svc.execute({ key: "timeoutMs", value: "5000" }, effective, networks)).toMatchObject({
+    expect(svc.execute({ key: "timeoutMs", value }, effective, networks)).toMatchObject({
       key: "timeoutMs",
-      value: 5000,
+      value: stored,
     });
   });
 });
 
 describe("ConfigService waitTimeoutMs", () => {
-  it("shows waitTimeoutMs in the full view and single-key read", () => {
-    const { svc } = service();
-    expect(svc.execute({}, effective, networks)).toMatchObject({ waitTimeoutMs: 60_000 });
-    expect(svc.execute({ key: "waitTimeoutMs" }, effective, networks)).toMatchObject({
-      key: "waitTimeoutMs",
-      value: 60_000,
-    });
-  });
-
-  it("accepts 0 and positive integers, rejects negatives and non-numbers", () => {
+  it("is an unknown key for reads and writes", () => {
     const { svc, update } = service();
-    expect(svc.execute({ key: "waitTimeoutMs", value: "0" }, effective, networks)).toMatchObject({
-      key: "waitTimeoutMs",
-      value: 0,
-    });
-    expect(
-      svc.execute({ key: "waitTimeoutMs", value: "120000" }, effective, networks),
-    ).toMatchObject({
-      key: "waitTimeoutMs",
-      value: 120000,
-    });
-    expect(() => svc.execute({ key: "waitTimeoutMs", value: "-1" }, effective, networks)).toThrow(
-      /non-negative/,
-    );
-    expect(() => svc.execute({ key: "waitTimeoutMs", value: "abc" }, effective, networks)).toThrow(
-      /non-negative/,
-    );
-    expect(update).toHaveBeenCalledTimes(2);
+    expect(svc.execute({}, effective, networks)).not.toHaveProperty("waitTimeoutMs");
+    expect(() => svc.execute({ key: "waitTimeoutMs" }, effective, networks)).toThrow();
+    expect(() => svc.execute({ key: "waitTimeoutMs", value: "0" }, effective, networks)).toThrow();
+    expect(update).not.toHaveBeenCalled();
   });
 });
 
@@ -153,8 +134,6 @@ const registry = {
   },
 } as unknown as NetworkRegistry;
 
-// `config networks` used to return only ids, so there was no way to confirm an endpoint
-// change had taken effect.
 describe("ConfigService networks view", () => {
   it("maps each canonical id to its configurable fields, endpoint trimmed to the host", () => {
     const { svc } = service();
@@ -162,7 +141,6 @@ describe("ConfigService networks view", () => {
       key: "networks",
       value: {
         "tron:3448148188": { httpEndpoint: "nile.trongrid.io" },
-        // host only — an endpoint may carry an API key in its path
         "eip155:11155111": { httpEndpoint: "sepolia.example" },
       },
     });
@@ -182,8 +160,6 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
     expect(update).toHaveBeenCalled();
   });
 
-  // An alias in the key is normalised to the canonical id ON WRITE, so config.yaml can
-  // never end up holding both `networks.sepolia` and `networks.eip155:11155111`.
   it("normalises an alias in the key to the canonical id", () => {
     const { svc, update } = service();
     svc.execute(
@@ -196,9 +172,6 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
     expect(Object.keys(document.networks)).toEqual(["eip155:11155111"]);
   });
 
-  // The document itself may already hold the network under an alias key. Writing under the
-  // canonical id without folding that entry in leaves the file with one network under two keys,
-  // which the loader refuses outright — the CLI stops working until someone hand-edits the file.
   it("folds an alias-keyed entry into the canonical id instead of adding a second one", () => {
     const { svc, update } = service();
     svc.execute(
@@ -211,9 +184,7 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
       networks: { sepolia: { httpEndpoint: "https://old.example", apiKeyHeader: "X-Key" } },
     }).document as Record<string, any>;
     expect(Object.keys(document.networks)).toEqual(["eip155:11155111"]);
-    // the folded entry keeps the fields this write did not touch
     expect(document.networks["eip155:11155111"]).toEqual({
-      // normalised on write, like any other endpoint
       httpEndpoint: "https://new.example/",
       apiKeyHeader: "X-Key",
     });
@@ -249,8 +220,6 @@ describe("ConfigService networks.<id>.httpEndpoint", () => {
   });
 });
 
-// The alias book has no other visibility surface: there is no `config set aliases.*`, so without
-// this a user must open config.yaml to find out what a short name resolves to.
 describe("ConfigService alias book view", () => {
   it("exposes the book as a read-only key", () => {
     const { svc } = service();
@@ -276,8 +245,6 @@ describe("ConfigService alias book view", () => {
   });
 });
 
-// `config` advertises itself as "read or set", but any nested key was routed unconditionally to
-// the write path, so reading one failed with "needs a value".
 describe("ConfigService reads a nested network key", () => {
   it("returns the endpoint instead of demanding a value", () => {
     const { svc } = service();
@@ -311,9 +278,6 @@ describe("ConfigService reads a nested network key", () => {
   });
 });
 
-// `config` shows what a user can SET. A network therefore renders as an object of
-// its configurable fields — endpoint plus the API-key pair — not as a bare endpoint string, so a
-// new configurable field appears everywhere at once instead of needing a display site per view.
 const keyedNetworks = {
   timeoutMs: 60_000,
   waitTimeoutMs: 60_000,
@@ -351,8 +315,6 @@ describe("ConfigService network subtree read", () => {
     });
   });
 
-  // Naming ONE network is as deliberate an act as naming its endpoint leaf, so it reveals the
-  // full URL; the breadth-first listings below stay trimmed to the host.
   it("gives the full endpoint URL when a single network is named", () => {
     const { svc } = service();
     expect(
@@ -409,7 +371,6 @@ describe("ConfigService network listings keep endpoints host-only", () => {
   });
 });
 
-// An RPC API key is a credential: it must never come back out of the config surface, at any depth.
 describe("ConfigService apiKey is write-only", () => {
   it("masks it in the leaf read", () => {
     const { svc } = service();
@@ -458,7 +419,6 @@ describe("ConfigService writes the API-key pair", () => {
     expect(document.networks["tron:3448148188"].apiKey).toBe("topsecret");
   });
 
-  // A header NAME travels into an HTTP request line; a newline in it would be header injection.
   it("rejects a header name that is not an HTTP token", () => {
     const { svc, update } = service();
     for (const bad of ["X-Key: injected", "X-Key\nHost: evil", "", "X Key"]) {

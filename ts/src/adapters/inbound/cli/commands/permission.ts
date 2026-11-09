@@ -4,8 +4,8 @@ import type { TronPermissionService } from "../../../../application/use-cases/tr
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { TextFormatters } from "../render/index.js";
-import { exactlyOne, readBoundedTextFile } from "./artifact.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { readBoundedTextFile } from "./artifact.js";
+import { tronExpirationRefine, txModeFields, tronTxModeFields, txModeExclusive } from "./shared.js";
 
 const showFields = z.object({});
 
@@ -38,8 +38,6 @@ const updateFields = z.object({
     .default(false)
     .describe("build and sign, then output complete transaction hex"),
   buildOnly: txModeFields.buildOnly,
-  // dry-run/sign-only wording is specific to a permission replacement, but the permission group
-  // and expiration semantics are the shared ones — reuse them rather than keep a second copy.
   permissionId: tronTxModeFields.permissionId,
   expiration: tronTxModeFields.expiration,
 });
@@ -58,30 +56,8 @@ export const permissionUpdateSpec: ChainSpec = {
     "There is no confirmation prompt: it warns about a permanent lockout but does not block the\n" +
     "submission, so rehearse with --dry-run first.",
   baseFields: updateFields,
-  exclusive: [{ label: "the new permission structure", flags: ["file", "json"] }],
-  baseRefine: (input, context) => {
-    if ([input.file, input.json].filter((value) => value !== undefined).length !== 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["file"],
-        message: "provide exactly one of --file or --json",
-      });
-    }
-    if ([input.dryRun, input.signOnly, input.buildOnly].filter(Boolean).length > 1) {
-      context.addIssue({
-        code: "custom",
-        path: ["dryRun"],
-        message: "choose at most one of --dry-run, --sign-only, --build-only",
-      });
-    }
-    if (input.expiration !== undefined && !input.signOnly && !input.buildOnly) {
-      context.addIssue({
-        code: "custom",
-        path: ["expiration"],
-        message: "--expiration is only valid with --sign-only or --build-only",
-      });
-    }
-  },
+  exclusive: [{ label: "the new permission structure", flags: ["file", "json"] }, txModeExclusive],
+  baseRefine: tronExpirationRefine,
   examples: [
     { cmd: "wallet-cli permission update --file permissions.json --dry-run" },
     { cmd: "wallet-cli permission update --file permissions.json --wait --password-stdin" },
@@ -90,12 +66,11 @@ export const permissionUpdateSpec: ChainSpec = {
 };
 
 export const permissionShowTronBinding = (service: TronPermissionService): FamilyBinding => ({
-  run: async (ctx, network) => service.show(network, ctx.resolveAddress("tron")),
+  run: async (ctx, network) => service.show(ctx.deadline, network, ctx.resolveAddress("tron")),
 });
 
 export const permissionUpdateTronBinding = (service: TronPermissionService): FamilyBinding => ({
   run: async (ctx, network, input) => {
-    exactlyOne([input.file, input.json], "provide exactly one of --file or --json");
     const raw = input.file
       ? readBoundedTextFile(input.file, 1024 * 1024, "permission JSON file")
       : input.json;

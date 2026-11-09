@@ -28,9 +28,9 @@ wallet-cli 8004 COMMAND
 - **Networks.** The registry is deployed on `tron`, `nile`, `shasta`, `bsc`, `bsc-testnet`, `base`, and `base-sepolia`. On `ethereum` and `sepolia` every command fails with `unsupported_network_capability`.
 - **Agent IDs** are decimal strings. An id may carry its canonical network id, as in `tron:3448148188:172` or `eip155:97:42` (aliases such as `nile:172` are not accepted); that network must be the selected one, or the command fails with `chain_id_mismatch`.
 - **URIs** must be `https://`, `ipfs://`, or a base64 JSON `data:` URI, at most 2048 characters. [`show`](show.md) loads only `https://` and `http://` registration documents, so prefer `https://`.
-- **Reads** (`show`, `operator-check`) need no wallet. **Writes** sign with the active account and take the usual transaction options: `--wait`, `--sign-only`, `--build-only`, and on TRON `--fee-limit`, `--permission-id`, `--expiration`.
+- **Reads** (`show`, `operator-check`) need no wallet. **Writes** sign with the active account and take the usual transaction options: `--wait` / `--no-wait`, `--sign-only`, `--build-only`, and on TRON `--fee-limit`, `--permission-id`, `--expiration`.
 - **Who may write.** `update` and `transfer` need the Agent's owner, its approved operator (from `approve`), or an operator of the owner (from `add-operator`). `approve` needs the owner or an operator of the owner — an Agent's own approved operator cannot pass the approval on. Anyone else is refused during fee estimation, before signing, with `not_authorized`; an Agent ID that does not exist fails with `agent_not_found`.
-- **Receipts** group the Agent fields under `data.identity`. Values read from the chain after the change — a new Agent's `agentId`, `newURI`, `newOwner`, an operator's `approved` — appear only with `--wait`.
+- **Receipts** group the Agent fields under `data.identity`. Values read from the chain after the change — a new Agent's `agentId`, `newURI`, `newOwner`, an operator's `approved` — appear only in a confirmed receipt.
 
 ## See also
 

@@ -135,10 +135,6 @@ describe("TRON complete transaction hex codec", () => {
     expect(encodeTransactionHex(decoded)).toBe(hex);
   });
 
-  // TronLink returns protobuf enums as their numeric value (`"resource": 1`), which TronWeb's
-  // encoder does not understand — it drops the field silently, so the re-encoded bytes disagree
-  // with the provider's own raw_data_hex and the record is refused as forged. Regression fixture:
-  // a real Nile record from walletadapter.org (tx 0b1dddd1…), whose raw_data_hex carries `1801`.
   it("encodes numeric protobuf enum values exactly like their names", () => {
     const ENUM_CASES: Array<[string, Record<string, unknown>]> = [
       ["FreezeBalanceV2Contract", { owner_address: OWNER, frozen_balance: 1_000_000 }],
@@ -220,9 +216,6 @@ describe("TRON complete transaction hex codec", () => {
     );
   });
 
-  // TronWeb's deserializer rejects these four by name, so an artifact carrying one can never satisfy
-  // the raw_data round-trip. They are refused either way — but a named type produces an actionable
-  // message, so type 51 belongs in the table even though it will never decode.
   it("names the undecodable contract types instead of reporting an unknown id", () => {
     const transaction = fixture("TransferContract", {
       owner_address: OWNER,
@@ -255,7 +248,6 @@ describe("TRON complete transaction hex codec", () => {
     expect(() => decodeTransactionHex(retyped(52))).toThrowError(
       /MarketSellAssetContract cannot be decoded losslessly/,
     );
-    // an id outside the catalogue still reports as unknown
     expect(() => decodeTransactionHex(retyped(200))).toThrowError(
       /unsupported TRON contract type id 200/,
     );

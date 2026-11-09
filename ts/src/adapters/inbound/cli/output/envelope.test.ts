@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { OutputEnvelope } from "./envelope.js";
 
-// Single shipping family (TRON); the envelope no longer redacts addresses — it passes the
-// command's result payload through verbatim under the wallet-cli.result.v1 contract.
 const command = "current";
 const m = { durationMs: 0, warnings: [] };
 

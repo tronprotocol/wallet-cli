@@ -31,7 +31,7 @@ describe("refuseBeyondMarketWindow", () => {
     );
   });
 
-  // SunPump shares the page translation but not the SunSwap service's limit.
+  // SunPump shares page translation but has no SunSwap market-window limit.
   it("is not part of the page translation itself", () => {
     expect(offsetWindowToPage({ offset: 1000, limit: 20 })).toEqual({ pageNo: 51, pageSize: 20 });
   });

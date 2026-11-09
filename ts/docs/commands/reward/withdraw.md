@@ -5,7 +5,7 @@ Withdraw accrued rewards to balance.
 ## Synopsis
 
 ```
-wallet-cli reward withdraw [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+wallet-cli reward withdraw [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                            [--permission-id <n>] [options]
 ```
 
@@ -13,9 +13,9 @@ wallet-cli reward withdraw [--dry-run | (--sign-only | --build-only) [--expirati
 
 Moves your accumulated voting rewards (plus block rewards if you are an SR) into the account's available balance. The chain allows this **at most once every 24 hours** — check first with [`reward balance`](balance.md); an early attempt fails with `withdraw_too_frequent`, and an empty balance with `no_reward`.
 
-`Amount` in the receipt: at the `submitted` stage it is the claimable amount read at broadcast time; the `--wait` confirmed receipt shows the actual on-chain amount (they differ only by seconds of accrual — negligible).
+`Amount` in the receipt: at the `submitted` stage it is the claimable amount read at broadcast time; the confirmed receipt shows the actual on-chain amount (they differ only by seconds of accrual — negligible).
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation**; `--no-wait` returns at submission. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -26,7 +26,8 @@ Moves your accumulated voting rewards (plus block rewards if you are an SR) into
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -35,10 +36,10 @@ Plus the [global options](../index.md#global-options-every-command).
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
-Default — broadcasts and returns the **submitted** receipt:
+With `--no-wait` — broadcasts and returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli reward withdraw --network nile --password-stdin
+echo "$PW" | wallet-cli reward withdraw --network nile --no-wait --password-stdin
 ```
 
 ```console
@@ -50,17 +51,17 @@ echo "$PW" | wallet-cli reward withdraw --network nile --password-stdin
 ```
 
 ```bash
-echo "$PW" | wallet-cli reward withdraw --network nile --password-stdin -o json
+echo "$PW" | wallet-cli reward withdraw --network nile --no-wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"reward.withdraw","data":{"kind":"reward-withdraw","stage":"submitted","txId":"a1b...","rewardSun":"123456789"},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"reward.withdraw","data":{"kind":"reward-withdraw","stage":"submitted","txId":"a1b...","rewardSun":"123456789","withdrawIntervalMs":86400000},"meta":{"durationMs":17,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-Add `--wait` to block until confirmed (adds real block / fee):
+Without `--no-wait`, the command blocks until confirmed (adds real block / fee):
 
 ```bash
-echo "$PW" | wallet-cli reward withdraw --network nile --wait --password-stdin
+echo "$PW" | wallet-cli reward withdraw --network nile --password-stdin
 ```
 
 ```console
@@ -78,8 +79,8 @@ echo "$PW" | wallet-cli reward withdraw --network nile --wait --password-stdin
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "reward-withdraw"`, `stage: "submitted"`, `txId`, `rewardSun` (string) |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun`, `failed` |
+| `--no-wait` (submitted) | `kind: "reward-withdraw"`, `stage: "submitted"`, `txId`, `rewardSun` (string), `withdrawIntervalMs` (minimum time between withdrawals, in ms) |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status
 

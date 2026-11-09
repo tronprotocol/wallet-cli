@@ -96,7 +96,7 @@ wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000 --network n
 wallet-cli tx send --to T... --token USDT --amount 5 --network nile --dry-run -o json
 ```
 
-Check the `fee` block in the output, then re-run without `--dry-run`. Submission alone is not success — either confirm afterwards with [`tx status`](../commands/tx/status.md), or add `--wait` to the `tx send` command so it blocks until the transaction is confirmed or failed.
+Check the `fee` block in the output, then re-run without `--dry-run`. `tx send` then waits until the transaction is confirmed or failed and reports it in `data.stage`; a `submitted` stage means the outcome is not known yet — confirm it with [`tx status`](../commands/tx/status.md).
 
 > **Mainnet**: the same commands with `--network tron`, `--network ethereum` or `--network bsc` move real assets, irreversibly. Triple-check `--to` (a confirmed transfer to a wrong address is gone), and dry-run first.
 

@@ -6,7 +6,7 @@ Set the energy the deployer will cover per call.
 
 ```
 wallet-cli contract set-origin-energy-limit <address> <energy>
-                                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                                            [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                                             [--permission-id <n>] [options]
 ```
 
@@ -22,7 +22,7 @@ It is not a cap on the contract, and not a cap on the caller. What the deployer 
 
 Only the contract's deployer can do this; the current value is in [`contract info`](info.md). Settings take effect as soon as the transaction confirms.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 The Ledger TRON app cannot parse this governance contract type. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
@@ -37,7 +37,8 @@ The Ledger TRON app cannot parse this governance contract type. A Ledger account
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -47,7 +48,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network nile --password-stdin
 ```
 
 ```console
@@ -62,7 +63,7 @@ echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 5000000
 ```
 
 ```bash
-echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 50000000 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -75,14 +76,14 @@ echo "$PW" | wallet-cli contract set-origin-energy-limit TQ5nJ8mV...4wRe 5000000
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "contract-set-origin-energy-limit"`, `stage: "submitted"`, `txId`, `contractAddress`, `deployerAddress`, `originEnergyLimit` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
+| `--no-wait` (submitted) | `kind: "contract-set-origin-energy-limit"`, `stage: "submitted"`, `txId`, `contractAddress`, `deployerAddress`, `originEnergyLimit` |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, flat settlement fields when returned (`feeSun`, `energyUsed`, `netUsed`, `energyFeeSun`, `netFeeSun`), their governance compatibility view `resource` (`netUsage`, `netFeeSun`, `energyUsage`, `energyFeeSun`), and `failed` |
 
 `originEnergyLimit` is the value now in effect.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address, or energy not an integer > 0; `family_mismatch` on an EVM network).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`contract_not_found` — no such contract, `not_contract_deployer`, `watch_only_no_signer`, `ledger_unsupported`, `auth_failed`) · `2` usage error (`invalid_value` — malformed address, or energy not an integer > 0; `family_mismatch` on an EVM network).
 
 ## See also
 

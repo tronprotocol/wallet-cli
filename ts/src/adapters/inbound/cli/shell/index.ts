@@ -1,8 +1,3 @@
-/**
- * CliShell — register the command tree into yargs (chain families + neutral groups),
- * declare global-by-default flags (kubectl-style), turn OFF yargs I/O & exit, and dispatch:
- * resolve command → resolve network (+family check) → zod validate → capability gate → run.
- */
 import yargs, { type Argv } from "yargs";
 import { randomBytes } from "node:crypto";
 import { type RefinementCtx, type ZodObject, type ZodRawShape, type ZodType } from "zod";
@@ -11,13 +6,15 @@ import type {
   ChainFamily,
   NetworkDescriptor,
 } from "../../../../domain/types/index.js";
-import { isChainCommand } from "../contracts/index.js";
+import { acceptsWaitFlags, isChainCommand, NO_SUBMIT_MODE_FIELDS } from "../contracts/index.js";
 import type {
   ChainCommandDefinition,
   ChainSpec,
   CommandDefinition,
   CommandExecutionSpec,
+  ExclusiveGroup,
   ExecutionContext,
+  FamilyBinding,
   Globals,
   SessionRef,
   StreamManager,
@@ -39,6 +36,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 import { ERROR_CODES, type ErrorCodeEntry } from "../../../../domain/errors/codes.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, globalYargsOptions } from "../globals/index.js";
+import { exclusiveRefine } from "../schemas/exclusive.js";
 
 export interface ShellOptions {
   registry: CommandRegistry;
@@ -51,14 +49,8 @@ export interface ShellOptions {
   session: SessionRef;
 }
 
-// Global flag arity is derived from the single GLOBAL_FLAG_SPECS domain table, shared
-// with the runner's pre-yargs scan. Per-command flag arity is derived separately from each command's
-// zod fields via the arity adapter — no hand-maintained command list.
 const GLOBAL_OPTS = globalYargsOptions();
 
-// Interactivity (password/secret prompts, gap-fill, account select, delete confirm) is declared
-// per command via `interactive`. Every other command runs as if non-TTY: missing input fails fast
-// rather than prompting — safer for scripts/agents.
 export function isInteractiveCommand(cmd: Pick<CommandExecutionSpec, "interactive">): boolean {
   return cmd.interactive === true;
 }
@@ -69,13 +61,12 @@ export function buildCli(opts: ShellOptions): Argv {
     .exitProcess(false)
     .help(false)
     .version(false)
-    .fail(false) // throw instead of printing → Runner funnels into one envelope
+    .fail(false) // Route failures through the runner's error envelope.
     .strict(false)
     .parserConfiguration({ "camel-case-expansion": true, "dot-notation": false })
     .options(GLOBAL_OPTS as any);
 
   const all = opts.registry.all();
-  // Two kinds: neutral (full path) vs chain (logical path + family binding chosen by --network).
   const neutralByHead = new Map<string, CommandDefinition[]>();
   for (const c of all.filter((c): c is CommandDefinition => !isChainCommand(c))) {
     const head = c.path[0]!;
@@ -90,7 +81,6 @@ export function buildCli(opts: ShellOptions): Argv {
     if (assembledChainCommands.some((c) => c.spec.path[0] === head)) continue;
     const hasVerbs = cmds.some((c) => c.path.length > 1);
     if (hasVerbs) {
-      // group with sub-verbs (e.g. import mnemonic|private-key|ledger|watch)
       cli.command(
         `${head} [verb] [args..]`,
         `${head} commands`,
@@ -109,7 +99,6 @@ export function buildCli(opts: ShellOptions): Argv {
           ),
       );
     } else {
-      // single-segment leaf (create / list / use / current / rename / derive / delete / backup / networks)
       const cmd = cmds[0]!;
       cli.command(
         cmd.positionals?.length ? `${head} [args..]` : head,
@@ -138,20 +127,11 @@ export function buildCli(opts: ShellOptions): Argv {
     const assembledLeaves = assembledChainCommands.filter((c) => c.spec.path[0] === group);
     const paths = assembledLeaves.map((c) => c.spec.path);
     if (paths.every((path) => path.length === 1)) {
-      // single-segment chain leaf (e.g. `block [<number>]`): no sub-verb; bind its own positional.
       cli.command(
         assembledLeaves[0]?.spec.positionals?.length ? `${group} [args..]` : group,
         assembledLeaves[0]?.spec.summary ?? "",
         (y) => applyCommands(stringGroupTail(y), fieldsOfLogicalGroup(group)),
-        (argv) => {
-          // a non-numeric positional (e.g. `block get`) is a mistyped subcommand, not a block height:
-          // report it as an unknown command rather than a confusing "--number received NaN".
-          const pos = (argv as any).args?.[0];
-          if (pos !== undefined && !Number.isFinite(Number(pos))) {
-            throw new UsageError("unknown_command", `unknown command: ${group} ${pos}`);
-          }
-          return dispatchLogical(opts, [group], argv);
-        },
+        (argv) => dispatchLogical(opts, [group], argv),
       );
       continue;
     }
@@ -169,10 +149,7 @@ export function buildCli(opts: ShellOptions): Argv {
         ),
     );
   }
-  // Catch-all: an unrecognised top-level namespace (e.g. `foobar list`) matches none of the
-  // commands above. Without this, yargs (non-strict, no default command) silently exits 0 —
-  // bad for an agent CLI. Mirror the unknown-subcommand path → unknown_command (exit 2).
-  // Bare invocation (no command) is short-circuited to root help upstream in the runner.
+  // Non-strict yargs otherwise accepts unknown top-level commands with exit 0.
   cli.command(
     "*",
     false,
@@ -202,21 +179,12 @@ async function dispatchLogical(opts: ShellOptions, path: string[], argv: any): P
   return dispatchNeutral(opts, path, argv);
 }
 
-/**
- * Type the group tail as strings. Declared fields already get `type: "string"` from applyArity,
- * but `verb`/`args..` are anonymous captures, so yargs would infer their type and hand back a
- * number for anything number-shaped (`0xdeadbeef`, `12345`) — which every positional-bound field,
- * being string-typed in zod, then rejects. Coercing after the fact is not enough: the inference is
- * lossy (`1e5` → 100000, oversized ints → float), so the raw token has to survive parsing.
- */
+// Preserve raw tokens: yargs numeric inference loses hex spelling and large-integer precision.
 function stringGroupTail(y: Argv): Argv {
   return y.positional("verb", { type: "string" }).positional("args", { type: "string" });
 }
 
-/**
- * A yargs group has one positional layout while each leaf can have a different one.
- * Capture the group tail as args[], then bind it only after resolving the exact leaf.
- */
+// Bind the group's captured args only after resolving the leaf's positional layout.
 export function bindGroupedPositionals(
   command: Pick<CommandExecutionSpec, "path" | "positionals">,
   argv: Record<string, any>,
@@ -268,37 +236,28 @@ async function executeChainCommand(
   }
   session.current = { commandId: id, net };
 
-  const effectiveFields = binding.fields
-    ? spec.baseFields.extend(binding.fields.shape)
-    : spec.baseFields;
-  const effectiveInput = composeRefines(effectiveFields, spec.baseRefine, binding.refine);
+  const { fields: effectiveFields, input: effectiveInput } = chainInputSchema(spec, binding);
   const executionSpec = withFields(spec, effectiveFields);
-  // order matters: the flag check must see argv before positionals are bound onto their fields
+  // Validate flags before binding positionals so positional-only fields cannot become flags.
   assertKnownFlags(executionSpec, argv, otherFamilyFlags(def, net.family));
   argv = bindGroupedPositionals(spec, argv);
   deps.prompter.setInteractive(isInteractiveCommand(spec));
   caps.check(spec, net);
 
   if (spec.passwordMode) {
-    const initialized = deps.keystore.isInitialized();
+    const initialized = deps.accounts.isInitialized();
     const mode = spec.passwordMode === "establish" ? (initialized ? "verify" : "set") : "verify";
-    await deps.secrets.primePassword({ mode, verify: (pw) => deps.keystore.verifyPassword(pw) });
+    await deps.secrets.primePassword({ mode, verify: (pw) => deps.accounts.verifyPassword(pw) });
   }
 
   await gapFillRequiredFields(executionSpec, argv, deps.prompter, () =>
-    deps.keystore.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
+    deps.accounts.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
   );
-  const input = parseInputSchema(effectiveInput, argv);
+  const input = parseInputSchema(effectiveInput, argv, spec.positionals);
 
   const ctx = buildExecutionContext(globals, deps);
   if (spec.wallet !== "none") void ctx.activeAccount;
-  // --dry-run is declared on the shared spec but honoured by each family binding independently,
-  // so the promise is also enforced here: nothing reaches a Broadcaster for the duration.
-  const run = () => binding.run(ctx, net, input);
-  const data =
-    spec.broadcasts && (input as { dryRun?: unknown }).dryRun === true
-      ? await barBroadcasts(`${spec.path.join(" ")} --dry-run`, run)
-      : await run();
+  const data = await barredDuringDryRun(spec, input, () => binding.run(ctx, net, input));
   streams.result(
     formatter.success(id, net, data, spec.formatText, activeAccountLabel(spec, ctx, deps)),
   );
@@ -311,12 +270,10 @@ async function executeCommand(
 ): Promise<void> {
   const { globals, deps, targetResolver, caps, streams, formatter, session } = opts;
   session.current = { commandId: commandId(cmd) };
-  // order matters: the flag check must see argv before positionals are bound onto their fields
+  // Validate flags before binding positionals so positional-only fields cannot become flags.
   assertKnownFlags(cmd, argv);
   argv = bindGroupedPositionals(cmd, argv);
 
-  // Gate all interactive prompts (gap-fill, password, secret, account-select, delete confirm) on a
-  // per-command allowlist: only create/import/delete/backup may prompt; everything else fails fast.
   deps.prompter.setInteractive(isInteractiveCommand(cmd));
 
   const target = targetResolver.resolve(cmd, globals);
@@ -325,9 +282,7 @@ async function executeCommand(
 
   caps.check(cmd, net);
 
-  // secretsTtyOnly (import mnemonic/private-key, change-password): the most sensitive setup ops
-  // read every secret interactively only. Reject any stdin password source and require a real TTY
-  // BEFORE priming, so no secret is ever taken from a pipe and the error is honest.
+  // Reject piped passwords and require a TTY before priming secrets.
   if (cmd.secretsTtyOnly) {
     if (deps.secrets.has("password")) {
       throw new UsageError(
@@ -343,28 +298,23 @@ async function executeCommand(
     }
   }
 
-  // auth: opt-in interactive password priming via passwordMode. Commands without passwordMode
-  // (tx/contract/stake/message/derive) demand the password LAZILY — the keystore throws
-  // auth_required only when a sign/decrypt actually happens, so read-only paths like
-  // `tx send --dry-run` need no unlock. Ledger/watch commands skip this block entirely.
-  // Password prompting MUST precede gap-fill so the user always sets/verifies the master
-  // password before being asked for any other field (e.g. an optional wallet label).
+  // Without passwordMode, authentication is lazy so key-free paths need no password.
+  // Prime the password before prompting for other fields.
   if (cmd.passwordMode) {
-    const initialized = deps.keystore.isInitialized();
+    const initialized = deps.accounts.isInitialized();
     const mode = cmd.passwordMode === "establish" ? (initialized ? "verify" : "set") : "verify";
-    await deps.secrets.primePassword({ mode, verify: (pw) => deps.keystore.verifyPassword(pw) });
+    await deps.secrets.primePassword({ mode, verify: (pw) => deps.accounts.verifyPassword(pw) });
   }
 
   await gapFillRequiredFields(cmd, argv, deps.prompter, () =>
-    deps.keystore.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
+    deps.accounts.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
   );
   const input = parseInput(cmd, argv);
 
   const ctx = buildExecutionContext(globals, deps);
-  if (cmd.wallet !== "none") void ctx.activeAccount; // resolve account (default active) up front; throws missing_wallet_address if none exists
+  if (cmd.wallet !== "none") void ctx.activeAccount; // Resolve the account before running the command.
 
-  const data = await cmd.run(ctx, net, input);
-  // A mode-switching command may report a more precise semantic id than its path (backup.records).
+  const data = await barredDuringDryRun(cmd, input, () => cmd.run(ctx, net, input));
   const resultId = cmd.commandIdFor?.(input) ?? commandId(cmd);
   session.current = { commandId: resultId, net };
   streams.result(
@@ -372,7 +322,17 @@ async function executeCommand(
   );
 }
 
-/** Runtime counterpart to CommandDefinition's network-policy discrimination. */
+// Bar broadcasts during dry-run even if a use case ignores the flag.
+function barredDuringDryRun<T>(
+  cmd: Pick<CommandExecutionSpec, "path">,
+  input: unknown,
+  run: () => Promise<T>,
+): Promise<T> {
+  return (input as { dryRun?: unknown }).dryRun === true
+    ? barBroadcasts(`${cmd.path.join(" ")} --dry-run`, run)
+    : run();
+}
+
 function requireResolvedNetwork(
   cmd: Pick<CommandExecutionSpec, "path">,
   net: NetworkDescriptor | undefined,
@@ -381,9 +341,7 @@ function requireResolvedNetwork(
   throw new Error(`network resolver returned no network for ${commandId(cmd)}`);
 }
 
-/** Central account-label resolution for text receipts: the user's --account label (or active
- *  account's label) so command formatters can show "main" instead of a shortened address.
- *  Best-effort — wallet:"none" commands have no account, and resolution never fails the command. */
+// Receipt labels are best-effort and must not fail the command.
 function activeAccountLabel(
   cmd: Pick<CommandExecutionSpec, "wallet">,
   ctx: ExecutionContext,
@@ -391,31 +349,19 @@ function activeAccountLabel(
 ): string | undefined {
   if (cmd.wallet === "none") return undefined;
   try {
-    return deps.keystore.describe(ctx.activeAccount).label;
+    return deps.accounts.describe(ctx.activeAccount).label;
   } catch {
     return undefined;
   }
 }
 
-/** select label for an account choice: compact controls scan better; receipts carry addresses. */
 function accountChoiceLabel(d: AccountDescriptor): string {
   const name = d.label ?? d.accountId;
   const tag = d.active ? " [active]" : "";
   return `${name}${tag}`;
 }
 
-/**
- * Fill missing non-secret fields by prompting — only under a TTY (non-TTY leaves argv untouched so
- * parseInput surfaces the usual missing_option). An account-ref field (delete/backup --account)
- * offers an arrow-select of existing accounts (label + addresses); with zero accounts it falls back
- * to free text so the command can surface its own no-wallet error. Other required fields must be
- * answered (enum → arrow select, else free text); OPTIONAL value fields are still offered but Enter
- * skips them, except wallet creation/import labels where Enter accepts the shown random default.
- * Boolean flags are never prompted (their default is false). Fields with a zod default are filled by
- * zod. A command may also declare fields inapplicable to THIS invocation via `skipGapFill` — a mode
- * flag can make an otherwise-promptable field meaningless (`backup --records` exports nothing, so it
- * must not ask which account to export).
- */
+// Prompt for missing required and optional fields only in interactive TTY mode.
 export async function gapFillRequiredFields(
   cmd: Pick<CommandExecutionSpec, "fields" | "promptHints"> & {
     skipGapFill?: (argv: any) => string[];
@@ -427,17 +373,16 @@ export async function gapFillRequiredFields(
   if (!prompter.isTTY()) return;
   const skip = new Set(cmd.skipGapFill?.(argv) ?? []);
   for (const f of introspectFields(cmd.fields)) {
-    if (f.hasDefault) continue; // zod supplies the value
-    if (argv[f.name] !== undefined) continue; // already given on argv
-    if (f.baseType === "boolean") continue; // never prompt for flags
-    if (skip.has(f.name)) continue; // inapplicable in this invocation's mode
+    if (f.hasDefault) continue;
+    if (argv[f.name] !== undefined) continue;
+    if (f.baseType === "boolean") continue;
+    if (skip.has(f.name)) continue;
     if (isAccountRef(cmd.fields.shape[f.name])) {
       const choices = accountChoices?.() ?? [];
       if (choices.length > 0) {
         argv[f.name] = await prompter.select({ label: "Select account", choices });
         continue;
       }
-      // no accounts yet → fall through to the text path below (command will error on resolve)
     }
     if (f.optional) {
       if (cmd.promptHints?.[f.name] === "skip") continue;
@@ -449,7 +394,6 @@ export async function gapFillRequiredFields(
         argv[f.name] = v === "" ? defaultLabel : v;
         continue;
       }
-      // offered but skippable: empty (Enter) → leave unset so the command's default applies.
       const v = await prompter.text({
         label: `${humanFieldLabel(f.kebab)} (optional, press Enter to skip)`,
       });
@@ -480,13 +424,6 @@ function randomWalletLabel(): string {
   return `wallet_${randomBytes(3).toString("hex")}`;
 }
 
-/**
- * Reject unknown/misspelled flags (yargs is non-strict so it would otherwise pass them through
- * and zod would silently strip them). Allowed = positionals + globals + THIS command's fields
- * (a sibling command's flag in the same namespace is unknown here). → invalid_option, exit 2.
- */
-/** Flags another family of this command declares, so a flag that exists — just not here — can say
- *  so instead of arriving as a bare "unknown option". */
 function otherFamilyFlags(
   def: ChainCommandDefinition,
   selected: ChainFamily,
@@ -504,20 +441,7 @@ function otherFamilyFlags(
   return out;
 }
 
-/**
- * yargs' own keys for a command tail: the group head, the sub-verb, and the captured positionals.
- * They have to stay in assertKnownFlags' allowlist, because yargs really does put them in argv —
- * but argv cannot say whether YARGS put them there or the USER typed `--args`.
- *
- * That ambiguity made them work as undocumented aliases: `chain --verb node` ran chain.node, and
- * `use --args main` bound `main` as a positional. `contract call --args <addr>` was the bad one —
- * it bound into a slot the command does not have, so the call ran with no argument and answered
- * `0`, a wrong result that reads like a real one.
- *
- * No command declares a field by these names (pinned by a meta-test), so a TOKEN spelling one is
- * always user-typed and always wrong. The raw tokens still tell the two apart, so the check
- * belongs there — before yargs folds them together.
- */
+// Reject user-typed tail keys before yargs makes them indistinguishable from its own captures.
 export const YARGS_TAIL_KEYS = ["group", "verb", "args", "source"] as const;
 
 export function assertNoTailFlags(tokens: string[]): void {
@@ -541,7 +465,7 @@ function assertKnownFlags(
     | "path"
     | "fields"
     | "positionals"
-    | "supportsWait"
+    | "broadcasts"
     | "rejectsAccount"
     | "rejectsWait"
     | "rejectsWaitWith"
@@ -549,44 +473,13 @@ function assertKnownFlags(
   argv: any,
   otherFamily: Map<string, ChainFamily> = new Map(),
 ): void {
-  // `--account` is global, so a command that must not be read as acting for an account has to say
-  // so out loud: ignoring it silently would let `sunpump launch --account main` look like it
-  // created a token for `main`, which no launch does.
   if (cmd.rejectsAccount !== undefined && argv.account !== undefined) {
     throw new UsageError(
       "invalid_option",
       `${cmd.path.join(" ")} does not accept --account: ${cmd.rejectsAccount}`,
     );
   }
-  if (
-    cmd.rejectsWait !== undefined &&
-    (argv.wait !== undefined ||
-      argv.waitTimeout !== undefined ||
-      argv.waitTimeoutMs !== undefined ||
-      argv["wait-timeout"] !== undefined)
-  ) {
-    throw new UsageError(
-      "invalid_option",
-      `${cmd.path.join(" ")} does not accept --wait: ${cmd.rejectsWait}`,
-    );
-  }
-  // The same refusal, scoped to one mode: `sunpump buy --quote` sends nothing to wait on.
-  if (cmd.rejectsWaitWith !== undefined && argv[cmd.rejectsWaitWith] === true) {
-    const waitFlag =
-      argv.wait !== undefined
-        ? "--wait"
-        : argv.waitTimeout !== undefined ||
-            argv.waitTimeoutMs !== undefined ||
-            argv["wait-timeout"] !== undefined
-          ? "--wait-timeout"
-          : undefined;
-    if (waitFlag !== undefined) {
-      throw new UsageError(
-        "invalid_option",
-        `${waitFlag} cannot be used with --${camelToKebab(cmd.rejectsWaitWith)}, which sends no transaction`,
-      );
-    }
-  }
+  if (argv.wait !== undefined) assertWaitIntentApplies(cmd, argv);
   if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {
     if (
       argv.account !== undefined ||
@@ -598,18 +491,6 @@ function assertKnownFlags(
       );
     }
   }
-  if (
-    cmd.supportsWait === false &&
-    (argv.wait !== undefined ||
-      argv.waitTimeout !== undefined ||
-      argv.waitTimeoutMs !== undefined ||
-      argv["wait-timeout"] !== undefined)
-  ) {
-    throw new UsageError(
-      "invalid_option",
-      "This command uses facilitator settlement and does not support --wait or --wait-timeout",
-    );
-  }
   const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {
     allowed.add(name);
@@ -617,22 +498,12 @@ function assertKnownFlags(
     allowed.add(kebabToCamel(name));
   };
   for (const k of Object.keys(GLOBAL_OPTS)) add(k);
-  for (const f of GLOBAL_FLAG_SPECS) if (f.alias) allowed.add(f.alias); // -o / -v short aliases
-  // The command's OWN path segments are deliberately not allowed. Adding them made `--token` a
-  // silently accepted no-op on `token balance`, `--contract` one on `contract deploy`, `--watch`
-  // one on `import watch` — a flag the command does not have, ignored instead of refused, which is
-  // the failure mode this whole function exists to prevent. yargs delivers the path in `_` (and,
-  // for grouped commands, in the `group`/`verb`/`source` keys already allowed above), so nothing
-  // needs them here.
-  // Positional fields are deliberately absent: they arrive in `args` and are bound to their field
-  // AFTER this check, so a field name present here can only be a `--field` the user typed — which
-  // this command does not accept (see CommandDefinition.positionals). A positional named after a
-  // global (`use [account]`) stays allowed via GLOBAL_OPTS above; supplying both is then caught by
-  // bindGroupedPositionals.
+  for (const f of GLOBAL_FLAG_SPECS) if (f.alias) allowed.add(f.alias);
+  // Command path segments are not flags; yargs captures them in the allowed tail keys.
+  // Positionals arrive in args and are bound after this check; their field names are not flags.
   const positional = new Set((cmd.positionals ?? []).map((p) => p.field));
   for (const k of Object.keys(cmd.fields.shape)) if (!positional.has(k)) add(k);
-  // dedupe: camel-case-expansion puts `--trace-id` in argv as both trace-id and traceId, and both
-  // render to the same flag name.
+  // yargs emits both camelCase and kebab-case keys for one flag.
   const unknown = [
     ...new Set(
       Object.keys(argv)
@@ -646,8 +517,6 @@ function assertKnownFlags(
       `unknown option(s): ${unknown
         .map((u) => {
           const family = otherFamily.get(u);
-          // "--transaction is a tron option" is the answer; "unknown option --transaction" sends
-          // the reader hunting for a typo in a flag that exists.
           return family ? `--${u} (a ${family} option on this command)` : `--${u}`;
         })
         .join(", ")}`,
@@ -655,31 +524,78 @@ function assertKnownFlags(
   }
 }
 
-function parseInput(cmd: CommandDefinition, argv: any): unknown {
-  return parseInputSchema(cmd.input, argv);
+// Refuses an explicit wait intent where no transaction is submitted, before any work starts.
+function assertWaitIntentApplies(
+  cmd: Pick<CommandExecutionSpec, "path" | "broadcasts" | "rejectsWait" | "rejectsWaitWith">,
+  argv: any,
+): void {
+  const flag = argv.wait ? "--wait" : "--no-wait";
+  if (cmd.rejectsWait !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      `${cmd.path.join(" ")} does not accept ${flag}: ${cmd.rejectsWait}`,
+    );
+  }
+  if (!acceptsWaitFlags(cmd)) {
+    throw new UsageError(
+      "invalid_option",
+      `${cmd.path.join(" ")} does not accept ${flag}: it submits no transaction to wait for`,
+    );
+  }
+  const mode = [...NO_SUBMIT_MODE_FIELDS, cmd.rejectsWaitWith].find(
+    (field) => field !== undefined && argv[field] === true,
+  );
+  if (mode !== undefined) {
+    throw new UsageError(
+      "invalid_option",
+      `${flag} cannot be used with --${camelToKebab(mode)}, which submits no transaction`,
+    );
+  }
 }
 
-export function parseInputSchema(schema: ZodType, argv: any): unknown {
+function parseInput(cmd: CommandDefinition, argv: any): unknown {
+  return parseInputSchema(neutralInputSchema(cmd), argv, cmd.positionals);
+}
+
+// The validation schema of a family-neutral command, including its exclusive groups.
+export function neutralInputSchema(cmd: CommandDefinition): ZodType {
+  const exclusive = exclusiveRefine(cmd.exclusive, cmd.fields);
+  return exclusive ? cmd.input.superRefine(exclusive) : cmd.input;
+}
+
+// The fields and validation schema of a chain command on one family.
+export function chainInputSchema(
+  spec: ChainSpec,
+  binding: FamilyBinding,
+): { fields: ZodObject<ZodRawShape>; input: ZodType } {
+  const fields = binding.fields ? spec.baseFields.extend(binding.fields.shape) : spec.baseFields;
+  return {
+    fields,
+    input: composeRefines(fields, spec.baseRefine, binding.refine, spec.exclusive),
+  };
+}
+
+export function parseInputSchema(
+  schema: ZodType,
+  argv: any,
+  positionals: readonly { field: string; placeholder?: string }[] = [],
+): unknown {
   const result = schema.safeParse(argv);
   if (result.success) return result.data;
   const issue = result.error.issues[0]!;
   const key = issue.path[0];
-  const field = issue.path.join(".") || "input";
-  // structural: a required field absent from argv → missing_option (no message-regex).
+  // A positional is named as its usage line shows it, an option by its flag.
+  const positional = positionals.find((p) => p.field === key);
+  const subject = positional
+    ? `<${positional.placeholder ?? positional.field}>`
+    : `--${camelToKebab(issue.path.map(String).join(".") || "input")}`;
   if (issue.code === "invalid_type" && key !== undefined && argv[key] === undefined) {
     throw new UsageError(
       "missing_option",
-      `missing required option --${camelToKebab(String(key))}`,
+      positional ? `missing required argument ${subject}` : `missing required option ${subject}`,
     );
   }
-  // A refine may name the code its rule deserves — `invalid_option` for a flag combination,
-  // `invalid_address` for a malformed address. Saying nothing keeps `invalid_value`, so a refine
-  // that has not opted in is unaffected. The declared code must exist in the index AND be a usage
-  // code (exit 2 or "either"): parseInputSchema always throws UsageError, and CliError.exitCode()
-  // now looks up exit by code, not by class — so an exit-1 code declared here would silently
-  // produce a UsageError whose real exit is 1, invisible to error-codes.test.ts's literal scan
-  // (it only sees `new UsageError("invalid_value", …)`; a variable is never scraped). Input
-  // validation is definitionally usage-layer, so no legitimate refine wants an exit-1 code.
+  // Refines may select only registered usage-error codes; other codes fall back to invalid_value.
   const declared = (issue as { params?: { errorCode?: unknown } }).params?.errorCode;
   const declaredCode = typeof declared === "string" ? declared : undefined;
   const table = ERROR_CODES as Record<string, ErrorCodeEntry | undefined>;
@@ -688,7 +604,7 @@ export function parseInputSchema(schema: ZodType, argv: any): unknown {
     declaredCode && entry && (entry.exit === 2 || entry.exit === "either")
       ? declaredCode
       : "invalid_value";
-  throw new UsageError(code, `invalid --${camelToKebab(field)}: ${issue.message}`);
+  throw new UsageError(code, `invalid ${subject}: ${issue.message}`);
 }
 
 function withFields(spec: ChainSpec, fields: ZodObject<ZodRawShape>): CommandExecutionSpec {
@@ -699,8 +615,11 @@ export function composeRefines(
   fields: ZodObject<ZodRawShape>,
   baseRefine?: (value: any, ctx: RefinementCtx) => void,
   familyRefine?: (value: any, ctx: RefinementCtx) => void,
+  exclusive?: readonly ExclusiveGroup[],
 ): ZodType {
   let schema: ZodType = fields;
+  const exclusiveCheck = exclusiveRefine(exclusive, fields);
+  if (exclusiveCheck) schema = schema.superRefine(exclusiveCheck);
   if (baseRefine) schema = schema.superRefine(baseRefine);
   if (familyRefine) schema = schema.superRefine(familyRefine);
   return schema;

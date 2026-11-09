@@ -16,11 +16,7 @@ export function readBoundedTextFile(path: string, maxBytes: number, label: strin
         "invalid_value",
         errorMessage`${label} exceeds the ${maxBytes}-byte limit`,
       );
-    // Trimmed, not stripped: a file saved by an editor, `echo` or `jq -r` always carries a
-    // trailing newline, and every current caller (hex, JSON) treats surrounding whitespace as
-    // insignificant — but the trim must stop at the edges. Removing *all* whitespace would
-    // silently concatenate two hex/JSON tokens separated by an internal blank line instead of
-    // rejecting the file as malformed.
+    // Preserve internal whitespace so malformed hex or JSON tokens are not joined.
     return readFileSync(fd, "utf8").trim();
   } catch (error) {
     if (error instanceof UsageError) throw error;

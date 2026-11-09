@@ -45,8 +45,6 @@ function renderVoteStatus(data: Obj, ctx: TextRenderContext): string {
       ]),
     ),
   ];
-  // votes on a 0%-reward-ratio SR earn nothing — surface a `!` line straight from the data
-  // (same style as tx.ts's `! Track it:`); the json warning is emitted separately via scope.warn.
   for (const vote of votes) {
     if (vote.rewardRatioPct === 0) {
       lines.push(

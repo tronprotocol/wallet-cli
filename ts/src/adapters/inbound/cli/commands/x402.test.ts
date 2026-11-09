@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CommandRegistry } from "../registry/index.js";
 import { registerX402Commands } from "./x402.js";
+import { neutralInputSchema } from "../shell/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
 
 function service(): X402Service {
@@ -47,7 +48,7 @@ describe("x402 command surface", () => {
     const pay = registry.resolveNeutral(["x402", "pay"])!;
     expect(Object.keys(pay.fields.shape)).toContain("dryRun");
     expect(
-      pay.input.safeParse({
+      neutralInputSchema(pay).safeParse({
         url: "https://example.test",
         method: "GET",
         header: [],
@@ -63,7 +64,7 @@ describe("x402 command surface", () => {
     registerX402Commands(registry, service());
     const pay = registry.resolveNeutral(["x402", "pay"])!;
     expect(
-      pay.input.safeParse({
+      neutralInputSchema(pay).safeParse({
         url: "https://example.test",
         method: "POST",
         header: [],
@@ -73,12 +74,54 @@ describe("x402 command surface", () => {
     ).toBe(false);
   });
 
+  it.each([
+    ["GET", { body: "{}" }, false],
+    ["GET", { bodyFile: "request.json" }, false],
+    ["GET", {}, true],
+    ["DELETE", { body: "{}" }, true],
+  ])("with --method %s and %o accepts the request: %s", (method, body, ok) => {
+    const registry = new CommandRegistry();
+    registerX402Commands(registry, service());
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    const result = neutralInputSchema(pay).safeParse({
+      url: "https://example.test",
+      method,
+      header: [],
+      ...body,
+    });
+    expect(result.success).toBe(ok);
+    if (!result.success)
+      expect(result.error.issues[0]).toMatchObject({ params: { errorCode: "invalid_option" } });
+  });
+
+  it.each([
+    ["0", false],
+    [(1n << 256n).toString(), false],
+    ["1", true],
+    [((1n << 256n) - 1n).toString(), true],
+  ])("validates --max-gasfree-fee-raw %s like --max-raw-amount", (value, valid) => {
+    const registry = new CommandRegistry();
+    registerX402Commands(registry, service());
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    const base = { url: "https://example.test", method: "GET", header: [] };
+    const fee = neutralInputSchema(pay).safeParse({ ...base, maxGasfreeFeeRaw: value });
+    const raw = neutralInputSchema(pay).safeParse({ ...base, maxRawAmount: value, token: "USDT" });
+    expect(fee.success).toBe(valid);
+    expect(raw.success).toBe(valid);
+    if (!valid) {
+      expect(fee.error!.issues[0]).toMatchObject({
+        path: ["maxGasfreeFeeRaw"],
+        params: { errorCode: "invalid_amount" },
+      });
+    }
+  });
+
   it("rejects conflicting GasFree fee ceilings", () => {
     const registry = new CommandRegistry();
     registerX402Commands(registry, service());
     const pay = registry.resolveNeutral(["x402", "pay"])!;
     expect(
-      pay.input.safeParse({
+      neutralInputSchema(pay).safeParse({
         url: "https://example.test",
         method: "GET",
         header: [],
@@ -96,14 +139,9 @@ it("does not advertise unsupported provider type or facilitator waiting", () => 
     "type",
   );
   for (const command of ["pay", "roundtrip"])
-    expect(registry.resolveNeutral(["x402", command])!.supportsWait).toBe(false);
+    expect(registry.resolveNeutral(["x402", command])!.rejectsWait).toBeDefined();
 });
 
-/**
- * `--body-file -` reads the same fd 0 a `--*-stdin` secret is bound to. Refusing only
- * `--password-stdin` let `--api-key-stdin` (or any other secret) be read as the request body and
- * posted to the endpoint. Every secret bound to stdin must refuse the body, before anything is read.
- */
 it.each(["password", "privateKey", "mnemonic", "apiKey", "tx", "message"])(
   "refuses --body-file - when --%s-stdin also claims stdin, without reading or sending",
   async (kind) => {
@@ -131,10 +169,6 @@ it.each(["password", "privateKey", "mnemonic", "apiKey", "tx", "message"])(
   },
 );
 
-/**
- * Catalog warnings come from a remote document and go to the terminal through the diagnostic
- * channel, which — unlike the result renderer — does not strip terminal control sequences.
- */
 it("strips terminal control sequences from remote catalog warnings before warning", async () => {
   const registry = new CommandRegistry();
   const svc = service();
@@ -156,4 +190,53 @@ it("strips terminal control sequences from remote catalog warnings before warnin
   expect(warn).toHaveBeenCalledWith("plain");
   expect(warn.mock.calls[0]![0]).toContain("stale");
   expect(warn.mock.calls[0]![0]).toContain("catalog");
+});
+
+describe("x402 pay headers", () => {
+  const run = async (header: string[]) => {
+    const registry = new CommandRegistry();
+    const svc = service();
+    registerX402Commands(registry, svc);
+    const pay = registry.resolveNeutral(["x402", "pay"])!;
+    await pay.run({} as never, { id: "eip155:56" } as never, {
+      url: "https://example.test",
+      method: "GET",
+      header,
+    });
+    return svc.pay as ReturnType<typeof vi.fn>;
+  };
+
+  it("splits each header argument at its first colon before calling the use case", async () => {
+    const pay = await run(["X-Test:  a:b ", "Accept: */*"]);
+    expect(pay.mock.calls[0]![2]).toMatchObject({
+      headers: [
+        { name: "X-Test", value: "a:b" },
+        { name: "Accept", value: "*/*" },
+      ],
+    });
+  });
+
+  it.each(["not-a-header", ": value"])("rejects %j before calling the use case", async (line) => {
+    await expect(run([line])).rejects.toMatchObject({
+      code: "invalid_value",
+      message: '--header must use "Name: value"',
+    });
+  });
+});
+
+describe("x402 roundtrip output", () => {
+  it("returns the served and paid views without the normalized settlement", async () => {
+    const registry = new CommandRegistry();
+    const svc = service();
+    (svc.roundtrip as ReturnType<typeof vi.fn>).mockResolvedValue({
+      serve: { payUrl: "u" },
+      pay: { settled: true },
+      settlement: { success: true },
+    });
+    registerX402Commands(registry, svc);
+    const roundtrip = registry.resolveNeutral(["x402", "roundtrip"])!;
+    await expect(
+      roundtrip.run({} as never, { id: "eip155:56" } as never, { payTo: "p", scheme: "exact" }),
+    ).resolves.toEqual({ serve: { payUrl: "u" }, pay: { settled: true } });
+  });
 });

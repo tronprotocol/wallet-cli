@@ -16,7 +16,7 @@ An account holds **one address per chain family** it can produce: seed and priva
 
 `--network` here is a **display selector**, not a target: it chooses which family's address the text listing prints. Accounts with no address in that family are omitted, and a warning names how many were left out. JSON output is unfiltered — it always lists every account with every address it has.
 
-An account stored in a wallet format this build does not recognise — a registry written by a newer wallet-cli — is **skipped rather than fatal**: the listing still shows every account it can read, and a warning names the wallet ids it left out (`… use a wallet format this version does not understand and were skipped: wlt_… . Upgrade wallet-cli to use them.`). Naming such an account on any other command is a hard `encoding_error` (exit 1), raised before the operation starts.
+An account stored with a storage kind this build does not recognise is **skipped rather than fatal**: the listing still shows every account it can read, and a warning names the wallet ids it left out (`… use a wallet format this version does not understand and were skipped: wlt_… . Upgrade wallet-cli to use them.`). Naming such an account on any other command is a hard `encoding_error` (exit 1), raised before the operation starts.
 
 ## Options
 
@@ -72,7 +72,7 @@ The `chain` block echoes the network that was selected for display; the command 
 
 ## Exit status
 
-`0` · `2` usage error. See [machine-interface](../machine-interface.md#exit-codes).
+`0` · `1` execution failure (`encoding_error` — the local wallet file could not be decoded) · `2` usage error. See [machine-interface](../machine-interface.md#exit-codes).
 
 ## See also
 

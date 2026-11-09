@@ -1,14 +1,17 @@
-import type { NetworkDescriptor } from "../../domain/types/index.js";
+import type { NetworkDescriptor, TxReceiptView } from "../../domain/types/index.js";
+import type { ExecutionDeadline } from "../contracts/deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type {
   EvmContractWriteInput,
   ApprovalKind,
   GovernanceTransactionInput,
 } from "../contracts/transaction-input.js";
-import type { TronContractParameter } from "./chain/tron-gateway.js";
+import type { TronContractParameter } from "./chain/tron/tron-gateway.js";
+import type { Sun } from "../../domain/amounts/index.js";
 
 export interface EvmContractPort {
   call(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     contract: string,
     method: string,
@@ -18,11 +21,12 @@ export interface EvmContractPort {
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: EvmContractWriteInput,
-  ): Promise<Record<string, unknown>>;
+  ): Promise<TxReceiptView>;
 }
 
 export interface TronContractPort {
   call(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     contract: string,
     method: string,
@@ -36,10 +40,10 @@ export interface TronContractPort {
       method: string;
       approvalKind?: ApprovalKind;
       parameters: TronContractParameter[];
-      callValueSun: string;
-      feeLimit: string;
+      callValueSun: Sun;
+      feeLimit: Sun;
     },
-  ): Promise<Record<string, unknown>>;
+  ): Promise<TxReceiptView>;
 }
 
 export interface AgentContractPorts {

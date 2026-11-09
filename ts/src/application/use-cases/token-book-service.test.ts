@@ -1,17 +1,15 @@
-/**
- * TokenBookService — the address-book reads that touch no chain.
- *
- * `token list` only merges the official and user layers for a (network, account) pair, which is
- * the same operation on every family. Keeping one implementation is what stops the two families'
- * listings from drifting apart in shape.
- */
 import { describe, it, expect } from "vitest";
 import { TokenBookService } from "./token-book-service.js";
 import type { TokenRepository } from "../ports/token-repository.js";
 import type { AccountScope } from "../contracts/execution-scope.js";
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../domain/types/index.js";
+import { CommandDeadline } from "../services/command-deadline.js";
 
-const scope: AccountScope = { activeAccount: "wlt_test.0", resolveAddress: () => "0xADDR" };
+const scope: AccountScope = {
+  deadline: new CommandDeadline(0),
+  activeAccount: "wlt_test.0",
+  resolveAddress: () => "0xADDR",
+};
 const net = { id: "eip155:1", family: "evm", nativeSymbol: "ETH" } as NetworkDescriptor;
 
 const USDT: EffectiveTokenEntry = {
@@ -50,7 +48,6 @@ describe("TokenBookService.list", () => {
   });
 
   it("reads no chain state at all", () => {
-    // No gateway is injected: if listing ever needed one, this would not compile or construct.
     expect(() => new TokenBookService(repo([]).repository)).not.toThrow();
   });
 });

@@ -7,7 +7,7 @@ Take liquidity out of a pair, in proportion to its reserves.
 ```
 wallet-cli exchange withdraw <id> --token <TRX|asset-id>
                              (--amount <n> | --raw-amount <n>)
-                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+                             [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                              [--permission-id <n>] [options]
 ```
 
@@ -19,7 +19,7 @@ The mirror of [`exchange inject`](inject.md): you name one side and its amount, 
 
 **Tokens are named by id only** — `TRX` (or its on-chain id `_`) and a numeric TRC10 id; a TRC10 name may contain `:`. `--amount` is in whole tokens of the side you named; `--raw-amount` gives the same figure in minimal units. Exactly one of them is required.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -32,9 +32,10 @@ The mirror of [`exchange inject`](inject.md): you name one side and its amount, 
 | `--dry-run` | Build and estimate only, no signature/broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Sign without broadcasting, output the signed hex; excludes `--dry-run` / `--build-only`; pairs with `--expiration` |
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
-| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
+| `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s; [Ledger exception](../../guide/ledger.md#3-when-the-device-doesnt-respond)) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -44,7 +45,7 @@ Plus the [global options](../index.md#global-options-every-command).
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
 ```bash
-echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network nile --password-stdin
 ```
 
 ```console
@@ -60,7 +61,7 @@ echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network
 ```
 
 ```bash
-echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network nile --wait --password-stdin -o json
+echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network nile --password-stdin -o json
 ```
 
 ```json
@@ -79,11 +80,11 @@ echo "$PW" | wallet-cli exchange withdraw 12 --token TRX --amount 1000 --network
 | `otherTokenId` / `otherTokenQuant` / `otherTokenLabel` / `otherTokenDecimals` | — | The same four for the side computed from the ratio |
 | `reserveAfter` / `otherReserveAfter` | string | The pair's balances after this withdrawal, same order |
 
-TRX is identified as `"_"`; every quantity is a **string** in minimal units. `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun`, `failed`.
+TRX is identified as `"_"`; every quantity is a **string** in minimal units. Confirmation adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun`, `failed`.
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`exchange_not_found` — no such pair, `not_exchange_creator`, `token_not_in_exchange`, `exchange_closed` — a side holds zero, `insufficient_reserve` — more than that side holds, `precision_loss` — the amount does not convert cleanly, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--token`; `invalid_option` — both or neither of `--amount` / `--raw-amount`; `invalid_amount` — the amount is not a decimal number, or has more decimal places than that token allows; `invalid_value` — amount ≤ 0, or so small that the computed other side works out to zero).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`exchange_not_found` — no such pair, `not_exchange_creator`, `token_not_in_exchange`, `exchange_closed` — a side holds zero, `insufficient_reserve` — more than that side holds, `precision_loss` — the amount does not convert cleanly, `watch_only_no_signer`, `auth_failed`) · `2` usage error (`missing_option` — no `--token`; `invalid_option` — both or neither of `--amount` / `--raw-amount`; `invalid_amount` — the amount is not a decimal number, or has more decimal places than that token allows; `invalid_value` — amount ≤ 0, or so small that the computed other side works out to zero).
 
 ## See also
 

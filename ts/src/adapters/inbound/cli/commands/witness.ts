@@ -1,23 +1,32 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import type { TronWitnessService } from "../../../../application/use-cases/tron/witness-service.js";
-import { governanceTxModeFields, governanceTxRefine } from "./shared.js";
+import { governanceTxModeFields, tronExpirationRefine, txModeExclusive } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
+import {
+  MAX_PERCENT,
+  utf8ByteLength,
+  WITNESS_URL_MAX_BYTES,
+} from "../../../../domain/tron/governance/limits.js";
 
 const witnessUrl = z
   .string()
   .trim()
   .min(1)
-  .refine((value) => Buffer.byteLength(value, "utf8") <= 256, "must not exceed 256 UTF-8 bytes")
-  .describe("candidate information-page URL (max 256 UTF-8 bytes)");
+  .refine(
+    (value) => utf8ByteLength(value) <= WITNESS_URL_MAX_BYTES,
+    `must not exceed ${WITNESS_URL_MAX_BYTES} UTF-8 bytes`,
+  )
+  .describe(`candidate information-page URL (max ${WITNESS_URL_MAX_BYTES} UTF-8 bytes)`);
 
 const witnessWriteBase = {
   network: "optional" as const,
   wallet: "optional" as const,
-  auth: "required" as const,
+  auth: "conditional" as const,
   broadcasts: true,
   capability: "witness.manage",
-  baseRefine: governanceTxRefine,
+  exclusive: [txModeExclusive],
+  baseRefine: tronExpirationRefine,
   formatText: TextFormatters.governanceReceipt,
 };
 
@@ -64,8 +73,8 @@ export const witnessSetBrokerageSpec: ChainSpec = {
       .number()
       .int()
       .min(0)
-      .max(100)
-      .describe("percentage retained by the SR (0-100)"),
+      .max(MAX_PERCENT)
+      .describe(`percentage retained by the SR (0-${MAX_PERCENT})`),
     ...governanceTxModeFields,
   }),
   examples: [{ cmd: "wallet-cli witness set-brokerage 20 --wait" }],

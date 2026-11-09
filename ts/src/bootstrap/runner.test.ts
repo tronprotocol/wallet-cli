@@ -1,38 +1,25 @@
+import { CommandDeadline, requestDispatchCheck } from "../application/services/command-deadline.js";
 import { describe, it, expect, vi } from "vitest";
-import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { main } from "./runner.js";
-
-// Wraps the real readFileSync so a test can observe (and, for fd 0 only, control) its calls —
-// vitest cannot vi.spyOn an ESM module's own export at runtime, so the mock has to be declared
-// here instead. Every call other than fd 0 falls straight through to the real implementation.
-let stdinReply: string | undefined;
-vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs")>();
-  return {
-    ...actual,
-    readFileSync: vi.fn((...args: Parameters<typeof actual.readFileSync>) =>
-      args[0] === 0 && stdinReply !== undefined ? stdinReply : actual.readFileSync(...args),
-    ),
-  };
-});
-import { parseGlobals, hasCommand } from "./argv.js";
-import { FAMILY_REGISTRY } from "./family-registry.js";
+import { Readable } from "node:stream";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { main, runProcess } from "./runner.js";
 import { CHAIN_FAMILIES } from "../domain/family/index.js";
-import { familyMap } from "./family-registry.js";
+import { FAMILY_REGISTRY, familyMap } from "./family-registry.js";
 import { ChainGatewayRegistry } from "../adapters/outbound/chain/tron/provider.js";
 import { EvmRpcClient } from "../adapters/outbound/chain/evm/evm.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 describe("FAMILY_REGISTRY (composition manifest)", () => {
   it("registers every family for sign/rpc resolution + the user command surface", () => {
     expect(FAMILY_REGISTRY.map((d) => d.meta.family)).toEqual(["tron", "evm"]);
   });
 
-  // familyMap() casts its Object.fromEntries result to a TOTAL Record<ChainFamily, T>, so a
-  // family present in the type union but missing a plugin type-checks fine and then hands out
-  // `undefined` at runtime — SoftwareSigner would fail with a bare TypeError on the strategy.
-  // tsc cannot catch this; these two assertions are the only thing that can.
+  // The total Record cast cannot detect a missing plugin at compile time.
   it("leaves no family without a plugin", () => {
     const registered = new Set(FAMILY_REGISTRY.map((d) => d.meta.family));
     expect([...CHAIN_FAMILIES].filter((f) => !registered.has(f))).toEqual([]);
@@ -45,103 +32,8 @@ describe("FAMILY_REGISTRY (composition manifest)", () => {
   });
 });
 
-describe("hasCommand (bare invocation → root help)", () => {
-  it("is false for no tokens and for global-flags-only invocations", () => {
-    expect(hasCommand([])).toBe(false);
-    expect(hasCommand(["--output", "json"])).toBe(false); // value flag consumes 'json'
-    expect(hasCommand(["-o", "json"])).toBe(false);
-    expect(hasCommand(["--network", "tron:3448148188"])).toBe(false);
-    expect(hasCommand(["--verbose"])).toBe(false);
-  });
-  it("is true once a real command word is present", () => {
-    expect(hasCommand(["list"])).toBe(true);
-    expect(hasCommand(["--output", "json", "account", "balance"])).toBe(true);
-    expect(hasCommand(["--network=tron:3448148188", "block"])).toBe(true);
-  });
-});
-
-describe("parseGlobals", () => {
-  it("parses value flags, inline =, and short -o alias", () => {
-    const { globals } = parseGlobals([
-      "--network",
-      "tron:3448148188",
-      "--output=json",
-      "tron",
-      "account",
-      "balance",
-    ]);
-    expect(globals.network).toBe("tron:3448148188");
-    expect(globals.output).toBe("json");
-  });
-
-  it("rejects an invalid --timeout as invalid (never falls back to the default)", () => {
-    for (const raw of ["abc", "-5", "0"]) {
-      // 0ms = instant-abort, not a usable bound
-      const { globals, invalid } = parseGlobals(["--timeout", raw]);
-      expect(globals.timeoutMs).toBeUndefined();
-      expect(invalid).toEqual([{ flag: "--timeout", value: raw, reason: "must be a number >= 1" }]);
-    }
-    const ok = parseGlobals(["--timeout", "2000"]);
-    expect(ok.globals.timeoutMs).toBe(2000);
-    expect(ok.invalid).toEqual([]);
-  });
-
-  it("accepts --wait-timeout 0 (poll cap of 0 = give up after one poll)", () => {
-    const { globals, invalid } = parseGlobals(["--wait-timeout", "0"]);
-    expect(globals.waitTimeoutMs).toBe(0);
-    expect(invalid).toEqual([]);
-  });
-
-  it("rejects an invalid --output instead of silently defaulting to 'text'", () => {
-    const bad = parseGlobals(["--output", "xml"]);
-    expect(bad.globals.output).toBeUndefined();
-    expect(bad.invalid).toEqual([
-      { flag: "--output", value: "xml", reason: "must be one of: text, json" },
-    ]);
-    expect(parseGlobals(["--output", "json"]).globals.output).toBe("json");
-  });
-
-  it("maps --<kind>-stdin to a '-' path (the only secret source)", () => {
-    const { secretPaths } = parseGlobals(["tx", "broadcast", "--tx-stdin"]);
-    expect(secretPaths.tx).toBe("-");
-    expect(secretPaths.password).toBeUndefined();
-  });
-
-  it("maps --api-key-stdin to the B.AI configuration secret channel", () => {
-    const { secretPaths, stdinFlags } = parseGlobals(["config", "baiApiKey", "--api-key-stdin"]);
-    expect(secretPaths.apiKey).toBe("-");
-    expect(stdinFlags).toEqual(["--api-key-stdin"]);
-  });
-
-  // BUG-V413-019: stdin (fd 0) can serve only one secret per run. `stdinFlags` names every
-  // distinct `--*-stdin` flag seen so the caller (runner.ts) can reject a combination BEFORE
-  // any secret is read, rather than discovering it later as secret_source_error.
-  it("collects every distinct --*-stdin flag seen, in order", () => {
-    expect(
-      parseGlobals(["message", "sign", "--message-stdin", "--password-stdin"]).stdinFlags,
-    ).toEqual(["--message-stdin", "--password-stdin"]);
-    expect(parseGlobals(["tx", "broadcast", "--tx-stdin"]).stdinFlags).toEqual(["--tx-stdin"]);
-    expect(parseGlobals(["account", "balance"]).stdinFlags).toEqual([]);
-  });
-
-  it("does not double-count the same --*-stdin flag repeated", () => {
-    expect(
-      parseGlobals(["message", "sign", "--message-stdin", "--message-stdin"]).stdinFlags,
-    ).toEqual(["--message-stdin"]);
-  });
-
-  it("ignores a value flag with no following token at end of argv", () => {
-    expect(() => parseGlobals(["--network"])).not.toThrow();
-    expect(parseGlobals(["--network"]).globals.network).toBeUndefined();
-  });
-});
-
-// BUG-V413-019: two `--*-stdin` flags used to surface only when the second secret read found
-// stdin already consumed by the first (secret_source_error, exit 1) — a read failure, reported
-// after work had already started. It is really a FLAG COMBINATION mistake, catchable from argv
-// alone, so it must be invalid_option/exit 2 and caught before any secret is read.
 describe("main() rejects more than one --*-stdin flag (BUG-V413-019)", () => {
-  async function runIsolated(tokens: string[], stdinData?: string) {
+  async function runIsolated(tokens: string[], stdinData?: string | Readable) {
     const root = mkdtempSync(join(tmpdir(), "wcli-stdin-"));
     const previous = process.env.WALLET_CLI_HOME;
     process.env.WALLET_CLI_HOME = root;
@@ -151,16 +43,21 @@ describe("main() rejects more than one --*-stdin flag (BUG-V413-019)", () => {
       return true;
     });
     const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
-    stdinReply = stdinData;
-    vi.mocked(readFileSync).mockClear();
+    const stdinSpy = vi
+      .spyOn(process, "stdin", "get")
+      .mockImplementation(
+        () =>
+          (stdinData instanceof Readable
+            ? stdinData
+            : Readable.from([Buffer.from(stdinData ?? "")])) as never,
+      );
     try {
       const code = await main(["node", "wallet-cli", ...tokens]);
-      const stdinReads = vi.mocked(readFileSync).mock.calls.filter((args) => args[0] === 0);
-      return { code, stdout: stdout.join(""), stdinReads };
+      return { code, stdout: stdout.join(""), stdinReads: stdinSpy.mock.calls };
     } finally {
       outSpy.mockRestore();
       errSpy.mockRestore();
-      stdinReply = undefined;
+      stdinSpy.mockRestore();
       if (previous === undefined) delete process.env.WALLET_CLI_HOME;
       else process.env.WALLET_CLI_HOME = previous;
     }
@@ -188,21 +85,28 @@ describe("main() rejects more than one --*-stdin flag (BUG-V413-019)", () => {
       ["message", "sign", "--message-stdin", "-o", "json"],
       "hello world",
     );
-    // No account exists in this fresh, isolated wallet dir — a later, unrelated failure that
-    // proves the run was NOT stopped by the two-flag check above (which would have reported
-    // invalid_option instead, before command logic runs at all).
     expect(JSON.parse(stdout)).toMatchObject({
       success: false,
       error: { code: "missing_wallet_address" },
     });
     expect(code).toBe(1);
   });
+
+  it("names the command argv gave when the stdin read runs out of time", async () => {
+    const stalled = new Readable({ read() {} });
+    const { code, stdout } = await runIsolated(
+      ["--timeout", "100", "message", "sign", "--message-stdin", "-o", "json"],
+      stalled,
+    );
+    expect(JSON.parse(stdout)).toMatchObject({
+      success: false,
+      command: "message.sign",
+      error: { code: "timeout" },
+    });
+    expect(code).toBe(1);
+  });
 });
 
-// composeCliRuntime runs before the formatter exists, so a broken config.yaml used to escape main()
-// entirely and land on the last-resort `fatal:` guard in index.ts — no envelope, exit 1 for what is
-// a UsageError. A malformed document is the trigger here because, unlike the 0600 check, it is not
-// skipped on Windows.
 describe("bootstrap error boundary", () => {
   async function runWithConfig(yaml: string, tokens: string[]) {
     const root = mkdtempSync(join(tmpdir(), "wcli-boot-"));
@@ -263,14 +167,8 @@ describe("bootstrap error boundary", () => {
   });
 });
 
-// The registry guard above proves a factory EXISTS; this proves the factory, the descriptor and
-// the gateway registry actually line up — that `--network sepolia` would reach a live client.
 describe("composition resolves a gateway per family", () => {
-  const gateways = () =>
-    new ChainGatewayRegistry(
-      familyMap((p) => p.createGateway),
-      5_000,
-    );
+  const gateways = () => new ChainGatewayRegistry(familyMap((p) => p.createGateway));
   const sepolia = {
     id: "eip155:11155111",
     family: "evm" as const,
@@ -281,10 +179,78 @@ describe("composition resolves a gateway per family", () => {
   };
 
   it("builds an EVM JSON-RPC client for an evm network", () => {
-    expect(gateways().get(sepolia, "evm")).toBeInstanceOf(EvmRpcClient);
+    expect(gateways().get(sepolia, "evm", NO_CHECK)).toBeInstanceOf(EvmRpcClient);
   });
 
   it("refuses to hand an evm network out as a tron gateway", () => {
-    expect(() => gateways().get(sepolia, "tron")).toThrow(/family mismatch/);
+    expect(() => gateways().get(sepolia, "tron", NO_CHECK)).toThrow(/family mismatch/);
   });
+});
+
+describe("runProcess", () => {
+  // A stream whose write callback fires only when the test releases it, like a slow pipe reader.
+  function slowStream() {
+    const callbacks: Array<() => void> = [];
+    const listeners: string[] = [];
+    return {
+      callbacks,
+      listeners,
+      stream: {
+        write: (_chunk: unknown, callback?: () => void) => {
+          if (callback) callbacks.push(callback);
+          return false;
+        },
+        on: (event: string) => listeners.push(event),
+      } as unknown as NodeJS.WritableStream,
+    };
+  }
+
+  it("ends the process only after stdout and stderr have taken everything written", async () => {
+    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stdout = slowStream();
+    const stderr = slowStream();
+    const exit = vi.fn();
+    try {
+      const done = runProcess(["node", "wallet-cli", "--version"], {
+        stdout: stdout.stream,
+        stderr: stderr.stream,
+        exit,
+      });
+      await vi.waitFor(() => expect(stdout.callbacks).toHaveLength(1));
+      expect(stdout.listeners).toContain("error");
+      expect(exit).not.toHaveBeenCalled();
+      stdout.callbacks[0]!();
+      stderr.callbacks[0]!();
+      await done;
+      expect(exit).toHaveBeenCalledWith(0);
+    } finally {
+      outSpy.mockRestore();
+    }
+  });
+
+  it("delivers a 2 MiB result through a real pipe before the process ends", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "wcli-pipe-"));
+    const child = join(directory, "child.mts");
+    const runner = fileURLToPath(new URL("./runner.ts", import.meta.url));
+    // The result is written before runProcess, so only its stdout barrier keeps exit from cutting it.
+    writeFileSync(
+      child,
+      `import { runProcess } from ${JSON.stringify(runner)};
+process.stdout.write(JSON.stringify({ success: true, data: "x".repeat(2 * 1024 * 1024) }) + "\\n");
+await runProcess(["node", "wallet-cli", "--version"]);
+`,
+    );
+    const proc = spawn(process.execPath, ["--import", "tsx", child], {
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const chunks: Buffer[] = [];
+    proc.stdout.pause();
+    // Read late, so the child exits while most of the result still waits in the pipe.
+    setTimeout(() => proc.stdout.resume(), 300);
+    proc.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    const code = await new Promise<number | null>((resolve) => proc.on("close", resolve));
+    const [result] = Buffer.concat(chunks).toString("utf8").split("\n");
+    expect(code).toBe(0);
+    expect(JSON.parse(result!).data).toHaveLength(2 * 1024 * 1024);
+  }, 20_000);
 });

@@ -1,7 +1,14 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { BaiClient } from "./client.js";
 import { BaiRechargeClient } from "./recharge-client.js";
 import { baiApiError } from "./api-error.js";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const codes = [
   "WalletInvalidSignature",
@@ -50,7 +57,7 @@ describe("B.AI failure diagnostics", () => {
       "usage.summary",
       status,
     );
-    expect(JSON.stringify(error?.toEnvelope())).not.toContain("secret");
+    expect(JSON.stringify(errorEnvelope(error!))).not.toContain("secret");
     expect(error?.code).toBe("provider_error");
   });
   it.each(["query", "recharge"])(
@@ -64,13 +71,16 @@ describe("B.AI failure diagnostics", () => {
       );
       const call =
         kind === "query"
-          ? new BaiClient({ baiApiKey: "secret" }, 1000, fetcher).status()
-          : new BaiRechargeClient({ baiApiKey: "secret" }, 1000, fetcher).bind({
-              chain: "tron",
-              address: "payer",
-              message: "m",
-              signature: "s",
-            });
+          ? new BaiClient({ baiApiKey: "secret" }, fetcher).status(NO_CHECK)
+          : new BaiRechargeClient({ baiApiKey: "secret" }, fetcher).bind(
+              {
+                chain: "tron",
+                address: "payer",
+                message: "m",
+                signature: "s",
+              },
+              NO_CHECK,
+            );
       await expect(call).rejects.toMatchObject({
         code: "bai_rejected",
         details: { reason: "WalletInvalidSignature" },
@@ -81,13 +91,14 @@ describe("B.AI failure diagnostics", () => {
   it("preserves a report rejection explanation without server prose", async () => {
     const api = new BaiRechargeClient(
       { baiApiKey: "secret" },
-      1000,
       async () =>
         new Response(
           JSON.stringify({ success: false, code: "PRICE_UNAVAILABLE", message: "secret" }),
         ),
     );
-    await expect(api.reportTxHash({ chain: "tron", txHash: "hash" })).resolves.toMatchObject({
+    await expect(
+      api.reportTxHash({ chain: "tron", txHash: "hash" }, NO_CHECK),
+    ).resolves.toMatchObject({
       success: false,
       code: "PRICE_UNAVAILABLE",
       message: expect.stringContaining("retry reporting later"),
@@ -96,12 +107,15 @@ describe("B.AI failure diagnostics", () => {
   it("rejects invalid binding input before making a request", async () => {
     const fetcher = vi.fn();
     await expect(
-      new BaiRechargeClient({ baiApiKey: "secret" }, 1000, fetcher).bind({
-        chain: "tron",
-        address: "payer",
-        message: " ",
-        signature: "s",
-      }),
+      new BaiRechargeClient({ baiApiKey: "secret" }, fetcher).bind(
+        {
+          chain: "tron",
+          address: "payer",
+          message: " ",
+          signature: "s",
+        },
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "invalid_value", details: { fields: ["message"] } });
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -111,7 +125,6 @@ it("bounds non-2xx error bodies instead of reading them without a limit", async 
   const cancel = vi.fn();
   const api = new BaiClient(
     { baiApiKey: "secret" },
-    1000,
     async () =>
       new Response(
         new ReadableStream({
@@ -123,16 +136,15 @@ it("bounds non-2xx error bodies instead of reading them without a limit", async 
         { status: 400 },
       ),
   );
-  await expect(api.status()).rejects.toMatchObject({ code: "response_too_large" });
+  await expect(api.status(NO_CHECK)).rejects.toMatchObject({ code: "response_too_large" });
   expect(cancel).toHaveBeenCalledOnce();
 });
 it("does not wait on an authentication error body", async () => {
   const cancel = vi.fn();
   const api = new BaiClient(
     { baiApiKey: "secret" },
-    1000,
     async () => new Response(new ReadableStream({ pull() {}, cancel }), { status: 401 }),
   );
-  await expect(api.status()).rejects.toMatchObject({ code: "bai_auth_failed" });
+  await expect(api.status(NO_CHECK)).rejects.toMatchObject({ code: "bai_auth_failed" });
   expect(cancel).toHaveBeenCalledOnce();
 });

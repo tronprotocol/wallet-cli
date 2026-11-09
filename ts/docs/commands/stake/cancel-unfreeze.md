@@ -5,7 +5,7 @@ Cancel all pending unstakes (roll back to frozen).
 ## Synopsis
 
 ```
-wallet-cli stake cancel-unfreeze [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+wallet-cli stake cancel-unfreeze [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                                  [--permission-id <n>] [options]
 ```
 
@@ -13,7 +13,7 @@ wallet-cli stake cancel-unfreeze [--dry-run | (--sign-only | --build-only) [--ex
 
 Cancels **every** unstake still in its waiting period and rolls those amounts back to staked — resource allowance and voting power return accordingly. It is all-or-nothing: TRON has no per-entry cancel. Any entries that have already expired are withdrawn to balance as part of the same transaction.
 
-**By default the command returns at submission**; `--wait` blocks until confirmed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation**; `--no-wait` returns at submission. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. A Ledger account can dry-run or build; signing modes fail with `ledger_unsupported` before the device is touched.
 
@@ -26,7 +26,8 @@ The Ledger TRON app cannot sign `CancelAllUnfreezeV2`. A Ledger account can dry-
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -35,10 +36,10 @@ Plus the [global options](../index.md#global-options-every-command).
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
-Default — returns the **submitted** receipt:
+With `--no-wait` — returns the **submitted** receipt:
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --no-wait --password-stdin
 ```
 
 ```console
@@ -49,17 +50,17 @@ echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin
 ```
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin -o json
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --no-wait --password-stdin -o json
 ```
 
 ```json
 {"schema":"wallet-cli.result.v1","success":true,"command":"stake.cancel-unfreeze","data":{"kind":"stake-cancel","stage":"submitted","txId":"9ec..."},"meta":{"durationMs":15,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-Add `--wait` to block until confirmed:
+Without `--no-wait`, the command blocks until confirmed:
 
 ```bash
-echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --wait --password-stdin
+echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --password-stdin
 ```
 
 ```console
@@ -76,12 +77,12 @@ echo "$PW" | wallet-cli stake cancel-unfreeze --network nile --wait --password-s
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "stake-cancel"`, `stage: "submitted"`, `txId` |
-| `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
+| `--no-wait` (submitted) | `kind: "stake-cancel"`, `stage: "submitted"`, `txId` |
+| default or `--wait` (confirmed) | above, plus `confirmed`, `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `ledger_unsupported`, `auth_failed`, `rpc_error`, `timeout`) · `2` usage error.
 
 ## See also
 

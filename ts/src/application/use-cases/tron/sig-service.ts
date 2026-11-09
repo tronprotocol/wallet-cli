@@ -1,44 +1,101 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type {
   NetworkDescriptor,
-  Signer,
   TronTransactionArtifact,
   OfflineTxSignView,
+  TronProtocolValue,
   TxSignTransactionView,
 } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { operationForContractType } from "../../../domain/permission/index.js";
+import { operationForContractType } from "../../../domain/tron/permission/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerResolver } from "../../services/signer/index.js";
-import { obtainSignature } from "../../services/signing/obtain-signature.js";
+import type { SigningService } from "../../services/signing/signing-service.js";
+import type { TransactionArtifactWriter } from "../../ports/transaction-artifact-writer.js";
+import { localTxId } from "../../services/broadcast-identity.js";
 import { assertNotExpired, expirationOf, transactionContract } from "./transaction-artifact.js";
+import type { TronHexSigner, TronSignOptions } from "./tron-signing.js";
 
-export interface TronSignOptions {
-  /** Bind an authorization decision to the exact signer before any signature interaction. */
-  expectedSigner?: string;
-}
-
-/** Offline-capable TRON artifact signing. It never queries permission or approval endpoints. */
-export class TronSigService {
+// Signs artifacts without querying permission or approval endpoints.
+export class TronSigService implements TronHexSigner {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly signers: SignerResolver,
-    private readonly now: () => number = () => Date.now(),
+    private readonly signing: SigningService,
+    private readonly artifacts: TransactionArtifactWriter,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
+  // `out` is the file the user chose for the signed hex.
   async sign(
     scope: TransactionScope,
     network: NetworkDescriptor,
     hex: string,
-    options: TronSignOptions = {},
+    options: TronSignOptions,
+    out?: string,
   ): Promise<OfflineTxSignView> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const transaction = gateway.decodeTransactionHex(hex);
-    assertNotExpired(transaction, this.now());
-    const originalTxId = transaction.txID;
-    const originalRawDataHex = transaction.raw_data_hex;
-    const previousSignatures = [...(transaction.signature ?? [])];
+    const { signer, decoded, signedHex } = await this.#sign(
+      scope,
+      network,
+      gateway,
+      transaction,
+      transaction,
+      options,
+    );
+    const view: OfflineTxSignView = {
+      kind: "tx-sign",
+      signer: signer.address,
+      hex: signedHex,
+      checked: false,
+      transaction: this.#transactionView(gateway, decoded),
+    };
+    if (out === undefined) return view;
+    this.artifacts.write(out, signedHex);
+    return { ...view, out };
+  }
+
+  // The JSON form of an artifact; the signer receives the caller's object, checked like the hex form.
+  async signJson(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    json: TronProtocolValue,
+    options: TronSignOptions,
+  ) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
+    const { transaction, hex } = gateway.encodeTransactionJson(json);
+    const original = gateway.decodeTransactionHex(hex);
+    const { signer, signed } = await this.#sign(
+      scope,
+      network,
+      gateway,
+      original,
+      transaction,
+      options,
+    );
+    return {
+      kind: "sign" as const,
+      mode: "sign-only" as const,
+      signed,
+      address: signer.address,
+      txId: localTxId(signed) ?? original.txID,
+    };
+  }
+
+  async #sign(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    gateway: TronGateway,
+    original: TronTransactionArtifact,
+    transaction: TronTransactionArtifact,
+    options: TronSignOptions,
+  ) {
+    assertNotExpired(original, this.now());
+    const previousSignatures = [...(original.signature ?? [])];
 
     this.signers.assertCanSign(scope.activeAccount, "tron");
     const signer = this.signers.resolve(scope.activeAccount, "tron");
@@ -48,10 +105,15 @@ export class TronSigService {
         "resolved signer does not match the signer that passed authorization",
       );
     }
-    const signed = await this.#sign(signer, transaction, scope);
+    const signed = await this.signing.sign(scope, {
+      network,
+      origin: options.origin,
+      signer,
+      payload: { kind: "transaction", transaction },
+    });
     const signedHex = gateway.encodeTransactionHex(signed);
     const decoded = gateway.decodeTransactionHex(signedHex);
-    if (decoded.txID !== originalTxId || decoded.raw_data_hex !== originalRawDataHex) {
+    if (decoded.txID !== original.txID || decoded.raw_data_hex !== original.raw_data_hex) {
       throw new ChainError(
         "invalid_transaction",
         "signer changed the transaction raw_data or txID",
@@ -68,13 +130,7 @@ export class TronSigService {
       );
     }
     assertNotExpired(decoded, this.now());
-    return {
-      kind: "tx-sign",
-      signer: signer.address,
-      hex: signedHex,
-      checked: false,
-      transaction: this.#transactionView(gateway, decoded),
-    };
+    return { signer, signed, signedHex, decoded };
   }
 
   #transactionView(
@@ -97,9 +153,5 @@ export class TronSigService {
       expired: expiration <= this.now(),
       signatures: transaction.signature?.length ?? 0,
     };
-  }
-
-  #sign(signer: Signer, transaction: TronTransactionArtifact, scope: TransactionScope) {
-    return obtainSignature(signer, scope, (options) => signer.sign(transaction, options));
   }
 }

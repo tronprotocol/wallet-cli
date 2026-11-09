@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/tron/sunswap/market-query-service.js";
+import type { SunSwapMarketQueryService } from "../../../../../application/use-cases/sunswap/market-query-service.js";
 import { TextFormatters } from "../../render/index.js";
 import { limitField, offsetField, protocolField } from "./shared.js";
 
@@ -36,8 +36,8 @@ export const sunswapTokenListSpec: ChainSpec = {
 };
 
 export const sunswapTokenListTronBinding = (service: SunSwapMarketQueryService): FamilyBinding => ({
-  run: async (_ctx, net, input) =>
-    service.tokenList(net, {
+  run: async (ctx, net, input) =>
+    service.tokenList(ctx.deadline, net, {
       protocol: input.protocol,
       orderBy: input.orderBy,
       limit: input.limit,

@@ -1,6 +1,5 @@
 import { formatScalar, sanitizeText } from "./scalars.js";
 
-/** Human-readable fallback for arbitrary provider responses and nested query results. */
 export function structuredText(value: unknown, indent = ""): string {
   const scalar = (item: unknown) => {
     if (item === null || item === undefined) return "Not available";

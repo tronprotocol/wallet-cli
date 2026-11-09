@@ -1,17 +1,9 @@
-/**
- * Everything `sunpump launch` refuses before a byte is sent, and the declarations that keep it out
- * of the transaction machinery.
- *
- * Every refusal here depends on nothing remote, so it belongs to the schema. The reason is this
- * service's defining behaviour: it does not reject what it does not understand, it stores it. A
- * link that is not a URL is therefore not an error but a permanent token with a broken link, and a
- * refusal that is not made here is never made at all.
- */
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { sunpumpLaunchSpec, sunpumpLaunchTronBinding } from "./launch.js";
-import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/tron/sunpump/token-launch-service.js";
+import { chainInputSchema } from "../../shell/index.js";
+import type { SunPumpTokenLaunchService } from "../../../../../application/use-cases/sunpump/token-launch-service.js";
 import type { NetworkDescriptor } from "../../../../../domain/types/index.js";
 import type { ExecutionContext } from "../../contracts/execution-context.js";
 
@@ -21,11 +13,10 @@ interface SafeParse {
   error?: { issues: (z.core.$ZodIssue & { params?: { errorCode?: string } })[] };
 }
 
-const schema = (
-  sunpumpLaunchSpec.baseFields as unknown as {
-    superRefine: (refine: unknown) => { safeParse: (value: unknown) => SafeParse };
-  }
-).superRefine(sunpumpLaunchSpec.baseRefine as unknown);
+const schema = chainInputSchema(
+  sunpumpLaunchSpec,
+  sunpumpLaunchTronBinding({} as SunPumpTokenLaunchService),
+).input as unknown as { safeParse: (value: unknown) => SafeParse };
 
 function refusals(value: Record<string, unknown>): { path: string; code?: string }[] {
   return (schema.safeParse(value).error?.issues ?? []).map((issue) => ({
@@ -43,20 +34,12 @@ describe("the required options", () => {
     expect(parsed.data).toMatchObject({ ...BASE, dryRun: false });
   });
 
-  // Absent → `missing_option` (exit 2), which the shell derives from the field being required and
-  // missing from argv. The schema's job is only to declare it required.
   it.each(["name", "symbol", "description"])("requires --%s", (field) => {
     const value = { ...BASE } as Record<string, unknown>;
     delete value[field];
     expect(refusals(value)).toEqual([{ path: field, code: undefined }]);
   });
 
-  /**
-   * No local rule on the name or the symbol.
-   *
-   * Their limits are the service's and are not published. A local guess would refuse names SunPump
-   * accepts; a rejection comes back as `provider_error` carrying the service's own message.
-   */
   it("leaves the name and symbol rules to the service", () => {
     expect(
       schema.safeParse({ ...BASE, name: "a".repeat(300), symbol: "lower case $$" }).success,
@@ -79,10 +62,9 @@ describe("the optional options", () => {
     },
   );
 
-  // Two logos, one token: whichever won would be a coin toss the caller did not know they made.
   it("refuses --image and --image-base64 together as invalid_option", () => {
     expect(refusals({ ...BASE, image: "./logo.png", imageBase64: "QQ==" })).toEqual([
-      { path: "imageBase64", code: "invalid_option" },
+      { path: "image", code: "invalid_option" },
     ]);
     expect(schema.safeParse({ ...BASE, image: "./logo.png" }).success).toBe(true);
     expect(schema.safeParse({ ...BASE, imageBase64: "QQ==" }).success).toBe(true);
@@ -93,14 +75,6 @@ describe("the optional options", () => {
   });
 });
 
-/**
- * The declarations, checked because each one of them is load-bearing.
- *
- * Nothing about this command signs, broadcasts or belongs to an account, and each of those facts is
- * carried by one field. `broadcasts` would hand it `--wait` and a three-stage receipt it has no
- * transaction for; `auth` would demand a master password to run a remote create; `rejectsAccount` is
- * what makes `--account` an error instead of a silently ignored flag that implies ownership.
- */
 describe("what the command declares", () => {
   it("needs no account, no password and no broadcast", () => {
     expect(sunpumpLaunchSpec.wallet).toBe("none");
@@ -124,7 +98,6 @@ describe("what the command declares", () => {
     expect(flags).not.toContain("feeLimit");
   });
 
-  // The SDK's `tweetUsername` is deliberately not exposed as a flag.
   it("offers exactly the documented flags", () => {
     expect(Object.keys(sunpumpLaunchSpec.baseFields.shape).sort()).toEqual([
       "description",
@@ -154,7 +127,7 @@ describe("reading the logo file", () => {
   function bindingCapturing() {
     const calls: Record<string, unknown>[] = [];
     const service = {
-      launch: async (_n: NetworkDescriptor, input: Record<string, unknown>) => {
+      launch: async (_d: unknown, _n: NetworkDescriptor, input: Record<string, unknown>) => {
         calls.push(input);
         return { kind: "sunpump-launch", mode: "dry-run" };
       },
@@ -162,8 +135,6 @@ describe("reading the logo file", () => {
     return { calls, binding: sunpumpLaunchTronBinding(service) };
   }
 
-  // A preview whose file does not exist has validated nothing, so the file is read even for a dry
-  // run — and a path that is not there is `file_not_found`, not a provider failure.
   it("reads --image during a dry run, and reports a missing file as file_not_found", async () => {
     const { calls, binding } = bindingCapturing();
     await expect(

@@ -1,35 +1,9 @@
-/**
- * Mapping an EVM node's rejection text to a stable error code.
- *
- * The JSON-RPC spec fixes no codes for these, and clients word them differently, so the match is
- * on substrings of the message. An unmatched rejection keeps the node's own words rather than
- * being forced into a category that might be wrong.
- *
- * Classification is a property of the RPC METHOD, not of the call site. A node error means one of
- * two things: the node itself could not answer (`rpc_error`/`timeout`), or the node answered and
- * its answer is a VERDICT on the transaction you handed it. Only a method that executes something
- * can return a verdict, so only those methods are classified — see CLASSIFIED_METHODS.
- */
 export interface EvmRejection {
   code: string;
   message: string;
 }
 
-/**
- * The only methods whose errors can be a verdict rather than a fault.
- *
- * `eth_estimateGas` simulates the transaction, `eth_call` executes a read-only call, and
- * `eth_sendRawTransaction` submits it — each runs the EVM against the caller's input, so
- * "insufficient funds" or "reverted" from one of them is a fact about the transaction.
- *
- * Every OTHER method (`eth_getBalance`, `eth_getTransactionCount`, `eth_getCode`,
- * `eth_blockNumber`, `eth_getBlockByNumber`, `eth_syncing`, `net_peerCount`, `eth_gasPrice`,
- * `eth_maxPriorityFeePerGas`, `eth_chainId`, `eth_getTransactionReceipt`,
- * `eth_getTransactionByHash`, `web3_clientVersion`) only reads state. It has no transaction to
- * judge, so an error from it is the node failing — `rpc_error`, always. Do NOT add a read method
- * here to "improve coverage": it would turn an endpoint that rate-limits or does not implement a
- * method into a claim about the user's transaction.
- */
+// Classify only executing methods; state-read failures do not establish transaction rejection.
 const EXECUTING = ["eth_estimateGas", "eth_call", "eth_sendRawTransaction"] as const;
 const SIMULATING = ["eth_estimateGas", "eth_call"] as const;
 
@@ -39,7 +13,6 @@ interface Rule {
   pattern: RegExp;
   code: string;
   message: string;
-  /** the methods this rule may answer for — the same words mean different things per method. */
   methods: readonly string[];
 }
 
@@ -68,9 +41,7 @@ const PATTERNS: Rule[] = [
     message: "replacing a pending transaction needs a higher fee than the one it replaces",
     methods: EXECUTING,
   },
-  // Ordered BEFORE gas_too_low, which also matches `out of gas`. During a simulation, running out
-  // of gas is the EVM halting inside the call — the contract's answer; on a submission, the same
-  // words mean the transaction never had enough gas to start.
+  // Match simulation out-of-gas before the submission gas_too_low rule.
   {
     pattern: /execution reverted|invalid opcode|out of gas/i,
     code: "execution_reverted",
@@ -98,25 +69,28 @@ const PATTERNS: Rule[] = [
   },
 ];
 
-/** `already known` / `known transaction`: the transaction is ALREADY in the mempool, so the
- *  submission succeeded earlier. Reporting a failure would deny something that already holds. */
+// An already-known transaction is accepted, not a failed submission.
 export function isAlreadyKnown(message: string): boolean {
   return /already known|known transaction|already exists|transaction already in pool/i.test(
     message,
   );
 }
 
-/** the codes this table can produce — the error-code registry checks itself against it, so a new
- *  rule here cannot ship without an entry there. */
+// JSON-RPC 2.0 and EIP-1474 codes that prove the node refused the transaction (-32003) or did not process the
+// request (-32700, -32600, -32601, -32602, -32004, -32006). Any other code may follow acceptance, so its outcome
+// is unknown: -32000 too, because endpoints in the implementation-defined server range use it for timeouts.
+const DEFINITE_SUBMIT_ERROR_CODES: ReadonlySet<number> = new Set([
+  -32003, -32700, -32600, -32601, -32602, -32004, -32006,
+]);
+
+export function isDefiniteSubmitRefusal(code: number): boolean {
+  return DEFINITE_SUBMIT_ERROR_CODES.has(code);
+}
+
 export const EVM_REJECTION_CODES: readonly string[] = [
   ...new Set(PATTERNS.map(({ code }) => code)),
 ];
 
-/**
- * The node's verdict on a request to `method`, or `undefined` when there is none to read — either
- * the method does not execute anything (so its errors are faults, not verdicts) or the wording is
- * unrecognised, in which case the caller keeps the node's own words.
- */
 export function classifyEvmRejection(method: string, message: string): EvmRejection | undefined {
   if (!CLASSIFIED_METHODS.has(method)) return undefined;
   for (const rule of PATTERNS) {

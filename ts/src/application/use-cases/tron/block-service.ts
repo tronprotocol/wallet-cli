@@ -1,3 +1,5 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
@@ -5,19 +7,12 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 export class TronBlockService {
   constructor(private readonly gateways: ChainGatewayProvider) {}
 
-  /**
-   * A real TRON block always carries `blockID`; a height the node has no record of comes back as
-   * `{}` (confirmed against Nile: `getnowblock`/`getblockbynum` answer `success` at exit 0 either
-   * way, so the shape of the body — not a transport failure — is the only signal available). What
-   * a missing `blockID` means depends on whether a height was asked for:
-   *   - a specific height → the node is stating a fact about the chain: `not_found`.
-   *   - no height (latest) → there is no such thing as "the chain has no latest block"; an empty
-   *     answer here is the node giving a bad response, not a fact, so it is `invalid_node_response`
-   *     (same reasoning as the EVM half of this fix, see block-service.ts there).
-   */
-  async get(network: NetworkDescriptor, number?: string) {
-    const block = await this.gateways.get(network, "tron").getBlock(number);
-    if (block === null || typeof block !== "object" || !("blockID" in block)) {
+  // A missing latest block is an invalid response.
+  async get(deadline: ExecutionDeadline, network: NetworkDescriptor, number?: string) {
+    const block = await this.gateways
+      .get(network, "tron", requestDispatchCheck(deadline))
+      .getBlock(number);
+    if (block === null) {
       throw number === undefined
         ? new ChainError(
             "invalid_node_response",
@@ -30,6 +25,11 @@ export class TronBlockService {
               "than that it never existed",
           );
     }
-    return { block };
+    return {
+      block: block.raw,
+      number: block.number,
+      timestampMs: block.timestampMs,
+      transactionCount: block.transactionCount,
+    };
   }
 }

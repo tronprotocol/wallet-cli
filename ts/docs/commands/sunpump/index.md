@@ -46,7 +46,7 @@ The two closed states get different messages: one is a wait, the other is a redi
 
 ## The platform fee is not the chain's fee
 
-SunPump charges **1% of the TRX, with a 0.01 TRX minimum**, on both sides. The minimum is what matters: a small trade pays far more than 1%. When it does, the `--quote` and `--dry-run` output warn with the rate it actually worked out to, and JSON carries it as `platformFeePercent`:
+SunPump charges **1% of the TRX, with a 0.01 TRX minimum**, on both sides. The minimum is what matters: a small trade pays far more than 1%. When it does, the `--quote` and `--dry-run` output warn with the rate it actually worked out to, and JSON carries it as `platformFeePercent`, with the minimum in SUN as `platformFeeMinimum`:
 
 ```
 ⚠️ Platform fee is 25.38% of this sell (0.01 TRX minimum).
@@ -60,7 +60,7 @@ Default slippage is **5%**, ten times [`sunswap swap`](../sunswap/swap.md)'s 0.5
 
 ## `--quote` costs nothing
 
-`--quote` prices the trade from contract reads alone: **no account, no password, no transaction**. It publishes **no minimum and no slippage**, and refuses `--slippage`, `--min-out` and `--wait` — a quote sends no transaction, so a floor would never be enforced.
+`--quote` prices the trade from contract reads alone: **no account, no password, no transaction**. It publishes **no minimum and no slippage**, and refuses `--slippage`, `--min-out`, `--wait` and `--no-wait` — a quote sends no transaction, so a floor would never be enforced.
 
 **Ledger** accounts need **Custom contracts** and **Sign by Hash** allowed in the TRON app — see [TRON app settings](../../guide/ledger.md#tron-app-settings).
 

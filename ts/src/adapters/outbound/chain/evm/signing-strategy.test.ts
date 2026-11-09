@@ -3,14 +3,11 @@ import { Transaction, TypedDataEncoder, keccak256, verifyMessage, verifyTypedDat
 import { localTxId } from "../../../../application/services/broadcast-identity.js";
 import { evmSignStrategy } from "./signing-strategy.js";
 
-// Anvil / Hardhat account #0 — a published key/address pair.
+// Public Anvil account 0 fixture.
 const PK = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 const ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
 describe("evmSignStrategy.signMessage (EIP-191)", () => {
-  // Verified by RECOVERING the signer with an independent implementation, rather than against a
-  // signature string copied from somewhere — that catches a wrong digest, a wrong v, and a
-  // malleable s all at once.
   it.each([
     ["ascii", "hello world"],
     ["empty", ""],
@@ -28,7 +25,7 @@ describe("evmSignStrategy.signMessage (EIP-191)", () => {
   });
 });
 
-// The canonical EIP-712 example from the specification itself.
+// EIP-712 Ether Mail fixture.
 const DOMAIN = {
   name: "Ether Mail",
   version: "1",
@@ -83,9 +80,6 @@ describe("evmSignStrategy.signTypedData (EIP-712)", () => {
     expect(result.primaryType).toBe("Mail");
   });
 
-  // Wallets are routinely handed the full JSON-RPC payload, which DOES carry EIP712Domain in
-  // `types`. ethers computes the domain separator itself and rejects the redundant entry, so a
-  // strategy that forwards types verbatim would fail on the most common real-world input.
   it("accepts a payload that includes EIP712Domain in its types", async () => {
     const types = {
       EIP712Domain: [
@@ -140,8 +134,6 @@ describe("evmSignStrategy.sign (transactions)", () => {
     expect(parsed.maxFeePerGas).toBe(30_000_000_000n);
   });
 
-  // EIP-155 replay protection: a legacy transaction must carry the chain id in v, so a signature
-  // for Sepolia cannot be replayed on mainnet.
   it("signs a legacy transaction with EIP-155 replay protection", async () => {
     const { raw } = (await evmSignStrategy.sign(PK, {
       type: 0,
@@ -163,14 +155,6 @@ describe("evmSignStrategy.sign (transactions)", () => {
   });
 });
 
-/**
- * A signed EVM transaction is carried as `{ raw, hash }`, not as a bare serialised string.
- *
- * The hash is keccak256 of the signed bytes, so it is derivable from what we signed rather than
- * assigned by a node — exactly the property `authoritativeTxId` relies on to refuse a node's
- * word about which transaction it just accepted. Naming the field `hash` is what lets the
- * existing `localTxId` find it, with no family branch: TRON supplies `txID`, EVM supplies `hash`.
- */
 describe("evmSignStrategy signed-transaction identity", () => {
   const tx = {
     type: 2,
@@ -202,8 +186,6 @@ describe("evmSignStrategy signed-transaction identity", () => {
     const signed = await evmSignStrategy.sign(PK, tx);
     const found = localTxId(signed);
 
-    // Asserting equality alone would pass on undefined === undefined, which is precisely the
-    // broken state this exists to catch: a bare string carries no id for localTxId to find.
     expect(found).toMatch(/^0x[0-9a-f]{64}$/);
     expect(found).toBe((signed as { hash: string }).hash);
   });

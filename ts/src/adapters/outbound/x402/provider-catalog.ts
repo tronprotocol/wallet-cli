@@ -1,13 +1,19 @@
-import { fetchBounded } from "../http/http-response.js";
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import { requestJson } from "../http/json-service.js";
 import { mkdir, rename, writeFile, readFile, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type {
+  ProviderCatalogJson,
   ProviderCatalogPort,
+  ProviderCatalogUpdate,
+  ProviderEndpointsView,
   ProviderListInput,
+  ProviderListView,
+  ProviderRecord,
 } from "../../../application/ports/provider-catalog.js";
-import { CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
+import { TransportError, UsageError } from "../../../domain/errors/index.js";
 
 const CATALOG_URL = "https://x402-catalog.bankofai.io/api/catalog.json";
 
@@ -15,11 +21,10 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
   constructor(
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly cacheFile = join(homedir(), ".cache", "wallet-cli", "x402", "catalog.json"),
-    private readonly timeoutMs = 60000,
   ) {}
 
-  async list(input: ProviderListInput) {
-    const payload = await this.catalog();
+  async list(input: ProviderListInput, check: DispatchCheck): Promise<ProviderListView> {
+    const payload = await this.catalog(check);
     let providers = arrayOfObjects(payload.providers).map(normalizeObject);
     validateFilter(providers, "type", input.type, "type is not exposed by the catalog yet");
     validateFilter(providers, "category", input.category);
@@ -41,8 +46,10 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     const total = providers.length;
     return {
       catalog: CATALOG_URL,
-      ...(payload.generated_at === undefined ? {} : { generatedAt: payload.generated_at }),
-      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings }),
+      ...(payload.generated_at === undefined
+        ? {}
+        : { generatedAt: payload.generated_at as string }),
+      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings as string[] }),
       count: Math.min(input.limit, Math.max(0, total - input.offset)),
       filters: Object.fromEntries(
         Object.entries({
@@ -66,16 +73,16 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     };
   }
 
-  async show(fqn: string) {
+  async show(fqn: string, check: DispatchCheck): Promise<ProviderRecord> {
     safeFqn(fqn);
     const cached = await this.cached();
     const details = cached?.cached_details as Record<string, Record<string, unknown>> | undefined;
     if (details && Object.hasOwn(details, fqn)) return normalizeObject(details[fqn]!);
-    return normalizeObject(await this.readJson(detailUrl("providers", fqn)));
+    return normalizeObject(await this.readJson(detailUrl("providers", fqn), check));
   }
 
-  async endpoints(fqn: string) {
-    const provider = await this.show(fqn);
+  async endpoints(fqn: string, check: DispatchCheck): Promise<ProviderEndpointsView> {
+    const provider = await this.show(fqn, check);
     return {
       fqn,
       endpoints: Array.isArray(provider.endpoints) ? provider.endpoints : [],
@@ -83,14 +90,14 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     };
   }
 
-  async update() {
-    const payload = validateCatalog(await this.readJson(CATALOG_URL));
+  async update(check: DispatchCheck): Promise<ProviderCatalogUpdate> {
+    const payload = validateCatalog(await this.readJson(CATALOG_URL, check));
     const details: Record<string, Record<string, unknown>> = {};
-    // Refresh a complete snapshot so show/endpoints can work offline too.
+    // Cache provider details for offline show/endpoints calls.
     for (const provider of arrayOfObjects(payload.providers)) {
       const fqn = String(provider.fqn);
       safeFqn(fqn);
-      details[fqn] = await this.readJson(detailUrl("providers", fqn));
+      details[fqn] = await this.readJson(detailUrl("providers", fqn), check);
     }
     const body = `${JSON.stringify({ ...payload, cached_details: details }, null, 2)}\n`;
     const temporary = `${this.cacheFile}.${randomUUID()}.tmp`;
@@ -107,15 +114,17 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
       updated: true,
       cache: this.cacheFile,
       providers: arrayOfObjects(payload.providers).length,
-      ...(payload.generated_at === undefined ? {} : { generatedAt: payload.generated_at }),
-      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings }),
+      ...(payload.generated_at === undefined
+        ? {}
+        : { generatedAt: payload.generated_at as string }),
+      ...(payload.warnings === undefined ? {} : { warnings: payload.warnings as string[] }),
     };
   }
 
-  private async catalog() {
+  private async catalog(check: DispatchCheck) {
     const cached = await this.cached();
     if (cached) return cached;
-    return validateCatalog(await this.readJson(CATALOG_URL));
+    return validateCatalog(await this.readJson(CATALOG_URL, check));
   }
 
   private async cached(): Promise<Record<string, unknown> | undefined> {
@@ -126,31 +135,29 @@ export class X402ProviderCatalog implements ProviderCatalogPort {
     }
   }
 
-  private async readJson(url: string): Promise<Record<string, unknown>> {
-    let response: Response;
-    try {
-      response = await fetchBounded(
-        this.fetcher,
-        url,
-        { headers: { accept: "application/json" }, redirect: "error" },
-        this.timeoutMs,
-      );
-    } catch (error) {
-      if (error instanceof CliError) throw error;
-      throw new TransportError("provider_error", "x402 catalog request failed");
-    }
-    if (response.status === 404)
-      throw new TransportError("provider_not_found", "x402 provider was not found");
-    if (!response.ok) {
-      throw new TransportError("provider_error", `x402 catalog returned HTTP ${response.status}`);
-    }
-    try {
-      const value: unknown = await response.json();
-      if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
-      return value as Record<string, unknown>;
-    } catch {
-      throw new TransportError("invalid_x402_response", "x402 catalog returned invalid JSON");
-    }
+  private async readJson(url: string, check: DispatchCheck): Promise<Record<string, unknown>> {
+    const invalid = () =>
+      new TransportError("invalid_x402_response", "x402 catalog returned invalid JSON");
+    const { body } = await requestJson(
+      this.fetcher,
+      url,
+      { headers: { accept: "application/json" } },
+      {
+        service: "x402 catalog",
+        check,
+        errors: {
+          timeout: () => new TransportError("timeout", "x402 catalog request timed out"),
+          unreachable: () => new TransportError("provider_error", "x402 catalog request failed"),
+          malformed: invalid,
+        },
+        refuse: (response) =>
+          response.status === 404
+            ? new TransportError("provider_not_found", "x402 provider was not found")
+            : new TransportError("provider_error", `x402 catalog returned HTTP ${response.status}`),
+      },
+    );
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw invalid();
+    return body as Record<string, unknown>;
   }
 }
 
@@ -174,17 +181,18 @@ function arrayOfObjects(value: unknown): Record<string, unknown>[] {
     : [];
 }
 
-function normalizeObject(value: Record<string, unknown>): Record<string, unknown> {
+function normalizeObject(value: Record<string, unknown>): ProviderRecord {
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [camel(key), normalize(item)]),
   );
 }
 
-function normalize(value: unknown): unknown {
+// Values come from parsed catalog JSON.
+function normalize(value: unknown): ProviderCatalogJson {
   if (Array.isArray(value)) return value.map(normalize);
   if (value && typeof value === "object") return normalizeObject(value as Record<string, unknown>);
   if (typeof value === "string") return normalizeNetwork(value);
-  return value;
+  return value as ProviderCatalogJson;
 }
 
 function camel(value: string): string {

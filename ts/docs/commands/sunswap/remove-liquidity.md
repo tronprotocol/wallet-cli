@@ -9,7 +9,7 @@ wallet-cli sunswap remove-liquidity --protocol <V2|V3|V4> --liquidity <n>
                                     [--token0 <token> --token1 <token>] [--position-id <id>]
                                     [--fee <n>] [--min0 <n>] [--min1 <n>] [--slippage <decimal>]
                                     [--recipient <address>] [--deadline <timestamp>] [--fee-limit <sun>]
-                                    [--dry-run | --build-only | --wait [--wait-timeout <ms>]] [options]
+                                    [--dry-run | --build-only | --wait | --no-wait] [options]
 ```
 
 ## Description
@@ -36,7 +36,7 @@ It is not a mirror image of adding:
 
 ### V3 and V4 pay out the fees too
 
-A V3 or V4 withdrawal also pays out **every fee the position has accrued**, in the same transaction, so more arrives than the principal the estimate quotes — on an older position, the fees can be most of it. The dry run warns about this. In the confirmed receipt, `Received` is the total; JSON splits it into `amount` (principal) and `feeAmount` (fees), and V4 adds `receivedAmount`, the net amount that actually reached you.
+A V3 or V4 withdrawal also pays out **every fee the position has accrued**, in the same transaction, so more arrives than the principal the estimate quotes — on an older position, the fees can be most of it. The dry run warns about this. In the confirmed receipt, `Received` is the total; JSON splits it into `amount` (principal) and `feeAmount` (fees), and `receivedAmount` is their total; on V4 it is the measured balance change.
 
 To take the fees **without** touching the principal, use [`sunswap collect-fees`](collect-fees.md).
 
@@ -62,7 +62,8 @@ A V4 withdrawal needs **both** `--position-id` and `--token0` / `--token1`. The 
 | `--fee-limit <sun>` | Maximum energy fee to burn, in SUN; default `100000000` |
 | `--dry-run` | Validate and estimate only — no password, no signature, no broadcast |
 | `--build-only` | Emit the unsigned transactions in execution order |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--account <label\|accountId>` | Account to withdraw for; default the active account |
 | `--password-stdin` | Master password from stdin; needed only by the modes that sign |
 
@@ -76,7 +77,7 @@ In the examples, `$PW` is your master password, fed on stdin via `--password-std
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 701 --liquidity 1000000 \
-  --wait --password-stdin --network nile
+  --password-stdin --network nile
 ```
 
 ```console
@@ -97,18 +98,18 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 701
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V3 --position-id 702 --liquidity 1000000 \
-  --wait --password-stdin --network nile -o json
+  --password-stdin --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.remove-liquidity","data":{"kind":"sunswap-remove-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V3","positionManager":"TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R","nftTokenId":"702","liquidity":"1000000","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"55917","feeAmount":"0"},"token1":{"address":"TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a","symbol":"WTRX","decimals":6,"amount":"42532","feeAmount":"0"},"stage":"confirmed","txId":"110ac4aa0de576d58f7ddcca0a24b46d23783d80d30089ecdcaa0046cdb42e02","confirmed":true,"blockNumber":71636717,"feeSun":30506600,"energyUsed":296797,"energyFeeSun":29679600,"netFeeSun":827000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"liquidityAfter":"16883571"},"meta":{"durationMs":12819,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.remove-liquidity","data":{"kind":"sunswap-remove-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V3","positionManager":"TPQzqHbCzQfoVdAV6bLwGDos8Lk2UjXz2R","nftTokenId":"702","liquidity":"1000000","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","collectsFees":true,"token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"55917","feeAmount":"0","receivedAmount":"55917"},"token1":{"address":"TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a","symbol":"WTRX","decimals":6,"amount":"42532","feeAmount":"0","receivedAmount":"42532"},"stage":"confirmed","txId":"110ac4aa0de576d58f7ddcca0a24b46d23783d80d30089ecdcaa0046cdb42e02","confirmed":true,"blockNumber":71636717,"feeSun":30506600,"energyUsed":296797,"energyFeeSun":29679600,"netFeeSun":827000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"liquidityAfter":"16883571"},"meta":{"durationMs":12819,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-**V4**, naming the pair as a check on position #188. JSON adds `receivedAmount`, the net amount that reached the account:
+**V4**, naming the pair as a check on position #188. JSON reports `receivedAmount` as the measured net amount that reached the account:
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 188 --token0 TRX --token1 USDT \
-  --liquidity 1000000 --wait --password-stdin --network nile
+  --liquidity 1000000 --password-stdin --network nile
 ```
 
 ```console
@@ -134,18 +135,18 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 188
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V4 --position-id 189 --token0 TRX --token1 USDT \
-  --liquidity 1000000 --wait --password-stdin --network nile -o json
+  --liquidity 1000000 --password-stdin --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.remove-liquidity","data":{"kind":"sunswap-remove-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V4","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","deadline":1791441544,"nftTokenId":"189","liquidity":"1000000","token0":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6,"amount":"81451","feeAmount":"0","receivedAmount":"81451"},"token1":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"29198","feeAmount":"0","receivedAmount":"29198"},"poolId":"977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a","feeTier":500,"tickSpacing":10,"hooks":"none","tickLower":-11160,"tickUpper":-9160,"positionManager":"TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP","stage":"confirmed","txId":"07d11ba027d860f61656439dc97efb7900ec75c931569d7f54c6ae08ac75e7e5","confirmed":true,"blockNumber":71636733,"feeSun":9541700,"energyUsed":85868,"energyFeeSun":8586700,"netFeeSun":955000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"liquidityAfter":"11277290"},"meta":{"durationMs":14166,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.remove-liquidity","data":{"kind":"sunswap-remove-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V4","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","deadline":1791441544,"nftTokenId":"189","liquidity":"1000000","token0":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6,"amount":"81451","feeAmount":"0","receivedAmount":"81451"},"token1":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"29198","feeAmount":"0","receivedAmount":"29198"},"poolId":"977d6ad6be3a3206f7ca881434bb8a08ecaf1abe4690eed6ee23e3e7e0ae9b6a","feeTier":500,"tickSpacing":10,"hooks":"none","tickLower":-11160,"tickUpper":-9160,"collectsFees":true,"positionManager":"TMTQ1BYo15aGgZXHcsBWXyae8bVaAdgfLP","stage":"confirmed","txId":"07d11ba027d860f61656439dc97efb7900ec75c931569d7f54c6ae08ac75e7e5","confirmed":true,"blockNumber":71636733,"feeSun":9541700,"energyUsed":85868,"energyFeeSun":8586700,"netFeeSun":955000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"liquidityAfter":"11277290"},"meta":{"durationMs":14166,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 **V2**, burning the LP tokens one [`add-liquidity`](add-liquidity.md) deposit minted (`lpAmount` 770874 at 18 decimals). The LP token is approved first:
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --token1 TRX \
-  --liquidity 0.000000000000770874 --wait --password-stdin --network nile
+  --liquidity 0.000000000000770874 --password-stdin --network nile
 ```
 
 ```console
@@ -166,11 +167,11 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --t
 
 ```bash
 echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --token1 TRX \
-  --liquidity 0.000000000000770874 --wait --password-stdin --network nile -o json
+  --liquidity 0.000000000000770874 --password-stdin --network nile -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.remove-liquidity","data":{"kind":"sunswap-remove-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V2","router":"TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","lpAmount":"770874","lpDecimals":18,"token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"999999"},"token1":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6,"amount":"693728"},"approvalTxIds":["e061d881aa560ce802e10e203c834f6c11da82d6498f7b6c0ca0067529c1757a"],"stage":"confirmed","txId":"7dbf85fc0927522eb150564a06dd3bcdd18b22be5ab28911a120692e5d68f840","confirmed":true,"blockNumber":71636747,"feeSun":20073600,"energyUsed":195987,"energyFeeSun":19598600,"netFeeSun":475000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"reservesAfter":{"token0":"8920608853348","token1":"6188486049459"}},"meta":{"durationMs":21567,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"sunswap.remove-liquidity","data":{"kind":"sunswap-remove-liquidity","account":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","protocol":"V2","router":"TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy","recipient":"TMSgJxtPw29AFEHMXsjGo4kWV7UwbCToHJ","lpAmount":"770874","lpDecimals":18,"token0":{"address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf","symbol":"USDT","decimals":6,"amount":"999999","receivedAmount":"999999"},"token1":{"address":"T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb","symbol":"TRX","decimals":6,"amount":"693728","receivedAmount":"693728"},"approvalTxIds":["e061d881aa560ce802e10e203c834f6c11da82d6498f7b6c0ca0067529c1757a"],"stage":"confirmed","txId":"7dbf85fc0927522eb150564a06dd3bcdd18b22be5ab28911a120692e5d68f840","confirmed":true,"blockNumber":71636747,"feeSun":20073600,"energyUsed":195987,"energyFeeSun":19598600,"netFeeSun":475000,"result":"SUCCESS","failed":false,"amountsEstimated":false,"reservesAfter":{"token0":"8920608853348","token1":"6188486049459"}},"meta":{"durationMs":21567,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
 ## Output
@@ -182,7 +183,8 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --t
 | `account` / `recipient` / `deadline` | — | As in [`add-liquidity`](add-liquidity.md#output) |
 | `lpAmount` / `lpDecimals` | string / number | V2: LP tokens burned, base units |
 | `nftTokenId`, `liquidity` | string | V3 / V4: the position and the liquidity burned; after confirmation, `liquidityAfter` is what it still holds. No decimals |
-| `token0` / `token1` | object | `{address, symbol, decimals, amount, amountMinimum}`. Before sending, `amount` is what current reserves say is coming back; once confirmed, what arrived — with `feeAmount` beside it on V3 / V4, and `receivedAmount` on V4 |
+| `token0` / `token1` | object | `{address, symbol, decimals, amount, amountMinimum, receivedAmount}`. Before sending, `amount` is what current reserves say is coming back; once confirmed, what arrived — with `feeAmount` beside it on V3 / V4. `receivedAmount` is what reaches the recipient: the principal plus any fees (on a confirmed V4 receipt, the measured balance change). `acceptsAnyAmount: true` marks a side whose `amountMinimum` is `0` |
+| `collectsFees` | boolean | `true` on V3 / V4: the withdrawal also collects the position's accrued fees, so more than the estimate may arrive |
 | `poolId`, `feeTier`, `tickSpacing`, `hooks`, `tickLower`, `tickUpper` | — | V4: the position's pool key and range |
 | `router` (V2) / `positionManager` (V3, V4) | string | The contract the withdrawal goes through |
 | `approvals[]` | array | V2: the LP-token approval to be sent first |
@@ -190,7 +192,7 @@ echo "$PW" | wallet-cli sunswap remove-liquidity --protocol V2 --token0 USDT --t
 | `fee` / `feeCovers` | — | The estimate and what it covers |
 | `approvalTxIds[]`, `amountsEstimated` | — | Once sent, as in [`add-liquidity`](add-liquidity.md#output) |
 
-The default mode returns at submission (`stage: "submitted"`, `txId`); `--wait` adds `stage: "confirmed"`, `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`.
+The command waits for confirmation by default and reports `stage: "confirmed"` (or `"failed"`), `confirmed`, `blockNumber`, `feeSun` (with its parts `energyUsed`, `energyFeeSun`, `netFeeSun`), `result` and `failed`; with `--no-wait` it returns at submission (`stage: "submitted"`, `txId`).
 
 ## Exit status
 

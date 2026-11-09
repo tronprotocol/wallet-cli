@@ -3,11 +3,10 @@ import { pairPrices, reciprocal, truncate } from "./pair-price.js";
 
 const WTRX = "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR";
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-/** the live WTRX/USDT V3 rate: token0 (WTRX) per one token1 (USDT), 40 significant digits. */
+// WTRX per USDT, beyond float precision.
 const RATE = "2.909173910769221638008798715979251686941";
 
 describe("pairPrices", () => {
-  // The rate already says "token0 per one token1", which is what a token0 quote asks for.
   it("takes the rate as it stands when the quote is token0", () => {
     expect(pairPrices([WTRX, USDT], [RATE], WTRX)).toEqual([
       { base: USDT, quote: WTRX, price: "2.909173910769221638" },
@@ -17,13 +16,9 @@ describe("pairPrices", () => {
   it("inverts it when the quote is token1", () => {
     const [entry] = pairPrices([WTRX, USDT], [RATE], USDT);
     expect(entry).toMatchObject({ base: WTRX, quote: USDT });
-    // 1 / 2.909173910769221638008798715979251686941 = 0.34374019246432318173…,
-    // truncated at 18 places. Checked against an 80-digit decimal, not against a float.
     expect(entry?.price).toBe("0.343740192464323181");
   });
 
-  // A stable pool with three assets has no single pairwise rate; inventing one from the wrong
-  // pair of numbers would be worse than the em dash the table shows instead.
   it("declines a pool that is not a plain two-token pool", () => {
     expect(pairPrices([WTRX, USDT, "TX"], [RATE], USDT)).toEqual([]);
     expect(pairPrices([WTRX, USDT], [], USDT)).toEqual([]);
@@ -41,7 +36,6 @@ describe("reciprocal", () => {
     expect(reciprocal("4", 2)).toBe("0.25");
   });
 
-  // 1/3 is 0.333… forever; the answer must stop by cutting, never by rounding up.
   it("truncates rather than rounding", () => {
     expect(reciprocal("3", 6)).toBe("0.333333");
     expect(reciprocal("0.7", 6)).toBe("1.428571");

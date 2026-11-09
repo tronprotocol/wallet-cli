@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as fs from "node:fs";
+import { Readable } from "node:stream";
 import { createServer } from "node:http";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -9,38 +9,34 @@ import { registerX402Commands } from "./x402.js";
 import { X402Service } from "../../../../application/use-cases/x402-service.js";
 import { X402PaymentClient } from "../../../outbound/x402/payment-client.js";
 import { StreamManager } from "../stream/index.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { SignerResolver } from "../../../../application/services/signer/index.js";
-
-// Replace only the operating-system stdin boundary; exercise the real StreamManager and CLI.
-vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal<typeof fs>();
-  return { ...actual, readFileSync: vi.fn(actual.readFileSync) };
-});
 
 const network = { id: "eip155:56", family: "evm", chainId: "56" } as NetworkDescriptor;
 afterEach(() => vi.restoreAllMocks());
 
+// Exercises the real stream and command handling over a substitute stdin.
+let stdinBytes = Buffer.alloc(0);
 async function stdin(bytes: Buffer<ArrayBuffer>) {
-  const actual = await vi.importActual<typeof fs>("node:fs");
-  vi.mocked(fs.readFileSync).mockImplementation((file, options) => {
-    if (file !== 0) return actual.readFileSync(file, options);
-    return options === "utf8" ? bytes.toString("utf8") : bytes;
-  });
+  stdinBytes = bytes;
 }
+const streamManager = () =>
+  new StreamManager("json", false, undefined, undefined, () => Readable.from([stdinBytes]));
+const UNLIMITED = new CommandDeadline(0);
 
-function command(client: X402PaymentClient) {
+function command(service: X402Service) {
   const registry = new CommandRegistry();
-  registerX402Commands(registry, new X402Service(client, {} as never, {} as never));
+  registerX402Commands(registry, service);
   return registry.resolveNeutral(["x402", "pay"])!;
 }
 
 function context() {
   return {
-    timeoutMs: 1000,
+    deadline: UNLIMITED,
     emit: vi.fn(),
     secrets: { has: () => false },
-    streams: new StreamManager("json", false),
+    streams: streamManager(),
   };
 }
 
@@ -74,17 +70,27 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
       authorization.push(request.headers["payment-signature"] as string | undefined);
       response.statusCode = retry && received.length === 1 ? 402 : 200;
       response.setHeader("content-type", "text/plain");
-      response.end("ok");
+      response.end(
+        response.statusCode === 402
+          ? JSON.stringify({
+              accepts: [
+                {
+                  scheme: "exact",
+                  network: network.id,
+                  amount: "1",
+                  asset: "0x55d398326f99059fF775485246999027B3197955",
+                },
+              ],
+            })
+          : "ok",
+      );
     });
     const resolver = {
       assertCanSign: vi.fn(),
       resolve: vi.fn(() => ({ address: "0x1111111111111111111111111111111111111111" })),
     } as unknown as SignerResolver;
-    // The injected payment boundary uses a fixed test header; no real signer, RPC or payment.
+    // Use a fixed payment header; no real signing or payment occurs.
     const paidFetch: typeof fetch = async (url, init) => {
-      const initial = await fetch(url, init);
-      if (initial.status !== 402) return initial;
-      await initial.arrayBuffer();
       const headers = new Headers(init?.headers);
       headers.set("payment-signature", "test-only");
       return fetch(url, { ...init, headers });
@@ -95,10 +101,11 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
       await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
       const address = server.address();
       if (!address || typeof address === "string") throw new Error("missing server port");
-      const client = new X402PaymentClient(
+      const client = new X402Service(
+        new X402PaymentClient(globalThis.fetch, retry ? async () => paidFetch : undefined),
         resolver,
-        globalThis.fetch,
-        retry ? async () => paidFetch : undefined,
+        {} as never,
+        {} as never,
       );
       await command(client).run(context() as never, network, {
         url: `http://127.0.0.1:${address.port}`,
@@ -119,7 +126,7 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
   }
 
   it.each([1_048_576, 1_048_577])("checks the raw-byte limit for %i bytes", async (length) => {
-    // These bytes would triple in size if first decoded to replacement characters.
+    // UTF-8 replacement characters would triple these bytes on re-encoding.
     const bytes = Buffer.alloc(length, 0xff);
     const directory = await mkdtemp(join(tmpdir(), "x402-body-limit-"));
     const path = join(directory, "body.bin");
@@ -130,16 +137,14 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
     try {
       await writeFile(path, bytes);
       if (source === "stdin") await stdin(bytes);
-      const result = command(new X402PaymentClient({} as never, fetcher)).run(
-        context() as never,
-        network,
-        {
-          url: "http://example.test",
-          method: "POST",
-          header: [],
-          bodyFile: source === "stdin" ? "-" : path,
-        },
-      );
+      const result = command(
+        new X402Service(new X402PaymentClient(fetcher), {} as never, {} as never, {} as never),
+      ).run(context() as never, network, {
+        url: "http://example.test",
+        method: "POST",
+        header: [],
+        bodyFile: source === "stdin" ? "-" : path,
+      });
       if (length === 1_048_576) {
         await expect(result).resolves.toMatchObject({ delivered: true });
         expect(fetcher).toHaveBeenCalledOnce();
@@ -158,7 +163,9 @@ it("keeps inline --body as text", async () => {
     expect(init?.body).toBe("中文\r\n");
     return new Response("ok");
   });
-  await command(new X402PaymentClient({} as never, fetcher)).run(context() as never, network, {
+  await command(
+    new X402Service(new X402PaymentClient(fetcher), {} as never, {} as never, {} as never),
+  ).run(context() as never, network, {
     url: "http://example.test",
     method: "POST",
     header: [],
@@ -171,10 +178,14 @@ it.each(["text", "bytes"])(
   "consuming stdin as %s prevents either kind of second read",
   async (kind) => {
     await stdin(Buffer.from("0041fffe800d0a42", "hex"));
-    const streams = new StreamManager("json", false);
-    if (kind === "text") expect(streams.readStdinOnce()).toBe("\0A���\r\nB");
-    else expect(streams.readStdinBytesOnce().toString("hex")).toBe("0041fffe800d0a42");
-    expect(() => streams.readStdinOnce()).toThrow("stdin already consumed");
-    expect(() => streams.readStdinBytesOnce()).toThrow("stdin already consumed");
+    const streams = streamManager();
+    const signal = UNLIMITED.signal;
+    if (kind === "text") expect(await streams.readStdinOnce(signal)).toBe("\0A���\r\nB");
+    else
+      expect(Buffer.from(await streams.readStdinBytesOnce(signal)).toString("hex")).toBe(
+        "0041fffe800d0a42",
+      );
+    await expect(streams.readStdinOnce(signal)).rejects.toThrow("stdin already consumed");
+    await expect(streams.readStdinBytesOnce(signal)).rejects.toThrow("stdin already consumed");
   },
 );

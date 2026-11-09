@@ -1,3 +1,4 @@
+import { processBroadcastGuard } from "../../application/services/broadcast-guard.js";
 import type { AgentService } from "../../application/use-cases/agent-service.js";
 import {
   showSpec,
@@ -145,6 +146,7 @@ import { TronTokenService } from "../../application/use-cases/tron/token-service
 import { TronTransactionService } from "../../application/use-cases/tron/transaction-service.js";
 import { TronContractService } from "../../application/use-cases/tron/contract-service.js";
 import { TronStakeService } from "../../application/use-cases/tron/stake-service.js";
+import type { WallClock } from "../../application/contracts/wall-clock.js";
 import { TronAssetService } from "../../application/use-cases/tron/asset-service.js";
 import { TronExchangeService } from "../../application/use-cases/tron/exchange-service.js";
 import { TronVoteService } from "../../application/use-cases/tron/vote-service.js";
@@ -163,6 +165,7 @@ import type { ChainGatewayProvider } from "../../application/ports/chain/gateway
 import type { TokenRepository } from "../../application/ports/token-repository.js";
 import type { PriceProvider } from "../../application/ports/price-provider.js";
 import type { SignerResolver } from "../../application/services/signer/index.js";
+import type { SigningService } from "../../application/services/signing/signing-service.js";
 import type { TxPipeline } from "../../application/services/pipeline/index.js";
 import type { AccountStore } from "../../application/ports/account-store.js";
 import { SecureTransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
@@ -178,16 +181,16 @@ import type { RouterPort } from "../../application/ports/sunswap/router.js";
 import type { RouterExecutionPort } from "../../application/ports/sunswap/router-execution.js";
 import type { Permit2Port } from "../../application/ports/sunswap/permit2.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
-import { GasFreeService } from "../../application/use-cases/tron/gasfree-service.js";
-import { SunSwapMarketQueryService } from "../../application/use-cases/tron/sunswap/market-query-service.js";
-import { SunSwapLiquidityService } from "../../application/use-cases/tron/sunswap/liquidity-service.js";
-import { SunSwapRemoveLiquidityService } from "../../application/use-cases/tron/sunswap/remove-liquidity-service.js";
-import { SunSwapCollectFeesService } from "../../application/use-cases/tron/sunswap/collect-fees-service.js";
-import { SunSwapPositionInfoService } from "../../application/use-cases/tron/sunswap/position-info-service.js";
-import { SunPumpCurveTradeService } from "../../application/use-cases/tron/sunpump/curve-trade-service.js";
-import { SunPumpMarketQueryService } from "../../application/use-cases/tron/sunpump/market-query-service.js";
-import { SunPumpTokenLaunchService } from "../../application/use-cases/tron/sunpump/token-launch-service.js";
-import { SunSwapSwapService } from "../../application/use-cases/tron/sunswap/swap-service.js";
+import { GasFreeService } from "../../application/use-cases/gasfree/gasfree-service.js";
+import { SunSwapMarketQueryService } from "../../application/use-cases/sunswap/market-query-service.js";
+import { SunSwapLiquidityService } from "../../application/use-cases/sunswap/liquidity-service.js";
+import { SunSwapRemoveLiquidityService } from "../../application/use-cases/sunswap/remove-liquidity-service.js";
+import { SunSwapCollectFeesService } from "../../application/use-cases/sunswap/collect-fees-service.js";
+import { SunSwapPositionInfoService } from "../../application/use-cases/sunswap/position-info-service.js";
+import { SunPumpCurveTradeService } from "../../application/use-cases/sunpump/curve-trade-service.js";
+import { SunPumpMarketQueryService } from "../../application/use-cases/sunpump/market-query-service.js";
+import { SunPumpTokenLaunchService } from "../../application/use-cases/sunpump/token-launch-service.js";
+import { SunSwapSwapService } from "../../application/use-cases/sunswap/swap-service.js";
 import {
   sunswapSwapSpec,
   sunswapSwapTronBinding,
@@ -216,7 +219,7 @@ import {
   sunpumpLaunchSpec,
   sunpumpLaunchTronBinding,
 } from "../../adapters/inbound/cli/commands/sunpump/launch.js";
-import { SunSwapTokenResolver } from "../../application/services/sunswap-token-resolver.js";
+import { SunSwapTokenResolver } from "../../application/services/sunswap/sunswap-token-resolver.js";
 import {
   sunswapPriceSpec,
   sunswapPriceTronBinding,
@@ -269,7 +272,7 @@ import {
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
   signStrategy: tronSignStrategy,
-  createGateway: (network, timeoutMs) => new TronRpcClient(network, timeoutMs),
+  createGateway: (network) => new TronRpcClient(network, undefined, processBroadcastGuard),
 };
 
 export interface TronChainCommandDependencies {
@@ -278,29 +281,24 @@ export interface TronChainCommandDependencies {
   tokens: TokenRepository;
   prices: PriceProvider;
   signers: SignerResolver;
+  signing: SigningService;
   transactions: TxPipeline;
   accounts: AccountStore;
-  timeoutMs: number;
   tronlink: TronLinkCollaborationPort;
   gasfree: GasFreeProvider;
-  /** SunSwap market data; the capability gate keeps it out of reach on a network without it. */
   sunswapMarket: MarketDataPort;
-  /** SunSwap liquidity contracts; keyed on a different capability, since Nile has these and no
-   *  market service. Bound when the commands that use it land. */
   sunswapLiquidity: LiquidityPort;
   sunpumpLaunchpad: LaunchpadPort;
   sunpumpMarket: SunPumpMarketDataPort;
-  /** the SunPump create endpoint. Its own port: the service creates the token and picks its owner,
-   *  so nothing about it goes through a signer or the transaction pipeline. */
   sunpumpLaunch: SunPumpTokenLaunchPort;
   sunswapRouter: RouterPort;
   sunswapRouterPlanner: RouterExecutionPort;
   sunswapPermits: Permit2Port;
-  /** config alias book, so a refusal can name a network the way a person types it. */
   aliases: Record<string, string>;
   recipients: RecipientResolver;
   balances: AccountBalanceService;
   tokenBook: TokenBookService;
+  clock: WallClock;
 }
 
 export function registerTronChainCommands(
@@ -318,30 +316,45 @@ export function registerTronChainCommands(
 
   const account = new TronAccountService(
     deps.gateways,
-    new TronGridHistoryReader(deps.timeoutMs),
+    new TronGridHistoryReader(),
     deps.tokens,
     deps.prices,
     deps.transactions,
+    deps.clock,
   );
   const token = new TronTokenService(deps.gateways, deps.tokens);
-  const message = new MessageService(deps.signers);
-  const typedData = new TypedDataService(deps.signers);
+  const message = new MessageService(deps.signers, deps.signing);
+  const typedData = new TypedDataService(deps.signers, deps.signing);
   const transaction = new TronTransactionService(
     deps.gateways,
     deps.tokens,
     deps.transactions,
     deps.recipients,
+    deps.clock,
   );
-  const signing = new TronSigService(deps.gateways, deps.signers);
-  const multisig = new TronMultisigService(deps.gateways, signing);
+  const artifacts = new SecureTransactionArtifactWriter();
+  const signing = new TronSigService(
+    deps.gateways,
+    deps.signers,
+    deps.signing,
+    artifacts,
+    deps.clock,
+  );
+  const multisig = new TronMultisigService(deps.gateways, signing, artifacts, deps.clock);
   const multisigCollaboration = new TronMultisigCollaborationService(
     deps.tronlink,
     deps.gateways,
     multisig,
+    deps.clock,
   );
-  const gasfree = new GasFreeService(deps.gasfree, deps.gateways, deps.signers, deps.recipients);
-  // One resolver, shared: the liquidity commands must resolve a symbol to the same address the
-  // price came from, and two copies of that rule would diverge the first time either was edited.
+  const gasfree = new GasFreeService(
+    deps.gasfree,
+    deps.gateways,
+    deps.signers,
+    deps.signing,
+    deps.recipients,
+    deps.clock,
+  );
   const sunswapTokens = new SunSwapTokenResolver(deps.tokens, deps.aliases);
   const sunswap = new SunSwapMarketQueryService(
     deps.sunswapMarket,
@@ -356,6 +369,8 @@ export function registerTronChainCommands(
     sunswapTokens,
     deps.sunswapPermits,
     deps.signers,
+    deps.signing,
+    deps.clock,
   );
   const sunpumpMarket = new SunPumpMarketQueryService(deps.sunpumpMarket);
   const sunpumpLaunch = new SunPumpTokenLaunchService(deps.sunpumpLaunch);
@@ -363,6 +378,7 @@ export function registerTronChainCommands(
     deps.sunpumpLaunchpad,
     deps.gateways,
     deps.transactions,
+    deps.clock,
   );
   const sunswapSwap = new SunSwapSwapService(
     deps.sunpumpLaunchpad,
@@ -374,15 +390,16 @@ export function registerTronChainCommands(
     deps.sunswapRouterPlanner,
     deps.sunswapPermits,
     deps.signers,
+    deps.signing,
+    deps.clock,
   );
   const sunswapCollectFees = new SunSwapCollectFeesService(
     deps.sunswapLiquidity,
     deps.gateways,
     deps.transactions,
     sunswapTokens,
+    deps.clock,
   );
-  // Chain-first: the position manager and the pool answer everything but the USD values, which
-  // is why it takes the liquidity port first and the market only for prices.
   const sunswapPositionInfo = new SunSwapPositionInfoService(
     deps.sunswapLiquidity,
     deps.sunswapMarket,
@@ -392,21 +409,26 @@ export function registerTronChainCommands(
     deps.gateways,
     deps.transactions,
     sunswapTokens,
+    deps.clock,
   );
-  const permission = new TronPermissionService(deps.gateways, deps.accounts, deps.transactions);
-  const stake = new TronStakeService(deps.gateways, deps.transactions);
-  const asset = new TronAssetService(deps.gateways, deps.transactions);
-  const exchange = new TronExchangeService(deps.gateways, deps.transactions);
-  const vote = new TronVoteService(deps.gateways, deps.transactions, stake);
-  const reward = new TronRewardService(deps.gateways, deps.transactions);
-  const chain = new TronChainService(deps.gateways);
-  const contract = new TronContractService(deps.gateways, deps.transactions);
-  const proposal = new TronProposalService(deps.gateways, deps.transactions);
-  const witness = new TronWitnessService(deps.gateways, deps.transactions);
+  const permission = new TronPermissionService(
+    deps.gateways,
+    deps.accounts,
+    deps.transactions,
+    deps.clock,
+  );
+  const stake = new TronStakeService(deps.gateways, deps.transactions, deps.clock);
+  const asset = new TronAssetService(deps.gateways, deps.transactions, deps.clock);
+  const exchange = new TronExchangeService(deps.gateways, deps.transactions, deps.clock);
+  const vote = new TronVoteService(deps.gateways, deps.transactions, deps.clock);
+  const reward = new TronRewardService(deps.gateways, deps.transactions, deps.clock);
+  const chain = new TronChainService(deps.gateways, deps.clock);
+  const contract = new TronContractService(deps.gateways, deps.transactions, deps.clock);
+  const proposal = new TronProposalService(deps.gateways, deps.transactions, deps.clock);
+  const witness = new TronWitnessService(deps.gateways, deps.transactions, deps.clock);
 
   reg.addChain(blockSpec, "tron", blockTronBinding(new TronBlockService(deps.gateways)));
-  // Registration order is what the group help lists, so these follow the documented running order:
-  // the two-family read commands first, then the TRON-only ones.
+  // Registration order determines group help order; shared commands come first.
   reg.addChain(accountBalanceSpec, "tron", accountBalanceBinding(deps.balances));
   reg.addChain(accountInfoSpec, "tron", accountInfoTronBinding(account));
   reg.addChain(accountPortfolioSpec, "tron", accountPortfolioTronBinding(account));
@@ -421,15 +443,10 @@ export function registerTronChainCommands(
   reg.addChain(messageSignSpec, "tron", messageSignBinding(message));
   reg.addChain(typedDataSignSpec, "tron", typedDataSignBinding(typedData));
   reg.addChain(txSendSpec, "tron", txSendTronBinding(transaction));
-  reg.addChain(
-    txSignSpec,
-    "tron",
-    txSignTronBinding(transaction, signing, multisig, new SecureTransactionArtifactWriter()),
-  );
+  reg.addChain(txSignSpec, "tron", txSignTronBinding(signing, multisig));
   reg.addChain(txBroadcastSpec, "tron", txBroadcastTronBinding(multisig));
   reg.addChain(txStatusSpec, "tron", txStatusTronBinding(transaction));
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
-  // TRON-only, so they sit at the end of the `tx` group listing.
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
   reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(multisigCollaboration));
   reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
@@ -478,7 +495,6 @@ export function registerTronChainCommands(
   reg.addChain(rewardWithdrawSpec, "tron", rewardWithdrawTronBinding(reward));
   reg.addChain(chainNodeSpec, "tron", chainNodeTronBinding(chain));
   reg.addChain(chainPricesSpec, "tron", chainPricesTronBinding(chain));
-  // `chain params` is TRON-only and goes last in the group listing.
   for (const definition of chainDefinitions(chain)) {
     reg.addChain(definition.spec, "tron", definition.binding);
   }

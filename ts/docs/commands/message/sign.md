@@ -14,7 +14,7 @@ Signs a message with the active account's key (or `--account`) using the persona
 
 The selected network decides **which key signs and which address is reported**: an account has one key per family, so `--network nile` signs with its TRON key and reports its base58 address, `--network sepolia` signs with its EVM key and reports its `0x` address. `--network` is optional and falls back to `config.defaultNetwork`; either way the signing itself is fully offline.
 
-**stdin has a single consumer (fd 0)**: `--message-stdin` and `--password-stdin` cannot both be used in one run (`secret_source_error`). In practice:
+**stdin has a single consumer (fd 0)**: `--message-stdin` and `--password-stdin` cannot both be used in one run (`invalid_option`). In practice:
 
 - **Ledger accounts** confirm on the device and need no master password — fd 0 is free, so you can pipe the message via `--message-stdin`.
 - **Software accounts** need `--password-stdin` for non-interactive use — the message must then go inline via `--message`.
@@ -77,7 +77,7 @@ echo "$PW" | wallet-cli message sign --message "hello" --network sepolia --passw
 
 ## Exit status
 
-`0` signed · `1` execution failure (`watch_only_no_signer`, `auth_failed`; two stdin flags → `secret_source_error`) · `2` usage error (both or neither message source → `invalid_option` / `missing_option`).
+`0` signed · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (both or neither message source → `invalid_option` / `missing_option`; two stdin flags → `invalid_option`).
 
 ## See also
 

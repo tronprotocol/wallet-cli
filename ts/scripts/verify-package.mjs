@@ -14,7 +14,6 @@ const call = (
   env = { ...process.env, WALLET_CLI_HOME: join(temp, "wallet") },
 ) => execFileSync(cmd, args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] });
 try {
-  // Never validate a stale dist left by an earlier build.
   call(npm, ["run", "build"]);
   const [packed] = JSON.parse(call(npm, ["pack", "--json", "--pack-destination", temp]));
   const forbidden = packed.files.filter(({ path }) => path.startsWith("docs/development/"));
@@ -23,9 +22,7 @@ try {
     packed.files.some(({ path }) => path === "dist/index.js"),
     "missing CLI entry",
   );
-  // A packaged document must not point at a document the package left out: every relative
-  // Markdown link in a packaged .md that stays inside the package must resolve to a packaged
-  // file. Links that climb out of the package (README -> the monorepo) are not its to satisfy.
+  // Links outside the package are exempt from packaged-file checks.
   const packedPaths = new Set(packed.files.map(({ path }) => path));
   const dangling = [];
   for (const path of packedPaths) {

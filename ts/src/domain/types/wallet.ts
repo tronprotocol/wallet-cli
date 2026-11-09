@@ -1,19 +1,9 @@
-/**
- * SharedTypes — wallet data shapes (persisted in wallets.json).
- */
 import type { ChainFamily } from "../family/chain-family.js";
 import type { AccountRef } from "./network.js";
 
-/** one secret derives every family → all slots always present (non-optional). */
 export type ChainAddresses = Record<ChainFamily, string>;
 
-/**
- * All address caches live inside `source` next to their secret-ref:
- * - seed: index("0","1",…) → both-chain addresses (known indices = Object.keys(addresses))
- * - privateKey: flat both-chain addresses (no index, no "" sentinel)
- * - ledger: single family + path + watch-only address (no index)
- * - watch: single family + address; no secret, no path, no file (= ledger minus path)
- */
+// Seed address maps are keyed by decimal account index.
 export type Source =
   | { type: "seed"; vaultId: string; addresses: Record<string, ChainAddresses> }
   | { type: "privateKey"; keyId: string; addresses: ChainAddresses }
@@ -32,13 +22,7 @@ export interface WalletsFile {
   labels: Record<AccountRef, string>;
 }
 
-/**
- * The one account shape every `wallet` command returns (max-disclosure descriptor).
- * `accountId` is the canonical ref you pass back to `--account` (seed: `wlt_x.<index>`;
- * privateKey/ledger/watch: `wlt_x`). `family`/`path` appear only for ledger/watch (single-chain)
- * and ledger respectively. The wallet
- * id is intentionally omitted — it is just `accountId` minus the `.index` suffix.
- */
+// accountId is accepted by --account; family is for Ledger/watch and path is for Ledger.
 export interface AccountDescriptor {
   accountId: AccountRef;
   label?: string;
@@ -48,20 +32,12 @@ export interface AccountDescriptor {
   addresses: Partial<ChainAddresses>;
   family?: ChainFamily;
   path?: string;
-  /** HD only: the seed id (wallet id, `wlt_…`) this account was derived from — accepted by
-   *  `derive --seed-id`. Combined with `index`, it identifies the owning seed and slot. */
+  // HD wallet id accepted by derive --seed-id; index identifies its account slot.
   seedId?: string;
-  /**
-   * The verified BIP32 path behind each of this account's addresses, one entry per family.
-   * `null` means the command does not provide derivation information: list/current/use/rename
-   * deliberately return null because they do not unlock the seed; watch and private-key accounts
-   * also return null because they were never derived. Commands that hold a seed (derive/backup)
-   * resolve each cached address against its actual current or historical template before reporting.
-   */
+  // Verified BIP32 paths by family; null when derivation information is unavailable.
   derivationPath?: Record<string, string> | null;
 }
 
-/** mutators that may hit an existing account report whether they actually created one. */
 export interface MutationResult {
   accountId: AccountRef;
   created: boolean;

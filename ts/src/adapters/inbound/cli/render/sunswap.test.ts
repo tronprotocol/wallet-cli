@@ -30,7 +30,6 @@ describe("sunswap price table", () => {
     expect(out).toContain("Quoted at (UTC)");
   });
 
-  // The address identifies the token; a catalogue symbol is only what the contract calls itself.
   it("always shows the address column", () => {
     expect(render([{ address: WIN, priceUsd: "1", quotedAt: "2026-09-15 08:20" }])).toContain(WIN);
   });
@@ -40,11 +39,13 @@ describe("sunswap price table", () => {
     expect(out).toContain("—");
   });
 
-  // A zero price is what the service returns for an address it never indexed. It is shown as a
-  // price, not as missing, because the service did answer.
   it("prints a zero price rather than blanking it", () => {
     const out = render([{ address: WIN, priceUsd: "0", quotedAt: "2026-09-15 08:20" }]);
     expect(out).toContain("$0.0000");
+  });
+
+  it("says (none) rather than printing an empty table", () => {
+    expect(render([])).toBe("(none)");
   });
 });
 
@@ -75,14 +76,12 @@ describe("sunswap token table", () => {
     expect(out).toContain("-0.43%");
   });
 
-  // Symbol and name alone cannot tell an impersonation from the token it copies.
   it("always shows the address, and the scope the row was measured in", () => {
     const out = renderList([token({ protocol: "V3" })]);
     expect(out).toContain("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
     expect(out).toContain("V3");
   });
 
-  // Without the window, a short page is indistinguishable from the end of the data.
   it("titles the window, and says so when a total is known", () => {
     expect(renderList([token()], { offset: 20, limit: 5, total: null })).toContain(
       "Tokens (limit 5, offset 20)",
@@ -137,13 +136,11 @@ describe("sunswap pool table", () => {
     expect(out).toContain("3.20%");
   });
 
-  // A truncated pool identifier is one nobody can paste into the next command.
   it("prints a 64-hex V4 pool id in full", () => {
     const id = "dda1d5819853f19f3e952da5d93aa2d572d95c72a8e6e4c2acab65384fd2557e";
     expect(renderPools([pool({ poolAddress: id, protocol: "V4" })])).toContain(id);
   });
 
-  // A dynamic-fee pool reports 0, which would read as free. It is not free.
   it("writes dynamic rather than 0% for a dynamic-fee pool", () => {
     const out = renderPools([pool({ feeRate: "0", extra: { isDynamicFee: true } })]);
     expect(out).toContain("dynamic");
@@ -158,7 +155,6 @@ describe("sunswap pool table", () => {
     expect(renderPools([pool()])).not.toContain("Price (");
   });
 
-  // A pool with more than two tokens has no single pairwise rate; json is the authority.
   it("writes an em dash where there is no single pair price", () => {
     const out = renderPools([pool({ pairPrices: [] })], { quoteSymbol: "USDT" });
     expect(out).toContain("—");
@@ -198,7 +194,6 @@ describe("sunswap position table", () => {
     expect(out).toContain("$386.25");
   });
 
-  // Only V3/V4 positions are NFTs; an em dash means "no id exists", not "unknown".
   it("writes an em dash where a protocol has no position id", () => {
     const { nftTokenId: _omitted, ...withoutId } = position({ protocol: "V2", extra: {} });
     const out = renderPositions([withoutId as ReturnType<typeof position>]);
@@ -206,8 +201,6 @@ describe("sunswap position table", () => {
     expect(out).toContain("—");
   });
 
-  // Range status says nothing about a position with nothing in range. The json keeps the source
-  // status, so a script reads extra.positionLiquidity rather than this cell.
   it("writes EMPTY when a V3/V4 position has no liquidity left", () => {
     const out = renderPositions([
       position({ status: "OUT_RANGE", extra: { positionLiquidity: "0" } }),
@@ -216,13 +209,10 @@ describe("sunswap position table", () => {
     expect(out).not.toContain("OUT_RANGE");
   });
 
-  // A share above 100% cannot be true; printing it would be publishing an impossible number.
   it("blanks a share the source reports above 100%", () => {
     expect(renderPositions([position({ poolShare: "1.00067" })])).toContain("—");
   });
 
-  // Fees accrue into the LP token on the full-range protocols: there is nothing unclaimed to
-  // show, which is not the same as zero unclaimed.
   it("writes an em dash rather than a zero when there are no separable fees", () => {
     const out = renderPositions([position({ protocol: "V2", extra: {} })]);
     expect(out).toContain("—");
@@ -234,7 +224,6 @@ describe("sunswap position table", () => {
   });
 });
 
-/** A V4 position, as the single-position renderer receives it. */
 const positionInfo = (over: Record<string, unknown> = {}) => ({
   position: {
     nftTokenId: "88",
@@ -269,17 +258,10 @@ const positionInfo = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("sunswap position detail", () => {
-  /**
-   * The full text block, line for line.
-   *
-   * Every published field has a line here, so dropping one from the view — or rendering it from
-   * the wrong side of the pair — fails this rather than quietly shrinking the output.
-   */
   it("renders every field of a V4 position", () => {
     const out = SunSwapFormatters.sunswapPositionInfo(positionInfo() as never);
     expect(out).toContain("Position     #88");
     expect(out).toContain("Owner        TT2T17KZhoDu47i2E4FWxfG79zdkEWkU9N");
-    // the 64-hex pool id in full: a truncated identifier is one nobody can paste anywhere
     expect(out).toContain(
       "Pool         61446c8062cdc7f165946650c5ca6b6aa1809d19fcdf69b58824b01dd581333e",
     );
@@ -296,12 +278,6 @@ describe("sunswap position detail", () => {
     expect(out).toContain("Pool fee     0.01%");
   });
 
-  /**
-   * A value nobody measured is an em dash, never $0.00.
-   *
-   * These keys are ABSENT from the json on a network with no price source, and the text has to
-   * say the same thing: "$0.00" would read as a worthless position.
-   */
   it("writes an em dash where there is no USD value, not a zero", () => {
     const { lpBalanceUsd: _usd, ...rest } = positionInfo().position;
     const { tokenRewardUsd: _reward, ...extra } = rest.extra;
@@ -312,13 +288,6 @@ describe("sunswap position detail", () => {
     expect(out).not.toContain("$0.00");
   });
 
-  /**
-   * An exponent is PART OF THE NUMBER, not trailing noise.
-   *
-   * A full-range V4 position's bounds are ~1e-39 and ~1e+38. The earlier formatter sliced the fraction
-   * before looking for an exponent, so `2.939544628365392e-39` printed as `2.939544` — thirty-nine
-   * orders of magnitude out, and entirely plausible on the page. Measured on Nile position 7.
-   */
   it("keeps the exponent of a very small or very large price bound", () => {
     const out = SunSwapFormatters.sunswapPositionInfo(
       positionInfo({
@@ -331,7 +300,6 @@ describe("sunswap position detail", () => {
     );
     expect(out).toContain("2.939544e-39");
     expect(out).toContain("3.401887e+38");
-    // The shape of the defect, stated directly: the bare mantissa must not stand alone.
     expect(out).not.toMatch(/2\.939544 /);
   });
 
@@ -345,7 +313,6 @@ describe("sunswap position detail", () => {
     expect(out).toContain("Status       EMPTY");
   });
 
-  // A dynamic-fee pool reports 0, which would render as "0%" and read as a free pool.
   it("writes dynamic rather than 0% for a pool that prices itself per swap", () => {
     const out = SunSwapFormatters.sunswapPositionInfo(
       positionInfo({

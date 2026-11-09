@@ -35,9 +35,7 @@ if (help.status !== 0 || !help.stdout.includes("Usage:  wallet-cli")) {
   );
 }
 
-// Loading the Ledger command forces the embedded node-hid N-API addon to load. CI normally reaches
-// `device_not_found`; a developer machine may instead complete the import. Match the stable error
-// code, not message wording. Reject `device_unavailable`, which can also wrap addon load failures.
+// Ledger import loads the embedded addon; device_unavailable can mask addon load failures.
 const isolatedHome = mkdtempSync(join(tmpdir(), "wallet-cli-standalone-"));
 try {
   const ledger = run(["import", "ledger", "--app", "tron", "--index", "0", "--output", "json"], {
@@ -49,7 +47,7 @@ try {
   try {
     result = JSON.parse(ledger.stdout);
   } catch {
-    // The failure below includes the original output for diagnosis.
+    // Report non-JSON output in the failure below.
   }
   const imported = ledger.status === 0 && result?.success === true;
   const expectedDeviceError =

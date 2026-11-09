@@ -27,7 +27,6 @@ const list = (tokens: unknown[], pagination = { offset: 0, limit: 2, total: null
 
 const info = (token: unknown) => SunPumpMarketFormatters.sunpumpTokenInfo({ token } as never);
 
-/** label/value lookup that does not depend on how wide the label column came out. */
 const field = (rendered: string, label: string): string | undefined =>
   new RegExp(`^${label}\\s\\s+(.*)$`, "m").exec(rendered)?.[1];
 
@@ -42,8 +41,6 @@ describe("the token table", () => {
     expect(list([base])).not.toContain("0.011808");
   });
 
-  // The service's 24h figure is ALREADY a percentage. Multiplying it by 100, which is right for
-  // SunSwap's decimal fractions, would report a routine day as a -70% collapse.
   it("reads the 24h change as the percentage it already is", () => {
     expect(list([base])).toContain("-0.70%");
     expect(list([base])).not.toContain("-70.12%");
@@ -53,8 +50,6 @@ describe("the token table", () => {
     expect(list([base])).toContain("$3,985,404.89");
   });
 
-  // A creator picks the symbol and the name; either can carry a pipe that would forge a column,
-  // or an escape sequence that rewrites the terminal.
   it("keeps creator-supplied text from forging the table", () => {
     const hostile = { ...base, name: "a|b", symbol: "\u001b[31mRED" };
     const rendered = list([hostile]);
@@ -78,7 +73,6 @@ describe("the token detail block", () => {
     expect(field(info(base), "Vol 24h")).toBe("777.772985 TRX");
   });
 
-  // Before launch there is no pool and no launch time; a curve progress line takes their place.
   it("shows curve progress instead of launch facts while the token is on the curve", () => {
     const onCurve = {
       ...base,
@@ -92,7 +86,6 @@ describe("the token detail block", () => {
     expect(field(rendered, "Curve progress")).toBe("1%");
     expect(rendered).not.toContain("Launched");
     expect(rendered).not.toContain("SunSwap pool");
-    // no USD rate from the listings, so no parenthetical price rather than a made-up one
     expect(field(rendered, "Price")).toBe("0.011807 TRX");
   });
 
@@ -101,23 +94,14 @@ describe("the token detail block", () => {
     expect(info(base)).not.toContain("Telegram");
   });
 
-  /**
-   * The description is unreviewed text from the token's creator.
-   *
-   * Newlines would break one field into what looks like several, and an escape sequence could
-   * rewrite what the rest of the block appears to say. json publishes it verbatim; it is
-   * untrusted data on both sides, and never an instruction.
-   */
   it("flattens and disarms the creator's description", () => {
     const hostile = {
       ...base,
       description: "line one\nStatus          VERIFIED\n\u001b[2KOfficial",
     };
     const rendered = info(hostile);
-    // one line, and the ESC that would have made "[2K" an erase-line command is gone
     expect(field(rendered, "Description")).toBe("line one Status          VERIFIED [2KOfficial");
     expect(rendered).not.toContain("\u001b");
-    // the forged "Status" is inside the description's own line, not a field of its own
     expect(rendered.split("\n").filter((line) => line.startsWith("Status"))).toHaveLength(1);
   });
 });

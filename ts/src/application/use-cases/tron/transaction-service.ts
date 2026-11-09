@@ -1,20 +1,33 @@
+import {
+  endedByDeadline,
+  requestDispatchCheck,
+  unlessDeadline,
+} from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
+import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   AccountRef,
-  EffectiveTokenEntry,
   NetworkDescriptor,
   TxInfoView,
   TxParties,
   TxStatusView,
 } from "../../../domain/types/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
-import { fromBaseUnits, toBaseUnits } from "../../../domain/amounts/index.js";
+import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { tokenBySymbol } from "../../../domain/token/symbol.js";
+import { TRX_TRANSFER_BANDWIDTH_BURN_SUN } from "../../../domain/fees/tron.js";
+import {
+  fromBaseUnits,
+  positiveBaseUnits,
+  toBaseUnits,
+  type Sun,
+} from "../../../domain/amounts/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type {
   DecodedTronTransaction,
   TronGateway,
   TronTxInfo,
-} from "../../ports/chain/tron-gateway.js";
+} from "../../ports/chain/tron/tron-gateway.js";
 import type { TokenRepository } from "../../ports/token-repository.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
@@ -23,18 +36,18 @@ import {
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { stageTronBroadcast, tronConfirmation } from "../../services/tron-confirmation.js";
-import { localTxId } from "../../services/broadcast-identity.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { confirmationsOf } from "../../services/confirmations.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import type { RecipientResolver } from "../../services/recipient-resolver.js";
+import { FAMILIES } from "../../../domain/family/index.js";
 
 export interface TronSendInput extends TransactionModeInput {
   to: string;
   token?: string;
   contract?: string;
   assetId?: string;
-  feeLimit: string;
+  feeLimit: Sun;
   amount?: string;
   rawAmount?: string;
 }
@@ -45,38 +58,44 @@ export class TronTransactionService {
     private readonly tokens: TokenRepository,
     private readonly pipeline: TxPipeline,
     private readonly recipients: RecipientResolver,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async send(scope: TransactionScope, network: NetworkDescriptor, input: TronSendInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const recipient = this.recipients.resolve("tron", input.to);
     const resolved = await this.resolveTransfer(gateway, network.id, scope.activeAccount, input);
-    const outcome = await this.pipeline.run({
+    positiveBaseUnits(resolved.rawAmount, "amount");
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
-      build: (from) =>
-        resolved.contract
-          ? gateway.buildTrc20Transfer(
+      build: async (from) => {
+        if (resolved.contract) {
+          await assertTokenBalance(gateway, resolved.contract, from, resolved);
+          return gateway.buildTrc20Transfer(
+            from,
+            recipient.address,
+            resolved.contract,
+            resolved.rawAmount,
+            input.feeLimit,
+          );
+        }
+        return resolved.assetId
+          ? gateway.buildTrc10Transfer(
               from,
               recipient.address,
-              resolved.contract,
+              resolved.assetId,
               resolved.rawAmount,
-              input.feeLimit,
             )
-          : resolved.assetId
-            ? gateway.buildTrc10Transfer(
-                from,
-                recipient.address,
-                resolved.assetId,
-                resolved.rawAmount,
-              )
-            : gateway.buildNativeTransfer(from, recipient.address, resolved.rawAmount),
+          : gateway.buildNativeTransfer(from, recipient.address, resolved.rawAmount);
+      },
       estimate: () =>
         resolved.contract
           ? gateway.estimateResources(
@@ -91,7 +110,10 @@ export class TronTransactionService {
           : Promise.resolve(
               resolved.assetId
                 ? { feeModel: "tron-resource", note: "TRC10 transfer uses bandwidth only" }
-                : { feeModel: "tron-resource", bandwidthBurnSunIfNoFreeze: 100000 },
+                : {
+                    feeModel: "tron-resource",
+                    bandwidthBurnSunIfNoFreeze: TRX_TRANSFER_BANDWIDTH_BURN_SUN,
+                  },
             ),
     });
     return {
@@ -107,57 +129,25 @@ export class TronTransactionService {
     };
   }
 
-  /**
-   * Sign a transaction built elsewhere. Deliberately does not inspect ownership or contract type —
-   * the caller decides what to sign; the wallet holds the key, not the policy. Payload integrity
-   * (txID must hash raw_data_hex) is enforced by the TRON sign strategy.
-   */
-  async sign(scope: TransactionScope, network: NetworkDescriptor, tx: unknown) {
-    const outcome = await this.pipeline.signOnly({
-      ctx: scope,
-      net: network,
-      account: scope.activeAccount,
-      tx,
-    });
-    return { kind: "sign" as const, ...outcomeData(outcome) };
-  }
-
-  async broadcast(scope: TransactionScope, network: NetworkDescriptor, signed: unknown) {
-    const gateway = this.gateways.get(network, "tron");
-    const result = await gateway.broadcast(signed);
-    return {
-      kind: "broadcast" as const,
-      ...(await stageTronBroadcast(gateway, scope, result, localTxId(signed))),
-    };
-  }
-
-  async status(network: NetworkDescriptor, txid: string): Promise<TxStatusView> {
-    const gateway = this.gateways.get(network, "tron");
-    // Two endpoints, in parallel, because getTransactionInfo alone can't tell "unconfirmed" from
-    // "never existed" — it returns {} for both. getTransactionById distinguishes them: it knows a
-    // broadcast tx immediately (mempool), and throws "Transaction not found" for an unknown hash.
-    // getTransactionInfo (full-node unconfirmed view) fills in ~one block after inclusion (~3s),
-    // not after solidification — that's what promotes pending → confirmed/failed.
+  async status(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    txid: string,
+  ): Promise<TxStatusView> {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
+    // Transaction info alone cannot distinguish pending from unknown transactions.
     const [exists, info, head] = await Promise.all([
       gateway.getTransactionById(txid).then(
-        (tx) => tx?.txID !== undefined,
-        // tronweb throws "Transaction not found" for an unknown hash, so a rejection here cannot
-        // by itself separate "no such transaction" from "no such node". The info call below is
-        // what settles that: it RESOLVES ({} on Nile) for an unknown hash and only rejects when
-        // the node itself failed, so if we get past it the node answered and this rejection is a
-        // fact about the transaction.
-        () => false,
+        (tx) => tx.txId !== undefined,
+        // Treat lookup rejection as absent; the separate info request can still fail.
+        unlessDeadline(deadline, () => false),
       ),
-      // NOT caught, deliberately. Swallowing a node failure here made `state` "not_found" at
-      // exit 0 — and `not_found` means "keep polling" in the four-state model, so a script would
-      // wait forever on an endpoint that is simply down.
+      // Propagate info-request failures instead of reporting not_found.
       gateway.getTransactionInfoById(txid),
-      // Best-effort, exactly as on the EVM side: it adds a field and must never cost the answer.
-      headBlockNumber(gateway),
+      headBlockNumber(deadline, gateway),
     ]);
     const confirmed = info.blockNumber !== undefined;
-    const result = info.receipt?.result;
-    const failed = confirmed && result !== undefined && result !== "SUCCESS";
+    const failed = confirmed && info.execution === "failed";
     const state = confirmed ? (failed ? "failed" : "confirmed") : exists ? "pending" : "not_found";
     return {
       txid,
@@ -169,48 +159,29 @@ export class TronTransactionService {
     };
   }
 
-  async info(network: NetworkDescriptor, txid: string): Promise<TxInfoView> {
-    const gateway = this.gateways.get(network, "tron");
-    // The transaction is the source of truth for existence; the info (block/fee/energy) is
-    // enrichment. Mirror getContractMetadata's best-effort shape: a missing/failed info must not
-    // sink the command for a tx that exists (e.g. still pending, or a flaky solidity node).
+  async info(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    txid: string,
+  ): Promise<TxInfoView> {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
+    // Info and head reads are optional enrichment; transaction lookup determines existence.
     const [transaction, info, head] = await Promise.all([
       gateway.getTransactionById(txid),
-      gateway.getTransactionInfoById(txid).catch((): TronTxInfo => ({})),
-      headBlockNumber(gateway),
+      gateway.getTransactionInfoById(txid).catch(unlessDeadline(deadline, () => undefined)),
+      headBlockNumber(deadline, gateway),
     ]);
     return {
       txid,
-      ...(await this.enrichParties(gateway, gateway.decodeTransaction(transaction))),
-      // The node reports SUCCESS / REVERT / OUT_OF_ENERGY…; this CLI reports one case throughout.
-      // The comparisons that decide `failed` read the node's own value, not this field.
-      status: lowerCaseStatus(info.receipt?.result ?? transaction.ret?.[0]?.contractRet),
-      blockNumber: info.blockNumber,
-      ...confirmationsOf(head, info.blockNumber),
-      energyUsed: info.receipt?.energy_usage_total,
-      feeSun: info.fee,
-      transaction,
-      info,
+      ...(await this.enrichParties(deadline, gateway, transaction.parties)),
+      status: executionStatus(info, transaction.contractResult),
+      blockNumber: info?.blockNumber,
+      ...confirmationsOf(head, info?.blockNumber),
+      energyUsed: info?.energyUsed,
+      feeSun: info?.feeSun,
+      transaction: transaction.raw,
+      info: info?.raw ?? {},
     };
-  }
-
-  private lookupToken(networkId: string, account: AccountRef, symbol: string): EffectiveTokenEntry {
-    const matches = this.tokens
-      .effective(networkId, account)
-      .filter((token) => token.symbol.toLowerCase() === symbol.toLowerCase());
-    if (matches.length === 0) {
-      throw new UsageError(
-        "token_not_in_book",
-        `token symbol not in address book on ${networkId}: ${symbol}`,
-      );
-    }
-    if (matches.length > 1) {
-      throw new UsageError(
-        "ambiguous_token_symbol",
-        `token symbol ${symbol} matches multiple tokens; use --contract or --asset-id`,
-      );
-    }
-    return matches[0]!;
   }
 
   private async resolveTransfer(
@@ -230,7 +201,12 @@ export class TronTransactionService {
     let decimals: number | undefined;
     let tokenSymbol: string | undefined;
     if (input.token) {
-      const token = this.lookupToken(networkId, account, input.token);
+      const token = tokenBySymbol(
+        this.tokens.effective(networkId, account),
+        input.token,
+        networkId,
+        errorMessage`use ${inputRef("contract")} or ${inputRef("assetId")}`,
+      );
       if (token.kind !== "trc20" && token.kind !== "trc10") {
         throw new UsageError("invalid_value", `${input.token} is not a TRON token on ${networkId}`);
       }
@@ -275,10 +251,13 @@ export class TronTransactionService {
         decimals,
       };
     }
-    return { rawAmount: input.rawAmount ?? toBaseUnits(input.amount!, 6, "TRX") };
+    return {
+      rawAmount: input.rawAmount ?? toBaseUnits(input.amount!, FAMILIES.tron.nativeDecimals, "TRX"),
+    };
   }
 
   private async enrichParties(
+    deadline: ExecutionDeadline,
     gateway: TronGateway,
     decoded: DecodedTronTransaction,
   ): Promise<TxParties> {
@@ -286,7 +265,7 @@ export class TronTransactionService {
       return {
         from: decoded.from,
         to: decoded.to,
-        amount: fromBaseUnits(decoded.rawAmount ?? "0", 6),
+        amount: fromBaseUnits(decoded.rawAmount ?? "0", FAMILIES.tron.nativeDecimals),
         symbol: "TRX",
       };
     }
@@ -305,7 +284,8 @@ export class TronTransactionService {
           amount:
             decimals === undefined ? decoded.rawAmount : fromBaseUnits(decoded.rawAmount, decimals),
         };
-      } catch {
+      } catch (error) {
+        if (endedByDeadline(error, deadline)) throw error;
         return {
           from: decoded.from,
           to: decoded.to,
@@ -318,24 +298,41 @@ export class TronTransactionService {
   }
 }
 
-/**
- * The chain's head height, or undefined when it could not be read.
- *
- * Only ever used to compute `confirmations`, so it swallows its own failure: a status query that
- * died because a second, optional call failed would be a worse answer than one without the extra
- * field.
- */
-async function headBlockNumber(gateway: TronGateway): Promise<number | undefined> {
+// Head lookup is optional; failure omits confirmations.
+async function headBlockNumber(
+  deadline: ExecutionDeadline,
+  gateway: TronGateway,
+): Promise<number | undefined> {
   try {
-    const block = (await gateway.getBlock()) as
-      { block_header?: { raw_data?: { number?: number } } } | undefined;
-    return block?.block_header?.raw_data?.number;
-  } catch {
+    return (await gateway.getHeadBlock()).number;
+  } catch (error) {
+    if (endedByDeadline(error, deadline)) throw error;
     return undefined;
   }
 }
 
-/** the node's status word in the single case this CLI answers in. */
-function lowerCaseStatus(value: string | undefined): string | undefined {
-  return value === undefined ? undefined : value.toLowerCase();
+// Lower-case node codes; the transaction's own code stands in when the receipt reports no result.
+function executionStatus(
+  info: TronTxInfo | undefined,
+  transactionResult: string | undefined,
+): string | undefined {
+  if (info?.execution === "failed") return info.failureReason!.toLowerCase();
+  if (info?.execution === "success") return "success";
+  return transactionResult?.toLowerCase();
+}
+
+// Checked during build, before the energy estimate, so every mode reports a short balance as such.
+async function assertTokenBalance(
+  gateway: TronGateway,
+  contract: string,
+  owner: string,
+  transfer: { rawAmount: string; tokenSymbol?: string },
+): Promise<void> {
+  const held = await gateway.getTrc20Balance(contract, owner);
+  if (BigInt(held) < BigInt(transfer.rawAmount)) {
+    throw new ChainError(
+      "insufficient_token_balance",
+      `this transfer needs ${transfer.rawAmount} of ${transfer.tokenSymbol ?? contract} in base units and the account holds ${held}`,
+    );
+  }
 }

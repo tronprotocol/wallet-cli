@@ -1,6 +1,3 @@
-/**
- * Network command — list known networks. Neutral and not bound to one family.
- */
 import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js";
@@ -10,15 +7,12 @@ import { endpointHost } from "../../../../domain/types/index.js";
 export function registerNetworkCommands(reg: CommandRegistry): void {
   const empty = z.object({});
 
-  // ── networks ────────────────────────────────────────────────────────────────
   reg.add({
     path: ["networks"],
     network: "none",
     wallet: "none",
     auth: "none",
     summary: "List known networks",
-    // Adjusted to the six-column table this actually prints: the canonical id and the
-    // alias are separate columns, so the description names both rather than only one.
     description:
       "List known networks with their family, chain id, fee model and endpoint host.\n" +
       "Network is the canonical CAIP-2 id (namespace:reference); Alias is the short name\n" +
@@ -34,8 +28,7 @@ export function registerNetworkCommands(reg: CommandRegistry): void {
         family: n.family,
         chainId: n.chainId,
         feeModel: n.feeModel,
-        // host only: an endpoint may carry an API key in its path, and this output is not a
-        // secret surface. `config get networks` is the place to confirm a full URL.
+        // Hide URL paths because endpoints may contain API keys.
         endpoint: endpointHost(n.httpEndpoint),
       })),
   } satisfies CommandDefinition);

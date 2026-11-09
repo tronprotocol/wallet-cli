@@ -1,6 +1,10 @@
 import { expect, it, vi } from "vitest";
-import { BaiWalletBinding, baiChain } from "./bai-wallet-binding.js";
+import { BaiWalletBinding } from "./bai-wallet-binding.js";
+import { baiChain } from "../services/capability/predicates.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
+import { CommandDeadline } from "../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 it.each([
   ["evm", "56", "bnb"],
   ["evm", "8453", "base"],
@@ -9,20 +13,24 @@ it.each([
   const message = `Welcome to BAI !\nhttps://chat.bankofai.io wants you to confirm wallet binding for recharge:\npayer\n\nChain ID: ${chain}\nExpiration Time: 2026-09-17T10:05:00.000Z\nNonce: nonce`;
   const sign = vi.fn(async () => ({ address: "payer", message, signature: "signed" }));
   const bind = vi.fn(async () => ({ userId: "user", address: "payer", chain }));
-  const scope = { activeAccount: "selected", emit: vi.fn() } as never;
+  const scope = { deadline: NO_DEADLINE, activeAccount: "selected", emit: vi.fn() } as never;
+  const network = { family, chainId } as NetworkDescriptor;
   await new BaiWalletBinding(
     { sign },
     () => Date.parse("2026-09-17T10:00:00Z"),
     () => "nonce",
-  ).bind(scope, { family, chainId } as NetworkDescriptor, "payer", { bind });
-  expect(sign).toHaveBeenCalledWith(scope, family, "selected", message);
-  expect(bind).toHaveBeenCalledWith({
-    chain,
-    address: "payer",
-    message,
-    signature: "signed",
-    version: 2,
-  });
+  ).bind(scope, network, "payer", { bind });
+  expect(sign).toHaveBeenCalledWith(scope, network, "selected", message, "built");
+  expect(bind).toHaveBeenCalledWith(
+    {
+      chain,
+      address: "payer",
+      message,
+      signature: "signed",
+      version: 2,
+    },
+    expect.anything(),
+  );
 });
 it("does not bind if the user rejects the signature", async () => {
   const bind = vi.fn();
@@ -31,7 +39,7 @@ it("does not bind if the user rejects the signature", async () => {
   });
   await expect(
     new BaiWalletBinding({ sign }).bind(
-      { emit: vi.fn() } as never,
+      { deadline: NO_DEADLINE, emit: vi.fn() } as never,
       { family: "tron", chainId: "728126428" } as NetworkDescriptor,
       "payer",
       { bind },
@@ -45,4 +53,19 @@ it.each([
   ["evm", "1"],
 ])("rejects unsupported %s:%s", (family, chainId) => {
   expect(baiChain({ family, chainId } as NetworkDescriptor)).toBeUndefined();
+});
+it("sends no binding when too little of the command's time is left to submit", async () => {
+  const bind = vi.fn();
+  const sign = vi.fn(async () => ({ address: "payer", message: "m", signature: "signed" }));
+  const deadline = new CommandDeadline(1999);
+  await expect(
+    new BaiWalletBinding({ sign }).bind(
+      { deadline, activeAccount: "selected", emit: vi.fn() } as never,
+      { family: "tron", chainId: "728126428" } as NetworkDescriptor,
+      "payer",
+      { bind },
+    ),
+  ).rejects.toMatchObject({ code: "timeout" });
+  expect(bind).not.toHaveBeenCalled();
+  deadline.dispose();
 });

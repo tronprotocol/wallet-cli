@@ -1,6 +1,6 @@
 {
   "name": "@tron-walletcli/wallet-cli",
-  "version": "4.15.1",
+  "version": "4.16.0",
   "description": "Agent-first TypeScript CLI wallet for TRON — deterministic commands, JSON output, and discoverable schemas",
   "type": "module",
   "bin": {
@@ -48,10 +48,12 @@
     "build:standalone": "bun run scripts/build-standalone.mjs",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "depcruise": "depcruise src",
+    "depcruise": "depcruise src --ignore-known && node scripts/check-depcruise-baseline.mjs",
+    "depcruise:baseline": "depcruise-baseline src && prettier --write .dependency-cruiser-known-violations.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint .",
+    "lint": "node scripts/lint.mjs .",
+    "lint:baseline": "node -e \"require('node:fs').rmSync('eslint-suppressions.json', { force: true })\" && eslint . --suppress-all",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
@@ -86,12 +88,12 @@
     "lossless-json": "^4.3.0",
     "qrcode": "^1.5.4",
     "string-width": "7.2.0",
-    "tronweb": "6.4.0",
+    "tronweb": "6.5.1",
     "wrap-ansi": "9.0.2",
     "ws": "8.21.1",
     "yaml": "^2.9.0",
     "yargs": "^18.0.0",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "overrides": {
     "axios": "^1.18.1",

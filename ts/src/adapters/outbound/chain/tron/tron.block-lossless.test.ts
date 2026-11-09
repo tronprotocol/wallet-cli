@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withTronWeb } from "./__test-support__/tronweb.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -12,6 +13,7 @@ describe("TronRpcClient.getBlock", () => {
         new Response(
           `{
         "blockID": "abc",
+        "block_header": {"raw_data": {"number": 69628067}},
         "transactions": [{
           "raw_data": {
             "timestamp": 1785393457166367900
@@ -23,8 +25,8 @@ describe("TronRpcClient.getBlock", () => {
     );
     vi.stubGlobal("fetch", fetch);
 
-    const client = new TronRpcClient("https://node.invalid", 100);
-    client.tronweb.trx.getBlockByNumber = vi.fn(async () => ({
+    const { client, tronweb } = withTronWeb(() => new TronRpcClient("https://node.invalid"));
+    tronweb.trx.getBlockByNumber = vi.fn(async () => ({
       blockID: "abc",
       transactions: [
         {
@@ -35,7 +37,7 @@ describe("TronRpcClient.getBlock", () => {
       ],
     })) as never;
 
-    const block = (await client.getBlock("69628067")) as {
+    const block = (await client.getBlock("69628067"))!.raw as unknown as {
       transactions: Array<{ raw_data: { timestamp: unknown } }>;
     };
 

@@ -13,7 +13,6 @@ import { TxFormatters } from "./tx.js";
 function renderTronLink(value: TronLinkMultisigView): string {
   if ("transactions" in value) {
     const heading = `Multi-sig transactions — TronLink service (${value.total} total)`;
-    // A table shorter than the total would otherwise read as a complete queue.
     const omitted =
       value.unreadable > 0
         ? `\n! ${formatInt(value.unreadable)} record(s) could not be decoded by this client and are not shown`
@@ -25,8 +24,7 @@ function renderTronLink(value: TronLinkMultisigView): string {
           ? `${formatSun(transaction.rawAmount)} TRX`
           : `${transaction.rawAmount} base units`
         : "";
-      // State is service history; validation is an independent local safety assessment.
-      // Only a verified pending record may be promoted to an actionable "awaiting you" state.
+      // Service state is not local validation; only verified records can invite signing.
       const state =
         transaction.verified && transaction.awaitingMySignature
           ? "awaiting you"
@@ -75,7 +73,7 @@ function renderTronLink(value: TronLinkMultisigView): string {
   return `${signed}\n\n${renderApproval(value.transaction)}${broadcast}`;
 }
 
-/** The service broadcasts on its own once the threshold is met, so confirm before broadcasting. */
+// The service broadcasts at threshold; check the chain before rebroadcasting.
 function thresholdHint(txId: string, hex: string): string {
   return (
     `\n! Threshold reached — the service broadcasts it. Confirm: wallet-cli tx info --txid ${txId}` +

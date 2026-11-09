@@ -1,9 +1,12 @@
 import { z, type RefinementCtx } from "zod";
 import { allRefines, Schemas, slippageField } from "../../schemas/index.js";
 import type { ChainSpec, FamilyBinding } from "../../contracts/command.js";
-import type { SunSwapSwapService } from "../../../../../application/use-cases/tron/sunswap/swap-service.js";
+import type { SunSwapSwapService } from "../../../../../application/use-cases/sunswap/swap-service.js";
 import { TextFormatters } from "../../render/index.js";
-import { LEDGER_TRON_SETTINGS_NOTE } from "../shared.js";
+import { LEDGER_TRON_SETTINGS_NOTE, unsignedTxModeExclusive } from "../shared.js";
+import { refuseQuoteWithSendingFlags } from "../sunpump/shared.js";
+import { sunAmount } from "../../../../../domain/amounts/index.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../../domain/fees/tron.js";
 
 const fields = z.object({
   tokenIn: z.string().describe("token to spend, symbol or contract address"),
@@ -28,44 +31,21 @@ const fields = z.object({
   slippage: z
     .string()
     .optional()
-    .describe("tolerance as a decimal, e.g. 0.005 for 0.5% [default 0.005]"),
+    .describe("tolerance as a decimal, e.g. 0.005 for 0.5%; excludes --min-out [default 0.005]"),
+  minOut: z
+    .string()
+    .optional()
+    .describe("least to accept, in tokenOut's smallest unit; excludes --slippage"),
   feeLimit: Schemas.positiveIntString()
-    .default("100000000")
+    .default(DEFAULT_FEE_LIMIT_SUN)
     .describe(
       "maximum energy fee to burn, in SUN; the dry run's estimate is a lower bound, so a limit set from it can fail",
     ),
 });
 
-/**
- * `--quote` sends no transaction, so it excludes everything that describes one — including
- * `--slippage`, since a tolerance only means something when a floor will be enforced. `--all`
- * lists candidate routes, which only a quote has.
- */
 function refuseFlagsOutsideMode(value: Record<string, unknown>, ctx: RefinementCtx): void {
-  const sending = ["dryRun", "buildOnly"] as const;
-  if (value.quote === true) {
-    for (const flag of sending) {
-      if (value[flag] === true) {
-        ctx.addIssue({
-          code: "custom",
-          path: [flag],
-          message: "cannot be given with --quote, which sends no transaction",
-          params: { errorCode: "invalid_option" },
-        });
-      }
-    }
-    if (value.slippage !== undefined) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["slippage"],
-        message:
-          "cannot be given with --quote: a quote enforces no floor, so a tolerance would have nothing to apply to",
-        params: { errorCode: "invalid_option" },
-      });
-    }
-    return;
-  }
-  if (value.all === true) {
+  refuseQuoteWithSendingFlags(value, ctx);
+  if (value.quote !== true && value.all === true) {
     ctx.addIssue({
       code: "custom",
       path: ["all"],
@@ -78,16 +58,12 @@ function refuseFlagsOutsideMode(value: Record<string, unknown>, ctx: RefinementC
 export const sunswapSwapSpec: ChainSpec = {
   path: ["sunswap", "swap"],
   network: "optional",
-  // `none` because `--quote` must work with no account at all; the use case resolves
-  // the account itself on the paths that sign. An account is needed for every other mode.
+  // Quotes need no account; other modes resolve it in the use case.
   wallet: "none",
   auth: "conditional",
-  // A quote sends nothing, so there is no confirmation for --wait or --wait-timeout to wait on.
   rejectsWaitWith: "quote",
   broadcasts: true,
-  // Its own key, not sunpump's: this command needs a launchpad address OR a route service, and
-  // `swap` must not be switched on merely because SunPump is configured — nor hidden on a network
-  // that has a router but no curve.
+  // Swap availability depends on a curve or router, not SunPump configuration alone.
   capability: "sunswap.swap",
   summary: "Swap tokens through SunSwap or a SunPump curve",
   description:
@@ -109,9 +85,12 @@ export const sunswapSwapSpec: ChainSpec = {
     "--build-only is refused for a token swap: the transaction embeds that signature and cannot\n" +
     "be built before it exists. --dry-run prices the approval and shows the grant it would ask\n" +
     "for.\n\n" +
+    "--min-out sets the floor directly, in tokenOut's smallest unit, instead of --slippage; a\n" +
+    "quote already below it is refused before anything is approved or signed.\n\n" +
     "Default slippage is 0.5% — note that `sunpump buy` and `sell` reach the same curve with a 5%\n" +
     "default, because a command named after a meme-token market budgets for its volatility.\n\n" +
     "An account is needed for every mode except --quote, which reads only.",
+  exclusive: [unsignedTxModeExclusive],
   baseFields: fields,
   baseRefine: allRefines(refuseFlagsOutsideMode, slippageField()),
   positionals: [{ field: "tokenIn" }, { field: "tokenOut" }, { field: "amountIn" }],
@@ -133,11 +112,12 @@ export const sunswapSwapTronBinding = (service: SunSwapSwapService): FamilyBindi
       tokenOut: input.tokenOut,
       amountIn: input.amountIn,
       ...(input.slippage === undefined ? {} : { slippage: input.slippage }),
+      ...(input.minOut === undefined ? {} : { minOut: input.minOut }),
       ...(input.quote === undefined ? {} : { quote: input.quote }),
       ...(input.all === undefined ? {} : { all: input.all }),
       ...(input.dryRun === undefined ? {} : { dryRun: input.dryRun }),
       ...(input.buildOnly === undefined ? {} : { buildOnly: input.buildOnly }),
-      ...(input.feeLimit === undefined ? {} : { feeLimit: input.feeLimit }),
+      ...(input.feeLimit === undefined ? {} : { feeLimit: sunAmount(input.feeLimit) }),
     });
   },
 });

@@ -1,15 +1,3 @@
-/**
- * `view` is reserved inside `data` and must never be published.
- *
- * It is the one place where text output can show something JSON output cannot reach, which cuts
- * against this CLI's premise that JSON is the complete output. The narrow rule that keeps it
- * honest — a field lives in `view` only when a specification says JSON must not carry it — is a
- * convention, and a convention with no test is a comment. This is the test.
- *
- * It sweeps commands that produce a success envelope without a wallet, a password or a network
- * call, which is the widest set reachable as a black box. The per-command case for `sunswap
- * price` lives with its own suite; this one holds the line across the surface.
- */
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -42,7 +30,6 @@ function run(args: string[]) {
   }
 }
 
-/** every command that answers successfully with no wallet, no password and no network call. */
 const OFFLINE_COMMANDS: string[][] = [
   ["config"],
   ["networks"],
@@ -56,11 +43,10 @@ const OFFLINE_COMMANDS: string[][] = [
 describe("the reserved view key is never published", () => {
   it.each(OFFLINE_COMMANDS)("%s", (...args: string[]) => {
     const envelope = run(args);
-    if (!envelope?.success) return; // a refusal is fine; it carries no data to leak
+    if (!envelope?.success) return;
     expect(JSON.stringify(envelope)).not.toContain('"view"');
   });
 
-  // The command that actually uses the key: its text column is filled, its envelope is not.
   it("holds for the command that uses it", () => {
     const envelope = run(["sunswap", "price", "TRX", "--network", "nile"]);
     expect(JSON.stringify(envelope)).not.toContain('"view"');

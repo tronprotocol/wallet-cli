@@ -1,16 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TronRpcClient } from "./tron.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
+import { expiredCheck } from "../../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
 
-/**
- * `--wait` receipts report what the chain actually did. The realised quantities among them are
- * protocol int64 and, on a high-supply TRC10, genuinely large: the amount released by
- * `asset unfreeze` or returned by an `exchange trade` can exceed 2^53 even though a fee never
- * will. They reached us through tronweb's plain `JSON.parse`, so those were rounded before any
- * downstream `String(...)` could preserve them.
- *
- * Fees and resource counters deliberately stay numbers: 2^53 sun is nine billion TRX, so widening
- * them would change the machine contract of every `--wait` receipt to buy nothing.
- */
 function nodeReturns(body: string) {
   const calls: Array<{ url: string; body: unknown }> = [];
   vi.stubGlobal(
@@ -25,20 +18,20 @@ function nodeReturns(body: string) {
 
 afterEach(() => vi.unstubAllGlobals());
 
-const client = () => new TronRpcClient("https://node.invalid", 1000);
+const client = () => new TronRpcClient("https://node.invalid");
 
 describe("transaction-info realised amounts survive as exact decimal strings", () => {
   it.each([
-    ["unfreeze_amount", "899999999999999999"],
-    ["withdraw_amount", "9007199254740993"],
-    ["exchange_received_amount", "900000000000000001"],
-    ["exchange_inject_another_amount", "900000000000000003"],
-    ["exchange_withdraw_another_amount", "900000000000000005"],
-  ])("%s", async (field, exact) => {
+    ["unfreeze_amount", "unfreezeAmount", "899999999999999999"],
+    ["withdraw_amount", "withdrawnSun", "9007199254740993"],
+    ["exchange_received_amount", "exchangeReceived", "900000000000000001"],
+    ["exchange_inject_another_amount", "exchangeInjectedOther", "900000000000000003"],
+    ["exchange_withdraw_another_amount", "exchangeWithdrawnOther", "900000000000000005"],
+  ] as const)("%s", async (field, normalized, exact) => {
     const calls = nodeReturns(`{"blockNumber": 1, "${field}": ${exact}}`);
     const info = await client().getTransactionInfoById("abc");
 
-    expect(String((info as Record<string, unknown>)[field])).toBe(exact);
+    expect(info[normalized]).toBe(exact);
     expect(calls[0]!.url).toContain("/wallet/gettransactioninfobyid");
     expect(calls[0]!.body).toMatchObject({ value: "abc" });
   });
@@ -51,15 +44,45 @@ describe("transaction-info realised amounts survive as exact decimal strings", (
     }`);
     const info = await client().getTransactionInfoById("abc");
 
-    expect(info.fee).toBe(1_100_000);
-    expect(info.blockNumber).toBe(12);
-    expect(info.receipt?.energy_usage_total).toBe(31_895);
-    expect(info.receipt?.net_usage).toBe(345);
-    expect(info.receipt?.result).toBe("SUCCESS");
+    expect(info).toMatchObject({
+      feeSun: 1_100_000,
+      blockNumber: 12,
+      energyUsed: 31_895,
+      netUsed: 345,
+      receiptResult: "SUCCESS",
+      execution: "success",
+    });
+  });
+
+  it("rejects a fee beyond 2^53 instead of rounding it", async () => {
+    nodeReturns(`{"blockNumber": 12, "fee": 9007199254740993}`);
+    await expect(client().getTransactionInfoById("abc")).rejects.toMatchObject({
+      code: "provider_error",
+    });
   });
 
   it("still reports a pending transaction as having no block", async () => {
     nodeReturns("{}");
     expect((await client().getTransactionInfoById("abc")).blockNumber).toBeUndefined();
+  });
+});
+
+describe("transaction-info polling honours the call's deadline", () => {
+  it("does not send the request once the deadline has expired", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        init.signal?.throwIfAborted();
+        sent.push(init.body);
+        return { ok: true, status: 200, text: async () => "{}" } as never;
+      }),
+    );
+
+    const tron = client();
+    await expect(
+      withDispatchCheck(expiredCheck(), () => tron.getTransactionInfoById("abc")),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(sent).toEqual([]);
   });
 });

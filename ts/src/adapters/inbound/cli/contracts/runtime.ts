@@ -1,4 +1,3 @@
-/** CLI runtime seams implemented by stream and secret input adapters. */
 import type { NetworkDescriptor } from "../../../../domain/types/network.js";
 import type { WarningItem } from "./envelope.js";
 
@@ -7,14 +6,15 @@ export type DiagnosticLevel = "info" | "debug" | "warn";
 export interface StreamManager {
   result(text: string): void;
   diagnostic(level: DiagnosticLevel, msg: WarningItem): void;
-  /** always-on stderr line. */
+  // Always writes to stderr.
   errorLine(msg: string): void;
-  /** intermediate progress frame → stderr plain line; null is skipped (StreamManager). */
+  // Progress on stderr; null is skipped.
   event(frame: string | null): void;
-  readStdinOnce(): string;
-  /** Raw input bytes; shares the single-consumption guard with readStdinOnce. */
-  readStdinBytesOnce(): Uint8Array;
-  /** warnings accumulated for the JSON envelope's meta.warnings. */
+  // Reads stdin to its end; the signal stops the read and rejects with its reason.
+  readStdinOnce(signal: AbortSignal): Promise<string>;
+  // Shares the single-consumption guard with readStdinOnce.
+  readStdinBytesOnce(signal: AbortSignal): Promise<Uint8Array>;
+  // Accumulated for meta.warnings in JSON output.
   warnings(): WarningItem[];
 }
 
@@ -28,24 +28,25 @@ export const SECRET_KINDS = [
 ] as const;
 export type SecretKind = (typeof SECRET_KINDS)[number];
 export interface SecretResolver {
+  // Reads a stdin secret before synchronous reads need it.
+  loadStdin(signal: AbortSignal): Promise<void>;
   masterPassword(): string;
-  /** whether a master-password source exists, WITHOUT consuming stdin. */
+  // Checks availability without consuming stdin.
   hasMasterPassword(): boolean;
-  /** whether a source for `kind` is configured, WITHOUT consuming it. */
+  // Checks availability without consuming the source.
   has(kind: SecretKind): boolean;
   read(kind: SecretKind): string;
-  /** read a required source; missing → missing_option (usage), not secret_source_error. */
+  // Missing input raises missing_option, not secret_source_error.
   require(kind: SecretKind): string;
-  /** exactly-one selector: inline value XOR the file/stdin source for `kind`. */
+  // Exactly one of the inline value or stdin source is required.
   pick(inline: string | undefined, kind: SecretKind, inlineFlag: string): string;
-  /** resolve a non-password secret: stdin source → hidden prompt → missing_option. */
+  // Hidden TTY prompt only; otherwise raise tty_required.
   resolveSecret(kind: "mnemonic" | "privateKey"): Promise<string>;
-  /** establish/verify the master password before synchronous keystore use. */
+  // Establish or verify the password before synchronous keystore calls.
   primePassword(plan: { mode: "set" | "verify"; verify?: (pw: string) => boolean }): Promise<void>;
 }
 
-/** Mutable dispatch contract: CliShell records the in-flight command (+ resolved network) here so the
- *  runner's single terminal catch can attach commandId/net to the error envelope across yargs. */
+// Carries the active command and network to the runner's terminal error handler.
 export interface SessionRef {
   current?: { commandId: string; net?: NetworkDescriptor };
 }

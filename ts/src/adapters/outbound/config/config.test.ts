@@ -3,6 +3,9 @@ import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigLoader, NetworkRegistry } from "./index.js";
+import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
+import { CliError, inputRef } from "../../../domain/errors/index.js";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
 function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
@@ -11,6 +14,17 @@ function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   if (mode !== undefined) chmodSync(path, mode);
   return { ...process.env, WALLET_CLI_HOME: root };
 }
+
+describe("ConfigLoader defaults", () => {
+  it("applies the application defaults when config.yaml sets none", () => {
+    const config = ConfigLoader.load(envWithConfig(""));
+    expect({
+      defaultNetwork: config.defaultNetwork,
+      defaultOutput: config.defaultOutput,
+      timeoutMs: config.timeoutMs,
+    }).toEqual(CONFIG_DEFAULTS);
+  });
+});
 
 describe("ConfigLoader defaultNetwork", () => {
   it("loads explicit defaultNetwork", () => {
@@ -24,23 +38,33 @@ describe("ConfigLoader defaultNetwork", () => {
     expect(registry.resolveDefault().id).toBe("tron:3448148188");
   });
 
-  // Unknown names are rejected; every builtin network and alias resolves.
   it("rejects a name that is in neither the builtin table nor the alias book", () => {
     const registry = new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
     expect(() => registry.resolve("not-a-network")).toThrow(/unknown network/);
   });
+
+  it("names the network input when none is given", () => {
+    const registry = new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
+    let error: unknown;
+    try {
+      registry.resolve(undefined);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(CliError);
+    expect((error as CliError).parts).toContainEqual(inputRef("network"));
+    expect(errorEnvelope(error as CliError)).toEqual({
+      code: "missing_network",
+      message: "this command requires --network <id>",
+    });
+  });
 });
 
-describe("ConfigLoader waitTimeoutMs validation", () => {
-  it("accepts a valid non-negative integer", () => {
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 5000\n")).waitTimeoutMs).toBe(5000);
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 0\n")).waitTimeoutMs).toBe(0);
-  });
-
-  it("ignores negative or fractional waitTimeoutMs and keeps the default", () => {
-    // ConfigService rejects these on write; the loader must not accept them from a hand-edited file.
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: -1\n")).waitTimeoutMs).toBe(60000);
-    expect(ConfigLoader.load(envWithConfig("waitTimeoutMs: 1.5\n")).waitTimeoutMs).toBe(60000);
+describe("ConfigLoader waitTimeoutMs", () => {
+  it("loads a file that still sets the removed key and ignores it", () => {
+    const config = ConfigLoader.load(envWithConfig("waitTimeoutMs: 5000\ntimeoutMs: 1500\n"));
+    expect(config.timeoutMs).toBe(1500);
+    expect(config).not.toHaveProperty("waitTimeoutMs");
   });
 });
 
@@ -54,6 +78,15 @@ describe("NetworkRegistry.resolve case-insensitivity", () => {
   it("still rejects genuinely unknown networks", () => {
     expect(() => registry().resolve("dogechain")).toThrow(/unknown network/);
   });
+
+  it.each(["constructor", "__proto__", "toString"])(
+    "rejects the inherited object member %s as an unknown network",
+    (name) => {
+      expect(() => registry().resolve(name)).toThrow(
+        expect.objectContaining({ code: "unsupported_network" }),
+      );
+    },
+  );
 });
 
 describe("ConfigLoader TronLink credentials", () => {
@@ -115,8 +148,6 @@ describe("ConfigLoader B.AI configuration", () => {
   );
 });
 
-// A broken config.yaml is the user's typo, not an internal fault — but the underlying errors quote
-// file content (YAML parse) or OS detail, and a credential can sit on the very line that failed.
 describe("ConfigLoader unreadable/malformed config", () => {
   it("classifies malformed YAML without echoing the file content", () => {
     const env = envWithConfig(
@@ -142,9 +173,24 @@ describe("ConfigLoader unreadable/malformed config", () => {
     expect((thrown as Error).message).not.toContain("bad: [1,2");
   });
 
+  it("loads a config with a YAML warning without printing the line that holds a credential", () => {
+    const env = envWithConfig(
+      "defaultNetwork: nile\nbaiApiKey: !unknowntag FAKE-KEY-0000\n",
+      0o600,
+    );
+    const emitted: unknown[] = [];
+    const onWarning = (warning: unknown) => emitted.push(warning);
+    process.on("warning", onWarning);
+    try {
+      expect(ConfigLoader.load(env).defaultNetwork).toBe("nile");
+    } finally {
+      process.off("warning", onWarning);
+    }
+    expect(emitted).toEqual([]);
+  });
+
   it("classifies a config path that cannot be read as a file", () => {
-    // a directory named config.yaml — deterministic across platforms and irrespective of uid,
-    // unlike chmod 000, which root would sail straight through.
+    // A directory stays unreadable as a file even when tests run as root.
     const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
     mkdirSync(join(root, "config.yaml"));
 
@@ -157,8 +203,6 @@ describe("ConfigLoader unreadable/malformed config", () => {
 describe("builtin EVM networks", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
-  // Base is included for x402 USDC authorization. The existing evm-gas model describes
-  // execution gas only; it does not include rollup L1 data fees for ordinary transactions.
   it.each([
     ["eip155:1", "1"],
     ["eip155:11155111", "11155111"],
@@ -204,8 +248,6 @@ describe("builtin EVM networks", () => {
   });
 });
 
-// Aliases resolve, but ONLY here — everything downstream carries the canonical id. This reverses
-// an earlier rule that aliases were not accepted as network selectors at all.
 describe("network alias book", () => {
   const registry = (yaml = "") => new NetworkRegistry(ConfigLoader.load(envWithConfig(yaml)));
 
@@ -243,7 +285,6 @@ describe("network alias book", () => {
     expect(registry(yaml).resolve("polygon").id).toBe("evm:137");
   });
 
-  // The hazard is structural, not validated against: a canonical id can never be shadowed.
   it("prefers a canonical id over a book entry that shadows it", () => {
     const yaml = ["aliases:", "  eip155:1: tron:3448148188"].join("\n");
     expect(registry(yaml).resolve("eip155:1").id).toBe("eip155:1");
@@ -254,10 +295,6 @@ describe("network alias book", () => {
   });
 });
 
-// Config.yaml has always been edited by hand, and TRON-era users wrote endpoints under the
-// short name. Not recognising an alias key is the worst failure mode available here — the file
-// looks configured, the setting silently does nothing, and `--network sepolia` would resolve to
-// the bogus network the alias key created instead of the real one.
 describe("network keys in config.yaml are normalised to canonical ids", () => {
   const load = (yaml: string) => ConfigLoader.load(envWithConfig(yaml));
 
@@ -311,9 +348,6 @@ describe("network keys in config.yaml are normalised to canonical ids", () => {
 });
 
 describe("a dangling alias reports what it points at", () => {
-  // Aliases are hand-edited (there is no `config set aliases.*`), so the only way a typo'd target
-  // surfaces is at resolution. "unknown network: polygon" would send the user hunting for a
-  // network they never asked for, instead of at the alias entry they got wrong.
   it("names the alias AND its unresolvable target", () => {
     const registry = new NetworkRegistry(
       ConfigLoader.load(envWithConfig(["aliases:", "  polygon: evm:99999"].join("\n"))),
@@ -335,9 +369,6 @@ describe("the effective config exposes the alias book", () => {
   });
 });
 
-// The native coin's NAME belongs to the chain, not the family: eip155:1 is ETH and eip155:56 is BNB,
-// yet both are family `evm`. Reading it off the family table renders BNB as ETH — a wallet
-// naming the wrong currency.
 describe("each network declares its own native coin", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
@@ -360,10 +391,6 @@ describe("each network declares its own native coin", () => {
   });
 });
 
-// A user-added network is merged with a bare `as NetworkDescriptor` cast, so a missing required
-// field used to travel until something dereferenced it — `capabilities` crashed composition with
-// "Cannot read properties of undefined (reading 'map')" before any command ran, reported as a
-// bare internal_error. Config problems must be reported as config problems, naming the field.
 describe("a hand-added network is validated at load", () => {
   const load = (yaml: string) => ConfigLoader.load(envWithConfig(yaml));
   const custom = (extra: string[]) =>
@@ -376,7 +403,6 @@ describe("a hand-added network is validated at load", () => {
     expect(net).toMatchObject({ family: "evm", chainId: "137", nativeSymbol: "MATIC" });
   });
 
-  // Traits are a list of extras; having none is the normal case, not an error.
   it("defaults capabilities to none rather than leaving it undefined", () => {
     expect(
       load(custom(["family: evm", 'chainId: "137"', "nativeSymbol: MATIC"])).networks["evm:137"]!
@@ -387,7 +413,6 @@ describe("a hand-added network is validated at load", () => {
   it.each([
     ["family", ['chainId: "137"', "nativeSymbol: MATIC"]],
     ["chainId", ["family: evm", "nativeSymbol: MATIC"]],
-    // without this a MATIC balance would silently render as ETH, the family table's value
     ["nativeSymbol", ["family: evm", 'chainId: "137"']],
   ])("refuses a definition missing %s, naming the field", (field, present) => {
     expect(() => load(custom(present))).toThrow(new RegExp(`evm:137[\\s\\S]*${field}`));
@@ -399,7 +424,6 @@ describe("a hand-added network is validated at load", () => {
     );
   });
 
-  // Overriding one field of a builtin must not demand the rest be restated.
   it("lets a builtin be partially overridden", () => {
     const net = load(
       ["networks:", "  eip155:11155111:", "    httpEndpoint: https://mine.example"].join("\n"),
@@ -408,8 +432,6 @@ describe("a hand-added network is validated at load", () => {
   });
 });
 
-// An RPC apiKey is a credential like the service ones, and it lives NESTED under a network — the
-// permission gate has to look inside `networks`, not only at the top-level keys.
 describe("ConfigLoader network API key", () => {
   const withKey = [
     "networks:",
@@ -441,9 +463,6 @@ describe("ConfigLoader network API key", () => {
   });
 });
 
-// An alias may be written against a spelling that is itself an alias — most often a legacy id the
-// book still forwards. Resolution is single-hop, so a target left unfolded points at something
-// resolve() cannot find, and the user's own alias stops working.
 describe("alias targets are normalised to canonical ids", () => {
   it("follows a target that is itself an alias", () => {
     const config = ConfigLoader.load(envWithConfig("aliases:\n  mynile: nile\n"));
@@ -456,10 +475,6 @@ describe("alias targets are normalised to canonical ids", () => {
     expect(config.aliases.mynile).toBe("tron:3448148188");
   });
 
-  // The fold walks the WHOLE book, built-in entries included, so it can reach BACKWARDS. A
-  // canonical id is accepted as an alias key (it is merely dead — a canonical id can never be
-  // shadowed at resolution), but if the fold followed it, `nile -> tron:3448148188` would be
-  // rewritten to that key's own target and `--network nile` would settle on MAINNET.
   it("does not let a config entry keyed on a canonical id redirect a builtin alias", () => {
     const config = ConfigLoader.load(
       envWithConfig("aliases:\n  tron:3448148188: tron:728126428\n"),
@@ -486,7 +501,6 @@ describe("ConfigLoader sunswap network block", () => {
     expect(tronNetwork(config, "tron:2494104990").sunswap).toBeUndefined();
   });
 
-  // The switch a tester flips to reach an internal service: config only, no code change.
   it("lets config.yaml add the market API to another network", () => {
     const config = ConfigLoader.load(
       envWithConfig(
@@ -498,8 +512,6 @@ describe("ConfigLoader sunswap network block", () => {
     );
   });
 
-  // An overlay that switches one feature on must not switch the builtin ones off: the user's
-  // fields merge over the builtin block, and anything they leave out keeps its builtin value.
   it("merges the user's sunswap and sunpump fields over the builtin blocks", () => {
     const config = ConfigLoader.load(
       envWithConfig(
@@ -555,8 +567,6 @@ describe("ConfigLoader sunswap network block", () => {
     ).toThrow(/invalid sunpump\.apiBaseUrl/);
   });
 
-  // Contract addresses come from the SDK now. An old config that still carries them would
-  // otherwise be read without them and quietly lose the feature they used to switch on.
   it("rejects the retired address fields, naming the switch that replaces each", () => {
     expect(() =>
       ConfigLoader.load(
@@ -587,28 +597,14 @@ describe("ConfigLoader sunswap network block", () => {
     expect(tronNetwork(config, "tron:3448148188").sunpump).toEqual({ curve: true });
   });
 
-  /**
-   * Nile is the case that proves the two SunSwap capabilities are keyed on different fields: it
-   * has the liquidity commands and no market API, and both are true at once.
-   */
   it("ships liquidity on both TRON networks, and the market API on mainnet only", () => {
     const config = ConfigLoader.load(envWithConfig(""));
     const mainnet = tronNetwork(config, "tron:728126428").sunswap;
     const nile = tronNetwork(config, "tron:3448148188").sunswap;
     expect(mainnet?.liquidity).toBe(true);
-    // Nothing but the switch: the addresses come from the SDK, never from wallet-cli. And no
-    // router — Nile's route service is not public, so enabling it for testing is a `config.yaml`
-    // job, not a builtin.
     expect(nile).toEqual({ liquidity: true });
   });
 
-  /**
-   * SunPump is mainnet-only in the shipped build: Nile carries no switch for it, although the SDK
-   * knows Nile's launchpad.
-   *
-   * Enabling one for testing belongs in `config.yaml`, which layers over these builtins; putting it
-   * here would ship a capability on a network no outside caller can use.
-   */
   it("ships no SunPump block on Nile", () => {
     const config = ConfigLoader.load(envWithConfig(""));
     expect(tronNetwork(config, "tron:3448148188").sunpump).toBeUndefined();
@@ -687,5 +683,67 @@ describe("ConfigLoader sunswap network block", () => {
     const config = ConfigLoader.load(envWithConfig(""));
     expect(tronNetwork(config, "tron:728126428").sunswap?.liquidity).toBe(true);
     expect(tronNetwork(config, "tron:728126428").sunpump?.curve).toBe(true);
+  });
+});
+
+describe("ConfigLoader permission check covers every credential key", () => {
+  it.each([
+    "tronlinkSecretId",
+    "tronlinkSecretKey",
+    "gasfreeApiKey",
+    "gasfreeApiSecret",
+    "baiApiKey",
+  ])("refuses a group-readable file that holds only %s", (key) => {
+    expect(() => ConfigLoader.load(envWithConfig(`${key}: fake-credential\n`, 0o644))).toThrowError(
+      expect.objectContaining({ code: "insecure_config" }),
+    );
+  });
+
+  it("refuses a group-readable file that holds only a network apiKey", () => {
+    const yaml = "networks:\n  tron:3448148188:\n    apiKey: fake-credential\n";
+    expect(() => ConfigLoader.load(envWithConfig(yaml, 0o644))).toThrowError(
+      expect.objectContaining({ code: "insecure_config" }),
+    );
+  });
+});
+
+describe("ConfigLoader applies the config set rules", () => {
+  it.each(["-1", "0.5", ".inf", "'5000'", "2147483648"])(
+    "ignores timeoutMs %s and keeps the default",
+    (v) => {
+      expect(ConfigLoader.load(envWithConfig(`timeoutMs: ${v}\n`)).timeoutMs).toBe(90000);
+    },
+  );
+
+  it.each([0, 1, 1500, 2147483647])("keeps a valid timeoutMs %s", (v) => {
+    expect(ConfigLoader.load(envWithConfig(`timeoutMs: ${v}\n`)).timeoutMs).toBe(v);
+  });
+
+  it.each([
+    ["httpEndpoint", "ftp://node.invalid"],
+    ["apiKeyHeader", "X-Key: injected"],
+  ])("rejects a network %s that config set would refuse", (field, value) => {
+    const yaml = `networks:\n  tron:3448148188:\n    ${field}: "${value}"\n`;
+    expect(() => ConfigLoader.load(envWithConfig(yaml))).toThrowError(
+      expect.objectContaining({ code: "invalid_value" }),
+    );
+  });
+
+  it("rejects a network apiKey with control characters without echoing it", () => {
+    const yaml = 'networks:\n  tron:3448148188:\n    apiKey: "fake\\u0001key"\n';
+    let error: unknown;
+    try {
+      ConfigLoader.load(envWithConfig(yaml, 0o600));
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toMatchObject({ code: "invalid_value" });
+    expect(String((error as Error).message)).not.toContain("fake");
+  });
+
+  it("trims a hand-edited header name as config set does", () => {
+    const yaml = 'networks:\n  tron:3448148188:\n    apiKeyHeader: " X-Key "\n';
+    const config = ConfigLoader.load(envWithConfig(yaml));
+    expect(config.networks["tron:3448148188"]!.apiKeyHeader).toBe("X-Key");
   });
 });

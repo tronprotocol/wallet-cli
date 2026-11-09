@@ -6,9 +6,7 @@ import { TextFormatters } from "../render/index.js";
 
 export function registerAddressCommands(registry: CommandRegistry, service: AddressService): void {
   const fields = z.object({
-    // The default lives in SecureKeypairWriter, not in this schema, so it is stated in prose:
-    // a "[optional, default: …]" tag is derived from zod and would claim a default --json-schema
-    // does not have. Readers need the location before running, not only in the receipt.
+    // The writer derives the default path; the schema has no static default.
     out: z
       .string()
       .min(1)
@@ -29,9 +27,9 @@ export function registerAddressCommands(registry: CommandRegistry, service: Addr
     auth: "none",
     summary: "Generate a random TRON/EVM keypair locally without adding it to the wallet",
     description:
-      "Generate a secp256k1 keypair offline. The private key is written exclusively to a 0600 file,\n" +
-      "never printed and never added to the keystore — import it with `import private-key` to sign\n" +
-      "with it.\n" +
+      "Generate a secp256k1 keypair offline. By default the private key is written exclusively to a\n" +
+      "0600 file and not printed; `--print-secret` prints it in the result instead of writing a file.\n" +
+      "It is never added to the keystore — import it with `import private-key` to sign with it.\n" +
       "The TRON and EVM addresses shown are two encodings of the same generated key.",
     fields,
     input: fields,

@@ -77,7 +77,7 @@ The command never contacts a node, but it is still a TRON chain command: the env
 
 ## Exit status
 
-`0` success · `1` execution failure · `2` usage error (`missing_option` — no `--deployer` or `--salt`; `file_not_found` — `--code-file` does not exist; `invalid_value` — neither or both code sources, an unreadable code file, a malformed deployer address, non-hex code, or a salt outside the signed 64-bit range; `family_mismatch` on an EVM network).
+`0` success · `1` execution failure · `2` usage error (`missing_option` — no `--deployer` or `--salt`; `file_not_found` — `--code-file` does not exist; `invalid_option` — neither or both code sources; `invalid_value` — an unreadable code file, a malformed deployer address, non-hex code, or a salt outside the signed 64-bit range; `family_mismatch` on an EVM network).
 
 ## See also
 

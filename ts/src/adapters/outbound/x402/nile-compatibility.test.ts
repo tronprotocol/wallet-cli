@@ -1,9 +1,21 @@
+import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Wallet } from "ethers";
 import { TronWeb, providers, utils as tronUtils } from "tronweb";
 import { X402PaymentClient } from "./payment-client.js";
 import { tronSignStrategy } from "../chain/tron/signing-strategy.js";
 import type { TypedDataPayload } from "../../../domain/types/index.js";
+import { SigningService } from "../../../application/services/signing/signing-service.js";
+import { evmTransactionChainId } from "../chain/evm/evm.js";
+import { CommandDeadline } from "../../../application/services/command-deadline.js";
+
+// Node answers the signing entry checks chain identity against.
+const signing = new SigningService({
+  get: () => ({
+    referenceBlockStatus: async () => "held",
+    transactionChainId: evmTransactionChainId,
+  }),
+} as never);
 
 beforeEach(() => {
   vi.spyOn(providers.HttpProvider.prototype, "request").mockImplementation(async (path) => {
@@ -52,10 +64,18 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
         }),
       )
       .mockResolvedValueOnce(new Response("ok"));
-    const client = new X402PaymentClient(signers as never, fetcher);
+    const client = new X402Service(
+      new X402PaymentClient(fetcher),
+      signers as never,
+      {} as never,
+      {} as never,
+      undefined,
+      undefined,
+      signing,
+    );
     await expect(
       client.pay(
-        { activeAccount: "nile-test", timeoutMs: 1000, emit: vi.fn() } as never,
+        { activeAccount: "nile-test", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
         {
           id: "tron:3448148188",
           family: "tron",
@@ -148,10 +168,18 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
       });
     return new Response("delivered");
   });
-  const client = new X402PaymentClient(signers as never, fetcher);
+  const client = new X402Service(
+    new X402PaymentClient(fetcher),
+    signers as never,
+    {} as never,
+    {} as never,
+    undefined,
+    undefined,
+    signing,
+  );
   await expect(
     client.pay(
-      { activeAccount: "test", timeoutMs: 1000, emit: vi.fn(), warn } as never,
+      { activeAccount: "test", deadline: new CommandDeadline(0), emit: vi.fn(), warn } as never,
       {
         id: "tron:3448148188",
         family: "tron",
@@ -174,6 +202,8 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
     primaryType: "PermitTransfer",
     message: { maxFee: 1300000n, value: 10000n },
   });
-  expect(warn).toHaveBeenCalledWith(expect.stringContaining("13000.00%"));
+  expect(warn).toHaveBeenCalledWith(
+    expect.objectContaining({ message: expect.stringContaining("13000.00%") }),
+  );
   expect(endpointRequests).toBe(2);
 });

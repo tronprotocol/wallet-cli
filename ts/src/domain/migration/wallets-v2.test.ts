@@ -23,9 +23,6 @@ const watchWallet = {
 };
 
 describe("walletsNeedPassword", () => {
-  // The migration re-runs the SAME derivation the creation path uses, so any source holding a
-  // local secret must be decrypted. That is exactly SOURCE_KINDS[type].hasSecret — an exhaustive
-  // registry, so a new source type is forced to answer rather than defaulting to "free".
   it.each([
     ["a seed wallet", seedWallet],
     ["a privateKey wallet", pkWallet],
@@ -33,8 +30,6 @@ describe("walletsNeedPassword", () => {
     expect(walletsNeedPassword({ version: 1, wallets: [wallet] })).toBe(true);
   });
 
-  // ledger and watch hold no secret anywhere and are single-family by construction, so a
-  // keystore made only of them still migrates with no prompt at all.
   it("is false when no wallet holds a local secret", () => {
     expect(walletsNeedPassword({ version: 1, wallets: [ledgerWallet, watchWallet] })).toBe(false);
   });
@@ -44,7 +39,7 @@ describe("walletsNeedPassword", () => {
   });
 });
 
-// A real key pair: the two encodings of one public key (see domain/address tests).
+// TRON and EVM encodings of the same public key.
 const TRON_ADDR = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6";
 const EVM_ADDR = "0xe2E1a54926527Fbb4E4420DE4c6BAb82beAEE24D";
 
@@ -74,9 +69,6 @@ const noSecrets = {
 };
 
 describe("migrateWalletsToV2 — privateKey", () => {
-  // Both addresses come from the DECRYPTED key, the same way derivePrivAddresses builds them at
-  // import time — not from re-encoding whatever the file happened to cache. A stale cached value
-  // is therefore corrected, and no second statement of "how an EVM address is derived" exists.
   it("derives both addresses from the key, replacing a stale cached address", () => {
     const doc = {
       version: 1,
@@ -154,7 +146,6 @@ describe("migrateWalletsToV2 — the seed path", () => {
   const addressesOf = (out: { wallets: Array<{ source: unknown }> }) =>
     (out.wallets[0]!.source as { addresses: Record<string, ChainAddresses> }).addresses;
 
-  // Verified constants for the test mnemonic: the two TRON templates disagree from index 1 on.
   const LEGACY_TRON_1 = "TCjow1qG4ZvDNj5ZRCF2RSuS2kMCGKK1JJ"; // m/44'/195'/1'/0/0
   const CURRENT_TRON_1 = "TPjjvMwjPoDC32V2dGDYTkLH4E5LAtBZ6C"; // m/44'/195'/0'/0/1
   const CURRENT_TRON_0 = "TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"; // m/44'/195'/0'/0/0
@@ -170,9 +161,6 @@ describe("migrateWalletsToV2 — the seed path", () => {
     }
   });
 
-  // An unexplained cached address may be corruption, a wallet paired with the wrong vault, or a
-  // historical template this build does not know. Migration cannot safely choose among those
-  // cases, so it leaves the v1 document for recovery instead of silently changing its identity.
   it("refuses a cached TRON address that no known template explains", () => {
     const mismatched = {
       version: 1,
@@ -192,11 +180,6 @@ describe("migrateWalletsToV2 — the seed path", () => {
     );
   });
 
-  // The v1→v2 migration is the first code a 4.12.0 user meets, and 4.12.0 shipped `derive` on
-  // the OLD TRON template. Re-deriving index >= 1 would replace the funded legacy address with
-  // an address of a different key — after which every protection on this branch reads the
-  // account as "current" and signs with the wrong key. The cached value is the only record of
-  // which key owns the account, so it survives.
   it("keeps a cached TRON address that a legacy template explains", () => {
     const doc = {
       version: 1,
@@ -219,8 +202,6 @@ describe("migrateWalletsToV2 — the seed path", () => {
     expect(addresses["0"]!.tron).toBe(CURRENT_TRON_0);
   });
 
-  // A wallet derived by this build caches the current address, which the current template
-  // explains — nothing to preserve, and the migration behaves exactly as before.
   it("re-derives a cached TRON address the current template explains", () => {
     const doc = {
       version: 1,

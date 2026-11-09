@@ -1,16 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { keccak256 } from "ethers";
 import { localTxId } from "../../../application/services/broadcast-identity.js";
 import { Ledger } from "./index.js";
-import { Transaction, TypedDataEncoder } from "ethers";
+import { keccak256, Transaction, TypedDataEncoder } from "ethers";
 
-// Both app modules are imported lazily inside the adapter, so hoisted vi.mock applies. Mocking
-// BOTH is the point: the adapter must reach for the ethereum app, and a regression that keeps
-// loading hw-app-trx would otherwise pass silently.
+// Mock both apps so selecting the wrong family remains observable.
 const { calls, highS, legacyV } = vi.hoisted(() => ({
   calls: [] as Array<{ app: string; method: string; args: unknown[] }>,
   highS: { on: false },
-  // hw-app-eth returns v ALREADY EIP-155-encoded for a legacy tx: chainId*2 + 35 + parity.
   legacyV: { value: "1c" },
 }));
 
@@ -49,13 +45,16 @@ vi.mock("@ledgerhq/hw-app-eth", () => ({
 }));
 
 const PATH = "m/44'/60'/0'/0/0";
-const ledger = () => new Ledger(5_000);
+const tronIntegrityCheck = vi.fn();
+const ledger = () => new Ledger(tronIntegrityCheck);
 
 describe("Ledger reaches the ethereum app for the evm family", () => {
   it("derives an address through hw-app-eth, not hw-app-trx", async () => {
     calls.length = 0;
 
-    const address = await ledger().getAddress("evm", PATH);
+    const address = await ledger().getAddress("evm", PATH, {
+      signal: new AbortController().signal,
+    });
 
     expect(address).toBe("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
     expect(calls.map((c) => c.app)).toEqual(["eth"]);
@@ -63,13 +62,11 @@ describe("Ledger reaches the ethereum app for the evm family", () => {
 
   it("strips the leading m/ before handing the path to the device", async () => {
     calls.length = 0;
-    await ledger().getAddress("evm", PATH);
+    await ledger().getAddress("evm", PATH, { signal: new AbortController().signal });
 
     expect(calls[0]!.args[0]).toBe("44'/60'/0'/0/0");
   });
 
-  // hw-app-eth returns {v, r, s} where hw-app-trx returns a hex string, so the adapter has to
-  // assemble Ethereum's r||s||v itself rather than forwarding whatever came back.
   it("assembles a 65-byte r||s||v signature from the app's {v,r,s}", async () => {
     calls.length = 0;
 
@@ -103,8 +100,17 @@ describe("Ledger signs EVM transactions", () => {
 
     const { raw } = (await ledger().signTransaction("evm", PATH, TX)) as { raw: string };
 
-    expect(raw).toMatch(/^0x02/); // typed envelope, EIP-1559
+    expect(raw).toMatch(/^0x02/); // EIP-1559 envelope.
     expect(raw.toLowerCase()).toContain("cc".repeat(32));
+  });
+
+  it("signs through hw-app-eth without the TRON integrity check", async () => {
+    calls.length = 0;
+    tronIntegrityCheck.mockClear();
+    await ledger().signTransaction("evm", PATH, TX);
+
+    expect(calls.map((c) => `${c.app}.${c.method}`)).toEqual(["eth.signTransaction"]);
+    expect(tronIntegrityCheck).not.toHaveBeenCalled();
   });
 
   it("hands the device the UNSIGNED serialisation, without its 0x prefix", async () => {
@@ -117,10 +123,6 @@ describe("Ledger signs EVM transactions", () => {
     expect(rawTxHex.startsWith("02")).toBe(true);
   });
 
-  // Passing a resolution would make hw-app-eth fetch clear-signing descriptors from Ledger's CDN
-  // mid-signature. We deliberately pass null: the CLI must not phone out while signing.
-  // ethers enforces EIP-2 when the signature is attached, so a device returning a high-s value
-  // is rejected here rather than producing a transaction the network would refuse.
   it("refuses a non-canonical high-s signature from the device", async () => {
     calls.length = 0;
     highS.on = true;
@@ -163,11 +165,6 @@ describe("Ledger signs EVM typed data", () => {
     expect(result.primaryType).toBe("Mail");
   });
 
-  // Asserts the digests the device is shown match ethers' EIP-712 encoder exactly. Note this
-  // does NOT discriminate against tronweb's TIP-712 encoder: that is a fork of the same ethers
-  // code which merely ALSO accepts TRON base58 addresses, so for EVM input the two agree today.
-  // The reason to use ethers here is coupling, not output — tronweb's fork is free to diverge,
-  // and EVM signing should not depend on a TRON SDK's typed-data implementation.
   it("hashes exactly as the EIP-712 encoder does", async () => {
     calls.length = 0;
     await ledger().signTypedData("evm", PATH, {
@@ -182,10 +179,6 @@ describe("Ledger signs EVM typed data", () => {
   });
 });
 
-// For a legacy (type-0) transaction the ethereum app returns v already EIP-155-encoded
-// (chainId*2 + 35 + parity), which needs three bytes on Sepolia — 11155111*2+35 = 0x1546b71.
-// padStart(2,"0") cannot truncate, so the assembled signature is longer than 65 bytes and
-// ethers rejects it. Typed transactions hide this: their v is a bare parity bit.
 describe("Ledger signs a legacy EVM transaction", () => {
   const legacy = {
     type: 0,
@@ -199,7 +192,7 @@ describe("Ledger signs a legacy EVM transaction", () => {
 
   it("accepts an EIP-155-encoded v from the device", async () => {
     calls.length = 0;
-    legacyV.value = (11155111 * 2 + 35).toString(16); // 0x1546b71 — three bytes
+    legacyV.value = (11155111 * 2 + 35).toString(16); // Three-byte EIP-155 v.
     try {
       const { raw } = (await ledger().signTransaction("evm", PATH, legacy)) as { raw: string };
       expect(Transaction.from(raw).chainId).toBe(11155111n);
@@ -209,13 +202,6 @@ describe("Ledger signs a legacy EVM transaction", () => {
   });
 });
 
-/**
- * A device-signed transaction carries the same `{ raw, hash }` shape a software-signed one does.
- *
- * The pipeline does not know which signer produced a transaction, so a Ledger-signed one that
- * returned a bare string would silently lose its locally derived id — and with it the protection
- * `authoritativeTxId` gives against a node naming the wrong transaction.
- */
 describe("Ledger EVM signed-transaction identity", () => {
   it("returns raw and hash, like the software strategy", async () => {
     calls.length = 0;

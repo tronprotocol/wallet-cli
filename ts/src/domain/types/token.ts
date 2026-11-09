@@ -1,8 +1,4 @@
-/**
- * SharedTypes — token address-book (persisted in tokens.json).
- */
-
-/** one TRC20/TRC10 token in the address book. id = contract (base58) | assetId (numeric). */
+// id is a TRC20 base58 contract, ERC20 hex contract, or numeric TRC10 asset id.
 export interface TokenEntry {
   kind: "trc20" | "trc10" | "erc20";
   id: string;
@@ -10,9 +6,8 @@ export interface TokenEntry {
   decimals: number;
   name?: string;
 }
-/** a book entry tagged with which layer it came from (official builtin vs user-added). */
 export type EffectiveTokenEntry = TokenEntry & { source: "official" | "user" };
-/** tokens.json — user layer only; keyed `"<networkId>|<accountRef>"`. */
+// User entries keyed by <networkId>|<accountRef>.
 export interface TokensFile {
   version: number;
   entries: Record<string, TokenEntry[]>;

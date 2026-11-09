@@ -1,8 +1,3 @@
-/**
- * Keystore pure helpers — the wallet data-model functions (no IO, no password): account-ref
- * formatting, address derivation/projection, the vault payload codec, and the dedup scans.
- * The Keystore class (./index) composes these; data shapes live in SharedTypes.
- */
 import { hexToBytes, bytesToHex } from "@noble/hashes/utils.js";
 import type {
   AccountRef,
@@ -16,12 +11,12 @@ import type {
 import { Derivation } from "../derivation/index.js";
 import { CHAIN_FAMILIES, addressCodec } from "../family/index.js";
 
-/** the secret-blob id carried by a source (vault/key id), or "" for ledger/watch (no blob). */
+// Returns an empty string for sources without local secrets.
 export function secretId(s: Source): string {
   return s.type === "seed" ? s.vaultId : s.type === "privateKey" ? s.keyId : "";
 }
 
-/** lowest known index of a wallet, or null for the index-less sources (privateKey/ledger). */
+// Lowest cached seed index (zero if empty); null for other sources.
 export function firstIndex(w: Wallet): number | null {
   return w.source.type === "seed" ? (accountIndices(w.source)[0] ?? 0) : null;
 }
@@ -30,12 +25,11 @@ export function accountRefOf(w: Wallet, index: number | null): AccountRef {
   return accountRef(w.id, index);
 }
 
-/** the single account-ref format: `wlt_x.<index>` (seed) or `wlt_k` (privateKey/ledger, index=null). */
+// Seed refs use walletId.index; other sources use walletId.
 export function accountRef(walletId: string, index: number | null): AccountRef {
   return index === null ? walletId : `${walletId}.${index}`;
 }
 
-/** known account indices of a source — seed only (privateKey/ledger have none). */
 export function accountIndices(source: Source): number[] {
   if (source.type !== "seed") return [];
   return Object.keys(source.addresses)
@@ -43,11 +37,7 @@ export function accountIndices(source: Source): number[] {
     .sort((a, b) => a - b);
 }
 
-/**
- * The single way to read a cached address. seed → addresses[index][family]
- * (index defaults to the lowest known); privateKey → flat addresses[family];
- * ledger → its address iff family matches, else undefined.
- */
+// Reads cached addresses; a missing seed index defaults to the lowest known index.
 export function walletAddress(
   wallet: Wallet,
   family: ChainFamily,
@@ -67,7 +57,7 @@ export function walletAddress(
   }
 }
 
-// ── vault payload codec (entropy + optional BIP39 passphrase, persisted encrypted) ──
+// Vault plaintext is UTF-8 JSON containing hex entropy and an optional BIP39 passphrase.
 interface VaultPayload {
   v: 1;
   entropy: string;
@@ -99,14 +89,7 @@ export function derivePrivAddresses(pk: Bytes): ChainAddresses {
   return out;
 }
 
-/**
- * (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk.
- *
- * Every address leaves here CANONICAL (EVM in EIP-55). Normalising at this single point
- * rather than at each call site means a wallets.json written before this rule — a watch account
- * registered from an all-lowercase paste — displays and matches identically to one written after
- * it, without rewriting the file.
- */
+// Canonicalizes cached addresses for display and deduplication without rewriting storage.
 export function enumerateAddresses(
   w: Wallet,
 ): Array<{ index: number | null; addr: Partial<ChainAddresses> }> {
@@ -121,7 +104,6 @@ export function enumerateAddresses(
   return [{ index: null, addr: { [s.family]: addressCodec(s.family).canonical(s.address) } }];
 }
 
-/** every value of an address map in its canonical spelling. */
 function canonicalAddresses(addr: Partial<ChainAddresses>): Partial<ChainAddresses> {
   const out: Partial<ChainAddresses> = {};
   for (const f of CHAIN_FAMILIES) {
@@ -131,18 +113,11 @@ function canonicalAddresses(addr: Partial<ChainAddresses>): Partial<ChainAddress
   return out;
 }
 
-/** addresses projected for a single account view (seed index / privateKey / ledger). */
 export function viewAddresses(w: Wallet, index: number | null): Partial<ChainAddresses> {
   return enumerateAddresses(w).find((e) => e.index === index)?.addr ?? {};
 }
 
-/** software-account dedup (seed/privateKey only). Ledger/watch dedup by source match below.
- *
- *  `ofType` scopes the scan to one source kind, and every caller passes it: a repeated import of
- *  the same secret is idempotent, but a seed and a privateKey holding the same key are two
- *  different things and both are worth keeping. Matching across kinds made the stronger one lose
- *  — importing a mnemonic whose account #0 was already present as a raw key returned the existing
- *  account and never stored the seed, so `derive` failed on an import reported as successful. */
+// Scope deduplication by source type to avoid losing a seed when its raw key is already stored.
 export function findByAddress(
   file: WalletsFile,
   addr: Partial<ChainAddresses>,
@@ -160,7 +135,6 @@ export function findByAddress(
   return null;
 }
 
-/** secret-less dedup (ledger by family+path, watch by family+address): one parameterized scan. */
 export function findBySource(file: WalletsFile, match: (s: Source) => boolean): AccountRef | null {
   for (const w of file.wallets) {
     if (match(w.source)) return accountRefOf(w, null);

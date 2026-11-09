@@ -1,32 +1,13 @@
-/**
- * Decimal token amount → integer base units, truncating what the token cannot hold.
- *
- * Separate from `domain/amounts`' `toBaseUnits`, which rejects over-precise input as a usage
- * error. That is right for a number a person typed: refusing to guess which digits they meant is
- * safer than dropping them. It is wrong for a number a market API sent, where extra places are
- * the indexer's own rounding artefact and refusing them would fail a read-only listing over a
- * digit nobody will ever spend. So this one truncates; unsupported decimals still fail.
- *
- * String math throughout. These values reach 25 significant digits, and `number` silently
- * rewrites anything past 15 of them.
- */
 import { checkedTokenDecimals } from "../amounts/index.js";
 import { ChainError } from "../errors/index.js";
 
-/**
- * "7.06e-05" → "0.0000706". The market API sends small prices in scientific notation, and every
- * consumer downstream — comparison, rendering, base-unit conversion — expects a plain decimal.
- *
- * Expanded by moving the point through the digit string, so a value too large or too precise for
- * a float survives intact. A literal with no exponent, or one that is not a number at all, is
- * returned untouched.
- */
+// Expands scientific notation without float rounding; other literals pass through unchanged.
 export function expandScientificNotation(value: string): string {
   const match = /^(-?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/.exec(value.trim());
   if (!match) return value;
   const [, sign = "", whole = "0", fraction = "", exponent = "0"] = match;
   const power = Number(exponent);
-  // Bound expansion before repeat/padEnd: a short remote literal can request gigabytes.
+  // Bound allocation from remote exponents before repeat/padEnd.
   if (!Number.isSafeInteger(power) || Math.abs(power) > 1000) {
     throw new ChainError(
       "invalid_node_response",
@@ -44,13 +25,7 @@ export function expandScientificNotation(value: string): string {
   return out === "" || /^0+$/.test(out) ? "0" : `${sign}${out}`;
 }
 
-/**
- * "1070163.618808583559303388", 18 → "1070163618808583559303388".
- *
- * Truncates toward zero past `decimals` places; pads short fractions. A value that is not a
- * plain decimal literal is returned as-is rather than coerced, so a surprise from the remote
- * travels to the caller intact instead of becoming a wrong number here.
- */
+// Truncates toward zero in base units; non-decimal literals pass through trimmed.
 export function toBaseUnitsTruncating(value: string, decimals: number): string {
   checkedTokenDecimals(decimals);
   const raw = value.trim();

@@ -1,6 +1,18 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
+import {
+  barBroadcasts,
+  processBroadcastGuard,
+} from "../../../application/services/broadcast-guard.js";
 import { describe, expect, it, vi } from "vitest";
 import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import { GasFreeClient } from "./client.js";
+import { expiredCheck } from "../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const NETWORK = {
   id: "tron:3448148188",
@@ -41,11 +53,11 @@ describe("GasFreeClient", () => {
     });
     const client = new GasFreeClient(
       CONFIG,
-      1000,
+      processBroadcastGuard,
       fetcher as typeof fetch,
       () => 1_700_000_000_000,
     );
-    const tokens = await client.listTokens(NETWORK);
+    const tokens = await client.listTokens(NETWORK, NO_CHECK);
     expect(fetcher.mock.calls[0]?.[0]).toBe(
       "https://open-test.gasfree.io/nile/api/v1/config/token/all",
     );
@@ -74,44 +86,161 @@ describe("GasFreeClient", () => {
     });
     const client = new GasFreeClient(
       CONFIG,
-      1000,
+      processBroadcastGuard,
       fetcher as typeof fetch,
       () => 1_700_000_000_000,
     );
-    const record = await client.submitTransfer(NETWORK, {
-      token: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
-      serviceProvider: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
-      user: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
-      receiver: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
-      value: "900719925474099312345",
-      maxFee: "2000000",
-      deadline: "1747909695",
-      version: "1",
-      nonce: "8",
-      sig: "00".repeat(64) + "1b",
-    });
+    const record = await client.submitTransfer(
+      NETWORK,
+      {
+        token: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+        serviceProvider: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+        user: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+        receiver: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+        value: "900719925474099312345",
+        maxFee: "2000000",
+        deadline: "1747909695",
+        version: "1",
+        nonce: "8",
+        sig: "00".repeat(64) + "1b",
+      },
+      NO_CHECK,
+    );
     expect(record.expiredAt).toBe("1747909695000");
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a trace expiry given in seconds in milliseconds", async () => {
+    const client = new GasFreeClient(
+      CONFIG,
+      processBroadcastGuard,
+      vi.fn(async () =>
+        response({
+          code: 200,
+          data: {
+            id: "trace-1",
+            state: "WAITING",
+            tokenAddress: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+            providerAddress: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+            accountAddress: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+            gasFreeAddress: "TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
+            targetAddress: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+            amount: 1,
+            nonce: 8,
+            expiredAt: 1747909695,
+          },
+        }),
+      ) as typeof fetch,
+    );
+    await expect(client.trace(NETWORK, "trace-1", NO_CHECK)).resolves.toMatchObject({
+      expiredAt: "1747909695000",
+    });
   });
 
   it("maps authentication errors without leaking credentials", async () => {
     const client = new GasFreeClient(
       CONFIG,
-      1000,
+      processBroadcastGuard,
       vi.fn(async () => response({}, 401)) as typeof fetch,
     );
-    await expect(client.listTokens(NETWORK)).rejects.toMatchObject({
+    await expect(client.listTokens(NETWORK, NO_CHECK)).rejects.toMatchObject({
       code: "gasfree_auth_failed",
     });
-    await expect(client.listTokens(NETWORK)).rejects.not.toThrow(/test-secret|test-key/);
+    await expect(client.listTokens(NETWORK, NO_CHECK)).rejects.not.toThrow(/test-secret|test-key/);
+  });
+
+  it.each([
+    [() => response({}, 403), "gasfree_auth_failed", { status: 403 }],
+    [() => response({}, 404), "not_found", { status: 404 }],
+    [() => response({}, 400), "gasfree_rejected", { status: 400 }],
+    [() => response({}, 503), "provider_error", undefined],
+    [() => new Response("{nope"), "provider_error", undefined],
+    [() => new Response("x".repeat(1024 * 1024 + 1)), "provider_error", undefined],
+    [
+      () => new Response("", { status: 429, headers: { "retry-after": "9" } }),
+      "provider_rate_limited",
+      { httpStatus: 429, retryAfterSeconds: 9 },
+    ],
+    [() => new Response("", { status: 429 }), "provider_rate_limited", { httpStatus: 429 }],
+  ])("maps a service answer to its error (%#)", async (answer, code, details) => {
+    const client = new GasFreeClient(
+      CONFIG,
+      processBroadcastGuard,
+      vi.fn(async () => answer()) as typeof fetch,
+    );
+    const error = (await client
+      .listTokens(NETWORK, NO_CHECK)
+      .catch((caught: unknown) => caught)) as {
+      code: string;
+      details?: unknown;
+    };
+    expect(error.code).toBe(code);
+    expect(error.details).toEqual(details);
+  });
+
+  it("refuses redirects", async () => {
+    const fetcher = vi.fn(async () => response({}, 401));
+    const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);
+    await client.listTokens(NETWORK, NO_CHECK).catch(() => {});
+    expect(fetcher.mock.calls[0]).toMatchObject([expect.anything(), { redirect: "error" }]);
   });
 
   it("rejects unsupported networks before sending credentials", async () => {
     const fetcher = vi.fn();
-    const client = new GasFreeClient(CONFIG, 1000, fetcher as typeof fetch);
-    await expect(client.listTokens({ ...NETWORK, gasfree: undefined })).rejects.toMatchObject({
+    const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);
+    await expect(
+      client.listTokens({ ...NETWORK, gasfree: undefined }, NO_CHECK),
+    ).rejects.toMatchObject({
       code: "unsupported_network",
     });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("GasFreeClient.submitTransfer dry-run guard", () => {
+  it("refuses while broadcasting is barred and sends nothing", async () => {
+    const fetcher = vi.fn(async () => response({ code: 200, data: {} }));
+    const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);
+    await barBroadcasts("gasfree transfer --dry-run", async () => {
+      await expect(
+        client.submitTransfer(
+          NETWORK,
+          {
+            token: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+            serviceProvider: "TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+            user: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+            receiver: "TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+            value: "1",
+            maxFee: "1",
+            deadline: "1747909695",
+            version: "1",
+            nonce: "8",
+            sig: "00".repeat(64) + "1b",
+          },
+          NO_CHECK,
+        ),
+      ).rejects.toMatchObject({ code: "dry_run_violation" });
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe("GasFreeClient trace", () => {
+  it("does not send a trace once the caller's signal has aborted", async () => {
+    const sent: string[] = [];
+    const client = new GasFreeClient(
+      CONFIG,
+      processBroadcastGuard,
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        init?.signal?.throwIfAborted();
+        sent.push(String(url));
+        return response({});
+      }) as typeof fetch,
+    );
+
+    await expect(client.trace(NETWORK, "trace-1", expiredCheck())).rejects.toBeInstanceOf(
+      DeadlineExpiredError,
+    );
+    expect(sent).toEqual([]);
   });
 });
