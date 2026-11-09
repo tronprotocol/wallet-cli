@@ -75,7 +75,7 @@ printf '%s' "$PW" | wallet-cli create --label main --password-stdin -o json
 
 ## Exit status
 
-`0` created · `1` execution failure · `2` usage error (e.g. label already taken / invalid, `weak_password`). See [machine-interface](../machine-interface.md#exit-codes).
+`0` created · `1` execution failure (`aborted` — Ctrl-C at a prompt; nothing is created) · `2` usage error (e.g. label already taken / invalid, `weak_password`). See [machine-interface](../machine-interface.md#exit-codes).
 
 ## See also
 

@@ -7,7 +7,7 @@ import { BACKUP_RECORD_LIMIT, FileBackupRecordStore } from "./backup-records.js"
 import type { BackupRecord } from "../../../application/ports/backup-records.js";
 
 const record = (n: number): BackupRecord => ({
-  operation: n % 2 === 0 ? "backup" : "backup --keystore",
+  operation: n % 2 === 0 ? "native-export" : "keystore-export",
   accountId: `wlt_a.${n}`,
   account: `T${n}`,
   label: n === 0 ? null : `acct-${n}`,
@@ -40,8 +40,7 @@ describe("FileBackupRecordStore", () => {
   });
 
   it(`keeps only the most recent ${BACKUP_RECORD_LIMIT}, dropping the oldest`, () => {
-    // Seeded directly: an append is a locked, fsynced rewrite, so 1000 of them would only measure
-    // disk. The retention rule is what matters, and one append past the cap exercises it.
+    // Seed directly to avoid 1000 fsynced writes; one append exercises retention.
     const seeded = Array.from({ length: BACKUP_RECORD_LIMIT }, (_v, i) =>
       record(BACKUP_RECORD_LIMIT - i),
     );
@@ -53,8 +52,8 @@ describe("FileBackupRecordStore", () => {
     store.append(record(0));
     const listed = store.list();
     expect(listed).toHaveLength(BACKUP_RECORD_LIMIT);
-    expect(listed[0]!.accountId).toBe("wlt_a.0"); // newest kept
-    expect(listed.at(-1)!.accountId).toBe("wlt_a.2"); // the oldest (wlt_a.1) evicted
+    expect(listed[0]!.accountId).toBe("wlt_a.0");
+    expect(listed.at(-1)!.accountId).toBe("wlt_a.2");
   });
 
   it("persists to backup-records.json under the wallet root", () => {
@@ -63,17 +62,6 @@ describe("FileBackupRecordStore", () => {
     expect(onDisk).toEqual({ version: 1, records: [record(1)] });
   });
 
-  /**
-   * The audit log is the only local record of which secrets left this machine, and an append is a
-   * whole-file rewrite. A file that is legal json but not a shape we recognise used to read as
-   * "no records", so the next export overwrote it — reliably and silently destroying the evidence.
-   * A future `version: 2` written by a newer build and then opened by this one would do exactly
-   * that, which makes it a forward-compatibility trap as much as a tampering one.
-   *
-   * Unrecognised content is therefore set aside under a `.unreadable-<n>` name before anything is
-   * written. Backup keeps working — refusing to export because the log is unreadable helps nobody —
-   * but the original bytes survive for whoever has to reconstruct what happened.
-   */
   const unreadable = [
     ["a newer schema version", { version: 2, entries: [{ account: "T1" }] }],
     ["records that are not an array", { version: 1, records: { a: 1 } }],
@@ -105,12 +93,31 @@ describe("FileBackupRecordStore", () => {
     expect(JSON.parse(readFileSync(join(root, quarantined[0]!), "utf8"))).toEqual(original);
   });
 
-  // Syntactically broken json already failed closed; that behaviour is the reference, not the bug.
   it("still refuses to touch a file that is not json at all", () => {
     writeFileSync(join(root, "backup-records.json"), '{"version":1,"records":[');
     expect(() => store.list()).toThrowError();
     expect(readFileSync(join(root, "backup-records.json"), "utf8")).toBe(
       '{"version":1,"records":[',
     );
+  });
+
+  it("loads records stored with the command spelling as the semantic operation", () => {
+    const legacy = [
+      { ...record(1), operation: "backup --keystore" },
+      { ...record(2), operation: "backup" },
+    ];
+    writeFileSync(
+      join(root, "backup-records.json"),
+      JSON.stringify({ version: 1, records: legacy }),
+    );
+    expect(store.list().map((r) => r.operation)).toEqual(["keystore-export", "native-export"]);
+
+    store.append(record(3));
+    const stored = JSON.parse(readFileSync(join(root, "backup-records.json"), "utf8"));
+    expect(stored.records.map((r: BackupRecord) => r.operation)).toEqual([
+      "keystore-export",
+      "keystore-export",
+      "native-export",
+    ]);
   });
 });

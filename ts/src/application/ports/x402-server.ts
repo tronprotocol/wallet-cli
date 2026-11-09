@@ -1,5 +1,6 @@
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
+import type { X402PaymentResult, X402Settlement } from "./x402-payment.js";
 
 export interface X402RoundtripPort {
   prepare(scope: TransactionScope, network: NetworkDescriptor): void;
@@ -8,12 +9,23 @@ export interface X402RoundtripPort {
     scope: TransactionScope,
     network: NetworkDescriptor,
     input: X402ServeInput,
-  ): Promise<{ serve: Record<string, unknown>; pay: Record<string, unknown> }>;
+  ): Promise<X402Roundtrip>;
 }
 
+export interface X402Roundtrip {
+  readonly serve: X402ServeDetails;
+  readonly pay: X402PaymentResult;
+  // Present when the paid response carried a settlement receipt.
+  readonly settlement?: X402Settlement;
+}
+
+// How the listener reports requests: as JSON lines, text lines, or debug diagnostics.
+export type X402AccessLog = "json" | "text" | "diagnostic";
+
+// Amounts: amount in whole tokens, rawAmount in token base units.
 export interface X402ServeInput {
-  /** Temporary roundtrip access logs are diagnostic; standalone servers retain access logs. */
-  accessLog?: "debug" | "text";
+  // Defaults to JSON lines; a roundtrip always reports diagnostics.
+  accessLog?: X402AccessLog;
   payTo: string;
   amount?: string;
   rawAmount?: string;
@@ -33,12 +45,26 @@ export interface X402ServeInput {
   maxGasfreeFeeRaw?: string;
 }
 
-export interface X402ServerHandle {
-  details: Record<string, unknown>;
-  close(): Promise<void>;
+// Amounts: amount in whole tokens, rawAmount in token base units.
+export interface X402ServeDetails {
+  payUrl: string;
+  network: string;
+  scheme: "exact" | "exact_gasfree";
+  token?: string;
+  asset: string;
+  decimals: number;
+  validForSeconds: number;
+  resourceUrl: string;
+  amount?: string;
+  rawAmount: string;
+  payTo: string;
+  // Set for a detached server.
+  daemon?: true;
+  pid?: number;
+  logFile?: string;
 }
 
-export interface X402ServerPort {
-  validate(network: NetworkDescriptor, input: X402ServeInput): void;
-  start(network: NetworkDescriptor, input: X402ServeInput): Promise<X402ServerHandle>;
+export interface X402ServerHandle {
+  details: X402ServeDetails;
+  close(): Promise<void>;
 }

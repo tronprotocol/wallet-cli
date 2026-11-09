@@ -42,7 +42,6 @@ function deployment(overrides: Record<string, unknown> = {}) {
 describe("refreshTransactionIdentity — deployment address", () => {
   it("re-derives contract_address from the refreshed txID", () => {
     const refreshed = refreshTransactionIdentity(deployment());
-    // 41 ‖ keccak256(txID ‖ owner_address)[12..] — the rule java-tron applies on execution.
     expect(refreshed.contract_address).toMatch(/^41[0-9a-f]{40}$/);
     expect(refreshed.contract_address).not.toBe(STALE);
   });

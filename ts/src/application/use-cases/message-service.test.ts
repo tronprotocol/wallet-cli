@@ -1,16 +1,19 @@
-/**
- * MessageService — the response contract and the pre-flight capability gate.
- *
- * The service itself is family-agnostic: the family only chooses which SignStrategy hashes the
- * message, so the same binding serves TRON and EVM and the envelope must not vary between them.
- */
 import { describe, it, expect, vi } from "vitest";
 import { MessageService } from "./message-service.js";
 import { WalletError } from "../../domain/errors/index.js";
 import type { SignerResolver } from "../services/signer/index.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
+import { SigningService } from "../services/signing/signing-service.js";
+import { CommandDeadline } from "../services/command-deadline.js";
 
-const scope = { timeoutMs: 1000, emit: () => {} } as unknown as TransactionScope;
+const TRON = { id: "tron:3448148188", family: "tron", chainId: "3448148188" } as never;
+const EVM = { id: "eip155:1", family: "evm", chainId: "1" } as never;
+const signing = new SigningService({} as never);
+
+const scope = {
+  deadline: new CommandDeadline(0),
+  emit: () => {},
+} as unknown as TransactionScope;
 
 function resolverStub(overrides: Partial<Record<"assertCanSign" | "resolve", unknown>> = {}) {
   return {
@@ -26,27 +29,25 @@ function resolverStub(overrides: Partial<Record<"assertCanSign" | "resolve", unk
 
 describe("MessageService.sign", () => {
   it("returns address, message and signature", async () => {
-    const out = await new MessageService(resolverStub()).sign(scope, "evm", "acct", "hello");
+    const out = await new MessageService(resolverStub(), signing).sign(scope, EVM, "acct", "hello");
     expect(out).toEqual({ address: "0xabc", message: "hello", signature: "0xsig" });
   });
 
   it("returns the same field set for either family", async () => {
-    const service = new MessageService(resolverStub());
-    const tron = await service.sign(scope, "tron", "acct", "hello");
-    const evm = await service.sign(scope, "evm", "acct", "hello");
+    const service = new MessageService(resolverStub(), signing);
+    const tron = await service.sign(scope, TRON, "acct", "hello");
+    const evm = await service.sign(scope, EVM, "acct", "hello");
     expect(Object.keys(evm)).toEqual(Object.keys(tron));
   });
 
   it("refuses a watch-only account before resolving a signer", async () => {
-    // The gate belongs ahead of the keystore work, as it already is in TypedDataService: a
-    // "cannot sign" failure must win over anything the resolve path might report first.
     const signers = resolverStub({
       assertCanSign: vi.fn(() => {
         throw new WalletError("watch_only_no_signer", "watch-only account cannot sign");
       }),
     });
     await expect(
-      new MessageService(signers).sign(scope, "evm", "acct", "hi"),
+      new MessageService(signers, signing).sign(scope, EVM, "acct", "hi"),
     ).rejects.toMatchObject({ code: "watch_only_no_signer" });
     expect(signers.resolve).not.toHaveBeenCalled();
   });

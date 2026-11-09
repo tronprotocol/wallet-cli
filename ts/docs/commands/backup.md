@@ -28,7 +28,7 @@ Without `--keystore`, a fully interactive terminal asks which format to write, b
 
 When the password comes from `--password-stdin`, or the run is otherwise non-interactive, there is no prompt and the native format is written.
 
-A native backup of a wallet created before 4.13.1 can print a warning: some of its TRON accounts use an old path that importing the recovery phrase will not bring back. The warning names each account and the `--keystore` command that saves its key. Run those before deleting the wallet — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
+A native backup warns when a seed account uses `m/44'/195'/<index>'/0/0` with index greater than zero: importing the recovery phrase uses the default path and will not recreate that TRON address. The warning names each account and the `--keystore` command that saves its key. Run those before deleting the wallet — see [Recover addresses after `legacy_derivation`](../troubleshooting/legacy-derivation-recovery.md).
 
 A seed derives a different key per chain family, and a keystore carries only one of them, so `--network` selects which family's key is written — falling back to `config.defaultNetwork` when omitted. The receipt names the family it wrote, and so does the export log. A private-key account has one key and ignores the selection; the native format covers every family at once, so it needs no choice and reports none.
 
@@ -43,7 +43,7 @@ With `--records` and no account, nothing is exported: the command lists the **lo
 - `--keystore` and `--out` describe an export, so combining either with `--records` fails rather than being silently ignored.
 - `--from` / `--to` / `--limit` / `--offset` filter the log, so any of them **without** `--records` fails too.
 
-Both are `invalid_value` at exit `2`, and the message names the offending flag — for example `invalid --offset: --offset filters the export log; it needs --records`.
+The first is `invalid_option` and the second `invalid_value`, both at exit `2`, and the message names the offending flag — for example `invalid --offset: --offset filters the export log; it needs --records`.
 
 The positional account is the exception: it means different things in the two forms rather than conflicting with `--records`. `backup main` exports `main`'s secret; `backup main --records` lists `main`'s past exports, exactly as `--account main` would.
 
@@ -182,7 +182,7 @@ Both forms are local and contact no node, but `backup` has an optional network d
 
 ## Exit status
 
-`0` success · `1` execution failure (`not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`account_not_found` — no such account; `output_exists` — the target file already exists and is never overwritten; `invalid_value` — a record filter without `--records`, `--keystore` / `--out` with `--records`, or a bad time / limit / offset).
+`0` success · `1` execution failure (`aborted` — Ctrl-C at a prompt; nothing is written; `not_exportable` — watch-only or Ledger; `auth_failed`; `io_error` — path not writable) · `2` usage error (`account_not_found` — no such account; `output_exists` — the target file already exists and is never overwritten; `invalid_option` — `--keystore` / `--out` with `--records`; `invalid_value` — a record filter without `--records`, or a bad time / limit / offset).
 
 ## See also
 

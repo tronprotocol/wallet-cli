@@ -1,4 +1,4 @@
-/** Serve the real CLI's read-only router preconditions without reaching public services. */
+// Serve router preconditions locally without reaching public services.
 import { createServer } from "node:http";
 import https from "node:https";
 import { syncBuiltinESMExports } from "node:module";
@@ -23,7 +23,7 @@ function unexpected(detail) {
   return new Error(message);
 }
 
-// Fail closed if a config regression sends the RPC or route query to a public service.
+// Reject external HTTPS requests so fixture gaps cannot reach public services.
 https.request = () => {
   throw unexpected("external HTTPS");
 };

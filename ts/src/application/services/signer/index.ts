@@ -1,8 +1,3 @@
-/**
- * SignerResolver — turn an AccountRef + family into a Signer carrying its cached
- * address. The wallet's source type decides software vs ledger — this is where "the active
- * wallet decides whether hardware confirmation is needed" lands.
- */
 import type { ChainFamily, Signer, SignStrategy } from "../../../domain/types/index.js";
 import type { AccountStore } from "../../ports/account-store.js";
 import type { LedgerDevice } from "../../ports/ledger-device.js";
@@ -27,16 +22,7 @@ export class SignerResolver {
     private readonly signStrategies: Record<ChainFamily, SignStrategy>,
   ) {}
 
-  /**
-   * Cheap pre-flight capability gate: throws before any RPC or keystore decrypt when the active
-   * account cannot produce a signature (watch-only). Write commands call this FIRST so a
-   * "can't sign" failure wins over business-rule errors (e.g. insufficient voting power) — and so
-   * even --dry-run refuses a watch-only account rather than simulating a tx it could never send.
-   *
-   * `requireSoftware` additionally rejects Ledger accounts before any device interaction, for tx
-   * types the family's Ledger app firmware cannot sign (e.g. TRON contract deploy,
-   * cancel-all-unfreeze — see the callers in the tron use cases).
-   */
+  // Checks public metadata only; transaction callers gate this on transactionRequiresSigner.
   assertCanSign(
     refOrLabel: string,
     family: ChainFamily,
@@ -45,9 +31,6 @@ export class SignerResolver {
     const { wallet, index } = this.keystore.resolveAccount(refOrLabel, family);
     const address = walletAddress(wallet, family, index);
     if (!address) {
-      // The account exists but lives on another chain — the same condition resolveAddress
-      // reports, and the same code. `missing_wallet_address` reads as "you have no account",
-      // which is a different problem with a different fix.
       throw new UsageError("family_mismatch", `account has no ${family} address`);
     }
     if (wallet.source.type === "watch") {
@@ -75,9 +58,6 @@ export class SignerResolver {
     const { wallet, index } = this.keystore.resolveAccount(refOrLabel, family);
     const address = walletAddress(wallet, family, index);
     if (!address) {
-      // The account exists but lives on another chain — the same condition resolveAddress
-      // reports, and the same code. `missing_wallet_address` reads as "you have no account",
-      // which is a different problem with a different fix.
       throw new UsageError("family_mismatch", `account has no ${family} address`);
     }
 
@@ -95,9 +75,7 @@ export class SignerResolver {
         const ref = `${wallet.id}.${index}`;
         const label = this.keystore.describe(ref).label;
         const loadKey = () => {
-          // Inside the loader, not in assertCanSign: this needs the seed, and --dry-run and
-          // --build-only reach assertCanSign without a master password. Neither produces a
-          // signature, and both read the cached (correct) address, so both must keep working.
+          // Defer seed decryption and derivation checks until key access is required.
           const seed = this.keystore.decryptSeed(vaultId);
           const resolved = resolveDerivation(seed, family, index, address);
           if (!resolved) throw derivationMismatchError(family, ref);

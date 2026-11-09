@@ -6,7 +6,7 @@ const transaction = "0x" + "a".repeat(64);
 const payment = () => ({
   settled: true,
   payer: { address: payer },
-  paymentResponse: { success: true, transaction, network: "eip155:56", payer },
+  settlement: { success: true, transaction, network: "eip155:56", payer },
 });
 
 it("extracts a confirmed x402 settlement without an MCP response body", () => {
@@ -20,7 +20,7 @@ it.each([
   { payer: "0x2222222222222222222222222222222222222222" },
 ])("rejects inconsistent settlement evidence %j", (override) => {
   const value = payment();
-  Object.assign(value.paymentResponse, override);
+  Object.assign(value.settlement, override);
   expect(() => baiPaymentResult(value, "eip155:56")).toThrow(/unconfirmed/);
 });
 it("does not accept HTTP delivery or a legacy MCP hash as proof of settlement", () => {
@@ -30,7 +30,7 @@ it("does not accept HTTP delivery or a legacy MCP hash as proof of settlement", 
         delivered: true,
         payer: { address: payer },
         response: { result: { transaction_hash: transaction, network: "eip155:56" } },
-      },
+      } as never,
       "eip155:56",
     ),
   ).toThrow();
@@ -42,7 +42,7 @@ it.each(["tron:728126428", "tron:0x2b6653dc"])("accepts TRON settlement network 
       {
         settled: true,
         payer: { address: "tron-payer" },
-        paymentResponse: { success: true, network, transaction: "a".repeat(64) },
+        settlement: { success: true, network, transaction: "a".repeat(64) },
       },
       "tron:728126428",
     ),
@@ -62,8 +62,8 @@ it.each([
       {
         settled: true,
         payer: { address: "tron-payer" },
-        paymentResponse: { success: true, network, transaction: "a".repeat(64) },
-      },
+        settlement: { success: true, network, transaction: "a".repeat(64) },
+      } as never,
       "tron:728126428",
     ),
   ).toThrow(
@@ -80,7 +80,7 @@ it.each([
   [{ success: false }, "settlement_unconfirmed"],
 ])("retains a candidate hash without claiming confirmation: %j", (override, reason) => {
   const value = payment();
-  Object.assign(value.paymentResponse, override);
+  Object.assign(value.settlement, override);
   let caught;
   try {
     baiPaymentResult(value, "eip155:56");
@@ -94,6 +94,7 @@ it.each([
       reason,
       settled: false,
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     },
   });
@@ -105,8 +106,8 @@ it("does not expose malformed evidence or discard a hash when payer metadata is 
     { ...payment(), payer: undefined },
     {
       ...payment(),
-      paymentResponse: {
-        ...payment().paymentResponse,
+      settlement: {
+        ...payment().settlement,
         transaction: "SECRET",
         network: "SECRET",
         payer: "SECRET",
@@ -128,10 +129,16 @@ it("does not expose malformed evidence or discard a hash when payer metadata is 
 
 const tronPayer = "TTiN7EB8cAagLXN1MfmPxEFwJUETWRV314";
 const tronHash = "9360d276f33638d7c10578d0cebc01ac5716f286d00bd534736772e86b3fffeb";
+// A non-string payer reaches here as the adapter's JSON text of it.
 const tronPayment = (payer: unknown) => ({
   settled: true,
   payer: { address: tronPayer },
-  paymentResponse: { success: true, network: "tron:0x2b6653dc", transaction: tronHash, payer },
+  settlement: {
+    success: true,
+    network: "tron:0x2b6653dc",
+    transaction: tronHash,
+    payer: typeof payer === "string" ? payer : JSON.stringify(payer),
+  },
 });
 it.each([
   tronPayer,

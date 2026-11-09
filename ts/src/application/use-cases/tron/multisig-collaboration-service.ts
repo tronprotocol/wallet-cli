@@ -1,9 +1,17 @@
+import {
+  assertSubmitAdmitted,
+  requestDispatchCheck,
+  submitDispatchCheck,
+} from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
+import { localTxId } from "../../services/broadcast-identity.js";
+import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
 import type {
   TronLinkCollaborationPort,
   TronLinkRemoteRecord,
 } from "../../ports/tronlink-collaboration.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type {
   NetworkDescriptor,
@@ -13,9 +21,19 @@ import type {
   TronLinkSignatureProgressView,
   TronTransactionArtifact,
 } from "../../../domain/types/index.js";
-import { ChainError, CliError, UsageError } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  classifyError,
+  CliError,
+  errorMessage,
+  ExecutionError,
+  inputRef,
+  TransportError,
+  UsageError,
+} from "../../../domain/errors/index.js";
 import { TronAddress, tronHexToBase58 } from "../../../domain/address/index.js";
-import { TronMultisigService } from "./multisig-service.js";
+import type { TronCheckedSigner } from "./tron-signing.js";
+import { normalizeTxHash } from "../../../domain/family/index.js";
 
 const LIST_LIMIT = 20;
 const MAX_LOOKUP_RECORDS = 1000;
@@ -26,50 +44,53 @@ interface ValidatedRemoteRecord {
   hex: string;
 }
 
-/**
- * Multi-signature collaboration use case. TronLink is an external coordination port,
- * never the source of truth for transaction bytes or on-chain approval state.
- */
+// Verify TronLink transaction bytes and approval claims independently.
 export class TronMultisigCollaborationService {
   readonly #address = new TronAddress();
 
   constructor(
     private readonly collaboration: TronLinkCollaborationPort,
     private readonly gateways: ChainGatewayProvider,
-    private readonly multisig: TronMultisigService,
-    private readonly now: () => number = () => Date.now(),
+    private readonly multisig: TronCheckedSigner,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
-  async list(network: NetworkDescriptor, address: string): Promise<TronLinkMultisigListView> {
-    const page = await this.collaboration.list(network, address, {
-      state: 255,
-      start: 0,
-      limit: LIST_LIMIT,
-    });
-    const gateway = this.gateways.get(network, "tron");
-    // A record whose bytes this client cannot reconstruct costs its own row, not the page: one
-    // historical transaction in an encoding we do not understand must not hide every pending one.
-    // Acting on it is a different matter — #find still refuses.
+  async list(
+    deadline: ExecutionDeadline,
+    network: NetworkDescriptor,
+    address: string,
+  ): Promise<TronLinkMultisigListView> {
+    const page = await this.collaboration.list(
+      network,
+      address,
+      {
+        state: "all",
+        start: 0,
+        limit: LIST_LIMIT,
+      },
+      requestDispatchCheck(deadline),
+    );
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
+    // Skip undecodable rows when listing; signing still rejects them.
     const validated: ValidatedRemoteRecord[] = [];
     let unreadable = 0;
-    for (const record of page.records) {
+    for (const entry of page.entries) {
+      if (entry.kind === "malformed") throw entry.error;
       try {
-        validated.push(this.#validate(gateway, address, record));
+        validated.push(this.#validate(gateway, address, entry.record));
       } catch (error) {
         if (!isUndecodable(error)) throw error;
         unreadable += 1;
       }
     }
-    // A permission changed while an old transaction sat pending makes that record disagree with
-    // the chain for good. Listing is informational, so one such row is reported as unverified
-    // rather than costing the whole page — acting on it (--sign) still refuses.
+    // List chain disagreements as unverified; propagate other verification failures.
     await mapWithConcurrency(validated, 4, async (transaction) => {
       try {
-        await this.#verifyOnChain(network, address, transaction);
+        await this.#verifyOnChain(deadline, network, address, transaction);
       } catch (error) {
         if (!isChainDisagreement(error)) throw error;
         transaction.view.unverifiedReason = error.message;
-        // Nothing here is substantiated, least of all a claim on this account's signature.
+        // An unverified row must not request this account's signature.
         transaction.view.awaitingMySignature = false;
       }
     });
@@ -81,25 +102,19 @@ export class TronMultisigCollaborationService {
     };
   }
 
-  /**
-   * Opening a collection and casting its first signature are one act: the service has no empty
-   * collection, and derives the initial weight from the signature the transaction arrives with.
-   */
+  // TronLink requires an initial signature to open a collection.
   async create(scope: TransactionScope, network: NetworkDescriptor, unsignedHex: string) {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const transaction = gateway.decodeTransactionHex(unsignedHex);
     if ((transaction.signature?.length ?? 0) !== 0) {
-      throw new UsageError("invalid_value", "TronLink --create requires an unsigned transaction");
+      throw new UsageError(
+        "invalid_value",
+        errorMessage`TronLink ${inputRef("create")} requires an unsigned transaction`,
+      );
     }
 
-    // signChecked rejects an expired transaction, a signer outside the permission group, and a
-    // repeat signature — the whole precondition set this collection needs.
     const signed = await this.multisig.signChecked(scope, network, unsignedHex);
-    await this.collaboration.submit(
-      network,
-      signed.signer,
-      visibleTransaction(gateway, signed.hex),
-    );
+    await this.#submit(scope, network, signed.signer, visibleTransaction(gateway, signed.hex));
     return {
       action: "create" as const,
       accepted: true as const,
@@ -112,7 +127,7 @@ export class TronMultisigCollaborationService {
 
   async sign(scope: TransactionScope, network: NetworkDescriptor, txId: string) {
     const address = scope.resolveAddress("tron");
-    const remote = await this.#find(network, address, normalizeTxId(txId));
+    const remote = await this.#find(scope.deadline, network, address, normalizeTxId(txId));
     if (remote.view.expired) throw new ChainError("tx_expired", "transaction has expired");
     if (remote.view.state !== "pending") {
       if (remote.view.signedByCurrentAccount) {
@@ -128,12 +143,8 @@ export class TronMultisigCollaborationService {
     }
 
     const signed = await this.multisig.signChecked(scope, network, remote.hex);
-    const gateway = this.gateways.get(network, "tron");
-    await this.collaboration.submit(
-      network,
-      signed.signer,
-      visibleTransaction(gateway, signed.hex),
-    );
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
+    await this.#submit(scope, network, signed.signer, visibleTransaction(gateway, signed.hex));
     return {
       action: "sign" as const,
       accepted: true as const,
@@ -144,57 +155,97 @@ export class TronMultisigCollaborationService {
     };
   }
 
+  // `stop` ends the watch normally; the deadline ends it with a timeout.
   async watch(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     address: string,
-    signal: AbortSignal,
+    stop: AbortSignal,
     onPending: (count: number) => void,
   ) {
     let notifications = 0;
-    await this.collaboration.watch(network, address, signal, (payload) => {
-      if (!Array.isArray(payload)) return;
-      const count = payload.filter((entry) => {
-        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
-        const record = entry as Record<string, unknown>;
-        return (
-          booleanFlag(record.is_sign, "is_sign") === false &&
-          safeInteger(record.state, "state", 0) === 0
-        );
-      }).length;
-      if (count > 0) {
-        notifications += 1;
-        onPending(count);
-      }
-    });
+    await this.collaboration.watch(
+      network,
+      address,
+      stop,
+      requestDispatchCheck(deadline),
+      (count) => {
+        if (count > 0) {
+          notifications += 1;
+          onPending(count);
+        }
+      },
+    );
     return { action: "watch" as const, address, notifications };
   }
 
+  // A submit that may have reached TronLink fails with the transaction id, so the caller can inspect
+  // the existing collection instead of creating another.
+  async #submit(
+    scope: TransactionScope,
+    network: NetworkDescriptor,
+    signer: string,
+    transaction: TronTransactionArtifact,
+  ): Promise<void> {
+    assertSubmitAdmitted(scope.deadline);
+    try {
+      await this.collaboration.submit(
+        network,
+        signer,
+        transaction,
+        submitDispatchCheck(scope.deadline),
+      );
+    } catch (error) {
+      const classified = classifyError(error);
+      const unknown =
+        !(error instanceof DeadlineExpiredError) &&
+        (error instanceof TransportError || classified.code === "timeout");
+      if (!unknown) throw error;
+      scope.warn(
+        `the TronLink submission for ${signer} on ${network.id} may have been recorded; ` +
+          "inspect the address's existing TronLink collection before submitting again",
+      );
+      throw new ExecutionError(classified.code, classified, {
+        ...classified.details,
+        ...(localTxId(transaction) === undefined ? {} : { txId: localTxId(transaction) }),
+        address: signer,
+        network: network.id,
+        outcome: "unknown",
+      });
+    }
+  }
+
   async #find(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     address: string,
     txId: string,
   ): Promise<ValidatedRemoteRecord> {
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
     let start = 0;
     let total = Number.MAX_SAFE_INTEGER;
     while (start < total && start < MAX_LOOKUP_RECORDS) {
-      const page = await this.collaboration.list(network, address, {
-        state: 255,
-        start,
-        limit: LOOKUP_PAGE_SIZE,
-      });
+      const page = await this.collaboration.list(
+        network,
+        address,
+        {
+          state: "all",
+          start,
+          limit: LOOKUP_PAGE_SIZE,
+        },
+        requestDispatchCheck(deadline),
+      );
       total = page.total;
-      for (const record of page.records) {
-        // Matching on the claimed hash first keeps one unreadable record from blocking the search
-        // for everything behind it. The claim smuggles nothing: #validate re-derives txID from the
-        // bytes and refuses any record whose hash disagrees.
-        if (claimedTxId(record) !== txId) continue;
-        const validated = this.#validate(gateway, address, record);
-        await this.#verifyOnChain(network, address, validated);
+      for (const entry of page.entries) {
+        // Filter by claimed hash, then validate it against the transaction bytes.
+        if (entry.claimedTxId !== txId) continue;
+        if (entry.kind === "malformed") throw entry.error;
+        const validated = this.#validate(gateway, address, entry.record);
+        await this.#verifyOnChain(deadline, network, address, validated);
         return validated;
       }
-      if (page.records.length === 0) break;
-      start += page.records.length;
+      if (page.entries.length === 0) break;
+      start += page.entries.length;
     }
     if (total > MAX_LOOKUP_RECORDS) {
       throw new ChainError(
@@ -210,21 +261,18 @@ export class TronMultisigCollaborationService {
     currentAddress: string,
     remote: TronLinkRemoteRecord,
   ): ValidatedRemoteRecord {
-    const hash = normalizeTxId(stringValue(remote.hash, "hash"));
     let hex: string;
     let transaction: TronTransactionArtifact;
     try {
-      hex = gateway.encodeTransactionHex(remote.current_transaction);
+      hex = gateway.encodeTransactionJson(remote.currentTransaction).hex;
       transaction = gateway.decodeTransactionHex(hex);
     } catch (error) {
-      // Keep the codec's reason. "TronLink sent something bad" sends the user to the wrong system
-      // when the truth is that this client could not reconstruct the bytes.
       throw new ChainError(
         "invalid_transaction",
         `this client cannot reconstruct the TronLink transaction bytes: ${reason(error)}`,
       );
     }
-    if (transaction.txID !== hash) {
+    if (transaction.txID !== remote.txId) {
       throw new ChainError(
         "provider_error",
         "TronLink record hash does not match transaction raw_data",
@@ -232,7 +280,7 @@ export class TronMultisigCollaborationService {
     }
 
     const contract = transaction.raw_data.contract[0];
-    const contractType = stringValue(remote.contract_type, "contract_type");
+    const contractType = remote.contractType;
     if (!contract || contract.type !== contractType) {
       throw new ChainError(
         "provider_error",
@@ -244,30 +292,18 @@ export class TronMultisigCollaborationService {
       "transaction owner_address",
       this.#address,
     );
-    const contractData = objectValue(remote.contract_data, "contract_data");
-    const metadataOwner = normalizedAddress(
-      contractData.owner_address,
-      "contract_data.owner_address",
-      this.#address,
-    );
-    if (metadataOwner !== txOwner) {
+    if (remote.ownerAddress !== txOwner) {
       throw new ChainError(
         "provider_error",
         "TronLink owner metadata does not match transaction raw_data",
       );
     }
 
-    const originator = normalizedAddress(
-      remote.originator_address,
-      "originator_address",
-      this.#address,
-    );
-    const stateCode = safeInteger(remote.state, "state", 0);
-    const isSigned = booleanFlag(remote.is_sign, "is_sign");
-    const state = recordState(stateCode, isSigned);
-    const currentWeight = safeInteger(remote.current_weight, "current_weight", 0);
-    const threshold = safeInteger(remote.threshold, "threshold", 1);
-    const signatureProgress = progress(remote.signature_progress, this.#address);
+    const isSigned = remote.signed;
+    const state = recordState(remote.status, isSigned);
+    const currentWeight = remote.currentWeight;
+    const threshold = remote.threshold;
+    const signatureProgress = progress(remote.signatureProgress);
     const currentProgress = signatureProgress.find((item) => item.address === currentAddress);
     if (!currentProgress) {
       throw new ChainError(
@@ -301,12 +337,12 @@ export class TronMultisigCollaborationService {
     return {
       hex,
       view: {
-        // Byte-level checks only; #verifyOnChain is what earns this.
+        // Chain approval verification is still pending.
         verified: false,
-        txId: hash,
+        txId: remote.txId,
         state,
         contractType,
-        originator,
+        originator: remote.originatorAddress,
         owner: txOwner,
         permission: {
           id: contract.Permission_id ?? 0,
@@ -316,7 +352,7 @@ export class TronMultisigCollaborationService {
         currentWeight,
         missingWeight: Math.max(0, threshold - currentWeight),
         thresholdReached: currentWeight >= threshold,
-        awaitingMySignature: stateCode === 0 && !isSigned,
+        awaitingMySignature: remote.status === "open" && !isSigned,
         signedByCurrentAccount: isSigned,
         createdAt,
         expiration,
@@ -331,15 +367,15 @@ export class TronMultisigCollaborationService {
   }
 
   async #verifyOnChain(
+    deadline: ExecutionDeadline,
     network: NetworkDescriptor,
     currentAddress: string,
     remote: ValidatedRemoteRecord,
   ): Promise<void> {
-    const gateway = this.gateways.get(network, "tron");
-    const [approval, signWeight] = await Promise.all([
-      this.multisig.approvals(network, remote.hex),
-      gateway.getSignWeight(gateway.decodeTransactionHex(remote.hex)),
-    ]);
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(deadline));
+    // approvals checks the reference block, so no permission is read for another chain's record.
+    const approval = await this.multisig.approvals(deadline, network, remote.hex);
+    const signWeight = await gateway.getSignWeight(gateway.decodeTransactionHex(remote.hex));
     const signedProgress = remote.view.signatureProgress
       .filter((entry) => entry.signed)
       .map((entry) => entry.address);
@@ -361,11 +397,7 @@ export class TronMultisigCollaborationService {
       );
     }
 
-    // The checks above bind only the SIGNED set and the aggregate weight. Unsigned entries and every
-    // per-signer weight are still whatever the provider said — so a stale record (the permission was
-    // updated while this transaction sat pending) or a hostile one can name a signer the permission
-    // does not contain, or misstate how much weight each key carries. Both read as chain-validated
-    // in the summary a co-signer uses to decide. Bind the whole roster, and render chain weights.
+    // Validate unsigned roster entries too, and replace all weights with chain values.
     const onChainWeight = new Map(
       (signWeight.permission?.keys ?? []).map((key) => [key.address, key.weight] as const),
     );
@@ -375,10 +407,7 @@ export class TronMultisigCollaborationService {
         "selected account is not a key in the transaction permission",
       );
     }
-    // NB: deliberately not requiring every on-chain key to appear. Whether the service always
-    // returns the full roster is not something this client can know, and every number the user acts
-    // on (threshold, currentWeight, missingWeight) is chain-derived regardless — so rejecting a
-    // short list would risk breaking real usage to prevent nothing.
+    // The remote roster may omit on-chain keys; validate every entry it does include.
     for (const entry of remote.view.signatureProgress) {
       const weight = onChainWeight.get(entry.address);
       if (weight === undefined) {
@@ -389,8 +418,7 @@ export class TronMultisigCollaborationService {
       }
       entry.weight = weight;
     }
-    // Re-derive from chain weights: catches weight redistributed among the signed keys, which the
-    // provider-side sum in #validate cannot see.
+    // Recompute the total after replacing provider weights with chain weights.
     const signedWeight = remote.view.signatureProgress
       .filter((entry) => entry.signed)
       .reduce((sum, entry) => sum + entry.weight, 0);
@@ -405,12 +433,7 @@ export class TronMultisigCollaborationService {
   }
 }
 
-/**
- * A verdict of "checked and disagreed", as opposed to "could not check". Only the former may be
- * downgraded to an unverified row: a node outage must never read as a clean page.
- */
-/** "This client cannot read it", as opposed to "read it and it disagrees" — only the former may be
- *  dropped from a page; a record that decodes and then lies still fails loudly. */
+// Skip decoding failures only; decoded records with inconsistent metadata must fail.
 function isUndecodable(error: unknown): error is ChainError {
   return error instanceof ChainError && error.code === "invalid_transaction";
 }
@@ -422,11 +445,13 @@ function reason(error: unknown): string {
 function isChainDisagreement(error: unknown): error is ChainError {
   return (
     error instanceof ChainError &&
-    (error.code === "provider_error" || error.code === "not_authorized")
+    (error.code === "provider_error" ||
+      error.code === "not_authorized" ||
+      error.code === "chain_id_mismatch")
   );
 }
 
-/** Convert address fields to visible=true JSON, then prove that protobuf bytes are unchanged. */
+// visible=true uses base58 addresses; the signed protobuf bytes must stay unchanged.
 function visibleTransaction(gateway: TronGateway, hex: string): TronTransactionArtifact {
   const transaction = structuredClone(gateway.decodeTransactionHex(hex));
   convertAddressFields(transaction);
@@ -455,52 +480,35 @@ function convertAddressFields(value: unknown): void {
   }
 }
 
-function progress(value: unknown, addressCodec: TronAddress): TronLinkSignatureProgressView[] {
-  if (!Array.isArray(value)) {
-    throw new ChainError("provider_error", "TronLink signature_progress must be an array");
-  }
+// Copies the entries: on-chain verification replaces their weights.
+function progress(entries: TronLinkSignatureProgressView[]): TronLinkSignatureProgressView[] {
   const addresses = new Set<string>();
-  return value.map((entry, index) => {
-    const item = objectValue(entry, `signature_progress[${index}]`);
-    const address = normalizedAddress(
-      item.address,
-      `signature_progress[${index}].address`,
-      addressCodec,
-    );
-    if (addresses.has(address)) {
+  return entries.map((entry) => {
+    if (addresses.has(entry.address)) {
       throw new ChainError(
         "provider_error",
         "TronLink signature_progress contains duplicate addresses",
       );
     }
-    addresses.add(address);
-    const weight = safeInteger(item.weight, `signature_progress[${index}].weight`, 1);
-    const signed = booleanFlag(item.is_sign, `signature_progress[${index}].is_sign`);
-    const signTime = safeInteger(item.sign_time ?? 0, `signature_progress[${index}].sign_time`, 0);
-    const signedAt = signTime === 0 ? null : signTime * 1000;
-    if (!Number.isSafeInteger(signedAt ?? 0) || (!signed && signTime !== 0)) {
+    addresses.add(entry.address);
+    if (!entry.signed && entry.signedAt !== null) {
       throw new ChainError("provider_error", "TronLink signature timestamp is inconsistent");
     }
-    return { address, weight, signed, signedAt };
+    return { ...entry };
   });
 }
 
-function recordState(code: number, signed: boolean): TronLinkMultisigState {
-  if (code === 0) return signed ? "signed" : "pending";
-  if (code === 1) return "success";
-  if (code === 2) return "failed";
-  throw new ChainError("provider_error", `TronLink returned unsupported transaction state ${code}`);
-}
-
-function claimedTxId(remote: TronLinkRemoteRecord): string | null {
-  return typeof remote.hash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(remote.hash)
-    ? remote.hash.replace(/^0x/i, "").toLowerCase()
-    : null;
+function recordState(
+  status: TronLinkRemoteRecord["status"],
+  signed: boolean,
+): TronLinkMultisigState {
+  if (status === "open") return signed ? "signed" : "pending";
+  return status;
 }
 
 function normalizeTxId(value: string): string {
-  const normalized = value.replace(/^0x/i, "").toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(normalized)) {
+  const normalized = normalizeTxHash("tron", value);
+  if (normalized === undefined) {
     throw new UsageError("invalid_value", "TronLink txId must be a 32-byte hex string");
   }
   return normalized;
@@ -512,13 +520,6 @@ function normalizedAddress(value: unknown, field: string, codec: TronAddress): s
     throw new ChainError("provider_error", `TronLink ${field} is not a valid TRON address`);
   }
   return normalized;
-}
-
-function objectValue(value: unknown, field: string): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new ChainError("provider_error", `TronLink ${field} must be an object`);
-  }
-  return value as Record<string, unknown>;
 }
 
 function stringValue(value: unknown, field: string): string {
@@ -535,12 +536,6 @@ function safeInteger(value: unknown, field: string, minimum: number): number {
     if (Number.isSafeInteger(parsed) && parsed >= minimum) return parsed;
   }
   throw new ChainError("provider_error", `TronLink ${field} must be a safe integer`);
-}
-
-function booleanFlag(value: unknown, field: string): boolean {
-  if (value === true || value === 1 || value === "1" || value === "true") return true;
-  if (value === false || value === 0 || value === "0" || value === "false") return false;
-  throw new ChainError("provider_error", `TronLink ${field} must be a boolean flag`);
 }
 
 async function mapWithConcurrency<T>(

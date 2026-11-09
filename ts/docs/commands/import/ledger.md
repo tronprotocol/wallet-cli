@@ -9,6 +9,8 @@ wallet-cli import ledger --app <tron|ethereum> [--index <n> | --path <bip32> | -
                          [--scan-limit <n>] [--label <l>] [options]
 ```
 
+An EVM `--address` lookup ignores letter case.
+
 ## Options
 
 | Option | Description |
@@ -81,7 +83,7 @@ wallet-cli import ledger --app tron --index 0 --label cold -o json
 
 ## Exit status
 
-`0` success · `1` execution failure · `2` usage error. See [machine-interface](../../machine-interface.md).
+`0` success · `1` execution failure · `2` usage error (`invalid_option` — more than one of `--index`, `--path` and `--address`). See [machine-interface](../../machine-interface.md).
 
 ## See also
 

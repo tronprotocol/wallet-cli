@@ -1,17 +1,6 @@
-/**
- * The launch receipt and its preview, as a person reads them.
- *
- * Two things are checked harder than the layout: that the card never implies the new token is the
- * reader's, and that it never prints a price, a market cap, a curve percentage or a supply. Those
- * figures are identical for every brand-new token — the curve's starting price and a market cap
- * that moves only with the TRX rate — so beside the word "created" they read as "what you just made
- * is worth this much", which is the one wrong idea this receipt could plant.
- */
 import { describe, expect, it } from "vitest";
 import { TextFormatters } from "./index.js";
 
-// Through the shared formatter table, not the module: a renderer that is written and never
-// registered would render nothing, and that is the failure this indirection catches.
 const render = (value: unknown) =>
   TextFormatters.sunpumpLaunch(value as Parameters<typeof TextFormatters.sunpumpLaunch>[0]);
 
@@ -58,7 +47,6 @@ describe("a created token", () => {
     ]);
   });
 
-  // json carries all four; the text card carries none of them.
   it("prints no price, market cap, curve progress or supply", () => {
     const out = render({ kind: "sunpump-launch", token: TOKEN });
     for (const label of ["Price", "Market cap", "Curve progress", "Supply", "Vol 24h"]) {
@@ -68,15 +56,12 @@ describe("a created token", () => {
     expect(out).not.toContain("0.000032");
   });
 
-  // "created", never "launched": the token is on the curve and moves to SunSwap only once it fills.
   it("says created, not launched", () => {
     const out = render({ kind: "sunpump-launch", token: TOKEN });
     expect(out).toContain("SunPump token created");
     expect(out.toLowerCase()).not.toContain("launched");
   });
 
-  // The logo row is how a caller confirms the image was actually taken, so it shows the URL the
-  // service answered with rather than the file that was sent.
   it("shows the logo and links only when the service returned them", () => {
     const out = render({
       kind: "sunpump-launch",
@@ -96,16 +81,11 @@ describe("a created token", () => {
     expect(out).toContain("Telegram     https://t.me/example");
   });
 
-  /**
-   * The name and the description are whatever the creator typed, and this is the moment they are
-   * printed straight back. An escape sequence in either could rewrite the line above it.
-   */
   it("strips control sequences out of creator-supplied text", () => {
     const out = render({
       kind: "sunpump-launch",
       token: { ...TOKEN, name: "Te\u001b[31mst", description: "line one\nline two" },
     });
-    // The escape byte itself is gone, so what is left is inert text rather than a colour change.
     expect(out).toContain("Name         Te[31mst");
     expect(out).toContain("Description  line one line two");
     expect(out).not.toContain("\u001b");
@@ -151,7 +131,6 @@ describe("a dry run", () => {
     expect(out).toContain("Logo         base64 (12,345 chars)");
   });
 
-  // The preview shows nothing a launch has not got yet: no address, no status, no tx hash.
   it("omits what does not exist before the call", () => {
     const out = render(PREVIEW);
     for (const label of ["Address", "Status", "Created ", "Create tx"]) {

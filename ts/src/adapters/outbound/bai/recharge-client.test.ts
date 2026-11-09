@@ -1,5 +1,12 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { BaiRechargeClient } from "./recharge-client.js";
+import { baiRechargeAmount, type BaiRechargeAmount } from "../../../domain/bai/recharge-policy.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 const target = {
   input: { type: "personal" as const, identifier: "recipient@example.com" },
   confirmedTarget: { type: "personal" as const, targetId: "recipient-id" },
@@ -12,7 +19,6 @@ function fixture(payload: unknown) {
     fetcher,
     client: new BaiRechargeClient(
       { baiApiKey: "secret" },
-      1000,
       fetcher as typeof fetch,
       "https://bai.example",
     ),
@@ -21,7 +27,7 @@ function fixture(payload: unknown) {
 describe("B.AI recharge API", () => {
   it("checks binding without treating the boolean as a recipient ID", async () => {
     const { client, fetcher } = fixture({ result: { data: { json: true } } });
-    await expect(client.isBound({ address: "payer", chain: "bnb" })).resolves.toBe(true);
+    await expect(client.isBound({ address: "payer", chain: "bnb" }, NO_CHECK)).resolves.toBe(true);
     const [url, init] = fetcher.mock.calls[0]!;
     expect(new URL(url).pathname).toBe("/trpc/lambda/wallet.isRechargeBound");
     expect(JSON.parse(new URL(url).searchParams.get("input")!)).toEqual({
@@ -45,7 +51,7 @@ describe("B.AI recharge API", () => {
       signature: "signature",
       version: 2,
     };
-    await expect(client.bind(input)).resolves.toEqual({
+    await expect(client.bind(input, NO_CHECK)).resolves.toEqual({
       userId: "payer-id",
       address: "0x1234567890abcdef1234567890abcdef12345678",
       chain: "bnb",
@@ -68,7 +74,7 @@ describe("B.AI recharge API", () => {
         address +
         "\n";
       await expect(
-        client.bind({ address, chain, message, signature: "signature" }),
+        client.bind({ address, chain, message, signature: "signature" }, NO_CHECK),
       ).resolves.toEqual(returned);
       expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.message).toBe(message);
     },
@@ -94,19 +100,22 @@ describe("B.AI recharge API", () => {
       binding: { userId: "id", chain: returnedChain, address: returnedAddress },
     });
     await expect(
-      client.bind({ chain, address, message: "message", signature: "signature" }),
+      client.bind({ chain, address, message: "message", signature: "signature" }, NO_CHECK),
     ).rejects.toMatchObject({ code: "provider_error" });
   });
   it("accepts an exact TRON binding", async () => {
     const returned = { userId: "id", chain: "tron", address: "TPayer" };
     await expect(
-      fixture({ success: true, binding: returned }).client.bind({
-        chain: "tron",
-        address: "TPayer",
-        message: "message",
-        signature: "signature",
-        version: 2,
-      }),
+      fixture({ success: true, binding: returned }).client.bind(
+        {
+          chain: "tron",
+          address: "TPayer",
+          message: "message",
+          signature: "signature",
+          version: 2,
+        },
+        NO_CHECK,
+      ),
     ).resolves.toEqual(returned);
   });
   it("creates a preorder carrying the exact payer and confirmed recipient", async () => {
@@ -115,21 +124,43 @@ describe("B.AI recharge API", () => {
       channel: "crypto" as const,
       chain: "bnb",
       tokenName: "USDT",
-      amount: "10",
+      amount: baiRechargeAmount("10"),
       walletAddress: "payer",
       deviceType: "web" as const,
       rechargeTarget: target,
     };
-    await expect(client.createOrder(input)).resolves.toEqual({ orderId: 123 });
+    await expect(client.createOrder(input, NO_CHECK)).resolves.toEqual({ orderId: "123" });
     expect(JSON.parse(fetcher.mock.calls[0]![1].body as string)).toEqual({
       json: { ...input, amount: 10 },
     });
+  });
+  it.each([
+    [{ id: 31215, status: "pending" }, { orderId: "31215" }],
+    [{ id: "ord_31215" }, { orderId: "ord_31215" }],
+    [{ id: -1, status: "pending" }, {}],
+    [{ id: "has space" }, {}],
+    [{ status: "pending" }, {}],
+  ])("normalizes the created order id from %j", async (json, expected) => {
+    const { client } = fixture({ result: { data: { json } } });
+    await expect(
+      client.createOrder(
+        {
+          channel: "crypto",
+          chain: "bnb",
+          tokenName: "USDT",
+          amount: baiRechargeAmount("10"),
+          walletAddress: "payer",
+          deviceType: "web",
+        },
+        NO_CHECK,
+      ),
+    ).resolves.toEqual(expected);
   });
   it("reports the paid transaction and preserves credited order data", async () => {
     const order = { id: 12345, status: "success", points: 100000 };
     const { client, fetcher } = fixture({ success: true, order });
     const input = { chain: "bnb", txHash: "hash", rechargeTarget: target };
-    await expect(client.reportTxHash(input)).resolves.toEqual({ success: true, order });
+    await expect(client.reportTxHash(input, NO_CHECK)).resolves.toEqual({ success: true, order });
     expect(JSON.parse(fetcher.mock.calls[0]![1].body as string)).toEqual({ json: input });
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
@@ -138,7 +169,7 @@ describe("B.AI recharge API", () => {
     async (code) => {
       const { client, fetcher } = fixture({ success: false, code, message: "secret" });
       await expect(
-        client.reportTxHash({ chain: "bnb", txHash: "hash", rechargeTarget: target }),
+        client.reportTxHash({ chain: "bnb", txHash: "hash", rechargeTarget: target }, NO_CHECK),
       ).resolves.toEqual({ success: false, code, message: expect.not.stringContaining("secret") });
       expect(fetcher).toHaveBeenCalledTimes(1);
     },
@@ -149,21 +180,21 @@ describe("B.AI recharge API", () => {
       binding: { userId: "id", address: "different", chain: "bnb" },
     });
     await expect(
-      client.bind({ address: "payer", chain: "bnb", message: "m", signature: "s" }),
+      client.bind({ address: "payer", chain: "bnb", message: "m", signature: "s" }, NO_CHECK),
     ).rejects.toMatchObject({ code: "provider_error" });
   });
   it.each([{}, { success: true }, { result: { data: { json: "true" } } }])(
     "rejects malformed binding status",
     async (payload) => {
       await expect(
-        fixture(payload).client.isBound({ address: "payer", chain: "bnb" }),
+        fixture(payload).client.isBound({ address: "payer", chain: "bnb" }, NO_CHECK),
       ).rejects.toMatchObject({ code: "provider_error" });
     },
   );
   it("rejects missing credentials before HTTP", async () => {
     const fetcher = vi.fn();
     await expect(
-      new BaiRechargeClient({}, 1000, fetcher).isBound({ address: "payer", chain: "bnb" }),
+      new BaiRechargeClient({}, fetcher).isBound({ address: "payer", chain: "bnb" }, NO_CHECK),
     ).rejects.toMatchObject({ code: "bai_credentials_missing" });
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -177,10 +208,13 @@ it.each([
 ])("classifies HTTP %s without exposing response details", async (status, code) => {
   const fetcher = vi.fn(async () => new Response("secret", { status: Number(status) }));
   await expect(
-    new BaiRechargeClient({ baiApiKey: "secret" }, 1000, fetcher).isBound({
-      address: "payer",
-      chain: "bnb",
-    }),
+    new BaiRechargeClient({ baiApiKey: "secret" }, fetcher).isBound(
+      {
+        address: "payer",
+        chain: "bnb",
+      },
+      NO_CHECK,
+    ),
   ).rejects.toMatchObject({ code, message: expect.not.stringContaining("secret") });
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
@@ -190,12 +224,15 @@ it("does not follow credential-bearing mutation redirects", async () => {
     throw new TypeError("redirect to secret");
   });
   await expect(
-    new BaiRechargeClient({ baiApiKey: "secret" }, 1000, fetcher).bind({
-      address: "payer",
-      chain: "bnb",
-      message: "m",
-      signature: "s",
-    }),
+    new BaiRechargeClient({ baiApiKey: "secret" }, fetcher).bind(
+      {
+        address: "payer",
+        chain: "bnb",
+        message: "m",
+        signature: "s",
+      },
+      NO_CHECK,
+    ),
   ).rejects.toMatchObject({
     code: "provider_error",
     message: expect.not.stringContaining("secret"),
@@ -204,11 +241,14 @@ it("does not follow credential-bearing mutation redirects", async () => {
 });
 it("refuses malformed or missing credited order results", async () => {
   await expect(
-    fixture({ success: true }).client.reportTxHash({
-      chain: "bnb",
-      txHash: "hash",
-      rechargeTarget: target,
-    }),
+    fixture({ success: true }).client.reportTxHash(
+      {
+        chain: "bnb",
+        txHash: "hash",
+        rechargeTarget: target,
+      },
+      NO_CHECK,
+    ),
   ).rejects.toMatchObject({ code: "provider_error" });
 });
 
@@ -220,7 +260,7 @@ it("resolves a recipient through the documented endpoint before constructing a t
       },
     },
   });
-  await expect(client.resolveTarget("recipient@example.com")).resolves.toEqual({
+  await expect(client.resolveTarget("recipient@example.com", NO_CHECK)).resolves.toEqual({
     type: "personal",
     targetId: "recipient-id",
     displayLabel: "recipient@example.com",
@@ -236,21 +276,24 @@ it("rejects an unresolved or wrong-type recipient", async () => {
     { type: "organization", targetId: "id", displayLabel: "label" },
   ]) {
     await expect(
-      fixture({ result: { data: { json: payload } } }).client.resolveTarget("recipient"),
+      fixture({ result: { data: { json: payload } } }).client.resolveTarget("recipient", NO_CHECK),
     ).rejects.toMatchObject({ code: "provider_error" });
   }
 });
 it("rejects an empty preorder response before the caller can pay", async () => {
   await expect(
-    fixture({}).client.createOrder({
-      channel: "crypto",
-      chain: "bnb",
-      tokenName: "USDT",
-      amount: "10",
-      walletAddress: "payer",
-      deviceType: "web",
-      rechargeTarget: target,
-    }),
+    fixture({}).client.createOrder(
+      {
+        channel: "crypto",
+        chain: "bnb",
+        tokenName: "USDT",
+        amount: baiRechargeAmount("10"),
+        walletAddress: "payer",
+        deviceType: "web",
+        rechargeTarget: target,
+      },
+      NO_CHECK,
+    ),
   ).rejects.toMatchObject({ code: "provider_error" });
 });
 
@@ -259,27 +302,116 @@ it.each(["9007199254740992", "1.00000000000000001", "0", "NaN"])(
   async (amount) => {
     const { client, fetcher } = fixture({ success: true, order: {} });
     await expect(
-      client.reportTxHash({ chain: "base", txHash: "hash", amount }),
+      client.reportTxHash(
+        { chain: "base", txHash: "hash", amount: amount as BaiRechargeAmount },
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "invalid_value" });
     expect(fetcher).not.toHaveBeenCalled();
   },
 );
 it("converts a decimal only in the outgoing report JSON", async () => {
   const { client, fetcher } = fixture({ success: true, order: { id: 1 } });
-  const input = { chain: "base", txHash: "hash", amount: "1.2300" };
-  await client.reportTxHash(input);
+  const input = { chain: "base", txHash: "hash", amount: "1.2300" as BaiRechargeAmount };
+  await client.reportTxHash(input, NO_CHECK);
   expect(input.amount).toBe("1.2300");
   expect(JSON.parse(fetcher.mock.calls[0]![1].body as string).json.amount).toBe(1.23);
 });
 
-it("carries an integer Retry-After header on a rate limit as retryAfterMs", async () => {
+it("reports a rate limit with the standard keys beside procedure and retryPayment", async () => {
   const fetcher = vi.fn(
     async () => new Response("secret", { status: 429, headers: { "Retry-After": "7" } }),
   );
-  await expect(
-    new BaiRechargeClient({ baiApiKey: "secret" }, 1000, fetcher).reportTxHash({
-      chain: "tron",
-      txHash: "a".repeat(64),
-    }),
-  ).rejects.toMatchObject({ code: "provider_rate_limited", details: { retryAfterMs: 7000 } });
+  const error = await new BaiRechargeClient({ baiApiKey: "secret" }, fetcher)
+    .reportTxHash(
+      {
+        chain: "tron",
+        txHash: "a".repeat(64),
+      },
+      NO_CHECK,
+    )
+    .catch((caught: unknown) => caught);
+  expect(error).toMatchObject({ code: "provider_rate_limited" });
+  expect((error as { details?: unknown }).details).toEqual({
+    procedure: "order.reportTxHash",
+    retryPayment: false,
+    httpStatus: 429,
+    retryAfterSeconds: 7,
+  });
+});
+
+describe("preorder outcome", () => {
+  const order = {
+    channel: "crypto" as const,
+    chain: "bnb",
+    tokenName: "USDT",
+    amount: baiRechargeAmount("10"),
+    walletAddress: "payer",
+    deviceType: "web" as const,
+  };
+  const create = (fetcher: (...args: never[]) => Promise<Response>, check = NO_CHECK) =>
+    new BaiRechargeClient({ baiApiKey: "secret" }, fetcher as typeof fetch, "https://bai.example")
+      .createOrder(order, check)
+      .then(
+        () => expect.fail("createOrder resolved"),
+        (error: unknown) => error as { code: string; details?: object },
+      );
+
+  it.each([
+    [
+      "a lost response",
+      async () => {
+        throw new TypeError("socket hang up");
+      },
+      "provider_error",
+    ],
+    ["an HTTP 500", async () => new Response("down", { status: 500 }), "provider_error"],
+    ["malformed JSON", async () => new Response("{"), "provider_error"],
+    ["an empty result", async () => new Response("{}"), "provider_error"],
+  ])("marks %s after dispatch as an unknown outcome", async (_case, fetcher, code) => {
+    const error = await create(fetcher);
+    expect(error).toMatchObject({ code, details: { outcome: "unknown" } });
+    expect(error.details).not.toHaveProperty("paymentStatus");
+  });
+
+  it("marks a timeout after dispatch as an unknown outcome", async () => {
+    const controller = new AbortController();
+    const error = await create(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal!.addEventListener("abort", () => reject(init.signal!.reason));
+          controller.abort();
+        }),
+      { signal: controller.signal, assertDispatchable: () => {} },
+    );
+    expect(error).toMatchObject({ code: "timeout", details: { outcome: "unknown" } });
+  });
+
+  it.each([
+    [
+      "a business rejection",
+      async () =>
+        new Response(JSON.stringify({ success: false, code: "UNSUPPORTED_CHAIN" }), {
+          status: 400,
+        }),
+    ],
+    ["an auth failure", async () => new Response("no", { status: 401 })],
+    ["a rate limit", async () => new Response("no", { status: 429 })],
+    ["an HTTP 400", async () => new Response("bad", { status: 400 })],
+  ])("does not mark %s as an unknown outcome", async (_case, fetcher) => {
+    const error = await create(fetcher);
+    expect(error).toHaveProperty("code");
+    expect(error.details).not.toHaveProperty("outcome");
+  });
+
+  it("does not mark a deadline refusal before dispatch", async () => {
+    const deadline = new CommandDeadline(1);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    const fetcher = vi.fn(async () => new Response("{}"));
+    const error = await create(fetcher, requestDispatchCheck(deadline));
+    expect(error).toMatchObject({ code: "timeout" });
+    expect(error.details ?? {}).not.toHaveProperty("outcome");
+    expect(fetcher).not.toHaveBeenCalled();
+    deadline.dispose();
+  });
 });

@@ -3,8 +3,13 @@ import { TronExchangeService } from "./exchange-service.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAsset, TronExchange, TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronAsset, TronExchange, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
+import { isUserMessage } from "../../../domain/errors/index.js";
+import { cliMessage, errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
+import { CommandDeadline } from "../../services/command-deadline.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const NET: NetworkDescriptor = {
   id: "tron:3448148188",
@@ -21,16 +26,15 @@ const warnings: string[] = [];
 const scope: TransactionScope = {
   activeAccount: "wlt_test.0",
   resolveAddress: () => OWNER,
-  timeoutMs: 60_000,
+  deadline: new CommandDeadline(0),
   wait: false,
-  waitTimeoutMs: 60_000,
+
   emit: () => {},
-  warn: (m: string) => {
-    warnings.push(m);
+  warn: (m) => {
+    warnings.push(typeof m === "string" ? m : isUserMessage(m) ? cliMessage(m).message : "");
   },
 };
 
-/** TRX:MyToken, 10,000 TRX / 500,000 tokens at precision 6 — the worked-example pool. */
 function pool(over: Partial<TronExchange> = {}): TronExchange {
   return {
     exchangeId: 12,
@@ -63,13 +67,12 @@ function service(gateway: Partial<TronGateway>, pipeline?: Partial<TxPipeline>) 
     } as unknown as ChainGatewayProvider,
     {
       assertCanSign: () => {},
-      run: async () => ({ stage: "submitted", txId: "txid" }),
+      runTron: async () => ({ stage: "submitted", txId: "txid" }),
       ...pipeline,
     } as unknown as TxPipeline,
   );
 }
 
-/** capture what the service asked the gateway to build. */
 function capturing(gateway: Partial<TronGateway>) {
   const calls: unknown[][] = [];
   const record = (...args: unknown[]) => {
@@ -85,7 +88,7 @@ function capturing(gateway: Partial<TronGateway>) {
       ...gateway,
     } as Partial<TronGateway>,
     {
-      run: async (p: { build: (o: string) => Promise<unknown> }) => {
+      runTron: async (p: { build: (o: string) => Promise<unknown> }) => {
         await p.build(OWNER);
         return { stage: "submitted", txId: "txid" } as never;
       },
@@ -98,7 +101,6 @@ describe("exchange create", () => {
   it("keeps the pair in the order the user typed", async () => {
     const { svc, calls } = capturing({});
     await svc.create(scope, NET, { pair: "TRX:1000123", amounts: "10000:500000" });
-    // owner, firstTokenId, firstBalance, secondTokenId, secondBalance
     expect(calls[0]).toEqual([
       OWNER,
       "_",
@@ -125,13 +127,23 @@ describe("exchange create", () => {
     ).rejects.toThrow(/not a token id/);
   });
 
+  it("refuses a zero side with invalid_value", async () => {
+    await expect(
+      service({}).create(scope, NET, { pair: "TRX:1000123", rawAmounts: "0:1" }),
+    ).rejects.toMatchObject({
+      code: "invalid_value",
+      message: "rawAmounts sides must both be greater than zero",
+    });
+  });
+
   it("requires exactly one of --amounts and --raw-amounts", async () => {
-    await expect(service({}).create(scope, NET, { pair: "TRX:1000123" })).rejects.toThrow(
-      /exactly one of --amounts/,
-    );
+    const error = await service({})
+      .create(scope, NET, { pair: "TRX:1000123" })
+      .catch((e) => e);
+    expect(errorEnvelope(error).message).toBe("provide exactly one of --amounts or --raw-amounts");
     await expect(
       service({}).create(scope, NET, { pair: "TRX:1000123", amounts: "1:1", rawAmounts: "1:1" }),
-    ).rejects.toThrow(/exactly one of --amounts/);
+    ).rejects.toThrow(/exactly one of amounts or rawAmounts/);
   });
 });
 
@@ -176,11 +188,20 @@ describe("exchange inject / withdraw", () => {
   });
 
   it("refuses an amount whose counterpart rounds to zero", async () => {
-    // 1,000,000 sun of TRX against a single unit of the other side: the ratio floors to 0
     const svc = service({ getExchangeById: async () => pool({ secondTokenBalance: "1" }) });
     await expect(svc.inject(scope, NET, { id: 12, token: "TRX", rawAmount: "1" })).rejects.toThrow(
       /too small for this pair's current ratio/,
     );
+  });
+
+  it("refuses a zero amount with invalid_value", async () => {
+    const svc = service({ getExchangeById: async () => pool() });
+    await expect(
+      svc.inject(scope, NET, { id: 12, token: "TRX", rawAmount: "0" }),
+    ).rejects.toMatchObject({
+      code: "invalid_value",
+      message: "amount must be greater than zero",
+    });
   });
 
   it("refuses withdrawing more than the pair holds", async () => {
@@ -204,10 +225,8 @@ describe("exchange trade", () => {
   it("prices the trade and derives the floor from --slippage", async () => {
     const svc = service({ getExchangeById: async () => pool() });
     const result = await svc.trade(scope, NET, { ...base, slippage: 1 });
-    // the worked example predicts 4,950 whole tokens predicted, 1% below → 4,900
     expect(BigInt(result.estimatedReceivedQuant) / 1_000_000n).toBe(4950n);
     expect(BigInt(result.minReceivedQuant) / 1_000_000n).toBe(4900n);
-    // and the exact minimal-unit figures, so a change in the curve port is visible
     expect(result.estimatedReceivedQuant).toBe("4950495049");
     expect(result.minReceivedQuant).toBe("4900990098");
   });
@@ -219,15 +238,13 @@ describe("exchange trade", () => {
     });
   });
 
-  // The rejection has to point at --min-received, not at --amount: the caller would otherwise go
-  // and correct an option they never passed (and which carries a different meaning on this command).
   it("blames --min-received, not --amount, for an over-precise floor", async () => {
     const svc = service({ getExchangeById: async () => pool() });
     await expect(
       svc.trade(scope, NET, { ...base, minReceived: "1.1234567" }),
     ).rejects.toMatchObject({
       code: "invalid_amount",
-      message: expect.stringContaining("--min-received has too many decimal places"),
+      message: expect.stringContaining("minReceived has too many decimal places"),
     });
   });
 
@@ -235,13 +252,18 @@ describe("exchange trade", () => {
     warnings.length = 0;
     const svc = service({ getExchangeById: async () => pool() });
     await expect(svc.trade(scope, NET, base)).resolves.toMatchObject({ minReceivedQuant: "1" });
-    expect(warnings.join(" ")).toMatch(/no slippage protection/);
+    expect(warnings).toEqual([
+      "no slippage protection: this trade accepts any non-zero return at any price. Pass --slippage or --min-received to set a floor.",
+    ]);
   });
 
   it("refuses two competing floors", async () => {
     const svc = service({ getExchangeById: async () => pool() });
-    await expect(svc.trade(scope, NET, { ...base, slippage: 1, minReceived: "1" })).rejects.toThrow(
-      /at most one of --min-received/,
+    const error = await svc
+      .trade(scope, NET, { ...base, slippage: 1, minReceived: "1" })
+      .catch((e) => e);
+    expect(errorEnvelope(error).message).toBe(
+      "choose at most one of --min-received, --raw-min-received, --slippage",
     );
   });
 
@@ -259,7 +281,7 @@ describe("exchange trade", () => {
     const svc = service(
       { getExchangeById: async () => pool() },
       {
-        run: async () =>
+        runTron: async () =>
           ({ stage: "confirmed", txId: "t", exchangeReceived: 4_949_000_000 }) as never,
       },
     );
@@ -272,7 +294,7 @@ describe("exchange trade", () => {
 describe("exchange show / list", () => {
   it("resolves both sides for a single pair", async () => {
     const svc = service({ getExchangeById: async () => pool() });
-    await expect(svc.show(NET, { id: 12 })).resolves.toMatchObject({
+    await expect(svc.show(NO_DEADLINE, NET, { id: 12 })).resolves.toMatchObject({
       exchangeId: 12,
       pair: "TRX:1000123",
       firstTokenLabel: "TRX",
@@ -286,7 +308,7 @@ describe("exchange show / list", () => {
     const listExchanges = vi.fn(async () => [pool()]);
     const getAssetById = vi.fn(async () => MYTOKEN);
     const svc = service({ listExchanges, getAssetById });
-    await expect(svc.list(NET, { limit: 10, offset: 0 })).resolves.toMatchObject({
+    await expect(svc.list(NO_DEADLINE, NET, { limit: 10, offset: 0 })).resolves.toMatchObject({
       exchanges: [{ exchangeId: 12, pair: "TRX:1000123" }],
       pagination: { offset: 0, limit: 10 },
     });

@@ -16,6 +16,8 @@ The name must be 1–64 characters and must not look like an address (so it can'
 
 A contact belongs to one chain family, inferred from the address itself — this command has no family or network selector. A malformed address, or one belonging to no supported family, is refused with `invalid_address`; family compatibility is checked later, when a chain command uses the contact.
 
+Contact names are unique across both families, including concurrent additions. TRON base58 comparison preserves case. EVM address comparison ignores case.
+
 ## Options
 
 | Option | Description |

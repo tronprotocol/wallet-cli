@@ -8,7 +8,7 @@ const minimums: Readonly<Record<string, string>> = Object.freeze({
   SOL: "0.01",
 });
 
-/** Compare decimal quantities exactly; equality is accepted and unlisted tokens have no floor. */
+// Compares decimal strings exactly; unlisted tokens have no minimum.
 export function assertBaiRechargeMinimum(token: string, amount: string): void {
   const minimum = minimums[token.toUpperCase()];
   if (!minimum) return;
@@ -26,8 +26,26 @@ export function assertBaiRechargeMinimum(token: string, amount: string): void {
   }
 }
 
-/** Validate decimal quantities without converting payment amounts to floating point. */
-export function baiRechargeAmount(value: string): string {
+// B.AI accepts recharge amounts with at most this many decimal places, whatever the token.
+const MAX_RECHARGE_DECIMALS = 6;
+
+export function assertBaiRechargePrecision(amount: BaiRechargeAmount): void {
+  const fraction = amount.split(".")[1] ?? "";
+  if (fraction.length > MAX_RECHARGE_DECIMALS) {
+    throw new UsageError(
+      "invalid_amount",
+      `Recharge amount may have at most ${MAX_RECHARGE_DECIMALS} decimal places; no preorder or payment was sent`,
+    );
+  }
+}
+
+declare const rechargeAmount: unique symbol;
+
+// Positive decimal text in whole units of the recharge token.
+export type BaiRechargeAmount = string & { readonly [rechargeAmount]: true };
+
+// Validates and normalizes positive decimal strings without floating-point conversion.
+export function baiRechargeAmount(value: string): BaiRechargeAmount {
   if (value.length > 100 || !/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value))
     throw new UsageError("invalid_amount", "Recharge amount must be a positive decimal string");
   const normalized = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
@@ -38,5 +56,5 @@ export function baiRechargeAmount(value: string): string {
     (whole === "9007199254740991" && fraction !== "")
   )
     throw new UsageError("invalid_amount", "Recharge amount exceeds the supported positive range");
-  return normalized;
+  return normalized as BaiRechargeAmount;
 }

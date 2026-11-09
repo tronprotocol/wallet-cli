@@ -1,6 +1,18 @@
 import { expect, it } from "vitest";
-import { sdkPaymentError, providerPaymentError, unsentPaymentError } from "./payment-error.js";
-import { errorMessage, UsageError, TransportError } from "../../../domain/errors/index.js";
+import { exitCodeOf } from "../../inbound/cli/output/errors.js";
+import {
+  sdkPaymentError,
+  providerPaymentError,
+  sentPaymentError,
+  unsentPaymentError,
+} from "./payment-error.js";
+import {
+  errorMessage,
+  inputRef,
+  UsageError,
+  TransportError,
+} from "../../../domain/errors/index.js";
+import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 
 it.each([
   ["sdkPaymentError", sdkPaymentError],
@@ -15,7 +27,7 @@ it.each([
     const error = classify(original, "sign");
     expect(error.textMessage).toContain("missing\\nFAKE_LOG");
     expect(error.textMessage).not.toContain("\n");
-    expect(error.toEnvelope().message).toContain("missing\nFAKE_LOG");
+    expect(errorEnvelope(error).message).toContain("missing\nFAKE_LOG");
     expect(error.textMessage.endsWith("; no payment was sent")).toBe(
       classify === unsentPaymentError,
     );
@@ -38,7 +50,7 @@ it.each([403, 429, 502])(
         retryPayment: false,
       },
     });
-    expect(JSON.stringify(result.toEnvelope())).not.toContain("SECRET");
+    expect(JSON.stringify(errorEnvelope(result))).not.toContain("SECRET");
   },
 );
 it("classifies the SDK HTTP wrapper without disclosing arbitrary text", () => {
@@ -68,15 +80,18 @@ it("retains failed settlement hash and safe reason without calling it successful
       candidateTxHash: "a".repeat(64),
       reason: "invalid_transaction_state",
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     },
   });
-  expect(JSON.stringify(error.toEnvelope())).not.toContain("SECRET");
+  expect(JSON.stringify(errorEnvelope(error))).not.toContain("SECRET");
   expect(
-    providerPaymentError("SECRET", "settle", {
-      transaction: "SECRET",
-      network: "SECRET",
-    }).toEnvelope(),
+    errorEnvelope(
+      providerPaymentError("SECRET", "settle", {
+        transaction: "SECRET",
+        network: "SECRET",
+      }),
+    ),
   ).not.toHaveProperty("details.candidateTxHash");
 });
 
@@ -91,6 +106,32 @@ it.each([
   });
 });
 
+it.each([
+  ["a body reason", "DEADLINE_OR_CLOCK_SKEW", { reason: "DEADLINE_OR_CLOCK_SKEW" }],
+  ["a body code", "DEADLINE_OR_CLOCK_SKEW", { code: "DEADLINE_OR_CLOCK_SKEW", httpStatus: 502 }],
+  [
+    "a settlement errorReason",
+    "DEADLINE_OR_CLOCK_SKEW",
+    { success: false, errorReason: "DEADLINE_OR_CLOCK_SKEW", transaction: "ab".repeat(32) },
+  ],
+  ["a code beside another reason", "invalid_payload", { code: "DEADLINE_OR_CLOCK_SKEW" }],
+] as const)(
+  "classifies a provider's expired authorization (%s) as tx_expired",
+  (_case, reason, evidence) => {
+    for (const phase of ["verify", "settle"] as const) {
+      const error = providerPaymentError(reason, phase, evidence);
+      expect(error).toMatchObject({
+        code: "tx_expired",
+        details: { phase, paymentStatus: "unknown", outcome: "unknown", retryPayment: false },
+      });
+      expect(exitCodeOf(error)).toBe(1);
+    }
+    expect(providerPaymentError(reason, "settle", evidence).details).toMatchObject(
+      "transaction" in evidence ? { candidateTxHash: "ab".repeat(32) } : {},
+    );
+  },
+);
+
 it.each(["challenge", "create_payment", "payment_request", "verify", "settle"] as const)(
   "maps %s rate limits without authorizing repayment",
   (phase) => {
@@ -101,7 +142,15 @@ it.each(["challenge", "create_payment", "payment_request", "verify", "settle"] a
   },
 );
 
-it("retains only numeric Retry-After hints", () => {
+it("keeps a Retry-After hint on an upstream status other than 429", () => {
+  const result = sdkPaymentError(
+    { response: { status: 503, headers: { "retry-after": "20" } } },
+    "settle",
+  );
+  expect(result.details).toMatchObject({ httpStatus: 503, retryAfterSeconds: 20 });
+});
+
+it("retains only readable Retry-After hints", () => {
   const result = sdkPaymentError(
     { response: { status: 429, headers: { "retry-after": "30" } } },
     "settle",
@@ -111,7 +160,7 @@ it("retains only numeric Retry-After hints", () => {
     { response: { status: 429, headers: { "retry-after": "https://secret.example/token" } } },
     "settle",
   );
-  expect(JSON.stringify(unsafe.toEnvelope())).not.toContain("secret");
+  expect(JSON.stringify(errorEnvelope(unsafe))).not.toContain("secret");
 });
 
 it("classifies a missing GasFree asset before payment creation without exposing SDK text", () => {
@@ -130,9 +179,19 @@ it("classifies a missing GasFree asset before payment creation without exposing 
 
 it("uses not_sent only when the caller has no authorization or transaction evidence", async () => {
   const { unsentPaymentError } = await import("./payment-error.js");
-  expect(unsentPaymentError(new Error("insufficient_funds"), "create_payment")).toMatchObject({
+  const unsent = unsentPaymentError(new Error("insufficient_funds"), "create_payment");
+  expect(unsent).toMatchObject({
     code: "insufficient_balance",
     details: { paymentStatus: "not_sent" },
+  });
+  expect(unsent.details).not.toHaveProperty("outcome");
+  // A sent approval whose outcome is unknown keeps it; only the payment was not sent.
+  const approval = new TransportError("rpc_error", "approve reply lost", {
+    txId: "b".repeat(64),
+    outcome: "unknown",
+  });
+  expect(unsentPaymentError(approval, "create_payment")).toMatchObject({
+    details: { txId: "b".repeat(64), outcome: "unknown", paymentStatus: "not_sent" },
   });
   const failure = new TransportError("provider_error", "settlement uncertain", {
     candidateTxHash: "a".repeat(64),
@@ -143,28 +202,63 @@ it("uses not_sent only when the caller has no authorization or transaction evide
   });
 });
 
-/**
- * Without an explicit --max-amount the SDK's own $1-per-payment spend control stays on, and it
- * rejects inside `selectPaymentRequirements` — before any payment is created — with a plain
- * Error. That is a deterministic policy refusal the caller can act on, not an upstream failure.
- */
 it.each([
   [
     "All payment requirements were rejected by spendControls.maxAmountPerPayment ($1, including USDT). Raise maxAmountPerPayment, set it to false to disable, set allowedAssets[].maxAmountPerPayment for a per-asset atomic cap, or set spendControls: false to disable all spend controls.",
     "amount_exceeds_limit",
+    "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount, or --max-raw-amount with --token or --asset, to authorize it",
   ],
   [
     "All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed. Add an allowedAssets entry for non-default tokens, set allowedAssets: true, or set spendControls: false.",
     "no_matching_requirement",
+    "no offered payment route uses an asset the built-in spend control allows; pass --max-amount, or --max-raw-amount with --token or --asset, to set the ceiling yourself",
   ],
-])("classifies the SDK's spend-control refusal as a typed, not-sent error", (message, code) => {
-  const error = sdkPaymentError(
-    new Error(`Failed to create payment payload: ${message}`),
-    "payment_request",
-  );
-  expect(error).toMatchObject({
-    code,
-    details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
+])(
+  "classifies the SDK's spend-control refusal as a typed, not-sent error",
+  (message, code, text) => {
+    const error = sdkPaymentError(
+      new Error(`Failed to create payment payload: ${message}`),
+      "payment_request",
+    );
+    expect(error).toMatchObject({
+      code,
+      details: { phase: "payment_request", paymentStatus: "not_sent", retryPayment: false },
+    });
+    expect(error.parts).toEqual(
+      expect.arrayContaining([
+        inputRef("maxAmount"),
+        inputRef("maxRawAmount"),
+        inputRef("token"),
+        inputRef("asset"),
+      ]),
+    );
+    expect(errorEnvelope(error).message).toBe(text);
+  },
+);
+
+it.each([
+  ["a typed timeout", new TransportError("timeout", "HTTP request timed out or was aborted")],
+  ["an oversized body", new TransportError("response_too_large", "too large")],
+  ["a plain SDK error", new Error("boom")],
+])("marks %s after the paid request was sent as an unknown outcome", (_case, error) => {
+  expect(sentPaymentError(error, "payment_request")).toMatchObject({
+    code: error instanceof TransportError ? error.code : "provider_error",
+    details: {
+      phase: "payment_request",
+      paymentStatus: "unknown",
+      outcome: "unknown",
+      retryPayment: false,
+    },
   });
-  expect(error.message).toContain("--max-amount");
+});
+
+it("keeps a known settlement after the paid request was sent", () => {
+  const settled = new TransportError("response_too_large", "too large", {
+    phase: "response",
+    paymentStatus: "settled",
+    settled: true,
+  });
+  const result = sentPaymentError(settled, "payment_request");
+  expect(result.details).toMatchObject({ paymentStatus: "settled", settled: true });
+  expect(result.details).not.toHaveProperty("outcome");
 });

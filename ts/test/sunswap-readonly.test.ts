@@ -1,10 +1,3 @@
-/**
- * Black-box checks for the SunSwap read-only commands.
- *
- * Everything here runs against an EMPTY WALLET_CLI_HOME and passes no password: these commands
- * take no account, so a wallet must never be a precondition for one. Nothing here reaches the
- * network — every case is refused before a request would be made.
- */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { spawn, type ChildProcess } from "node:child_process";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
@@ -22,7 +15,6 @@ beforeEach(() => {
   HOME = mkdtempSync(join(tmpdir(), "wcli-sunswap-"));
 });
 
-/** no wallet, no password, no stdin — the way an agent would call a read-only query. */
 function run(args: string[]) {
   const env = { ...process.env, WALLET_CLI_HOME: HOME } as Record<string, string>;
   delete env.MASTER_PASSWORD;
@@ -36,14 +28,12 @@ function run(args: string[]) {
   try {
     json = JSON.parse(r.stdout);
   } catch {
-    /* not json */
+    /* not JSON */
   }
   return { stdout: r.stdout, stderr: r.stderr, status: r.status, json };
 }
 
 describe("network availability", () => {
-  // The switch is the network's config block, not a branch on its id: Nile has no market API, so
-  // the capability is never registered there.
   it.each(["nile", "shasta"])("refuses %s and names where the command does work", (network) => {
     const r = run(["sunswap", "price", "TRX", "--network", network, "-o", "json"]);
     expect(r.status).toBe(2);
@@ -65,12 +55,6 @@ describe("network availability", () => {
     },
   );
 
-  /**
-   * An EVM network fails on the FAMILY, before the capability gate — which is where a TRON-only
-   * command fails everywhere in this CLI, not just here. The hedge this assertion used to carry
-   * (`toContain([capability, family])`) passed whichever the binary did, so it could not fail and
-   * documented nothing.
-   */
   it("refuses an EVM network earlier still, on the family", () => {
     const r = run(["sunswap", "price", "TRX", "--network", "sepolia", "-o", "json"]);
     expect(r.status).toBe(2);
@@ -80,15 +64,12 @@ describe("network availability", () => {
     );
   });
 
-  // The whole point of keying on config: a tester opens a network by editing config.yaml, with
-  // no code change and no rebuild.
   it("is enabled on Nile by config alone", () => {
     writeFileSync(
       join(HOME, "config.yaml"),
       "networks:\n  nile:\n    sunswap:\n      marketApiBaseUrl: http://127.0.0.1:9\n",
     );
     const r = run(["sunswap", "price", "TRX", "--network", "nile", "-o", "json"]);
-    // it now gets past the gate and fails at the (unreachable) endpoint instead
     expect(r.json.error.code).not.toBe("unsupported_network_capability");
   });
 });
@@ -122,8 +103,6 @@ describe("usage errors", () => {
     expect(r.json.error.code).toBe("invalid_address");
   });
 
-  // The refusal must not send the reader somewhere that will not help: the user layer of the
-  // token book is per-account and this command takes no account.
   it("refuses an unknown symbol without suggesting token add", () => {
     const r = run(["sunswap", "price", "WIN", "--network", "tron", "-o", "json"]);
     expect(r.status).toBe(2);
@@ -134,8 +113,6 @@ describe("usage errors", () => {
 });
 
 describe("listing usage errors", () => {
-  // The service answers an unknown scope or sort field with an empty or unsorted list rather
-  // than an error, so a typo would read as a real answer. Each is refused locally instead.
   it.each([
     [["--protocol", "v9"], "invalid_value", /ALL, V1, V1_5, V2, V3, V4, CURVE/],
     [["--order-by", "apr"], "invalid_value", /tvl, volume-24h/],
@@ -159,7 +136,6 @@ describe("listing usage errors", () => {
     expect(r.json.error.message).toMatch(message as RegExp);
   });
 
-  // An empty keyword reaches the service as "no filter" and returns the whole catalogue.
   it("token-search refuses an empty keyword", () => {
     const r = run(["sunswap", "token-search", "", "--network", "tron", "-o", "json"]);
     expect(r.status).toBe(2);
@@ -171,8 +147,6 @@ describe("listing usage errors", () => {
     expect(r.status).toBe(2);
   });
 
-  // token-list has no --sort: the token endpoints expose a sort field but no direction, and a
-  // flag the service ignores would be a promise the output does not keep.
   it("offers no --sort and no --include-blacklisted", () => {
     for (const args of [["--sort", "asc"], ["--include-blacklisted"]]) {
       const r = run(["sunswap", "token-list", ...args, "--network", "tron", "-o", "json"]);
@@ -184,7 +158,6 @@ describe("listing usage errors", () => {
 
 describe("pool listing usage errors", () => {
   it.each([
-    // no ALL here: on a listing that filters rows there is no protocol called ALL to belong to
     [["--protocol", "v9"], "invalid_value", /must be one of V1, V1_5, V2, V3, V4, CURVE/],
     [["--order-by", "nope"], "invalid_value", /tvl, volume-24h, fees-24h, apr/],
     [["--sort", "sideways"], "invalid_value", /--sort must be one of asc, desc/],
@@ -207,11 +180,6 @@ describe("pool listing usage errors", () => {
     expect(r.json.error.message).toMatch(message as RegExp);
   });
 
-  /**
-   * The service refuses poolAddress and tokenAddress together. Passed through, that arrives as
-   * provider_error — exit 1, retry "same" — telling a caller that retrying the identical command
-   * might work when it never can, and blaming the service for a command-line mistake.
-   */
   it("refuses --pool and --token together as a usage error, not a provider one", () => {
     const r = run([
       "sunswap",
@@ -241,13 +209,11 @@ describe("pool listing usage errors", () => {
     expect(r.json.error.code).toBe("invalid_value");
   });
 
-  // pool-list KEEPS --sort because its endpoint takes a direction; the token endpoints do not.
   it("offers --sort on pool-list but not on token-list", () => {
     expect(run(["sunswap", "pool-list", "--help"]).stdout).toContain("--sort");
     expect(run(["sunswap", "token-list", "--help"]).stdout).not.toContain("--sort");
   });
 
-  // Pool records carry no blacklist marker, so blacklisted pools could not be labelled.
   it("offers no --include-blacklisted", () => {
     const r = run([
       "sunswap",
@@ -262,7 +228,6 @@ describe("pool listing usage errors", () => {
     expect(r.json.error.code).toBe("invalid_option");
   });
 
-  // The help must say that --min-tvl filters first and that apr needs it.
   it("documents --min-tvl and the apr advice in help", () => {
     const out = run(["sunswap", "pool-list", "--help"]).stdout;
     expect(out).toContain("applied before --limit/--offset");
@@ -270,8 +235,6 @@ describe("pool listing usage errors", () => {
     expect(out).toContain("wallet-cli sunswap pool-list --order-by apr --min-tvl 100000");
   });
 
-  // A V4 pool id is not a contract address, and a caller who treats it as one gets a failure
-  // with no explanation unless the help says so.
   it("warns in help that a V4 pool id is not a contract", () => {
     const out = run(["sunswap", "pool-list", "--help"]).stdout;
     expect(out).toContain("64-hex pool id");
@@ -280,11 +243,8 @@ describe("pool listing usage errors", () => {
 });
 
 describe("position-list usage errors", () => {
-  // Address-scoped like `account balance`: the active account by default, `--account` for any
-  // other. With no wallet and no `--account` there is nothing to list.
   it("needs an account when none is active", () => {
     const r = run(["sunswap", "position-list", "--network", "tron", "-o", "json"]);
-    // exit 1, as `account balance` answers the same situation.
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("missing_wallet_address");
   });
@@ -325,22 +285,12 @@ describe("position-list usage errors", () => {
     expect(out).not.toContain("--sort");
   });
 
-  // A script that reads the Status column would miss a drained position; help says which field
-  // to read instead.
   it("documents that EMPTY is a rendering, not a status value", () => {
     const out = run(["sunswap", "position-list", "--help"]).stdout;
     expect(out).toContain("extra.positionLiquidity");
   });
 });
 
-/**
- * The documented enum and the accepted enum must be the same enum.
- *
- * `--json-schema` is how an agent learns what is valid, so a value the schema does not list but
- * the binary accepts is one that settles into a generated script and breaks the day the gap is
- * closed. It was behaviourally harmless — on these three, ALL and omitting the flag return the
- * same rows — which is exactly why it would have survived unnoticed.
- */
 describe("protocol scope versus protocol filter", () => {
   const invoke = (command: string, protocol: string) => {
     const extra =
@@ -364,7 +314,6 @@ describe("protocol scope versus protocol filter", () => {
     ]);
   };
 
-  // A pool or a position belongs to one protocol; "all of them" is spelled by omitting the flag.
   it.each(["pool-list", "pool-search", "position-list"])("%s refuses ALL", (command) => {
     const r = invoke(command, "ALL");
     expect(r.status).toBe(2);
@@ -381,8 +330,6 @@ describe("protocol scope versus protocol filter", () => {
     },
   );
 
-  // On the token listings ALL is a real scope and the default: it changes what the numbers are,
-  // not which rows appear.
   it.each(["token-list", "token-search"])("%s keeps ALL as a scope", (command) => {
     const out = run(["sunswap", command, "--help"]).stdout;
     expect(out).toContain("protocol scope: ALL, V1, V1_5, V2, V3, V4, CURVE");
@@ -433,18 +380,7 @@ describe("discovery", () => {
   });
 });
 
-/**
- * The symbol column is decoration; the prices are the answer.
- *
- * A stub market API answers the price call and fails the catalogue call, which is the one
- * arrangement that proves the degraded path end to end: the command still exits 0, the prices
- * are still there, and the notice lands in `meta.warnings` — the one place a caller reads it.
- * Asserting it off the ENVELOPE rather than a return value is the point: publishing it in the
- * wrong place is exactly the failure this guards, and that failure shipped once already.
- *
- * The stub runs out of process because `run` uses spawnSync, which blocks this process's event
- * loop — a server listening here would never get to accept the connection.
- */
+// Run the stub separately because spawnSync blocks this event loop.
 describe("degraded symbol lookup", () => {
   let stub: ChildProcess;
   let base = "";
@@ -483,8 +419,6 @@ describe("degraded symbol lookup", () => {
     expect(r.json.meta.warnings[0]).toContain("Symbol");
   });
 
-  // A field that can only ever be empty must not be in the envelope at all, and `view` is
-  // text-mode scaffolding that JSON must never carry.
   it("publishes no symbols, warnings or view field inside data", () => {
     const r = run(["sunswap", "price", "TRX", "--network", "nile", "-o", "json"]);
     expect(r.json.data).not.toHaveProperty("symbols");
@@ -501,13 +435,6 @@ describe("degraded symbol lookup", () => {
   });
 });
 
-/**
- * `sunswap position-info`, refused before anything is asked of a node.
- *
- * Nothing here reaches the network, which is what lets it live in this file: every case is decided
- * by the schema, the account gate or the family gate. The command itself READS THE CHAIN — a
- * successful lookup needs a node and belongs nowhere near a black-box suite.
- */
 describe("sunswap position-info", () => {
   const ID = ["--position-id", "88"];
 
@@ -562,10 +489,6 @@ describe("sunswap position-info", () => {
     expect(r.json.error.message).toContain(flag);
   });
 
-  /**
-   * `--account` is refused rather than ignored: this command reports whoever holds the position,
-   * which is not the caller's account, and accepting the flag would suggest otherwise.
-   */
   it("refuses --account outright", () => {
     const r = run([
       "sunswap",
@@ -601,10 +524,6 @@ describe("sunswap position-info", () => {
     expect(r.json.error.code).toBe("family_mismatch");
   });
 
-  /**
-   * Help, which must state the two things a caller gets wrong: that V2 has no id to look up, and
-   * that V3 and V4 number their positions separately.
-   */
   it("documents both flags and why --protocol is required", () => {
     const r = run(["sunswap", "position-info", "--help"]);
     expect(r.status).toBe(0);
@@ -614,7 +533,6 @@ describe("sunswap position-info", () => {
     expect(r.stdout).toContain("wallet-cli sunswap position-info --protocol V4 --position-id 88");
   });
 
-  // No wallet exists in this HOME at all, and the command must not ask for one.
   it("needs no wallet and no password", () => {
     const r = run(["sunswap", "position-info", "--protocol", "V2", ...ID, "-o", "json"]);
     expect(r.json.error.code).not.toBe("auth_required");

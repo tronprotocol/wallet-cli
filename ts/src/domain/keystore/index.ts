@@ -1,20 +1,4 @@
-/**
- * Web3 keystore crypto — the shared scrypt/AES/MAC construction, plus the standard **V3 file**
- * codec used to interoperate with other wallets (TronLink, the Java wallet-cli).
- *
- * Two audiences, deliberately separated:
- *   - `Web3Crypto` is the primitive construction (scrypt|pbkdf2 → aes-128-ctr → keccak MAC). Our
- *     private at-rest vault (`CryptoEnvelope`, `version: 1`) and the V3 interop file both use it,
- *     so the MAC is defined exactly once.
- *   - `KeystoreV3` is the on-the-wire *file format*: `{version: 3, id, address, crypto}` wrapping a
- *     single raw 32-byte private key. It never sees our vault's wrapper (`type`, `version: 1`) or
- *     its seed payload — a V3 keystore holds one key and nothing derivable.
- *
- * Asymmetric by design: we WRITE scrypt only, but READ scrypt or pbkdf2, matching the accept set of
- * the Java implementation (`Wallet.java`) so anything it or TronLink can open, we can open — with
- * one deliberate exception: a derived key shorter than the private key it must authenticate is
- * refused (see `deriveKey`), because accepting it would mean accepting any password.
- */
+// V3 files hold one raw private key; encryption uses scrypt, decryption also accepts PBKDF2.
 import { randomUUID } from "node:crypto";
 import { scrypt } from "@noble/hashes/scrypt.js";
 import { pbkdf2 } from "@noble/hashes/pbkdf2.js";
@@ -31,22 +15,14 @@ import {
 import type { Bytes } from "../types/index.js";
 import { ExecutionError, UsageError } from "../errors/index.js";
 
-/** scrypt work factor we WRITE with. Matches the Java implementation's N_STANDARD (1 << 18). */
+// Export work factor, compatible with Java N_STANDARD.
 export const SCRYPT_STANDARD = { n: 262144, r: 8, p: 1, dklen: 32 } as const;
 
 const PRIVATE_KEY_BYTES = 32;
 
-/**
- * Ceilings on the work an IMPORTED file may demand. Its KDF runs to completion before the MAC is
- * checked, so these are the only thing standing between a chosen file and an unbounded computation.
- *
- * Only the two dimensions nothing else bounds are listed. scrypt's `n`, `r` and `p` are left to
- * @noble/hashes, which refuses a non-power-of-two `n` and caps `128 * r * (n + p + 1)` at a 1 GiB
- * `maxmem` — a second, tighter limit here would only risk refusing a file that library accepts.
- */
-/** 32 is all a V3 file ever needs; the headroom is for a producer that pads. */
+// Bound imported KDF work before authentication; scrypt also enforces library memory limits.
+// Allow padded derived keys while bounding allocation.
 const MAX_DKLEN = 1024;
-/** ~8s on a 2026 laptop. Real producers write 262,144, so this is ~38x the going rate. */
 const MAX_PBKDF2_ITERATIONS = 10_000_000;
 
 export const Web3Crypto = {
@@ -58,19 +34,18 @@ export const Web3Crypto = {
     return scrypt(utf8ToBytes(password), salt, { N: p.n, r: p.r, p: p.p, dkLen: p.dklen });
   },
 
-  /** keccak256(dk[16:32] || ciphertext) — the Web3 keystore MAC over the *derived* key's second half. */
+  // The Web3 MAC uses derived-key bytes 16..31.
   mac(dk: Bytes, ciphertext: Bytes): Bytes {
     return keccak_256(concatBytes(dk.slice(16, 32), ciphertext));
   },
 
-  /** aes-128-ctr is its own inverse here; one function serves both directions. */
+  // AES-CTR uses the same operation for encryption and decryption.
   crypt(dk: Bytes, iv: Bytes, data: Bytes): Bytes {
     return ctr(dk.slice(0, 16), iv).encrypt(data);
   },
 };
 
-/** A standard Web3 V3 keystore file. `address` is TRON's 21-byte hex form (`41…`), as written by
- *  the Java implementation's `exportKeystore`, so TronLink round-trips it. */
+// Display address: TRON uses 41-prefixed hex; EVM uses 0x-prefixed hex.
 export interface KeystoreV3File {
   version: 3;
   id: string;
@@ -89,8 +64,7 @@ const invalid = (why: string) =>
   new UsageError("invalid_keystore", `not a valid V3 keystore: ${why}`);
 
 export const KeystoreV3 = {
-  /** Wrap ONE raw private key as a V3 file. `hexAddress` is recorded for other wallets to display;
-   *  it is never trusted on the way back in (the key is the truth — see `decrypt`). */
+  // hexAddress is display metadata, not authenticated identity.
   encrypt(privateKey: Bytes, password: string, hexAddress: string): KeystoreV3File {
     if (privateKey.length !== PRIVATE_KEY_BYTES) {
       throw new ExecutionError(
@@ -117,14 +91,9 @@ export const KeystoreV3 = {
     };
   },
 
-  /**
-   * Recover the private key from a parsed V3 keystore of ANY origin. Structure is validated before
-   * the password is used, so a malformed file is reported as such instead of as a wrong password.
-   * The file's own `address` is ignored: only the key it actually decrypts to can be trusted.
-   */
+  // Ignores the stored address; callers must derive identity from the decrypted key.
   decrypt(file: unknown, password: string): Bytes {
     const f = asRecord(file, "not a JSON object");
-    // Every reader in the wild (incl. Java's, which hard-rejects other versions) speaks v3 only.
     if (f.version !== 3) throw invalid(`version must be 3, got ${JSON.stringify(f.version)}`);
     const c = asRecord(f.crypto, "missing crypto section");
     if (c.cipher !== "aes-128-ctr") throw invalid(`unsupported cipher ${JSON.stringify(c.cipher)}`);
@@ -136,17 +105,13 @@ export const KeystoreV3 = {
     );
     const dk = deriveKey(c, password);
 
-    // Through hexField like every other hex field, then compared as BYTES: `A1B2` and `a1b2` are the
-    // same MAC, and comparing our lowercase rendering against the file's own spelling reported a
-    // valid keystore as a wrong password. It also keeps a missing or non-hex mac reported as the
-    // malformed file it is, rather than as a password the reader would then go and "fix".
+    // Compare decoded MAC bytes so hex case does not affect password validation.
     const mac = hexField(c.mac, "crypto.mac");
     if (!equalBytes(Web3Crypto.mac(dk, ciphertext), mac)) {
       throw new ExecutionError("wrong_keystore_password", "incorrect keystore file password");
     }
     const plaintext = Web3Crypto.crypt(dk, iv, ciphertext);
-    // A V3 keystore carries exactly one private key. Anything else (a re-wrapped seed vault, a
-    // truncated file) decrypts and MACs fine yet is not a key — reject it rather than import junk.
+    // A valid MAC does not guarantee the payload is a private key.
     if (plaintext.length !== PRIVATE_KEY_BYTES) {
       throw invalid(
         `decrypted payload is ${plaintext.length} bytes, expected a ${PRIVATE_KEY_BYTES}-byte private key`,
@@ -156,32 +121,24 @@ export const KeystoreV3 = {
   },
 };
 
-/** scrypt or pbkdf2 (hmac-sha256) — the two KDFs Java's importer accepts. */
 function deriveKey(c: Record<string, unknown>, password: string): Bytes {
   const p = asRecord(c.kdfparams, "missing crypto.kdfparams");
   const salt = hexField(p.salt, "crypto.kdfparams.salt");
   const dklen = intField(p.dklen, "crypto.kdfparams.dklen");
-  // The MAC authenticates the password only through dk[16:32]. Below 32 bytes that slice is empty
-  // and the MAC collapses to keccak(ciphertext) — a constant the file's author chooses — so every
-  // password passes and decrypts to a different, unknowable key. Java is not fooled here (its
-  // pbkdf2 path ignores dklen and derives 32; its scrypt path throws), so this is parity, not
-  // divergence.
+  // Require all 16 MAC key bytes at dk[16:32]; dklen <= 16 makes the MAC password-independent.
   if (dklen < PRIVATE_KEY_BYTES) {
     throw invalid(
       `crypto.kdfparams.dklen must be at least ${PRIVATE_KEY_BYTES}, got ${dklen}: a shorter derived key cannot bind the MAC to the password`,
     );
   }
-  // Both KDFs allocate the derived key up front, and pbkdf2 accepts a dklen of (2^32 - 1) * 32.
+  // Bound allocation before either KDF runs.
   if (dklen > MAX_DKLEN) {
     throw invalid(
       `crypto.kdfparams.dklen must be at most ${MAX_DKLEN}, got ${dklen}: no keystore needs a derived key that long`,
     );
   }
   if (c.kdf === "scrypt") {
-    // scrypt's own limits — a power-of-two `n`, and `128 * r * (n + p + 1)` under a 1 GiB maxmem —
-    // are the ceiling for this KDF, and they are better than anything we would impose. But the
-    // library signals them with a bare Error, which would surface as OUR internal_error; a file
-    // that names impossible parameters is a bad FILE, and has to read as one.
+    // Convert library parameter refusals into invalid-keystore errors.
     return derived(() =>
       Web3Crypto.scryptKey(password, salt, {
         n: intField(p.n, "crypto.kdfparams.n"),
@@ -195,7 +152,7 @@ function deriveKey(c: Record<string, unknown>, password: string): Bytes {
     if (p.prf !== undefined && p.prf !== "hmac-sha256")
       throw invalid(`unsupported pbkdf2 prf ${JSON.stringify(p.prf)}`);
     const c = intField(p.c, "crypto.kdfparams.c");
-    // scrypt's cost is bounded by noble's maxmem; pbkdf2's is bounded by nothing at all.
+    // Bound PBKDF2 iterations before running the KDF.
     if (c > MAX_PBKDF2_ITERATIONS) {
       throw invalid(
         `crypto.kdfparams.c must be at most ${MAX_PBKDF2_ITERATIONS}, got ${c}: deriving the key would take longer than any import should`,
@@ -206,11 +163,7 @@ function deriveKey(c: Record<string, unknown>, password: string): Bytes {
   throw invalid(`unsupported kdf ${JSON.stringify(c.kdf)}`);
 }
 
-/**
- * Run a KDF whose parameters came out of the file. Everything it can throw here is a statement
- * about those parameters — the cost the library refuses, the allocation the size demands — so it
- * is reported as an invalid keystore rather than escaping untyped as an internal error.
- */
+// Report imported KDF parameter failures as invalid keystores.
 function derived(kdf: () => Bytes): Bytes {
   try {
     return kdf();
@@ -224,8 +177,6 @@ function asRecord(value: unknown, why: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** Same bytes, same MAC — no timing claim: whoever can time this already holds the file and can
- *  try passwords offline, so the comparison is plain. */
 function equalBytes(a: Bytes, b: Bytes): boolean {
   return a.length === b.length && a.every((byte, i) => byte === b[i]);
 }

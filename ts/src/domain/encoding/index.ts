@@ -2,17 +2,21 @@ import { createBase58check } from "@scure/base";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import {
-  evmAddressFromPublicKey,
+  addressBodyLength,
+  addressCodec,
+  addressShape,
   evmChecksumAddress,
+  isEvmAddress,
   publicKeyHash20,
-  TronAddress,
-  tronAddressBytes,
-  tronAddressFromBytes,
-} from "../address/index.js";
+  tronAddressFromHash20,
+  tronHash20Hex,
+  tronHexFromHash20,
+} from "../family/index.js";
 import { UsageError } from "../errors/index.js";
 
 const base58check = createBase58check(sha256);
-const tron = new TronAddress();
+const tron = addressCodec("tron");
+const evm = addressCodec("evm");
 
 export type EncodingConversion =
   | {
@@ -38,23 +42,22 @@ export function convertEncoding(input: string): EncodingConversion {
     throw invalid("input is empty or contains unsafe whitespace/control characters");
   }
 
-  if (/^T[1-9A-HJ-NP-Za-km-z]{25,40}$/.test(value)) {
+  const tronBodyLength = addressBodyLength("tron", value);
+  if (tronBodyLength !== undefined && tronBodyLength >= 25 && tronBodyLength <= 40) {
     if (!tron.validate(value)) {
       throw invalid("base58 checksum mismatch (typo in the address?)");
     }
-    return addressView(value, "tron-base58", tronAddressBytes(value).slice(1));
+    return addressView(value, "tron-base58", hexToBytes(tronHash20Hex(value)));
   }
-  if (/^(?:0x)?41[0-9a-fA-F]{40}$/.test(value)) {
-    const raw = hexToBytes(value.replace(/^0x/, ""));
-    return addressView(value, "tron-hex", raw.slice(1));
+  const shape = addressShape(value);
+  if (shape === "tron-hex") {
+    return addressView(value, "tron-hex", hexToBytes(tronHash20Hex(value)));
   }
-  if (/^0x[0-9a-fA-F]{40}$/.test(value)) {
-    const payload = hexToBytes(value.slice(2));
-    const checksum = evmChecksumAddress(payload);
-    if (/[a-f]/.test(value) && /[A-F]/.test(value) && value !== checksum) {
+  if (shape === "evm") {
+    if (!isEvmAddress(value)) {
       throw invalid("EVM EIP-55 checksum mismatch");
     }
-    return addressView(value, "evm", payload);
+    return addressView(value, "evm", hexToBytes(value.slice(2)));
   }
   if (/^(?:02|03)[0-9a-fA-F]{64}$/.test(value) || /^04[0-9a-fA-F]{128}$/.test(value)) {
     const publicKey = hexToBytes(value);
@@ -65,8 +68,8 @@ export function convertEncoding(input: string): EncodingConversion {
         inputType: "public-key",
         valid: true,
         tron: tron.fromPublicKey(publicKey),
-        tronHex: `41${bytesToHex(payload)}`,
-        evm: evmAddressFromPublicKey(publicKey),
+        tronHex: tronHexFromHash20(bytesToHex(payload)),
+        evm: evm.fromPublicKey(publicKey),
       };
     } catch {
       throw invalid("public key is not a valid secp256k1 point");
@@ -115,15 +118,12 @@ function addressView(
   inputType: "tron-base58" | "tron-hex" | "evm",
   payload: Uint8Array,
 ): EncodingConversion {
-  const prefixed = new Uint8Array(21);
-  prefixed[0] = 0x41;
-  prefixed.set(payload, 1);
   return {
     input,
     inputType,
     valid: true,
-    tron: tronAddressFromBytes(prefixed),
-    tronHex: bytesToHex(prefixed),
+    tron: tronAddressFromHash20(payload),
+    tronHex: tronHexFromHash20(bytesToHex(payload)),
     evm: evmChecksumAddress(payload),
   };
 }

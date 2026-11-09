@@ -1,9 +1,12 @@
-import type { TronTransactionArtifact, UnsignedTx } from "../../../domain/types/index.js";
+import type { TronTransactionArtifact } from "../../../domain/types/index.js";
+import type { WallClock } from "../../contracts/wall-clock.js";
 import { ChainError } from "../../../domain/errors/index.js";
-import { decodeOperations } from "../../../domain/permission/index.js";
+import { decodeOperations } from "../../../domain/tron/permission/index.js";
+import { MAX_TRON_EXPIRATION_MS } from "../../../domain/transaction/index.js";
 import { addressCodec } from "../../../domain/family/index.js";
-import type { TronGateway, TronSignWeight } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway, TronSignWeight } from "../../ports/chain/tron/tron-gateway.js";
 import type { SignerAuthorization } from "../../services/pipeline/index.js";
+import { DEVICE_REVIEW_MS } from "../../services/signing/signing-service.js";
 import { assertNotExpired, transactionContract } from "./transaction-artifact.js";
 
 function uniqueAddresses(addresses: readonly string[], field: string): Set<string> {
@@ -109,10 +112,6 @@ export async function authorizationState(
   return { weight, approved, permission };
 }
 
-/**
- * The one rule both broadcast entry points apply, so `tx broadcast` and a direct-submit pipeline
- * fail with identical semantics when the accumulated signature weight is short.
- */
 export function assertThresholdReached(currentWeight: number, threshold: number): void {
   if (currentWeight < threshold) {
     throw new ChainError(
@@ -122,16 +121,15 @@ export function assertThresholdReached(currentWeight: number, threshold: number)
   }
 }
 
-/** Validate permission membership before decrypting a software key or opening Ledger UI. */
+// Call before decrypting a key or opening Ledger UI.
 export async function assertTronSignerAuthorized(
   gateway: TronGateway,
-  transaction: UnsignedTx,
+  transaction: TronTransactionArtifact,
   signerAddress: string,
-  now = Date.now(),
+  now: number,
 ): Promise<SignerAuthorization> {
-  const artifact = transaction as TronTransactionArtifact;
-  assertNotExpired(artifact, now);
-  const { weight, approved, permission } = await authorizationState(gateway, artifact);
+  assertNotExpired(transaction, now);
+  const { weight, approved, permission } = await authorizationState(gateway, transaction);
   const key = permission.keys.find((entry) => entry.address === signerAddress);
   if (!key) {
     throw new ChainError(
@@ -142,50 +140,46 @@ export async function assertTronSignerAuthorized(
   if (approved.includes(signerAddress)) {
     throw new ChainError("already_signed", "selected signer has already approved this transaction");
   }
-  // The pipeline has already pinned the signer to the transaction owner and rejected a repeat
-  // approval, so the signature about to be produced adds exactly this key's weight.
+  // The signer is an unapproved permission key, so its weight is added once.
   const weightAfterSigning = weight.currentWeight + key.weight;
   return {
     assertBroadcastable: () => assertThresholdReached(weightAfterSigning, permission.threshold),
   };
 }
 
-/**
- * Shared transaction-construction hooks. Permission approval checks belong to explicit
- * multi-signature workflows so ordinary signing does not depend on online approval endpoints.
- */
-export function tronTransactionHooks(gateway: TronGateway) {
+// These construction hooks omit online permission-approval checks.
+export function tronTransactionHooks(gateway: TronGateway, now: WallClock) {
   return {
-    prepare: (transaction: UnsignedTx, options: { permissionId: number; expiration?: number }) =>
-      gateway.prepareTransaction(transaction, options),
-    prepareForSigning: (transaction: UnsignedTx, timeoutMs: number) => {
-      const artifact = transaction as TronTransactionArtifact;
-      const timestamp = artifact.raw_data.timestamp;
+    prepare: (
+      transaction: TronTransactionArtifact,
+      options: { permissionId: number; expiration?: number },
+    ) => gateway.prepareTransaction(transaction, options),
+    prepareForSigning: (transaction: TronTransactionArtifact) => {
+      const timestamp = transaction.raw_data.timestamp;
       if (!Number.isSafeInteger(timestamp)) {
         throw new ChainError(
           "invalid_transaction",
           "TRON transaction timestamp is missing or imprecise",
         );
       }
-      // The node's short default is often consumed by Ledger review. Reserve ten minutes
-      // or the device timeout plus a minute for broadcast, without shortening a longer TTL.
+      // Allow Ledger review plus broadcast time without shortening a longer TTL.
       const expiration = Math.max(
-        artifact.raw_data.expiration ?? 0,
-        Date.now() + Math.max(600_000, timeoutMs + 60_000),
+        transaction.raw_data.expiration ?? 0,
+        now() + Math.max(600_000, DEVICE_REVIEW_MS + 60_000),
       );
-      if (expiration - timestamp! > 86_400_000) {
+      if (expiration - timestamp! > MAX_TRON_EXPIRATION_MS) {
         throw new ChainError(
           "tx_expired",
-          "the required signing window exceeds the TRON transaction lifetime; rebuild the transaction with a shorter device timeout",
+          "the required signing window exceeds the TRON transaction lifetime; rebuild the transaction and sign it again",
         );
       }
       return gateway.prepareTransaction(transaction, {
-        permissionId: artifact.raw_data.contract[0]?.Permission_id ?? 0,
+        permissionId: transaction.raw_data.contract[0]?.Permission_id ?? 0,
         expiration: expiration - timestamp!,
       });
     },
-    assertNotExpired: (transaction: UnsignedTx) =>
-      assertNotExpired(transaction as TronTransactionArtifact),
-    artifact: (transaction: UnsignedTx) => gateway.encodeTransactionHex(transaction),
+    assertNotExpired: (transaction: TronTransactionArtifact) =>
+      assertNotExpired(transaction, now()),
+    artifact: (transaction: TronTransactionArtifact) => gateway.encodeTransactionHex(transaction),
   };
 }

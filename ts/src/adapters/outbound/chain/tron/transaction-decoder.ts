@@ -1,13 +1,17 @@
-import { tronHexToBase58 } from "../../../../domain/address/index.js";
-import type {
-  DecodedTronTransaction,
-  TronTx,
-} from "../../../../application/ports/chain/tron-gateway.js";
+import { tronHexFromHash20, tronHexToBase58 } from "../../../../domain/address/index.js";
+import type { DecodedTronTransaction } from "../../../../application/ports/chain/tron/tron-gateway.js";
+
+export interface DecodableTronTransaction {
+  raw_data?: {
+    contract?: Array<{ type?: string; parameter?: { value?: Record<string, unknown> } }>;
+  };
+}
 
 const TRC20_TRANSFER_SELECTOR = "a9059cbb";
 
-/** Decode the consumed subset of TRON contracts without performing network IO. */
-export function decodeTronTransaction(transaction: TronTx): DecodedTronTransaction {
+export function decodeTronTransaction(
+  transaction: DecodableTronTransaction,
+): DecodedTronTransaction {
   const contract = transaction.raw_data?.contract?.[0];
   const value = contract?.parameter?.value ?? {};
   const type = String(contract?.type ?? "");
@@ -40,7 +44,7 @@ export function decodeTronTransaction(transaction: TronTx): DecodedTronTransacti
   return {
     kind: "trc20",
     from,
-    to: tronHexToBase58(`41${data.slice(32, 72)}`),
+    to: tronHexToBase58(tronHexFromHash20(data.slice(32, 72))),
     rawAmount: BigInt(`0x${data.slice(72, 136)}`).toString(),
     tokenContract,
   };

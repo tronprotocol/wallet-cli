@@ -34,7 +34,6 @@ export interface GasFreeDomainInput {
   verifyingContract: string;
 }
 
-/** Java GasFreeApi.getDomainSeparator byte-for-byte equivalent. */
 export function gasFreeDomainSeparator(domain: GasFreeDomainInput): Bytes {
   return keccak_256(
     concatBytes(
@@ -47,7 +46,6 @@ export function gasFreeDomainSeparator(domain: GasFreeDomainInput): Bytes {
   );
 }
 
-/** Java GasFreeApi.buildMessage byte-for-byte equivalent. */
 export function gasFreeMessageHash(authorization: GasFreeAuthorization): Bytes {
   return keccak_256(
     concatBytes(
@@ -65,7 +63,6 @@ export function gasFreeMessageHash(authorization: GasFreeAuthorization): Bytes {
   );
 }
 
-/** keccak256(0x1901 || domainSeparator || messageHash), matching Java signOffChain input. */
 export function gasFreeDigest(
   domain: GasFreeDomainInput,
   authorization: GasFreeAuthorization,
@@ -79,7 +76,7 @@ export function gasFreeDigest(
   );
 }
 
-/** Build the exact TIP-712 payload used by software and Ledger signers. */
+// Returns the TIP-712 signing payload.
 export function gasFreeTypedData(
   domain: GasFreeDomainInput,
   authorization: GasFreeAuthorization,
@@ -109,7 +106,7 @@ export function gasFreeTypedData(
   };
 }
 
-/** Validate low-s r||s||v and return Java-compatible lowercase hex without 0x. */
+// Returns low-s r||s||v as lowercase hex without 0x, with v normalized to 27/28.
 export function normalizeGasFreeSignature(signatureHex: string): string {
   const normalized = signatureHex.replace(/^0x/i, "").toLowerCase();
   if (!/^[0-9a-f]{130}$/.test(normalized)) {

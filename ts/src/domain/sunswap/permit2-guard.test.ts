@@ -1,21 +1,16 @@
-/**
- * The Permit2 guard, held against a REAL plan.
- *
- * `LIVE` below is the typed data a mainnet `planRouterPermit2Authorization` actually produced for
- * 100 USDT — copied from the probe run, not composed by hand, so the guard is tested against the
- * shape it will meet rather than against my idea of it. Every case then changes exactly one field
- * of it, which is the only way to know that each check is load-bearing: a guard that passes a
- * hand-written fixture proves nothing about the planner's output.
- */
 import { describe, expect, it } from "vitest";
-import { assertPermitAuthorizes, assertSignedBy, type PermitExpectation } from "./permit2-guard.js";
+import {
+  assertPermitAuthorizes,
+  assertSignedBy,
+  PERMIT2_GRANT_TTL_SECONDS,
+  type PermitExpectation,
+} from "./permit2-guard.js";
 
 const USDT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 const UNIVERSAL_ROUTER = "TQqgNg13s2DjvXhW1ky4v6TsR8wZGvb7Y4";
 const PERMIT2 = "TTJxU3P8rHycAyFY4kVtGNfmnMH4ezcuM9";
 const OWNER = "TDbWLnRxt8f7e81BBccGEKoSoDGR4pmnuJ";
 
-/** Measured: the exact payload the SDK planner returned on mainnet. */
 const LIVE = {
   primaryType: "PermitSingle",
   domain: {
@@ -48,7 +43,7 @@ const LIVE = {
   },
 };
 
-const NOW = 1790226754; // the plan's own clock: sigDeadline minus the 3600s TTL
+const NOW = 1790226754; // sigDeadline minus the 3600s TTL
 
 const EXPECT: PermitExpectation = {
   token: USDT,
@@ -60,7 +55,6 @@ const EXPECT: PermitExpectation = {
   now: NOW,
 };
 
-/** A copy of LIVE with one path replaced. Deep enough for this shape, and no deeper. */
 function mutate(path: string, value: unknown): unknown {
   const copy = structuredClone(LIVE) as Record<string, any>;
   const parts = path.split(".");
@@ -84,19 +78,12 @@ describe("the real plan passes", () => {
     });
   });
 
-  // The typed data carries addresses as lowercase 20-byte EVM hex and ours are base58. Comparing
-  // them as text would fail on every field; comparing them as bytes is the whole point.
   it("matches base58 expectations against EVM-hex fields", () => {
     expect(() => assertPermitAuthorizes(LIVE, EXPECT)).not.toThrow();
   });
 });
 
 describe("what it refuses to sign", () => {
-  /**
-   * The one that matters most. A `PermitBatch` authorizes several tokens in one signature, and it
-   * is refused while the signature does not yet exist — which is why the primary type is checked
-   * before signing rather than after.
-   */
   it("refuses a primary type that is not PermitSingle", () => {
     expect(() => assertPermitAuthorizes(mutate("primaryType", "PermitBatch"), EXPECT)).toThrow(
       /primary type is "PermitBatch", not PermitSingle/,
@@ -104,7 +91,6 @@ describe("what it refuses to sign", () => {
   });
 
   it("refuses a spender that is not the Universal Router", () => {
-    // The Permit2 contract itself, which is a plausible-looking address and the wrong one.
     expect(() =>
       assertPermitAuthorizes(
         mutate("message.spender", "0xbe365314f2e77fd1257d60c346bb32dbda369403"),
@@ -122,10 +108,6 @@ describe("what it refuses to sign", () => {
     ).toThrow(/token is 0x891cdb/);
   });
 
-  /**
-   * An unlimited grant is the failure this guard exists for: the planner is asked for `exact`, and
-   * a max-uint160 permit would let the router drain the token instead of taking 100 of it.
-   */
   it("refuses an amount larger than the swap, including an unlimited one", () => {
     const max = (2n ** 160n - 1n).toString();
     expect(() => assertPermitAuthorizes(mutate("message.details.amount", max), EXPECT)).toThrow(
@@ -160,11 +142,6 @@ describe("what it refuses to sign", () => {
     );
   });
 
-  /**
-   * Both bounds. A deadline in the past authorizes nothing and wastes the approval that preceded
-   * it; one past our TTL leaves a standing grant long after the trade, which is the problem
-   * Permit2 exists to avoid.
-   */
   it("refuses a deadline that has already passed", () => {
     expect(() =>
       assertPermitAuthorizes(mutate("message.sigDeadline", String(NOW - 1)), EXPECT),
@@ -183,10 +160,6 @@ describe("what it refuses to sign", () => {
     ).toThrow(/details\.expiration of \d+ is further out/);
   });
 
-  /**
-   * The field list is part of the hash. A renamed or reordered field produces a different digest,
-   * so the signature would authorize something other than what was read here.
-   */
   it("refuses a renamed field in PermitDetails", () => {
     const renamed = [
       { name: "token", type: "address" },
@@ -225,8 +198,6 @@ describe("what it refuses to sign", () => {
     expect(() => assertPermitAuthorizes("PermitSingle", EXPECT)).toThrow(/rather than an object/);
   });
 
-  // Exit 1, never exit 2: nothing the caller typed is wrong. A dependency produced something we
-  // will not put a signature on.
   it("fails with permit_mismatch", () => {
     expect(() => assertPermitAuthorizes(mutate("primaryType", "PermitBatch"), EXPECT)).toThrow(
       expect.objectContaining({ code: "permit_mismatch" }),
@@ -234,16 +205,11 @@ describe("what it refuses to sign", () => {
   });
 });
 
-/**
- * The owner check, which can only happen after signing: `PermitSingle` has no owner field, so
- * until a signature exists there is nothing to compare it to.
- */
 describe("the signer", () => {
   it("accepts a signature that recovers to the account", () => {
     expect(() => assertSignedBy(OWNER, OWNER, "PermitSingle")).not.toThrow();
   });
 
-  // A signer may hand back either form. The comparison is on bytes, so both are the same account.
   it("accepts the recovered address in EVM-hex form", () => {
     expect(() =>
       assertSignedBy("0x27c5d3a60860342244436a07f15b3b3186225aec", OWNER, "PermitSingle"),
@@ -256,13 +222,15 @@ describe("the signer", () => {
     );
   });
 
-  /**
-   * The signer reports what it actually hashed. If that is not a PermitSingle then the digest we
-   * inspected is not the digest that was signed, and the guard above proved nothing.
-   */
   it("refuses a signature over a different struct than the one checked", () => {
     expect(() => assertSignedBy(OWNER, OWNER, "PermitBatch")).toThrow(
       /hashed a PermitBatch rather than a PermitSingle/,
     );
+  });
+});
+
+describe("grant lifetime", () => {
+  it("lasts one hour", () => {
+    expect(PERMIT2_GRANT_TTL_SECONDS).toBe(3600);
   });
 });

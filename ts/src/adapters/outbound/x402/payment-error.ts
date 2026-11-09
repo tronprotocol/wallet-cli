@@ -1,9 +1,15 @@
 import {
   CliError,
+  errorMessage,
   ExecutionError,
+  inputRef,
+  replaceMessageLayout,
   TransportError,
   UsageError,
 } from "../../../domain/errors/index.js";
+import { addressShape, CHAIN_FAMILIES, isTxHash } from "../../../domain/family/index.js";
+import { withErrorDetails } from "../../../application/contracts/deadline.js";
+import { retryAfterSeconds } from "../http/json-service.js";
 
 // Only emit our own messages. SDK/provider messages can contain credentials and URLs.
 const transportCodes = ["ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"] as const;
@@ -37,11 +43,34 @@ const reasons: Record<string, () => TransportError> = {
     new TransportError("insufficient_balance", "The payment account has insufficient funds"),
 };
 
+const CLOCK_SKEW = /\bDEADLINE_OR_CLOCK_SKEW\b/;
+
+function expiredAuthorization(phase?: PaymentPhase, evidence?: Record<string, unknown>) {
+  return new TransportError(
+    "tx_expired",
+    "Payment authorization expired or the clock is out of sync; reconcile before paying again",
+    {
+      ...(phase ? { phase } : {}),
+      retryPayment: false,
+      paymentStatus: "unknown",
+      outcome: "unknown",
+      ...candidateEvidence(evidence),
+    },
+  );
+}
+
 export function providerPaymentError(
   reason: unknown,
   phase: "verify" | "settle",
   evidence?: Record<string, unknown>,
 ) {
+  if (
+    [reason, evidence?.reason, evidence?.code, evidence?.errorReason].some(
+      (value) => typeof value === "string" && CLOCK_SKEW.test(value),
+    )
+  ) {
+    return expiredAuthorization(phase, evidence);
+  }
   const key = reason === "insufficient_balance" ? "insufficient_funds" : reason;
   const known =
     typeof key === "string" && Object.hasOwn(reasons, key) ? reasons[key]!() : undefined;
@@ -51,6 +80,7 @@ export function providerPaymentError(
     {
       phase,
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
       ...(typeof key === "string" &&
       (Object.hasOwn(reasons, key) ||
@@ -80,12 +110,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         { ...details, ...(phase ? { phase } : {}), retryPayment: false },
       );
     if (!phase || details?.phase) return error;
-    const ErrorType = error.kind === "usage" ? UsageError : TransportError;
-    return new ErrorType(error.code, error, {
-      ...error.details,
-      phase,
-      retryPayment: false,
-    });
+    return withErrorDetails(error, { ...error.details, phase, retryPayment: false });
   }
   const message = error instanceof Error ? error.message : "";
   // x402-fetch wraps errors while retaining the SDK message.
@@ -105,17 +130,9 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
       record?.cause?.code,
       cause,
       (error as { cause?: { message?: string } })?.cause?.message,
-    ].some((value) => typeof value === "string" && /\bDEADLINE_OR_CLOCK_SKEW\b/.test(value))
+    ].some((value) => typeof value === "string" && CLOCK_SKEW.test(value))
   ) {
-    return new TransportError(
-      "tx_expired",
-      "Payment authorization expired or the clock is out of sync; reconcile before paying again",
-      {
-        ...(phase ? { phase } : {}),
-        retryPayment: false,
-        paymentStatus: "unknown",
-      },
-    );
+    return expiredAuthorization(phase);
   }
   const status =
     record?.response?.status ??
@@ -135,9 +152,10 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
       {
         ...(phase ? { phase } : {}),
         httpStatus,
-        ...safeRetryAfter(record?.response?.headers?.["retry-after"]),
+        ...sdkRetryAfter(record?.response?.headers?.["retry-after"]),
         reason: "http_error",
         paymentStatus: "unknown",
+        outcome: "unknown",
         retryPayment: false,
       },
     );
@@ -154,31 +172,25 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
         reason: "connection_failed",
         transportCode,
         paymentStatus: "unknown",
+        outcome: "unknown",
         retryPayment: false,
       },
     );
-  // The SDK's built-in spend control (a $1 per-payment ceiling on its default assets, active
-  // whenever no wallet-cli ceiling was given) refuses inside requirement selection, before any
-  // payment exists. A deterministic policy refusal, not an upstream fault: keep it typed.
+  // SDK spend-control refusal occurs before payment creation.
   if (/^All payment requirements were rejected by spendControls/.test(cause)) {
     const overLimit = cause.includes("maxAmountPerPayment");
     return new ExecutionError(
       overLimit ? "amount_exceeds_limit" : "no_matching_requirement",
       overLimit
-        ? "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount, or --max-raw-amount with --token or --asset, to authorize it"
-        : "no offered payment route uses an asset the built-in spend control allows; pass --max-amount, or --max-raw-amount with --token or --asset, to set the ceiling yourself",
+        ? errorMessage`payment exceeds the built-in $1 per-payment ceiling; pass ${inputRef("maxAmount")}, or ${inputRef("maxRawAmount")} with ${inputRef("token")} or ${inputRef("asset")}, to authorize it`
+        : errorMessage`no offered payment route uses an asset the built-in spend control allows; pass ${inputRef("maxAmount")}, or ${inputRef("maxRawAmount")} with ${inputRef("token")} or ${inputRef("asset")}, to set the ceiling yourself`,
       { ...(phase ? { phase } : {}), paymentStatus: "not_sent", retryPayment: false },
     );
   }
   let reason: string | undefined;
   if (/^Insufficient balance in GasFree wallet /.test(cause)) {
     reason = "gasfree_insufficient_balance";
-  } else if (
-    phase === "create_payment" &&
-    /^Asset T[1-9A-HJ-NP-Za-km-z]{33} not found in GasFree account T[1-9A-HJ-NP-Za-km-z]{33}\.$/.test(
-      cause,
-    )
-  ) {
+  } else if (phase === "create_payment" && gasFreeAssetMissing(cause)) {
     reason = "gasfree_asset_unsupported";
   } else if (/^GasFree account for .* is not activated\.$/.test(cause)) {
     reason = "gasfree_not_activated";
@@ -190,7 +202,9 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     return new TransportError(known.code, known.message, {
       ...(phase ? { phase } : {}),
       reason,
-      paymentStatus: reason.startsWith("gasfree_") ? "not_sent" : "unknown",
+      ...(reason.startsWith("gasfree_")
+        ? { paymentStatus: "not_sent" }
+        : { paymentStatus: "unknown", outcome: "unknown" }),
       retryPayment: false,
     });
   }
@@ -198,6 +212,7 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     return new TransportError("timeout", "x402 request timed out; reconcile before paying again", {
       ...(phase ? { phase } : {}),
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     });
   }
@@ -207,8 +222,16 @@ export function sdkPaymentError(error: unknown, phase?: PaymentPhase): CliError 
     {
       ...(phase ? { phase } : {}),
       paymentStatus: "unknown",
+      outcome: "unknown",
       retryPayment: false,
     },
+  );
+}
+
+function gasFreeAssetMissing(cause: string): boolean {
+  const match = /^Asset (\S+) not found in GasFree account (\S+)\.$/.exec(cause);
+  return (
+    match !== null && match.slice(1).every((address) => addressShape(address) === "tron-base58")
   );
 }
 
@@ -222,7 +245,7 @@ function candidateEvidence(value?: Record<string, unknown>) {
     (transportCodes as readonly string[]).includes(transportCode)
       ? { transportCode }
       : {}),
-    ...(typeof hash === "string" && /^(?:0x)?[0-9a-fA-F]{64}$/.test(hash)
+    ...(typeof hash === "string" && CHAIN_FAMILIES.some((family) => isTxHash(family, hash))
       ? { candidateTxHash: hash }
       : {}),
     ...(typeof network === "string" &&
@@ -235,35 +258,42 @@ function candidateEvidence(value?: Record<string, unknown>) {
   };
 }
 
-/** Only a plain number of seconds is passed on; an HTTP-date or anything else is dropped. */
-export function safeRetryAfter(value: unknown): { retryAfterSeconds?: number } {
-  if (
-    (typeof value === "string" && /^\d{1,9}$/.test(value)) ||
-    (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 999999999)
-  )
-    return { retryAfterSeconds: Number(value) };
-  return {};
+function sdkRetryAfter(value: unknown): { retryAfterSeconds?: number } {
+  const seconds = retryAfterSeconds(typeof value === "string" ? value : null);
+  return seconds === undefined ? {} : { retryAfterSeconds: seconds };
 }
 
-/** Caller has observed that no signature was returned and no payment could be submitted. */
+// The paid request was sent: unless the error carries a known payment status, the payment may
+// have settled.
+export function sentPaymentError(error: unknown, phase: PaymentPhase): CliError {
+  const classified = sdkPaymentError(error, phase);
+  const details = (classified.details ?? {}) as Record<string, unknown>;
+  if (details.paymentStatus !== undefined && details.paymentStatus !== "unknown") return classified;
+  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
+  return new ErrorType(classified.code, classified.userMessage, {
+    ...details,
+    paymentStatus: "unknown",
+    outcome: "unknown",
+    retryPayment: false,
+  });
+}
+
+// Caller observed no dispatch of the paid request; approval transactions are tracked separately.
 export function unsentPaymentError(error: unknown, phase: PaymentPhase): CliError {
   const classified = sdkPaymentError(error, phase);
   const details = classified.details as Record<string, unknown> | undefined;
   // Never discard settlement evidence, including failures while reading a paid response.
   if (details?.candidateTxHash || details?.settled === true) return classified;
-  const ErrorType = classified.kind === "usage" ? UsageError : TransportError;
-  return new ErrorType(
-    classified.code,
-    {
-      message: classified.message.replace(
-        /; reconcile before paying again/g,
-        "; no payment was sent",
-      ),
-      textMessage: classified.textMessage.replace(
-        /; reconcile before paying again/g,
-        "; no payment was sent",
-      ),
-    },
-    { ...details, paymentStatus: "not_sent", retryPayment: false },
+  // An unknown outcome of another request, such as a sent approval, still stands.
+  const { outcome, ...rest } = details ?? {};
+  const kept = outcome === undefined || details?.paymentStatus === "unknown" ? {} : { outcome };
+  return withErrorDetails(
+    classified,
+    { ...rest, ...kept, paymentStatus: "not_sent", retryPayment: false },
+    replaceMessageLayout(
+      classified.userMessage,
+      /; reconcile before paying again/g,
+      "; no payment was sent",
+    ),
   );
 }

@@ -88,7 +88,7 @@ Paging is in `meta.pagination`: `offset`, `limit` (after any lowering to `100`),
 
 ## Exit status
 
-`0` success · `1` execution failure (`bai_auth_failed`; `bai_rejected`; `provider_error`; `timeout`) · `2` usage error (`bai_credentials_missing`; `invalid_value` — `--limit` or `--offset` out of range).
+`0` success · `1` execution failure (`bai_auth_failed`; `bai_rejected`; `provider_error`; `provider_rate_limited` — HTTP 429; `timeout`) · `2` usage error (`bai_credentials_missing`; `invalid_value` — `--limit` or `--offset` out of range).
 
 ## See also
 

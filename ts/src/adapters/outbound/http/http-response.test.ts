@@ -41,7 +41,7 @@ it("rejects an oversized Content-Length without reading the body", async () => {
   });
   expect(cancel).toHaveBeenCalledOnce();
 });
-it("keeps the request's cancellation when applying the configured timeout", async () => {
+it("keeps the request's cancellation without a command check", async () => {
   const controller = new AbortController();
   controller.abort();
   const fetcher = vi.fn(async (_request, init) => {
@@ -53,7 +53,7 @@ it("keeps the request's cancellation when applying the configured timeout", asyn
       fetcher as typeof fetch,
       new Request("https://example.test", { signal: controller.signal }),
       undefined,
-      1000,
+      undefined,
     ),
   ).rejects.toMatchObject({ code: "timeout" });
 });

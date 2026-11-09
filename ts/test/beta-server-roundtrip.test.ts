@@ -88,7 +88,7 @@ it
     const home = mkdtempSync(join(tmpdir(), "beta-roundtrip-"));
     const p = await port();
     try {
-      new Keystore(home, new AtomicFileStore(), () => "test-password").import({
+      new Keystore(home, new AtomicFileStore(), () => "Test-password1").import({
         secret: Wallet.createRandom().privateKey.slice(2),
         type: "privateKey",
         label: "payer",
@@ -136,7 +136,7 @@ import {appendFileSync} from 'node:fs';const realFetch=globalThis.fetch;globalTh
         ],
         {
           env: { ...process.env, WALLET_CLI_HOME: home },
-          input: "test-password\n",
+          input: "Test-password1\n",
           encoding: "utf8",
           timeout: 40000,
         },
@@ -188,7 +188,7 @@ it
     const missing = scenario === "USDD-missing";
     const home = mkdtempSync(join(tmpdir(), "beta-gasfree-warning-"));
     try {
-      new Keystore(home, new AtomicFileStore(), () => "test-password").import({
+      new Keystore(home, new AtomicFileStore(), () => "Test-password1").import({
         secret: Wallet.createRandom().privateKey.slice(2),
         type: "privateKey",
         label: "payer",
@@ -260,7 +260,7 @@ globalThis.fetch = async(input,init) => {
         ],
         {
           env: { ...process.env, WALLET_CLI_HOME: home },
-          input: "test-password\n",
+          input: "Test-password1\n",
           encoding: "utf8",
           timeout: 40000,
         },

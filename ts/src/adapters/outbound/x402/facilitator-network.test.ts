@@ -1,6 +1,12 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { expect, it, vi } from "vitest";
 import { facilitatorNetwork } from "./facilitator-network.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 const network = {
   id: "tron:3448148188",
   family: "tron",
@@ -18,7 +24,7 @@ it("selects by version, scheme and chain, not another advertised capability", as
     }),
   );
   expect(
-    await facilitatorNetwork(network, "exact", "https://facilitator.example", fetcher, 1000),
+    await facilitatorNetwork(network, "exact", "https://facilitator.example", fetcher, NO_CHECK),
   ).toBe("tron:0xcd8690dc");
   expect(
     await facilitatorNetwork(
@@ -26,7 +32,7 @@ it("selects by version, scheme and chain, not another advertised capability", as
       "exact_gasfree",
       "https://facilitator.example",
       fetcher,
-      1000,
+      NO_CHECK,
     ),
   ).toBe(network.id);
   expect(fetcher.mock.calls).toHaveLength(2);
@@ -41,9 +47,27 @@ it.each([
 ] as const)("does not guess or retry on an unusable supported response", async (reply, code) => {
   const fetcher = vi.fn(async () => reply());
   await expect(
-    facilitatorNetwork(network, "exact", "https://facilitator.example", fetcher, 1000),
+    facilitatorNetwork(network, "exact", "https://facilitator.example", fetcher, NO_CHECK),
   ).rejects.toMatchObject({ code });
   expect(fetcher).toHaveBeenCalledOnce();
+});
+it("carries Retry-After seconds on a facilitator rate limit", async () => {
+  const fetcher = vi.fn(
+    async () => new Response(null, { status: 429, headers: { "retry-after": "5" } }),
+  );
+  const error = await facilitatorNetwork(
+    network,
+    "exact",
+    "https://facilitator.example",
+    fetcher,
+    NO_CHECK,
+  ).catch((caught: unknown) => caught);
+  expect((error as { details?: unknown }).details).toEqual({
+    httpStatus: 429,
+    retryAfterSeconds: 5,
+    phase: "challenge",
+    retryPayment: false,
+  });
 });
 it("leaves EVM representation unchanged without a negotiation request", async () => {
   const fetcher = vi.fn();
@@ -53,7 +77,7 @@ it("leaves EVM representation unchanged without a negotiation request", async ()
       "exact",
       "https://facilitator.example",
       fetcher,
-      1000,
+      NO_CHECK,
     ),
   ).toBe("eip155:8453");
   expect(fetcher).not.toHaveBeenCalled();
@@ -68,6 +92,6 @@ it.each([
   const fetcher = vi.fn(async (_url: unknown, _init?: unknown) =>
     Response.json({ kinds: [{ x402Version: 2, scheme: "exact", network: network.id }] }),
   );
-  await facilitatorNetwork(network, "exact", base, fetcher, 1000);
+  await facilitatorNetwork(network, "exact", base, fetcher, NO_CHECK);
   expect(String(fetcher.mock.calls[0]![0])).toBe(base.replace(/\/+$/, "") + "/supported");
 });

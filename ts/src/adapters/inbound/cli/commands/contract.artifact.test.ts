@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { chainInputSchema } from "../shell/index.js";
+import type { FamilyBinding } from "../contracts/index.js";
 import {
   contractDeployEvmBinding,
   contractDeploySpec,
@@ -9,19 +11,6 @@ import {
 } from "./contract.js";
 import type { EvmContractService } from "../../../../application/use-cases/evm/contract-service.js";
 import type { TronContractService } from "../../../../application/use-cases/tron/contract-service.js";
-
-/**
- * `--artifact`, `--constructor-signature` and `--constructor-args`.
- *
- * The defect these replace: `--constructor-params` was the only way to pass constructor arguments
- * on EVM, and it could not work — the encoder was handed an empty ABI, so every argument failed
- * with "expectedCount=0", and `--abi` (which would have supplied one) is a TRON-only flag. There
- * was no input that deployed a contract with constructor arguments on an EVM network.
- *
- * The rule that came out of it: the constructor's TYPES come from the compiler's ABI, or from a
- * signature the caller states — never from the values. A mistyped argument encodes cleanly and
- * deploys a contract built from the wrong arguments, and a deployment cannot be taken back.
- */
 
 const CONSTRUCTOR_ABI = [
   {
@@ -41,7 +30,6 @@ function artifactFile(body: unknown, name = "Counter.json"): string {
   return path;
 }
 
-/** Foundry nests the bytecode under `{object}`; Hardhat, sunhat and TronBox store the string. */
 const foundryArtifact = () =>
   artifactFile({ abi: CONSTRUCTOR_ABI, bytecode: { object: "0x6080" } });
 const hardhatArtifact = () =>
@@ -111,8 +99,6 @@ describe("contract deploy — reading a compiler artifact", () => {
     });
   });
 
-  // solc emits "0x" for an interface or an abstract contract: a real artifact for something that
-  // cannot be deployed. Deploying it would succeed and produce a contract with no code.
   it("refuses an interface or abstract contract instead of deploying nothing", async () => {
     const { run } = evmHarness();
 
@@ -142,12 +128,9 @@ describe("contract deploy — where the constructor's types come from", () => {
       source: "signature",
       signature: "constructor(uint256,string)",
       values: ["42", "hello"],
-      flag: "--constructor-signature",
     });
   });
 
-  // The shape this command shipped with. It still works — the types are simply read off the
-  // entries and turned into the signature they describe, instead of being discarded.
   it("builds the signature from --constructor-params' inline types", async () => {
     const { run, deploy } = evmHarness();
     await run({
@@ -156,10 +139,9 @@ describe("contract deploy — where the constructor's types come from", () => {
     });
 
     expect(deploy.mock.calls[0]![2].constructorArgs).toEqual({
-      source: "signature",
-      signature: "constructor(uint256,string)",
+      source: "typed-params",
+      types: ["uint256", "string"],
       values: ["42", "hello"],
-      flag: "--constructor-params",
     });
   });
 
@@ -171,15 +153,14 @@ describe("contract deploy — where the constructor's types come from", () => {
   });
 });
 
-/**
- * Schema rules are asserted against the schema: calling a binding directly bypasses zod, so a
- * refine could say anything and the call would still succeed.
- */
 describe("contract deploy — input rules", () => {
   const parse = (input: Record<string, unknown>) =>
-    contractDeploySpec.baseFields
-      .superRefine(contractDeploySpec.baseRefine!)
-      .safeParse({ dryRun: false, signOnly: false, buildOnly: false, ...input });
+    chainInputSchema(contractDeploySpec, {} as FamilyBinding).input.safeParse({
+      dryRun: false,
+      signOnly: false,
+      buildOnly: false,
+      ...input,
+    });
 
   const message = (input: Record<string, unknown>) =>
     parse(input)
@@ -197,11 +178,10 @@ describe("contract deploy — input rules", () => {
 
   it("refuses two argument lists at once", () => {
     expect(message({ code: "6080", constructorArgs: "[]", constructorParams: "[]" })).toMatch(
-      /mutually exclusive/,
+      /cannot be combined with --constructor-params/,
     );
   });
 
-  // Both of these would mean encoding against one type source while the caller supplied two.
   it("refuses inline types beside an artifact rather than picking one", () => {
     expect(message({ artifact: "./a.json", constructorParams: "[]" })).toMatch(
       /types come from its ABI/,
@@ -220,11 +200,8 @@ describe("contract deploy — input rules", () => {
     );
   });
 
-  // --abi is TRON-only and IS the type source there. Leaving it out of this rule sent a TRON
-  // caller to --constructor-signature, the one flag TRON refuses.
   it("counts --abi as a type source, since TRON encodes bare values against it", () => {
-    // The shell parses baseFields EXTENDED with the family's own fields, so the refine sees --abi
-    // on TRON. Parsing the base fields alone would strip it and prove nothing.
+    // Include family fields so parsing retains --abi for the shared refine.
     const tronParse = contractDeploySpec.baseFields
       .extend(contractDeployTronBinding({} as never).fields!.shape)
       .superRefine(contractDeploySpec.baseRefine!)
@@ -253,12 +230,6 @@ describe("contract deploy — input rules", () => {
   });
 });
 
-/**
- * TRON is the one place the families genuinely differ: TronWeb's createSmartContract needs the
- * whole ABI, not just the constructor's types, so a signature cannot stand in for it. `--abi`
- * therefore stays required — but an artifact now satisfies it, which is the point: a TRON
- * developer using TronBox or sunhat already has that ABI in a file.
- */
 describe("contract deploy — TRON's ABI requirement", () => {
   const tronRefine = contractDeployTronBinding({} as never).refine!;
   const check = (input: Record<string, unknown>) => {
@@ -267,8 +238,30 @@ describe("contract deploy — TRON's ABI requirement", () => {
     return issues.map((i) => i.message).join(" | ");
   };
 
+  const tronIssues = (input: Record<string, unknown>) =>
+    (
+      chainInputSchema(contractDeploySpec, contractDeployTronBinding({} as never)).input.safeParse({
+        dryRun: false,
+        signOnly: false,
+        buildOnly: false,
+        feeLimit: "1",
+        permissionId: 0,
+        ...input,
+      }).error?.issues ?? []
+    ).map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+      code: (i as { params?: { errorCode?: string } }).params?.errorCode,
+    }));
+
   it("still demands an ABI when neither flag supplies one", () => {
-    expect(check({ code: "6080" })).toMatch(/TRON needs the contract's ABI/);
+    expect(tronIssues({ code: "6080" })).toEqual([
+      {
+        path: "abi",
+        message: "provide exactly one of --abi or --artifact",
+        code: "invalid_option",
+      },
+    ]);
   });
 
   it("is satisfied by --artifact", () => {
@@ -280,7 +273,13 @@ describe("contract deploy — TRON's ABI requirement", () => {
   });
 
   it("refuses both at once rather than choosing", () => {
-    expect(check({ abi: "[]", artifact: "./a.json" })).toMatch(/pass one/);
+    expect(tronIssues({ abi: "[]", artifact: "./a.json" })).toEqual([
+      {
+        path: "abi",
+        message: "provide exactly one of --abi or --artifact",
+        code: "invalid_option",
+      },
+    ]);
   });
 
   it("says plainly that a signature cannot replace the ABI here", () => {
@@ -310,11 +309,6 @@ describe("contract deploy — TRON's ABI requirement", () => {
   });
 });
 
-/**
- * `--permission-id` and `--expiration` are TRON's multi-signature concepts. They sat in the
- * shared base fields, so an EVM `--help` listed them untagged beside the flags that are tagged
- * `(TRON only)` — a reader had no way to tell they do nothing here.
- */
 describe("contract deploy — TRON-only transaction flags are tagged", () => {
   it("keeps them off the EVM binding", () => {
     const keys = Object.keys(contractDeployEvmBinding({} as never).fields?.shape ?? {});

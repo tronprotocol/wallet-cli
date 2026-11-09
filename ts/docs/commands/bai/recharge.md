@@ -43,7 +43,9 @@ Each of these fails with no order and no payment. The order is created only afte
 
 **If reporting fails after payment**, the command does not fail. It returns `creditStatus: "unconfirmed"` with the transaction hash and `retryPayment: false` — the payment went through, so **do not recharge again**. Report the same transaction with [`bai report-recharge`](report-recharge.md). The CLI waits about 15 seconds for the transaction to be indexed, then reports it once; it does not retry. An `unconfirmed` result with `code: "TX_NOT_FOUND_OR_INVALID"` (warning `B.AI has not indexed the transaction yet; report it again in a minute with \`bai report-recharge\``) or `provider_rate_limited` usually just means B.AI needs more time.
 
-If the payment itself fails, the error carries the payment details (`paymentStatus`, `retryPayment: false`, the transaction hash when one is known) plus `chain`, `amount`, and for `--to` the resolved `rechargeTarget`. See [x402 and B.AI payment details](../../machine-interface.md#x402-and-bai-payment-details).
+If the payment itself fails, the error carries the payment details (`paymentStatus`, `outcome: "unknown"` when the payment may have gone through, `retryPayment: false`, the transaction hash when one is known) plus `chain`, `amount`, for `--to` the resolved `rechargeTarget`, and `orderId`, B.AI's id of the order created before the payment, when B.AI returned one. A failure before the payment request starts — the local payment server cannot start, a payment limit check fails, or the time limit refuses the request — reports `paymentStatus: "not_sent"` without `outcome`. See [x402 and B.AI payment details](../../machine-interface.md#x402-and-bai-payment-details).
+
+If the reply to the order creation is lost (a `timeout`, a 5xx, a dropped connection, or a reply that does not parse), the error carries `outcome: "unknown"` and no payment details: nothing was paid, but B.AI may hold an unpaid order. Definite refusals (a business rejection, a 4xx, an authentication failure, a rate limit) do not carry it.
 
 Requires an account, the master password (via `--password-stdin`), and a stored B.AI API key.
 
@@ -205,7 +207,7 @@ With `--dry-run`:
 
 ## Exit status
 
-`0` paid (check `creditStatus`), or previewed with `--dry-run` · `1` execution failure (the payment errors of [`x402 pay`](../x402/pay.md#exit-status); `auth_required` — no `--password-stdin`, before any order is created; `provider_error` — including a `--to` recipient B.AI does not recognize, or a binding B.AI returns for a different address or chain; `bai_auth_failed` — B.AI rejected the stored key; `bai_rejected` — with `error.details.reason`) · `2` usage error (`bai_credentials_missing`; `unsupported_network_capability`; `invalid_value` — a token the network does not accept, or `exact_gasfree` outside TRON; `invalid_amount` — not a positive amount, below the minimum, or more than 6 decimal places; `invalid_option` — both GasFree fee caps, or `--wait` / `--wait-timeout`, which this command does not take).
+`0` paid (check `creditStatus`), or previewed with `--dry-run` · `1` execution failure (the payment errors of [`x402 pay`](../x402/pay.md#exit-status); `auth_required` — no `--password-stdin`, before any order is created; `provider_error` — including a `--to` recipient B.AI does not recognize, or a binding B.AI returns for a different address or chain; `bai_auth_failed` — B.AI rejected the stored key; `bai_rejected` — with `error.details.reason`) · `2` usage error (`bai_credentials_missing`; `unsupported_network_capability`; `invalid_value` — a token the network does not accept, or `exact_gasfree` outside TRON; `invalid_amount` — not a positive amount, below the minimum, or more than 6 decimal places; `invalid_option` — both GasFree fee caps, or `--wait` / `--no-wait`, which this command does not take).
 
 ## See also
 

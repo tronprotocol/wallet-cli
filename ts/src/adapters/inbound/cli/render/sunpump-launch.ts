@@ -1,19 +1,4 @@
-/**
- * Text for `sunpump launch` — the created token's card, and the same card as a preview.
- *
- * Two things this renderer is careful about:
- *
- * - **Whose token it is.** The creator is chosen by SunPump, not by this CLI, so `Creator` is on
- *   the card before anything else about the token and the preview spells the consequence out in
- *   words, since before the call there is no address to show. A reader who skims must not come
- *   away thinking the coin is theirs.
- * - **No price, no market cap, no curve progress, no supply.** json carries them; a person does
- *   not see them. Every brand-new token has the same figures — the curve's starting price and a
- *   market cap that moves only with the TRX rate — so they are not a market's opinion of anything,
- *   and printing them beside "created" reads as "what you just made is worth this much".
- *
- * Row labels match `sunpump token-info`, so the same token reads the same way in both places.
- */
+// SunPump assigns the creator; initial curve figures are not market valuations.
 import { formatInt } from "./scalars.js";
 import { untrusted } from "./sunpump-market.js";
 import { ok, pending, receipt } from "./layout.js";
@@ -56,10 +41,8 @@ interface LaunchPreview {
 
 type LaunchView = LaunchResult | LaunchPreview;
 
-/** what the preview puts where an address will be: the fact, not a dash. */
 const UNASSIGNED_CREATOR = "assigned by SunPump, not your account";
 
-/** the logo as a person recognises it — the file's own name and its size on disk. */
 function logoSource(image: NonNullable<LaunchPreview["image"]>): string {
   if (image.source === "base64") return `base64 (${formatInt(image.chars)} chars)`;
   const name = image.path.split(/[\\/]/).pop() ?? image.path;
@@ -72,8 +55,6 @@ export const SunPumpLaunchFormatters = {
       const body = receipt(pending(), "Dry run sunpump launch", [
         ["Name", untrusted(value.name)],
         ["Symbol", untrusted(value.symbol)],
-        // Before the call there is no creator to name, and leaving the row out would be the one
-        // omission a reader fills in with "mine".
         ["Creator", UNASSIGNED_CREATOR],
         ["Logo", value.image === undefined ? "" : logoSource(value.image)],
         ["Website", untrusted(value.links?.website ?? "")],
@@ -81,8 +62,6 @@ export const SunPumpLaunchFormatters = {
         ["Telegram", untrusted(value.links?.telegram ?? "")],
         ["Description", untrusted(value.description)],
       ]);
-      // Not a `meta.warnings` entry: nothing went wrong and nothing is degraded. It is a preview
-      // telling a reader what the token will be missing while they can still add it.
       return value.image === undefined
         ? `${body}\n\n! No logo given; the token will be created without one.`
         : body;
@@ -92,16 +71,11 @@ export const SunPumpLaunchFormatters = {
       ["Name", untrusted(token.name)],
       ["Symbol", untrusted(token.symbol)],
       ["Address", token.address],
-      // The service's chosen creator, NOT the active account. Ahead of everything the token is
-      // worth, because it is the fact a reader is most likely to assume wrongly.
       ["Creator", token.owner],
-      // "CREATED", never "launched": the token is on the curve and moves to SunSwap only once the
-      // curve fills. The command name is the upstream's; the receipt says what happened.
+      // Creation starts the bonding curve; migration to SunSwap happens when it fills.
       ["Status", token.status],
       ["Created", token.createdAt === "" ? "" : `${token.createdAt} UTC`],
       ["Create tx", token.createTxHash],
-      // Present exactly when the service accepted an image, which is how a caller confirms the
-      // upload rather than taking our word for it.
       ["Logo", untrusted(token.links.logo ?? "")],
       ["Website", untrusted(token.links.website ?? "")],
       ["Twitter", untrusted(token.links.twitter ?? "")],

@@ -5,7 +5,7 @@ Cast or replace your full vote allocation.
 ## Synopsis
 
 ```
-wallet-cli vote cast --for <SR=votes> ... [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait [--wait-timeout <ms>]]
+wallet-cli vote cast --for <SR=votes> ... [--dry-run | (--sign-only | --build-only) [--expiration <ms>] | --wait | --no-wait]
                      [--permission-id <n>] [options]
 ```
 
@@ -18,9 +18,9 @@ Two hard rules from the chain:
 - **Total votes ≥ 1** — you cannot vote everything down to zero. To stop voting entirely, unstake the backing TRX ([`stake unfreeze`](../stake/unfreeze.md)); TP falls and the votes lapse.
 - **At most 30 entries per transaction** (java-tron `MAX_VOTE_NUMBER`). Since a cast is the full distribution, an account holds votes on at most 30 SRs — only 27 are ever elected, so normal voting never hits this.
 
-Votes take effect at the next maintenance cycle (~6 h). Each vote uses 1 TP (it is allocated, not spent — re-casting or unstaking frees it); available TP = staked TRX minus votes already placed ([`vote status`](status.md)).
+Votes take effect at the next maintenance cycle (the chain parameter `getMaintenanceTimeInterval`: 6 h on mainnet, 30 min on Nile). Each vote uses 1 TP (it is allocated, not spent — re-casting or unstaking frees it); available TP = staked TRX minus votes already placed ([`vote status`](status.md)).
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed. Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`). Requires an account. The master password (via `--password-stdin`) is needed only by the modes that sign — `--dry-run` and `--build-only` do not unlock the wallet and run without it. Watch-only accounts fail with `watch_only_no_signer` in a signing mode.
 
 ## Options
 
@@ -32,7 +32,8 @@ Votes take effect at the next maintenance cycle (~6 h). Each vote uses 1 TP (it 
 | `--build-only` | Build and estimate, output the **unsigned** hex; excludes `--dry-run` / `--sign-only`; pairs with `--expiration` |
 | `--expiration <ms>` | Transaction expiration in ms, up to `86400000` (24h); only with `--sign-only` or `--build-only`; omitted = node default (~60s) |
 | `--permission-id <n>` | Permission group to sign with (0=owner, 1=witness, 2-9=active); default `0` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default: config `waitTimeoutMs`, built-in 60000) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin (fd 0) |
 
 Plus the [global options](../index.md#global-options-every-command).
@@ -41,32 +42,32 @@ Plus the [global options](../index.md#global-options-every-command).
 
 In the examples, `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`.
 
-Default — broadcasts and returns the **submitted** receipt without waiting:
+With `--no-wait` — broadcasts and returns the **submitted** receipt without waiting:
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --password-stdin
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --no-wait --password-stdin
 ```
 
 ```console
 ⏳ Voted 1,000 TP across 2 witnesses
   Votes   TZ4...=600, TT5...=400
   TxID    e5f...
-  Status  pending — tallied at next maintenance cycle (~6h)
+  Status  pending — tallied at next maintenance cycle (~30m)
 ! Track it: wallet-cli tx info --network tron:3448148188 --txid e5f...
 ```
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --password-stdin -o json
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --no-wait --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"vote.cast","data":{"kind":"vote-cast","stage":"submitted","txId":"e5f...","votes":[{"witness":"TZ4...","count":600},{"witness":"TT5...","count":400}],"totalVotes":1000,"maintenanceIntervalMs":1800000},"meta":{"durationMs":18,"warnings":[]},"chain":{"family":"tron","network":"tron:3448148188","chainId":"3448148188"}}
 ```
 
-Add `--wait` to block until the vote is confirmed on chain (adds real block / fee):
+Without `--no-wait`, the command blocks until the vote is confirmed on chain (adds real block / fee):
 
 ```bash
-echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --wait --password-stdin
+echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network nile --password-stdin
 ```
 
 ```console
@@ -75,7 +76,7 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
   TxID    f8a...
   Block   #84,121,055
   Fee     0 TRX
-  Status  success — tallied at next maintenance cycle (~6h)
+  Status  success — tallied at next maintenance cycle (~30m)
 ```
 
 ## Output
@@ -84,12 +85,12 @@ echo "$PW" | wallet-cli vote cast --for TZ4...=600 --for TT5...=400 --network ni
 
 | Stage | Fields |
 |---|---|
-| default (submit) | `kind: "vote-cast"`, `stage: "submitted"`, `txId`, `votes[]` (`witness`, `count`), `totalVotes` |
-| `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `failed` |
+| `--no-wait` (submitted) | `kind: "vote-cast"`, `stage: "submitted"`, `txId`, `votes[]` (`witness`, `count`), `totalVotes`, `maintenanceIntervalMs` (the network's maintenance cycle length, `getMaintenanceTimeInterval`, in ms — the longest wait until the votes are tallied; omitted when the chain parameter cannot be read) |
+| default or `--wait` (confirmed) | above, plus `stage: "confirmed"`, `confirmed` (boolean), `blockNumber`, `feeSun`, `failed` |
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — the total exceeds the account's **total** TP; votes already placed are re-allocated rather than added, so the check is against total, not available; `invalid_value` — bad SR address, non-positive count, > 30 entries).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`watch_only_no_signer`, `auth_failed`) · `2` usage error (`insufficient_voting_power` — the total exceeds the account's **total** TP; votes already placed are re-allocated rather than added, so the check is against total, not available; `invalid_value` — bad SR address, non-positive count, > 30 entries).
 
 ## See also
 

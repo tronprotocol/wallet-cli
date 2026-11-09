@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
 vi.mock(
   "@noble/hashes/scrypt.js",
   async () =>
@@ -19,12 +18,10 @@ import type { WalletsFile } from "../../../domain/types/index.js";
 
 function freshKeystore() {
   const root = mkdtempSync(join(tmpdir(), "sr-"));
-  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
 }
 
-// Two accounts sharing one EVM address but holding DIFFERENT tron addresses — same fixture
-// shape as keystore.test.ts's keystoreWithDuplicateEvmAddress: on evm they hold the same key
-// and are interchangeable, on tron "which one" changes what a command would act on.
+// Same EVM address, different TRON addresses: ambiguity depends on the target family.
 const EVM_ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
 function keystoreWithDuplicateEvmAddress(): Keystore {
@@ -46,14 +43,14 @@ function keystoreWithDuplicateEvmAddress(): Keystore {
         source: {
           type: "privateKey",
           keyId: "key_key1",
-          addresses: { evm: EVM_ADDR, tron: "TDpBe64DqirkKWj6HWuR3xtLoBqTAKitYb" },
+          addresses: { evm: EVM_ADDR, tron: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" },
         },
       },
     ],
     labels: {},
   };
   writeFileSync(join(root, "wallets.json"), JSON.stringify(file));
-  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A");
+  return new Keystore(root, new AtomicFileStore(), () => "masterpw123A!");
 }
 
 describe("SignerResolver — watch accounts", () => {
@@ -61,15 +58,17 @@ describe("SignerResolver — watch accounts", () => {
   let resolver: SignerResolver;
   beforeEach(() => {
     ks = freshKeystore();
-    // ledger never touched for watch; strategies never touched (watch can't sign)
     resolver = new SignerResolver(ks, {} as unknown as Ledger, {
       tron: tronSignStrategy,
-      evm: null as never, // never reached: watch accounts cannot sign
+      evm: null as never,
     });
   });
 
   it("refuses to sign for a watch-only account (watch_only_no_signer)", () => {
-    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
+    const ref = ks.registerWatch({
+      family: "tron",
+      address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+    }).accountId;
     let err: { code?: string } | undefined;
     try {
       resolver.resolve(ref, "tron");
@@ -80,7 +79,10 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("assertCanSign rejects a watch-only account before any RPC/decrypt", () => {
-    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
+    const ref = ks.registerWatch({
+      family: "tron",
+      address: "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC",
+    }).accountId;
     let err: { code?: string } | undefined;
     try {
       resolver.assertCanSign(ref, "tron");
@@ -91,7 +93,6 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("assertCanSign passes for a signable (private-key) account", () => {
-    // 32-byte test key → deterministic tron address; assertCanSign must not throw.
     const ref = ks.import({ type: "privateKey", secret: "0x".padEnd(66, "1") }).accountId;
     expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
   });
@@ -100,7 +101,7 @@ describe("SignerResolver — watch accounts", () => {
     const ref = ks.registerLedger({
       family: "tron",
       path: "m/44'/195'/0'/0/0",
-      address: "Tledger1",
+      address: "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8",
     }).accountId;
     let err: { code?: string } | undefined;
     try {
@@ -111,8 +112,6 @@ describe("SignerResolver — watch accounts", () => {
     expect(err?.code).toBe("ledger_unsupported");
   });
 
-  // Same condition as resolveAddress: the account exists but lives on another chain. It reported
-  // `missing_wallet_address`, which reads as "you have no account" — a different problem.
   it("reports family_mismatch for an account that has no address in the target family", () => {
     const ref = ks.registerLedger({
       family: "evm",
@@ -129,8 +128,6 @@ describe("SignerResolver — watch accounts", () => {
     expect(code).toBe("family_mismatch");
   });
 
-  // The message named the TRON app unconditionally. With one ledger-wired family that was
-  // merely redundant; with two it tells an EVM user to blame the wrong application.
   it("names the family's own Ledger app when refusing", () => {
     const ref = ks.registerLedger({
       family: "evm",
@@ -147,7 +144,7 @@ describe("SignerResolver — watch accounts", () => {
     const ref = ks.registerLedger({
       family: "tron",
       path: "m/44'/195'/0'/0/0",
-      address: "Tledger2",
+      address: "TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz",
     }).accountId;
     expect(() => resolver.assertCanSign(ref, "tron")).not.toThrow();
   });
@@ -158,15 +155,12 @@ describe("SignerResolver — resolving an address shared by two accounts", () =>
     const dupKs = keystoreWithDuplicateEvmAddress();
     const resolver = new SignerResolver(dupKs, {} as unknown as Ledger, {
       tron: tronSignStrategy,
-      evm: tronSignStrategy, // signing itself is never reached in this test
+      evm: tronSignStrategy,
     });
     expect(() => resolver.assertCanSign(EVM_ADDR, "evm")).not.toThrow();
   });
 
   it("refuses an evm address when signing on tron, before any ambiguity check", () => {
-    // EVM_ADDR is an evm address; asking to sign with it under family "tron" now fails on the
-    // family mismatch itself, before the scan that would otherwise find the two
-    // accounts sharing it and report ambiguous_account.
     const dupKs = keystoreWithDuplicateEvmAddress();
     const resolver = new SignerResolver(dupKs, {} as unknown as Ledger, {
       tron: tronSignStrategy,

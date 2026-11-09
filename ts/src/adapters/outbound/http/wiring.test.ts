@@ -1,3 +1,7 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../application/services/command-deadline.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -5,6 +9,8 @@ import { evmFamily } from "../../../bootstrap/families/evm.js";
 import { tronFamily } from "../../../bootstrap/families/tron.js";
 import { TronGridHistoryReader } from "../chain/tron/history-reader.js";
 import type { EvmNetworkDescriptor, TronNetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 let server: Server | undefined;
 
@@ -43,8 +49,8 @@ describe("network API-key wire coverage", () => {
     } satisfies TronNetworkDescriptor;
 
     for (const create of [
-      () => evmFamily.createGateway(evm, 1_000),
-      () => tronFamily.createGateway(tron, 1_000),
+      () => evmFamily.createGateway(evm),
+      () => tronFamily.createGateway(tron),
     ]) {
       let error: unknown;
       try {
@@ -75,7 +81,7 @@ describe("network API-key wire coverage", () => {
     };
 
     await evmFamily
-      .createGateway(network, 1_000)
+      .createGateway(network)
       .getNativeBalance("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 
     expect(receivedKey).toBe("header-secret");
@@ -99,9 +105,7 @@ describe("network API-key wire coverage", () => {
       apiKey: "tron-secret",
     };
 
-    await tronFamily
-      .createGateway(network, 1_000)
-      .getNativeBalance("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
+    await tronFamily.createGateway(network).getNativeBalance("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
 
     expect(receivedKey).toBe("tron-secret");
   });
@@ -124,7 +128,7 @@ describe("network API-key wire coverage", () => {
       apiKey: "tron-secret",
     };
 
-    await tronFamily.createGateway(network, 1_000).getNodeInfo();
+    await tronFamily.createGateway(network).getNodeInfo();
 
     expect(receivedKey).toBe("tron-secret");
   });
@@ -147,9 +151,14 @@ describe("network API-key wire coverage", () => {
       apiKey: "tron-secret",
     };
 
-    await new TronGridHistoryReader(1_000).get(network, "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", {
-      limit: 1,
-    });
+    await new TronGridHistoryReader().get(
+      network,
+      "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb",
+      {
+        limit: 1,
+      },
+      NO_CHECK,
+    );
 
     expect(receivedKey).toBe("tron-secret");
   });

@@ -1,9 +1,24 @@
+import {
+  CommandDeadline,
+  requestDispatchCheck,
+} from "../../../../application/services/command-deadline.js";
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { barBroadcasts } from "../../../../application/services/broadcast-guard.js";
+import {
+  barBroadcasts,
+  processBroadcastGuard,
+} from "../../../../application/services/broadcast-guard.js";
 import { Transaction } from "ethers";
 import { EvmRpcClient } from "./evm.js";
+import { withDispatchCheck } from "../../http/dispatch-context.js";
+import { expiredCheck } from "../../http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
+import { submitWithTxId } from "../../../../application/services/broadcast-identity.js";
 import { HttpTransportError, type HttpTransport } from "../../http/index.js";
 import { UsageError, type CliError } from "../../../../domain/errors/index.js";
+import { baseUnitAmount } from "../../../../domain/amounts/index.js";
+import { cliMessage, exitCodeOf } from "../../../inbound/cli/output/errors.js";
+
+const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
 const ADDR = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
@@ -11,7 +26,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** captures the outgoing JSON-RPC request and replies with `result` */
 function stubRpc(result: unknown) {
   const seen: unknown[] = [];
   vi.stubGlobal(
@@ -37,7 +51,7 @@ describe("EvmRpcClient.getNativeBalance", () => {
       },
     };
 
-    await new EvmRpcClient("https://node.example", 5_000, transport).getNativeBalance(ADDR);
+    await new EvmRpcClient("https://node.example", transport).getNativeBalance(ADDR);
 
     expect(requests).toEqual([
       {
@@ -55,7 +69,11 @@ describe("EvmRpcClient.getNativeBalance", () => {
 
   it("asks eth_getBalance for the latest block", async () => {
     const seen = stubRpc("0x0");
-    await new EvmRpcClient("https://node.example", 5_000).getNativeBalance(ADDR);
+    await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getNativeBalance(ADDR);
 
     expect(seen[0]).toMatchObject({
       jsonrpc: "2.0",
@@ -64,15 +82,17 @@ describe("EvmRpcClient.getNativeBalance", () => {
     });
   });
 
-  // JSON-RPC speaks hex; every amount downstream is a decimal base-unit STRING, and a balance
-  // in wei overflows Number, so this must go through BigInt and never through parseInt.
   it.each([
     ["0x0", "0"],
     ["0xde0b6b3a7640000", "1000000000000000000"],
     ["0xffffffffffffffffffffffff", "79228162514264337593543950335"],
   ])("converts %s to the decimal wei string %s", async (hex, expected) => {
     stubRpc(hex);
-    const balance = await new EvmRpcClient("https://node.example", 5_000).getNativeBalance(ADDR);
+    const balance = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getNativeBalance(ADDR);
 
     expect(balance).toBe(expected);
   });
@@ -88,7 +108,9 @@ describe("EvmRpcClient.getNativeBalance", () => {
     );
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getNativeBalance(ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getNativeBalance(
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
@@ -99,7 +121,9 @@ describe("EvmRpcClient.getNativeBalance", () => {
     );
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getNativeBalance(ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getNativeBalance(
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
@@ -110,7 +134,9 @@ describe("EvmRpcClient.getNativeBalance", () => {
     );
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getNativeBalance(ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getNativeBalance(
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
@@ -125,23 +151,18 @@ describe("EvmRpcClient.getNativeBalance", () => {
       ),
     );
 
-    await expect(
-      new EvmRpcClient("https://node.example", 20).getNativeBalance(ADDR),
-    ).rejects.toThrow();
+    await expect(new EvmRpcClient("https://node.example").getNativeBalance(ADDR)).rejects.toThrow();
   });
 });
 
-/**
- * JSON-RPC carries two hex kinds (EIP-1474) and they must NOT be treated alike:
- *   QUANTITY — `0x1a`, a minimally-encoded number → decimal string, via BigInt.
- *   DATA     — `0x6080…`, a byte string (hashes, addresses, code) → kept verbatim.
- * Converting DATA would silently destroy it, so the conversion is per-field against each
- * method's known shape, never a "looks like hex" sweep over the response.
- */
 describe("EvmRpcClient QUANTITY vs DATA", () => {
   it("returns a nonce as a decimal string", async () => {
     const seen = stubRpc("0x2a");
-    const nonce = await new EvmRpcClient("https://node.example", 5_000).getTransactionCount(ADDR);
+    const nonce = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getTransactionCount(ADDR);
 
     expect(nonce).toBe("42");
     expect(seen[0]).toMatchObject({ method: "eth_getTransactionCount", params: [ADDR, "latest"] });
@@ -149,25 +170,39 @@ describe("EvmRpcClient QUANTITY vs DATA", () => {
 
   it("returns contract code as hex, untouched", async () => {
     stubRpc("0x60806040");
-    const code = await new EvmRpcClient("https://node.example", 5_000).getCode(ADDR);
+    const code = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getCode(ADDR);
 
     expect(code).toBe("0x60806040");
   });
 
   it("reports an account with no code as 0x, not as the number zero", async () => {
     stubRpc("0x");
-    expect(await new EvmRpcClient("https://node.example", 5_000).getCode(ADDR)).toBe("0x");
+    expect(
+      await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getCode(
+        ADDR,
+      ),
+    ).toBe("0x");
   });
 
   it("returns the head block height as a decimal string", async () => {
     stubRpc("0x12d687");
-    expect(await new EvmRpcClient("https://node.example", 5_000).getBlockNumber()).toBe("1234567");
+    expect(
+      await new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).getBlockNumber(),
+    ).toBe("1234567");
   });
 });
 
 const RPC_BLOCK = {
   number: "0x12d687",
-  // seconds since the epoch, hex — reported as-is, unlike TRON's millisecond number.
+  // Unix seconds encoded as hex.
   timestamp: "0x66b1c0d0",
   hash: "0xaabbccdd00000000000000000000000000000000000000000000000000000001",
   parentHash: "0xaabbccdd00000000000000000000000000000000000000000000000000000000",
@@ -177,58 +212,110 @@ const RPC_BLOCK = {
 describe("EvmRpcClient.getBlock", () => {
   it("asks for the latest block, without full transaction objects", async () => {
     const seen = stubRpc(RPC_BLOCK);
-    await new EvmRpcClient("https://node.example", 5_000).getBlock();
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock();
 
     expect(seen[0]).toMatchObject({ method: "eth_getBlockByNumber", params: ["latest", false] });
   });
 
   it("asks for a specific height as a QUANTITY, not a decimal string", async () => {
     const seen = stubRpc(RPC_BLOCK);
-    await new EvmRpcClient("https://node.example", 5_000).getBlock("1234567");
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
+      "1234567",
+    );
 
     expect(seen[0]).toMatchObject({ params: ["0x12d687", false] });
   });
 
   it("passes a block tag through unchanged", async () => {
     const seen = stubRpc(RPC_BLOCK);
-    await new EvmRpcClient("https://node.example", 5_000).getBlock("finalized");
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
+      "finalized",
+    );
 
     expect(seen[0]).toMatchObject({ params: ["finalized", false] });
   });
 
-  it("returns the node's object verbatim — hex quantities and all", async () => {
-    // `block` is an inspection command: the JSON contract here is "what the node said". The
-    // families are deliberately not aligned, so nothing is converted, renamed or dropped.
-    stubRpc(RPC_BLOCK);
-    const block = await new EvmRpcClient("https://node.example", 5_000).getBlock();
+  it("decodes the block's quantities once and keeps the node's object verbatim", async () => {
+    stubRpc({
+      ...RPC_BLOCK,
+      gasUsed: "0xc3ed1d",
+      gasLimit: "0x1c9c380",
+      baseFeePerGas: "0x448b9b800",
+    });
+    const block = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getBlock();
 
-    expect(block).toEqual(RPC_BLOCK);
+    expect(block).toEqual({
+      number: 1234567,
+      timestamp: 1722925264,
+      hash: RPC_BLOCK.hash,
+      parentHash: RPC_BLOCK.parentHash,
+      transactionCount: 2,
+      gasUsed: "12840221",
+      gasLimit: "30000000",
+      baseFeeWei: "18400000000",
+      raw: {
+        ...RPC_BLOCK,
+        gasUsed: "0xc3ed1d",
+        gasLimit: "0x1c9c380",
+        baseFeePerGas: "0x448b9b800",
+      },
+    });
+  });
+
+  it("omits the fields a pre-1559 block does not carry", async () => {
+    stubRpc(RPC_BLOCK);
+    const block = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getBlock();
+
+    expect(block).not.toHaveProperty("baseFeeWei");
+    expect(block).not.toHaveProperty("gasUsed");
+  });
+
+  it.each([
+    ["number", { ...RPC_BLOCK, number: undefined }],
+    ["number", { ...RPC_BLOCK, number: null }],
+    ["timestamp", { ...RPC_BLOCK, timestamp: undefined }],
+    ["gasUsed", { ...RPC_BLOCK, gasUsed: "lots" }],
+  ])("rejects a block with a missing or malformed %s instead of reporting 0", async (_f, raw) => {
+    stubRpc(raw);
+    await expect(
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(),
+    ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 
   it("returns null for a height the chain does not have", async () => {
     stubRpc(null);
-    expect(await new EvmRpcClient("https://node.example", 5_000).getBlock("999999999")).toBeNull();
+    expect(
+      await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
+        "999999999",
+      ),
+    ).toBeNull();
   });
 
   it("rejects a response with neither result nor error as invalid_node_response", async () => {
-    // stubRpc(undefined) drops `result` from the JSON entirely (JSON.stringify omits an
-    // `undefined` property) — a malformed answer, not a stated "no such block".
+    // JSON.stringify omits undefined, producing a response with no result field.
     stubRpc(undefined);
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getBlock("999999999"),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getBlock(
+        "999999999",
+      ),
     ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 });
 
 const TOKEN = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-/** ABI fixtures, produced with ethers' coder rather than written from memory. */
 const ENC = {
   stringUSDT:
     "0x0000000000000000000000000000000000000000000000000000000000000020" +
     "0000000000000000000000000000000000000000000000000000000000000004" +
     "5553445400000000000000000000000000000000000000000000000000000000",
-  // Byte-for-byte what MKR (0x9f8F72aA9304c8B593d555F12eF6589cC3A579A2) returns for symbol() on
-  // Ethereum mainnet: 32 bytes, not the 96-byte offset/length/data layout a `string` return uses.
   bytes32MKR: "0x4d4b520000000000000000000000000000000000000000000000000000000000",
   uint8_6: "0x0000000000000000000000000000000000000000000000000000000000000006",
   uint256_1e18: `0x${(10n ** 18n).toString(16).padStart(64, "0")}`,
@@ -237,7 +324,10 @@ const ENC = {
 describe("EvmRpcClient.call", () => {
   it("sends eth_call against the latest block", async () => {
     const seen = stubRpc("0x");
-    await new EvmRpcClient("https://node.example", 5_000).call(TOKEN, "0xdeadbeef");
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).call(
+      TOKEN,
+      "0xdeadbeef",
+    );
 
     expect(seen[0]).toMatchObject({
       method: "eth_call",
@@ -249,12 +339,13 @@ describe("EvmRpcClient.call", () => {
 describe("EvmRpcClient.getErc20Balance", () => {
   it("encodes balanceOf(address) and decodes the uint256 to a decimal string", async () => {
     const seen = stubRpc(ENC.uint256_1e18);
-    const balance = await new EvmRpcClient("https://node.example", 5_000).getErc20Balance(
-      TOKEN,
-      ADDR,
-    );
+    const balance = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getErc20Balance(TOKEN, ADDR);
 
-    // 0x70a08231 is the balanceOf(address) selector, followed by the left-padded owner.
+    // balanceOf(address) selector followed by the padded owner.
     expect((seen[0] as { params: [{ data: string }] }).params[0].data).toBe(
       "0x70a08231000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266",
     );
@@ -264,13 +355,15 @@ describe("EvmRpcClient.getErc20Balance", () => {
   it("reports a non-token address as an unreadable balance rather than decoding 0x", async () => {
     stubRpc("0x");
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getErc20Balance(TOKEN, ADDR),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getErc20Balance(
+        TOKEN,
+        ADDR,
+      ),
     ).rejects.toMatchObject({ code: "token_metadata_unavailable" });
   });
 });
 
 describe("EvmRpcClient.getErc20Metadata", () => {
-  /** replies per selector, so one stub can serve symbol/decimals/name in one call. */
   function stubBySelector(map: Record<string, unknown>) {
     vi.stubGlobal(
       "fetch",
@@ -295,25 +388,33 @@ describe("EvmRpcClient.getErc20Metadata", () => {
       "0x313ce567": ENC.uint8_6,
       "0x06fdde03": ENC.stringUSDT,
     });
-    const meta = await new EvmRpcClient("https://node.example", 5_000).getErc20Metadata(TOKEN);
+    const meta = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getErc20Metadata(TOKEN);
 
     expect(meta).toMatchObject({ symbol: "USDT", decimals: 6 });
   });
 
-  // MKR and other early tokens declare `symbol()` as bytes32, which the string decoder rejects.
-  // The symbol is a label, so a legacy encoding must not cost the user the whole entry.
   it("falls back to bytes32 for a legacy symbol", async () => {
     stubBySelector({ "0x95d89b41": ENC.bytes32MKR, "0x313ce567": ENC.uint8_6 });
-    const meta = await new EvmRpcClient("https://node.example", 5_000).getErc20Metadata(TOKEN);
+    const meta = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getErc20Metadata(TOKEN);
 
     expect(meta.symbol).toBe("MKR");
   });
 
-  // decimals scales every human amount, so an unreadable one is reported as absent, never
-  // defaulted — the caller decides, and for `token add` that decision is to refuse.
   it("leaves decimals undefined when the contract does not answer", async () => {
     stubBySelector({ "0x95d89b41": ENC.stringUSDT });
-    const meta = await new EvmRpcClient("https://node.example", 5_000).getErc20Metadata(TOKEN);
+    const meta = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getErc20Metadata(TOKEN);
 
     expect(meta.symbol).toBe("USDT");
     expect(meta.decimals).toBeUndefined();
@@ -321,7 +422,11 @@ describe("EvmRpcClient.getErc20Metadata", () => {
 
   it("never guesses a default of 18", async () => {
     stubBySelector({});
-    const meta = await new EvmRpcClient("https://node.example", 5_000).getErc20Metadata(TOKEN);
+    const meta = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getErc20Metadata(TOKEN);
 
     expect(meta.decimals).toBeUndefined();
     expect(meta.symbol).toBeUndefined();
@@ -331,7 +436,7 @@ describe("EvmRpcClient.getErc20Metadata", () => {
 describe("EvmRpcClient.callFunction", () => {
   it("encodes a signature and its typed parameters into calldata", async () => {
     const seen = stubRpc("0x");
-    await new EvmRpcClient("https://node.example", 5_000).callFunction(
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
       TOKEN,
       "balanceOf(address)",
       [{ type: "address", value: ADDR }],
@@ -344,7 +449,11 @@ describe("EvmRpcClient.callFunction", () => {
 
   it("encodes a no-argument call as the bare selector", async () => {
     const seen = stubRpc("0x");
-    await new EvmRpcClient("https://node.example", 5_000).callFunction(TOKEN, "decimals()", []);
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+      TOKEN,
+      "decimals()",
+      [],
+    );
 
     expect((seen[0] as { params: [{ data: string }] }).params[0].data).toBe("0x313ce567");
   });
@@ -354,17 +463,23 @@ describe("EvmRpcClient.callFunction", () => {
     stubRpc(raw);
 
     expect(
-      await new EvmRpcClient("https://node.example", 5_000).callFunction(TOKEN, "decimals()", []),
+      await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+        TOKEN,
+        "decimals()",
+        [],
+      ),
     ).toBe(raw);
   });
 
-  // A malformed signature or a value that does not fit its declared type must fail as bad input,
-  // before any request leaves the process — not as an opaque node error afterwards.
   it("rejects an unparsable signature without calling the node", async () => {
     const seen = stubRpc("0x");
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).callFunction(TOKEN, "not a signature", []),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+        TOKEN,
+        "not a signature",
+        [],
+      ),
     ).rejects.toMatchObject({ code: "invalid_value" });
     expect(seen).toEqual([]);
   });
@@ -373,16 +488,17 @@ describe("EvmRpcClient.callFunction", () => {
     const seen = stubRpc("0x");
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).callFunction(TOKEN, "balanceOf(address)", [
-        { type: "address", value: "not-an-address" },
-      ]),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).callFunction(
+        TOKEN,
+        "balanceOf(address)",
+        [{ type: "address", value: "not-an-address" }],
+      ),
     ).rejects.toMatchObject({ code: "invalid_value" });
     expect(seen).toEqual([]);
   });
 });
 
 describe("EvmRpcClient.feeData", () => {
-  /** replies per JSON-RPC method, so one stub serves the three reads feeData makes. */
   function stubByMethod(map: Record<string, unknown>) {
     vi.stubGlobal(
       "fetch",
@@ -406,7 +522,11 @@ describe("EvmRpcClient.feeData", () => {
       eth_gasPrice: "0x9425680",
       eth_maxPriorityFeePerGas: "0x186a0",
     });
-    const fee = await new EvmRpcClient("https://node.example", 5_000).feeData();
+    const fee = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).feeData();
 
     expect(fee).toEqual({
       baseFeeWei: String(0x940cfe0),
@@ -415,8 +535,6 @@ describe("EvmRpcClient.feeData", () => {
     });
   });
 
-  // BSC reports a base fee of exactly zero. It must survive as "0", not collapse to undefined,
-  // or the fee model would read the chain as legacy.
   it("keeps a zero base fee distinct from a missing one", async () => {
     stubByMethod({
       eth_getBlockByNumber: { baseFeePerGas: "0x0" },
@@ -424,12 +542,19 @@ describe("EvmRpcClient.feeData", () => {
       eth_maxPriorityFeePerGas: "0x2faf080",
     });
 
-    expect((await new EvmRpcClient("https://node.example", 5_000).feeData()).baseFeeWei).toBe("0");
+    expect(
+      (await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).feeData())
+        .baseFeeWei,
+    ).toBe("0");
   });
 
   it("omits the base fee on a chain whose blocks carry none", async () => {
     stubByMethod({ eth_getBlockByNumber: { number: "0x1" }, eth_gasPrice: "0x1" });
-    const fee = await new EvmRpcClient("https://node.example", 5_000).feeData();
+    const fee = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).feeData();
 
     expect(fee.baseFeeWei).toBeUndefined();
     expect(fee.gasPriceWei).toBe("1");
@@ -437,15 +562,16 @@ describe("EvmRpcClient.feeData", () => {
 
   it("degrades the suggested tip when the endpoint does not implement it", async () => {
     stubByMethod({ eth_getBlockByNumber: { baseFeePerGas: "0x10" }, eth_gasPrice: "0x20" });
-    const fee = await new EvmRpcClient("https://node.example", 5_000).feeData();
+    const fee = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).feeData();
 
     expect(fee.suggestedPriorityWei).toBeUndefined();
     expect(fee.baseFeeWei).toBe("16");
   });
 
-  // feeData reads the head block through getBlock(), not a raw #call: a node that breaks the
-  // JSON-RPC contract (neither result nor error) must fail loudly, not silently read as a chain
-  // with no base fee — which the fee model would then treat as legacy instead of EIP-1559.
   it("fails loudly, instead of degrading to a legacy fee model, when the node's block answer is malformed", async () => {
     vi.stubGlobal(
       "fetch",
@@ -455,13 +581,15 @@ describe("EvmRpcClient.feeData", () => {
           ok: true,
           text: async () =>
             method === "eth_getBlockByNumber"
-              ? JSON.stringify({ id: 1 }) // neither result nor error
+              ? JSON.stringify({ id: 1 })
               : JSON.stringify({ id: 1, result: "0x1" }),
         };
       }),
     );
 
-    await expect(new EvmRpcClient("https://node.example", 5_000).feeData()).rejects.toMatchObject({
+    await expect(
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).feeData(),
+    ).rejects.toMatchObject({
       code: "invalid_node_response",
     });
   });
@@ -470,7 +598,11 @@ describe("EvmRpcClient.feeData", () => {
 describe("EvmRpcClient.estimateGas", () => {
   it("asks eth_estimateGas and returns a decimal string", async () => {
     const seen = stubRpc("0x5208");
-    const gas = await new EvmRpcClient("https://node.example", 5_000).estimateGas({
+    const gas = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).estimateGas({
       from: ADDR,
       to: TOKEN,
       value: "0x0",
@@ -480,14 +612,9 @@ describe("EvmRpcClient.estimateGas", () => {
     expect(seen[0]).toMatchObject({ method: "eth_estimateGas" });
   });
 
-  /**
-   * QUANTITY fields must go out as `0x` hex. Everything above this port speaks decimal, and
-   * go-ethereum rejects a bare decimal while reth accepts it — so a decimal `value` against a
-   * load-balanced endpoint fails a fraction of requests and reads as a flaky network.
-   */
   it("hex-encodes decimal quantities before they reach the node", async () => {
     const seen = stubRpc("0x5208");
-    await new EvmRpcClient("https://node.example", 5_000).estimateGas({
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).estimateGas({
       from: ADDR,
       to: TOKEN,
       value: "0",
@@ -502,14 +629,15 @@ describe("EvmRpcClient.estimateGas", () => {
       value: "0x0",
       nonce: "0xf",
       maxFeePerGas: "0x793b5e82",
-      // DATA, not QUANTITY: hex-encoding an address or calldata would be silent corruption.
       data: "0xa9059cbb",
     });
   });
 
   it("leaves a value that is already hex untouched", async () => {
     const seen = stubRpc("0x5208");
-    await new EvmRpcClient("https://node.example", 5_000).estimateGas({ value: "0x1c" });
+    await new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).estimateGas({
+      value: "0x1c",
+    });
 
     expect((seen[0] as any).params[0]).toEqual({ value: "0x1c" });
   });
@@ -518,26 +646,15 @@ describe("EvmRpcClient.estimateGas", () => {
     stubRpc("0x5208");
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).estimateGas({ value: "lots" }),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).estimateGas({
+        value: "lots",
+      }),
     ).rejects.toMatchObject({ code: "invalid_value" });
   });
 });
 
-/**
- * Broadcasting.
- *
- * Acceptance is WHITE-LISTED: `eth_sendRawTransaction` answers with a transaction hash, so a
- * result that is not one is a rejection. The TRON adapter learned this the expensive way — a
- * blacklist test (`result === false`) never fired against error responses that simply omit the
- * field, and every rejected transaction was reported as submitted.
- */
-/**
- * "There is no token here" has two shapes on EVM: an address with no code answers empty, and a
- * contract without balanceOf reverts. Both are the same answer to a caller, and the reverting one
- * used to surface as rpc_error — which reads as a broken network rather than a wrong address.
- */
 describe("EvmRpcClient.getErc20Balance", () => {
-  const client = () => new EvmRpcClient("https://node.example", 5_000);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
   const OWNER = ADDR;
 
   function stubCall(body: unknown) {
@@ -572,8 +689,6 @@ describe("EvmRpcClient.getErc20Balance", () => {
     });
   });
 
-  // The line the classification must not cross: a node that cannot be reached is still a node
-  // that cannot be reached.
   it("leaves a transport failure as rpc_error", async () => {
     vi.stubGlobal(
       "fetch",
@@ -588,17 +703,10 @@ describe("EvmRpcClient.getErc20Balance", () => {
   });
 });
 
-/**
- * Metadata reads have the same line to hold as the balance read: a contract that does not
- * implement a view answers `undefined`, but a node that cannot be reached is a node that cannot
- * be reached. Catching both would report an outage as "this token has no metadata" — and the
- * caller, seeing an empty result, would go on to say the address is not a token.
- */
 describe("EvmRpcClient.getErc20Metadata", () => {
-  const client = () => new EvmRpcClient("https://node.example", 5_000);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
 
   it("returns the fields the contract answers", async () => {
-    // symbol/name are dynamic strings; decimals is a word. Encoded as ethers would return them.
     const str = (v: string) => {
       const hex = Buffer.from(v, "utf8").toString("hex");
       return (
@@ -667,40 +775,93 @@ describe("EvmRpcClient.sendRawTransaction", () => {
 
   it("submits the raw transaction and returns the node's hash", async () => {
     const seen = stubResponse({ result: HASH });
-    const out = await new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW);
+    const out = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).sendRawTransaction(RAW, NO_CHECK);
 
     expect(seen[0]).toMatchObject({ method: "eth_sendRawTransaction", params: [RAW] });
     expect(out).toEqual({ hash: HASH });
   });
 
-  // The guard is the backstop for a family binding that drops --dry-run; it has to sit in front
-  // of the wire call, not merely exist.
   it("refuses to reach the wire while broadcasting is barred", async () => {
     const seen = stubResponse({ result: HASH });
 
     await barBroadcasts("tx broadcast --dry-run", async () => {
       await expect(
-        new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW),
+        new EvmRpcClient(
+          "https://node.example",
+          undefined,
+          processBroadcastGuard,
+        ).sendRawTransaction(RAW, NO_CHECK),
       ).rejects.toMatchObject({ code: "dry_run_violation" });
     });
     expect(seen).toHaveLength(0);
   });
 
-  it("treats a result that is not a transaction hash as a rejection", async () => {
-    stubResponse({ result: "ok" });
+  it("refuses to reach the wire when no broadcast guard is wired", async () => {
+    const seen = stubResponse({ result: HASH });
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW),
-    ).rejects.toMatchObject({ code: "transaction_rejected" });
+      new EvmRpcClient("https://node.example").sendRawTransaction(RAW, NO_CHECK),
+    ).rejects.toMatchObject({ code: "internal_error" });
+    expect(seen).toHaveLength(0);
   });
 
-  it("treats a missing result as a rejection rather than a success", async () => {
+  it.each(["ok", "0x1234", null, 42, {}])(
+    "treats invalid hash %j as an unknown outcome",
+    async (result) => {
+      stubResponse({ result });
+
+      await expect(
+        new EvmRpcClient(
+          "https://node.example",
+          undefined,
+          processBroadcastGuard,
+        ).sendRawTransaction(RAW, NO_CHECK),
+      ).rejects.toMatchObject({ code: "invalid_node_response" });
+    },
+  );
+
+  it("treats a missing result as an unknown outcome", async () => {
     stubResponse({});
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW),
-    ).rejects.toMatchObject({ code: "transaction_rejected" });
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
+    ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
+
+  it.each([false, true, "failed", 42, [], {}, { code: -32000 }, { code: -32000, message: {} }])(
+    "reports malformed RPC error %j as an unknown outcome",
+    async (error) => {
+      stubResponse({ error });
+      await expect(
+        new EvmRpcClient(
+          "https://node.example",
+          undefined,
+          processBroadcastGuard,
+        ).sendRawTransaction(RAW, NO_CHECK),
+      ).rejects.toMatchObject({ code: "invalid_node_response" });
+    },
+  );
+
+  it.each(["null", "[]", "true", "42", "not JSON"])(
+    "reports malformed submission response %s as an unknown outcome",
+    async (body) => {
+      const transport = { requestText: vi.fn(async () => body) } as unknown as HttpTransport;
+      await expect(
+        new EvmRpcClient(
+          "https://node.example",
+          transport,
+          processBroadcastGuard,
+        ).sendRawTransaction(RAW, NO_CHECK),
+      ).rejects.toMatchObject({ code: "invalid_node_response" });
+    },
+  );
 
   it.each([
     ["nonce too low", "nonce_too_low"],
@@ -711,26 +872,92 @@ describe("EvmRpcClient.sendRawTransaction", () => {
     stubResponse({ error: { code: -32000, message } });
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code });
   });
 
   it("keeps an unrecognised rejection under transaction_rejected with the node's words", async () => {
-    stubResponse({ error: { code: -32000, message: "some new validator rule" } });
+    stubResponse({ error: { code: -32003, message: "some new validator rule" } });
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "transaction_rejected" });
   });
 
-  // "already known" means the transaction is ALREADY in the mempool: the user's intent is
-  // satisfied, and reporting a failure would deny a fact that already holds. Re-running the same
-  // command must not turn a submitted transaction into an error.
+  it.each([
+    [-32003, "transaction rejected"],
+    [-32700, "parse error"],
+    [-32600, "invalid request"],
+    [-32601, "the method eth_sendRawTransaction does not exist"],
+    [-32602, "invalid argument 0: hex string has odd length"],
+    [-32004, "method not supported"],
+    [-32006, "JSON-RPC version not supported"],
+  ])("keeps code %i (%s) a definite rejection without a txId", async (code, message) => {
+    stubResponse({ error: { code, message } });
+
+    const error = await submitWithTxId(HASH, () =>
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
+    ).catch((e: unknown) => e as CliError);
+    expect(error).toMatchObject({
+      code: "transaction_rejected",
+      details: { nodeMessage: message },
+    });
+    expect((error as CliError).details).not.toHaveProperty("txId");
+  });
+
+  it.each([
+    [-32000, "request timed out"],
+    [-32000, "context deadline exceeded"],
+    [-32000, "Internal error"],
+    [-32000, "some new validator rule"],
+    [-32002, "request timed out"],
+    [-32603, "Internal error"],
+    [-32005, "limit exceeded"],
+    [-32099, "upstream unavailable"],
+    [502, "bad gateway"],
+  ])("reports code %i (%s) as an unknown outcome with the local txId", async (code, message) => {
+    stubResponse({ error: { code, message } });
+
+    await expect(
+      submitWithTxId(HASH, () =>
+        new EvmRpcClient(
+          "https://node.example",
+          undefined,
+          processBroadcastGuard,
+        ).sendRawTransaction(RAW, NO_CHECK),
+      ),
+    ).rejects.toMatchObject({ code: "rpc_error", details: { nodeMessage: message, txId: HASH } });
+  });
+
+  it("keeps a recognised rejection message under any JSON-RPC code", async () => {
+    stubResponse({ error: { code: -32603, message: "nonce too low" } });
+
+    await expect(
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).sendRawTransaction(
+        RAW,
+        NO_CHECK,
+      ),
+    ).rejects.toMatchObject({ code: "nonce_too_low" });
+  });
+
   it.each(["already known", "ALREADY KNOWN", "transaction already exists"])(
     "treats %s as an accepted submission",
     async (message) => {
       stubResponse({ error: { code: -32000, message } });
-      const out = await new EvmRpcClient("https://node.example", 5_000).sendRawTransaction(RAW);
+      const out = await new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).sendRawTransaction(RAW, NO_CHECK);
 
       expect(out.alreadyKnown).toBe(true);
       expect(out.hash).toBeUndefined();
@@ -739,15 +966,35 @@ describe("EvmRpcClient.sendRawTransaction", () => {
 });
 
 describe("EvmRpcClient.getTransactionReceipt", () => {
+  it("does not send the request once the call's deadline has expired", async () => {
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        init.signal?.throwIfAborted();
+        sent.push(init.body);
+        return { ok: true, text: async () => "{}" };
+      }),
+    );
+
+    const client = new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
+    await expect(
+      withDispatchCheck(expiredCheck(), () => client.getTransactionReceipt("0xabc")),
+    ).rejects.toBeInstanceOf(DeadlineExpiredError);
+    expect(sent).toEqual([]);
+  });
+
   it("returns null while the transaction is still pending", async () => {
     stubRpc(null);
     expect(
-      await new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc"),
+      await new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).getTransactionReceipt("0xabc"),
     ).toBeNull();
   });
 
-  // A receipt is NOT proof of success: status 0x0 is a transaction that was mined, paid gas, and
-  // reverted. Reporting that as confirmed would be the worst lie this CLI could tell.
   it("reports a reverted transaction as failed, not confirmed", async () => {
     stubRpc({
       status: "0x0",
@@ -755,7 +1002,11 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
       effectiveGasPrice: "0x3b9aca00",
       blockNumber: "0x10",
     });
-    const r = await new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc");
+    const r = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getTransactionReceipt("0xabc");
 
     expect(r).toMatchObject({ success: false, gasUsed: "21000", blockNumber: 16 });
   });
@@ -767,15 +1018,22 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
       effectiveGasPrice: "0x3b9aca00",
       blockNumber: "0x10",
     });
-    const r = await new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc");
+    const r = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getTransactionReceipt("0xabc");
 
-    // feeWei is gasUsed × effectiveGasPrice — what was actually paid, not the ceiling.
     expect(r).toMatchObject({ success: true, feeWei: String(21000n * 1000000000n) });
   });
 
   it("carries the deployed contract address when the receipt names one", async () => {
     stubRpc({ status: "0x1", gasUsed: "0x1", contractAddress: "0xdead", blockNumber: "0x1" });
-    const r = await new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc");
+    const r = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).getTransactionReceipt("0xabc");
 
     expect(r?.contractAddress).toBe("0xdead");
   });
@@ -784,28 +1042,35 @@ describe("EvmRpcClient.getTransactionReceipt", () => {
     stubRpc({ status: "0x1", blockNumber: "0x20000000000000" });
 
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc"),
+      new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).getTransactionReceipt("0xabc"),
     ).rejects.toMatchObject({ code: "rpc_error" });
   });
 
-  // BUG-V413-025: a missing `result` (no `error` either) is the node breaking the JSON-RPC
-  // contract, not a statement that the transaction has no receipt — those must not read the same.
   it("rejects a response with neither result nor error as invalid_node_response", async () => {
     stubRpc(undefined);
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getTransactionReceipt("0xabc"),
+      new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).getTransactionReceipt("0xabc"),
     ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 });
 
 describe("EvmRpcClient.encodeErc20Transfer", () => {
   it("encodes transfer(address,uint256) with the recipient and base-unit amount", () => {
-    const data = new EvmRpcClient("https://node.example", 5_000).encodeErc20Transfer(
-      ADDR,
-      "5000000",
-    );
+    const data = new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).encodeErc20Transfer(ADDR, baseUnitAmount("5000000"));
 
-    // 0xa9059cbb = transfer(address,uint256); then the padded recipient, then the amount.
+    // transfer(address,uint256) selector followed by recipient and amount.
     expect(data).toBe(
       `0xa9059cbb${"0".repeat(24)}${ADDR.slice(2).toLowerCase()}${5000000n
         .toString(16)
@@ -815,21 +1080,26 @@ describe("EvmRpcClient.encodeErc20Transfer", () => {
 
   it("rejects a recipient that is not an address rather than encoding nonsense", () => {
     expect(() =>
-      new EvmRpcClient("https://node.example", 5_000).encodeErc20Transfer("nope", "1"),
+      new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).encodeErc20Transfer("nope", baseUnitAmount("1")),
     ).toThrow();
   });
 
-  // Bad calldata inputs are decided entirely locally, with no RPC ever sent, so a caller must not
-  // be told to retry: `invalid_value` is exit "either" and the class chosen decides which — a
-  // UsageError puts this at exit 2, distinct from an exit-1 ChainError a retry could plausibly fix.
   it("reports a bad recipient as a usage error at exit 2, not a chain error at exit 1", () => {
     expect.assertions(3);
     try {
-      new EvmRpcClient("https://node.example", 5_000).encodeErc20Transfer("nope", "1");
+      new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).encodeErc20Transfer("nope", baseUnitAmount("1"));
     } catch (e) {
       expect(e).toBeInstanceOf(UsageError);
       expect((e as CliError).code).toBe("invalid_value");
-      expect((e as CliError).exitCode()).toBe(2);
+      expect(exitCodeOf(e as CliError)).toBe(2);
     }
   });
 });
@@ -838,10 +1108,17 @@ describe("EvmRpcClient.broadcast (Broadcaster port)", () => {
   it("submits the raw half of a signed transaction and echoes its hash", async () => {
     const HASH = `0x${"cd".repeat(32)}`;
     const seen = stubRpc(HASH);
-    const out = await new EvmRpcClient("https://node.example", 5_000).broadcast({
-      raw: "0x02f8b1",
-      hash: HASH,
-    });
+    const out = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).broadcast(
+      {
+        raw: "0x02f8b1",
+        hash: HASH,
+      },
+      NO_CHECK,
+    );
 
     expect(seen[0]).toMatchObject({ method: "eth_sendRawTransaction", params: ["0x02f8b1"] });
     expect(out).toMatchObject({ hash: HASH });
@@ -856,29 +1133,34 @@ describe("EvmRpcClient.broadcast (Broadcaster port)", () => {
           JSON.stringify({ id: 1, error: { code: -32000, message: "already known" } }),
       })),
     );
-    const out = await new EvmRpcClient("https://node.example", 5_000).broadcast({
-      raw: "0x02f8b1",
-      hash: `0x${"11".repeat(32)}`,
-    });
+    const out = await new EvmRpcClient(
+      "https://node.example",
+      undefined,
+      processBroadcastGuard,
+    ).broadcast(
+      {
+        raw: "0x02f8b1",
+        hash: `0x${"11".repeat(32)}`,
+      },
+      NO_CHECK,
+    );
 
-    // The locally derived hash still identifies the transaction; the node just had it already.
     expect(out.alreadyKnown).toBe(true);
     expect(out.hash).toBeUndefined();
   });
 
   it("refuses a signed transaction that carries no raw serialisation", async () => {
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).broadcast("0x02f8b1" as never),
+      new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).broadcast(
+        "0x02f8b1" as never,
+        NO_CHECK,
+      ),
     ).rejects.toMatchObject({ code: "invalid_transaction" });
   });
 });
 
-/**
- * `tx send --build-only` produces the artifact `tx sign --hex` consumes, so the two must agree on
- * one serialisation: unsigned in, signed out.
- */
 describe("EvmRpcClient.encodeTransactionHex", () => {
-  const client = () => new EvmRpcClient("https://node.example", 5_000);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
   const UNSIGNED_TX = {
     type: 2,
     chainId: 11155111,
@@ -894,7 +1176,6 @@ describe("EvmRpcClient.encodeTransactionHex", () => {
     const hex = client().encodeTransactionHex(UNSIGNED_TX);
 
     expect(hex.startsWith("0x02")).toBe(true);
-    // round-trips through the same parser tx sign uses
     expect(Transaction.from(hex).signature).toBeNull();
     expect(Transaction.from(hex).nonce).toBe(0);
   });
@@ -914,7 +1195,7 @@ describe("EvmRpcClient.encodeTransactionHex", () => {
 });
 
 describe("EvmRpcClient contract-write encoding", () => {
-  const client = () => new EvmRpcClient("https://node.example", 5_000);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
 
   it("encodes a call without sending it", () => {
     const data = client().encodeFunctionCall("transfer(address,uint256)", [
@@ -936,7 +1217,7 @@ describe("EvmRpcClient contract-write encoding", () => {
     } catch (e) {
       expect(e).toBeInstanceOf(UsageError);
       expect((e as CliError).code).toBe("invalid_value");
-      expect((e as CliError).exitCode()).toBe(2);
+      expect(exitCodeOf(e as CliError)).toBe(2);
     }
   });
 
@@ -949,18 +1230,11 @@ describe("EvmRpcClient contract-write encoding", () => {
     expect(data).toBe(`0x6080${WORD(7n)}`);
   });
 
-  /**
-   * The defect this replaces: the EVM path encoded against an empty ABI, so ANY constructor
-   * argument failed with "expectedCount=0" and `--constructor-params` could not be used at all.
-   * Types now come from a signature when no ABI is available — the source `cast send --create`
-   * uses for the same situation.
-   */
   it("encodes from a constructor signature when there is no ABI", () => {
     const data = client().encodeDeploy("0x6080", {
       source: "signature",
       signature: "constructor(uint256)",
       values: [7],
-      flag: "--constructor-signature",
     });
 
     expect(data).toBe(`0x6080${WORD(7n)}`);
@@ -973,7 +1247,6 @@ describe("EvmRpcClient contract-write encoding", () => {
         source: "signature",
         signature,
         values: [7],
-        flag: "--x",
       });
 
       expect(data).toBe(`0x6080${WORD(7n)}`);
@@ -1003,25 +1276,42 @@ describe("EvmRpcClient contract-write encoding", () => {
     } catch (e) {
       expect(e).toBeInstanceOf(UsageError);
       expect((e as CliError).code).toBe("invalid_value");
-      expect((e as CliError).exitCode()).toBe(2);
+      expect(exitCodeOf(e as CliError)).toBe(2);
     }
   });
 
-  it("names the flag a bad signature came from", () => {
-    expect(() =>
-      client().encodeDeploy("0x6080", {
-        source: "signature",
-        signature: "constructor(uint256)",
-        values: [1, 2],
-        flag: "--constructor-args",
-      }),
-    ).toThrow(/--constructor-args/);
+  it("encodes from the types given with each value", () => {
+    const data = client().encodeDeploy("0x6080", {
+      source: "typed-params",
+      types: ["uint256"],
+      values: [7],
+    });
+
+    expect(data).toBe(`0x6080${WORD(7n)}`);
   });
 
-  // CREATE derives the address from the sender and nonce alone, so it is known the moment the
-  // transaction is signed — no need to wait for a receipt to tell the user where it landed.
+  it.each([
+    [
+      { source: "signature" as const, signature: "constructor(uint256)", values: [1, 2] },
+      "--constructor-signature",
+    ],
+    [
+      { source: "typed-params" as const, types: ["uint256"], values: [1, 2] },
+      "--constructor-params",
+    ],
+  ])("names the input the constructor types came from", (args, flag) => {
+    expect.assertions(2);
+    try {
+      client().encodeDeploy("0x6080", args);
+    } catch (e) {
+      expect((e as CliError).message).toMatch(
+        /^could not encode the constructor arguments against /,
+      );
+      expect(cliMessage((e as CliError).userMessage).message).toContain(`against ${flag}:`);
+    }
+  });
+
   it("derives the CREATE address from sender and nonce", () => {
-    // ethers' own getCreateAddress is the reference; this asserts the wiring, not the algorithm.
     const addr = client().contractAddressFor(ADDR, "0");
 
     expect(addr).toMatch(/^0x[0-9a-fA-F]{40}$/);
@@ -1034,36 +1324,90 @@ describe("EvmRpcClient contract-write encoding", () => {
 });
 
 describe("EvmRpcClient.getTransactionByHash", () => {
-  it("returns the node's transaction object", async () => {
-    const seen = stubRpc({ hash: "0xabc", input: "0x", value: "0x0" });
-    const tx = await new EvmRpcClient("https://node.example", 5_000).getTransactionByHash("0xabc");
+  const RPC_TX = {
+    hash: "0xabc",
+    from: "0xe4aad11792f7e74f1b5cbce65f9a1e207c952961",
+    to: "0x000000000000000000000000000000000000dead",
+    value: "0xde0b6b3a7640000",
+    input: "0x",
+    nonce: "0x7",
+  };
+  const fetchTx = () =>
+    new EvmRpcClient("https://node.example", undefined, processBroadcastGuard).getTransactionByHash(
+      "0xabc",
+    );
+
+  it("normalizes the node's transaction and keeps it verbatim", async () => {
+    const seen = stubRpc(RPC_TX);
+    const tx = await fetchTx();
 
     expect(seen[0]).toMatchObject({ method: "eth_getTransactionByHash", params: ["0xabc"] });
-    expect(tx).toMatchObject({ hash: "0xabc" });
+    expect(tx).toEqual({
+      from: "0xe4aAd11792F7E74f1B5cbce65f9a1E207c952961",
+      to: "0x000000000000000000000000000000000000dEaD",
+      valueWei: "1000000000000000000",
+      input: "0x",
+      nonce: 7,
+      raw: RPC_TX,
+    });
   });
 
-  // null means "this node has no record of it" — which is NOT the same as "it never existed",
-  // and the two are told apart by the caller, not here.
+  it("omits the recipient of a contract creation", async () => {
+    stubRpc({ ...RPC_TX, to: null, input: "0x6080" });
+    expect(await fetchTx()).not.toHaveProperty("to");
+  });
+
+  it("decodes ERC-20 transfer calldata to its token recipient and amount", async () => {
+    const input = `0xa9059cbb${"0".repeat(24)}bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb${5000000n
+      .toString(16)
+      .padStart(64, "0")}`;
+    stubRpc({ ...RPC_TX, value: "0x0", input });
+
+    expect(await fetchTx()).toMatchObject({
+      erc20Transfer: {
+        to: "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB",
+        rawAmount: "5000000",
+      },
+    });
+  });
+
+  it.each([
+    ["value", { ...RPC_TX, value: undefined }],
+    ["from", { ...RPC_TX, from: undefined }],
+    ["from", { ...RPC_TX, from: "0x1234" }],
+    ["input", { ...RPC_TX, input: undefined }],
+    ["nonce", { ...RPC_TX, nonce: "seven" }],
+  ])(
+    "rejects a transaction with a missing or malformed %s instead of 0 or empty",
+    async (_f, raw) => {
+      stubRpc(raw);
+      await expect(fetchTx()).rejects.toMatchObject({ code: "invalid_node_response" });
+    },
+  );
+
   it("returns null when the node has no record of the hash", async () => {
     stubRpc(null);
     expect(
-      await new EvmRpcClient("https://node.example", 5_000).getTransactionByHash("0xabc"),
+      await new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).getTransactionByHash("0xabc"),
     ).toBeNull();
   });
 
-  // BUG-V413-025: a missing `result` (no `error` either) is the node breaking the JSON-RPC
-  // contract, not a statement that the transaction does not exist — those must not read the same.
   it("rejects a response with neither result nor error as invalid_node_response", async () => {
     stubRpc(undefined);
     await expect(
-      new EvmRpcClient("https://node.example", 5_000).getTransactionByHash("0xabc"),
+      new EvmRpcClient(
+        "https://node.example",
+        undefined,
+        processBroadcastGuard,
+      ).getTransactionByHash("0xabc"),
     ).rejects.toMatchObject({ code: "invalid_node_response" });
   });
 });
 
-// A stalled node is a `timeout`, not an `rpc_error`: `--json-schema` documents `timeout` as "the
-// node, service or device did not answer in time", and TronRpcClient already reports it that way.
-// A script that retries on `timeout` but reports `rpc_error` needs the two families to agree.
 describe("EvmRpcClient transport failure classification", () => {
   const transportThrowing = (error: unknown): HttpTransport => ({
     requestText: () => Promise.reject(error),
@@ -1072,7 +1416,6 @@ describe("EvmRpcClient transport failure classification", () => {
   it("maps a transport timeout to ChainError(timeout)", async () => {
     const client = new EvmRpcClient(
       "http://node.invalid",
-      60_000,
       transportThrowing(new HttpTransportError("timeout")),
     );
     await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({
@@ -1085,7 +1428,6 @@ describe("EvmRpcClient transport failure classification", () => {
     for (const kind of ["network", "http_status", "redirect", "invalid_request"] as const) {
       const client = new EvmRpcClient(
         "http://node.invalid",
-        60_000,
         transportThrowing(new HttpTransportError(kind)),
       );
       await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
@@ -1093,25 +1435,13 @@ describe("EvmRpcClient transport failure classification", () => {
   });
 
   it("keeps a non-transport throw an rpc_error", async () => {
-    const client = new EvmRpcClient(
-      "http://node.invalid",
-      60_000,
-      transportThrowing(new Error("boom")),
-    );
+    const client = new EvmRpcClient("http://node.invalid", transportThrowing(new Error("boom")));
     await expect(client.getNativeBalance(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
   });
 });
 
-/**
- * Where the classification is WIRED, as opposed to what the table says (node-errors.test.ts).
- *
- * The rule lives on the RPC method, so every call site gets it without remembering to — which is
- * the point: `eth_estimateGas` used to answer `rpc_error` for the same funding failure that
- * `eth_sendRawTransaction` reported as `insufficient_balance`, so `tx send --dry-run` and the
- * broadcast disagreed about the same account.
- */
 describe("EvmRpcClient node-error classification", () => {
-  const client = () => new EvmRpcClient("https://node.example", 5_000);
+  const client = () => new EvmRpcClient("https://node.example", undefined, processBroadcastGuard);
 
   function stubError(message: string) {
     vi.stubGlobal(
@@ -1128,7 +1458,6 @@ describe("EvmRpcClient node-error classification", () => {
 
     await expect(client().estimateGas({ value: "0x1" })).rejects.toMatchObject({
       code: "insufficient_balance",
-      // the node's own words survive alongside the canned message, as everywhere else
       details: { nodeMessage: "insufficient funds for gas * price + value: balance 0" },
     });
   });
@@ -1144,7 +1473,7 @@ describe("EvmRpcClient node-error classification", () => {
   it("sendRawTransaction reports a stale nonce as nonce_too_low", async () => {
     stubError("nonce too low");
 
-    await expect(client().sendRawTransaction("0x02f8b1")).rejects.toMatchObject({
+    await expect(client().sendRawTransaction("0x02f8b1", NO_CHECK)).rejects.toMatchObject({
       code: "nonce_too_low",
     });
   });
@@ -1155,9 +1484,6 @@ describe("EvmRpcClient node-error classification", () => {
     await expect(client().call(ADDR, "0x")).rejects.toMatchObject({ code: "execution_reverted" });
   });
 
-  // Regression: the node's revert reason is the most useful line for debugging a contract call,
-  // and text mode only ever prints `error.message` (never `details.nodeMessage`) — so the reason
-  // has to survive inside the main message, not just in details.
   it("call folds the node's revert reason into error.message", async () => {
     stubError("execution reverted: ERC20: transfer amount exceeds balance");
 
@@ -1168,13 +1494,6 @@ describe("EvmRpcClient node-error classification", () => {
     });
   });
 
-  /**
-   * The pins that keep the classification from spreading. A read method has no transaction to
-   * judge, so a node error from it is the node failing — a rate limit, an unimplemented method,
-   * a proxy returning someone else's text — and it must stay `rpc_error` however business-like
-   * the wording looks. Reading "insufficient funds" out of `eth_getBalance` and calling it
-   * `insufficient_balance` would report an endpoint fault as a fact about the user's money.
-   */
   it("leaves eth_getBalance an rpc_error even when the text reads like a verdict", async () => {
     stubError("insufficient funds for gas * price + value");
 
@@ -1187,7 +1506,6 @@ describe("EvmRpcClient node-error classification", () => {
     await expect(client().getTransactionCount(ADDR)).rejects.toMatchObject({ code: "rpc_error" });
   });
 
-  // `out of gas` means different things to the two methods; the method name is what separates them.
   it("splits `out of gas` between a simulation and a submission", async () => {
     stubError("out of gas");
     await expect(client().estimateGas({ value: "0x1" })).rejects.toMatchObject({
@@ -1195,15 +1513,11 @@ describe("EvmRpcClient node-error classification", () => {
     });
 
     stubError("out of gas");
-    await expect(client().sendRawTransaction("0x02f8b1")).rejects.toMatchObject({
+    await expect(client().sendRawTransaction("0x02f8b1", NO_CHECK)).rejects.toMatchObject({
       code: "gas_too_low",
     });
   });
 
-  // Regression: text mode renders only `error.message` and never `details.nodeMessage`, so a
-  // classified rejection that kept only the canned category told the reader what kind of problem
-  // it was and nothing about theirs (which account, by how much). This generalizes what
-  // execution_reverted already did to every classified rule, not just reverts.
   it("keeps the node's own words in the message for every classified rejection, not just reverts", async () => {
     stubError("insufficient funds for gas * price + value: have 1 want 1000");
 

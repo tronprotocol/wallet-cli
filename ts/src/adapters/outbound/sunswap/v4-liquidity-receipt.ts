@@ -1,8 +1,8 @@
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
-import { tronHexAddress } from "../../../domain/address/index.js";
+import { tronHash20Hex } from "../../../domain/address/index.js";
 import { NATIVE_TRX_ADDRESS } from "../../../domain/sunswap/tokens.js";
-import type { TronTxInfo } from "../../../application/ports/chain/tron-gateway.js";
+import type { TronTxInfo } from "../../../application/ports/chain/tron/tron-gateway.js";
 import type {
   V4LiquidityReceiptQuery,
   V4LiquidityResult,
@@ -13,7 +13,6 @@ const POOL_MODIFY = topic("ModifyLiquidity(bytes32,address,int24,int24,int256,by
 const POSITION_MODIFY = topic("ModifyLiquidity(uint256,int256,int256)");
 const TRANSFER = topic("Transfer(address,address,uint256)");
 const hex = (value: string) => value.replace(/^0x/, "").toLowerCase();
-const address = (value: string) => tronHexAddress(value).slice(-40).toLowerCase();
 const word = (data: string, index: number) =>
   BigInt(`0x${data.slice(index * 64, (index + 1) * 64)}`);
 const validData = (data: string, words: number) =>
@@ -29,21 +28,17 @@ type Internal = {
   callValueInfo?: { callValue?: string | number; tokenId?: string }[];
 };
 
-/**
- * Match both ModifyLiquidity events to this position, then read account settlement transfers.
- * Pool amountDelta is emitted BEFORE afterModifyLiquidity hooks, so it alone cannot prove
- * the amount received. Transfer logs/internal TRX calls account for hooks and native refunds.
- */
+// Pool deltas precede hooks; use settlement transfers for the account balance change.
 export function decodeV4LiquidityReceipt(
   info: TronTxInfo,
   query: V4LiquidityReceiptQuery,
   positionManager: string,
   poolManager: string,
 ): V4LiquidityResult | undefined {
-  if (info.receipt?.result !== "SUCCESS" || !Array.isArray(info.log)) return undefined;
+  if (info.execution !== "success" || !Array.isArray(info.log)) return undefined;
   const logs = info.log as Log[];
-  const manager = address(positionManager);
-  const pool = address(poolManager);
+  const manager = tronHash20Hex(positionManager);
+  const pool = tronHash20Hex(poolManager);
   const poolId = hex(query.poolId);
   const positions = logs.filter(
     (entry) =>
@@ -77,12 +72,12 @@ export function decodeV4LiquidityReceipt(
   });
   if (pools.length !== 1 || fee0 < 0n || fee1 < 0n) return undefined;
   const [principal0, principal1] = pair(word(hex(pools[0]!.data!), 4));
-  const owner = address(query.account);
+  const owner = tronHash20Hex(query.account);
 
   function flow(currency: string): bigint | undefined {
     let delta = 0n;
     if (currency === NATIVE_TRX_ADDRESS) {
-      // Missing traces are unknown, not a zero transfer. Never fall back to balance snapshots.
+      // Missing native traces mean unknown settlement; balance snapshots cannot replace them.
       if (!Array.isArray(info.internal_transactions)) return undefined;
       delta -= BigInt(query.nativeValueSent ?? "0");
       for (const call of info.internal_transactions as Internal[]) {
@@ -105,7 +100,7 @@ export function decodeV4LiquidityReceipt(
       }
       return delta;
     }
-    const token = address(currency);
+    const token = tronHash20Hex(currency);
     for (const entry of logs) {
       const topics = entry.topics ?? [];
       if (hex(entry.address ?? "").slice(-40) !== token || hex(topics[0] ?? "") !== TRANSFER)

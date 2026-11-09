@@ -1,8 +1,11 @@
+import { CommandDeadline } from "../../services/command-deadline.js";
 import { describe, it, expect } from "vitest";
 import { TronStakeService } from "./stake-service.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
+
+const NO_DEADLINE = new CommandDeadline(0);
 
 const net = {
   id: "tron:3448148188",
@@ -18,27 +21,26 @@ function svc(gateway: Record<string, unknown>) {
   const gateways = { get: () => gateway } as unknown as ChainGatewayProvider;
   return new TronStakeService(gateways, {} as TxPipeline);
 }
-const scope = (addr: string) => ({ resolveAddress: () => addr }) as never;
+const scope = (addr: string) => ({ deadline: NO_DEADLINE, resolveAddress: () => addr }) as never;
 
 describe("TronStakeService.info", () => {
-  it("aggregates staked split, voting power, resources, unfreezing and slots", async () => {
+  it("passes through the adapter's stake totals, unfreezing entries and resources", async () => {
+    const stake = {
+      energySun: "1000000000",
+      bandwidthSun: "500000000",
+      tronPowerSun: "0",
+      totalSun: "1500000000",
+    };
+    const unfreezing = [
+      { amountSun: "500000000", withdrawableAt: 1784073600000 },
+      { amountSun: "300000000", withdrawableAt: 1784160000000 },
+    ];
     const gateway = {
-      getAccount: async () => ({
-        frozenV2: [{ type: "ENERGY", amount: "1000000000" }, { amount: "500000000" }],
-        unfrozenV2: [
-          { unfreeze_amount: "500000000", unfreeze_expire_time: 1784073600000 },
-          { type: "ENERGY", unfreeze_amount: "300000000", unfreeze_expire_time: 1784160000000 },
-        ],
-      }),
+      getAccountState: async () => ({ stake, unfreezing }),
       getAccountResources: async () => ({
-        EnergyUsed: 12000,
-        EnergyLimit: 65000,
-        NetUsed: 100,
-        NetLimit: 1000,
-        freeNetUsed: 500,
-        freeNetLimit: 500,
-        tronPowerLimit: 1500,
-        tronPowerUsed: 1000,
+        energy: { used: 12000, limit: 65000 },
+        bandwidth: { used: 600, limit: 1500 },
+        votingPower: { total: 1500, used: 1000 },
       }),
       getCanWithdrawUnfreezeAmount: async () => "0",
       getAvailableUnfreezeCount: async () => 30,
@@ -46,13 +48,10 @@ describe("TronStakeService.info", () => {
     const view = await svc(gateway).info(scope(OWNER), net);
     expect(view).toEqual({
       address: OWNER,
-      staked: { energySun: "1000000000", bandwidthSun: "500000000" },
+      staked: stake,
       votingPower: { total: 1500, used: 1000, available: 500 },
       resource: { energy: { used: 12000, limit: 65000 }, bandwidth: { used: 600, limit: 1500 } },
-      unfreezing: [
-        { amountSun: "500000000", withdrawableAt: 1784073600000 },
-        { amountSun: "300000000", withdrawableAt: 1784160000000 },
-      ],
+      unfreezing,
       withdrawableSun: "0",
       unfreeze: { used: 2, max: 32, remaining: 30 },
     });
@@ -90,6 +89,25 @@ describe("TronStakeService.delegated", () => {
       ],
     });
   });
+  it.each(["energy", "bandwidth"] as const)(
+    "out with resource %s: reads and returns only that resource's cap",
+    async (resource) => {
+      const reads: string[] = [];
+      const gateway = {
+        getDelegatedIndexV2: async () => ({ fromAccounts: [], toAccounts: [record.to] }),
+        getDelegatedResourceV2: async () => [record],
+        getCanDelegatedMaxSize: async (_a: string, r: string) => {
+          reads.push(r);
+          return r === "ENERGY" ? "900000000" : "300000000";
+        },
+      };
+      const view = await svc(gateway).delegated(scope(OWNER), net, { direction: "out", resource });
+      expect(view.canDelegateMaxSun).toEqual(
+        resource === "energy" ? { energy: "900000000" } : { bandwidth: "300000000" },
+      );
+      expect(reads).toEqual([resource.toUpperCase()]);
+    },
+  );
   it("in: rows keyed by `from`, no canDelegateMaxSun, resource filter applies", async () => {
     const gateway = {
       getDelegatedIndexV2: async () => ({ fromAccounts: [record.from], toAccounts: [] }),
@@ -112,9 +130,9 @@ describe("TronStakeService.delegated", () => {
 describe("TronStakeService.votingPower", () => {
   it("derives available from limit - used", async () => {
     const gateway = {
-      getAccountResources: async () => ({ tronPowerLimit: 1500, tronPowerUsed: 1000 }),
+      getAccountResources: async () => ({ votingPower: { total: 1500, used: 1000 } }),
     };
-    expect(await svc(gateway).votingPower(net, OWNER)).toEqual({
+    expect(await svc(gateway).votingPower(NO_DEADLINE, net, OWNER)).toEqual({
       total: 1500,
       used: 1000,
       available: 500,

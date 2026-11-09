@@ -10,8 +10,6 @@ export function registerContactCommands(registry: CommandRegistry, service: Cont
       .string()
       .min(1)
       .max(256)
-      // The rule the domain enforces (contactName): a name that looked like an
-      // address would make `--to <name>` ambiguous with the address it resembles.
       .describe(
         "local name for this recipient; 1-64 safe characters and must not look like a chain address. Usable anywhere an address is accepted",
       ),

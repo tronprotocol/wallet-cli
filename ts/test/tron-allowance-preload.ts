@@ -1,4 +1,4 @@
-/** Child-process RPC fixture: the test payer already has enough Permit2 allowance. */
+// Child-process RPC fixture: the payer has enough Permit2 allowance.
 export const tronAllowancePreload = `
 import {createServer as createAllowanceRpc} from 'node:http';
 import {writeFileSync as writeAllowanceConfig} from 'node:fs';

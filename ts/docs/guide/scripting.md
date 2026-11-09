@@ -49,14 +49,14 @@ printf '%s' "$PW" | wallet-cli tx send --to T... --amount 1 \
 
 ## Waiting for confirmation
 
-`tx send` returns at submission. For scripts, the simplest safe form is `--wait`:
+`tx send` waits for confirmation by default and reports the outcome in `data.stage` (`confirmed`, `failed`, or `submitted` when the time limit, or a poll error that cannot be retried unchanged, ends the wait):
 
 ```bash
 wallet-cli tx send --to T... --amount 1 --network tron:3448148188 \
-  --password-stdin --wait --wait-timeout 90000 -o json
+  --password-stdin --timeout 120000 -o json
 ```
 
-Or decouple: capture `data.txId`, then poll [`tx status`](../commands/tx/status.md) until `data.state` is `confirmed` (abort on `failed`). The full four-state polling pattern, including the batch-operation rules, is in [machine-interface.md → Script safety](../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
+Or decouple: pass `--no-wait`, capture `data.txId`, then poll [`tx status`](../commands/tx/status.md) until `data.state` is `confirmed` (abort on `failed`). The full four-state polling pattern, including the batch-operation rules, is in [machine-interface.md → Script safety](../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## Sign here, broadcast there
 
@@ -95,7 +95,7 @@ wallet-cli tx broadcast --tx-stdin --network tron:3448148188 -o json < signed.js
 
 ## Timeouts and retries
 
-Every RPC/device call is bounded by `--timeout` (ms). On `error.code = "timeout"`, retrying with a larger value is safe for **read** commands; for `tx send`, first check `tx status` on the txid you may already have submitted — blind resend is how double-spends happen.
+`--timeout` (ms, default 90000) is one deadline for the whole command, including the wait for confirmation; `0` removes it. On `error.code = "timeout"`, retrying with a larger value is safe for **read** commands. For a write, look for `error.details.outcome` first: when it is `"unknown"` the write may have taken effect, so reconcile before resending: check `tx status` with `error.details.txId` when it is present, otherwise the command's own evidence (the GasFree `nonce` or `traceId`, `candidateTxHash`, the B.AI order, `sunpump token-search`) — blind resend is how double-spends happen. See [time limit](../machine-interface.md#time-limit---timeout).
 
 ## See also
 

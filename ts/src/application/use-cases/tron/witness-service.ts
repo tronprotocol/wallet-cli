@@ -1,11 +1,15 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
+import { percent, witnessUrl } from "../../../domain/tron/governance/limits.js";
+import { sunAmount } from "../../../domain/amounts/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronGateway } from "../../ports/chain/tron-gateway.js";
+import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
-import { outcomeData } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { outcomeData, type TxOutcomeView } from "../../services/transaction-mode.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
 import {
   governanceTransactionMode,
@@ -13,15 +17,7 @@ import {
   type GovernanceTransactionInput,
 } from "./governance-transaction.js";
 
-/**
- * The Ledger TRON app's parser implements a fixed contract-type allowlist (java's
- * `ledger/wrapper/ContractTypeChecker`), and none of this group's types are on it:
- * `WitnessCreateContract`, `WitnessUpdateContract`, `UpdateBrokerageContract`. The device answers
- * APDU 0x6a80 and no app setting changes that, so refuse before the user is sent to unlock it and
- * before any RPC is spent — the same rule the asset group follows.
- *
- * The `proposal` group is deliberately NOT gated: ProposalCreate/Approve/Delete *are* allowlisted.
- */
+// Ledger cannot sign WitnessCreateContract, WitnessUpdateContract, or UpdateBrokerageContract.
 const LEDGER_CANNOT_SIGN = { requireSoftware: true } as const;
 
 export interface WitnessUrlInput extends GovernanceTransactionInput {
@@ -36,10 +32,12 @@ export class TronWitnessService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
   async create(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
-    const gateway = this.gateways.get(network, "tron");
+    const url = witnessUrl(input.url);
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     const [witness, account, parameters] = await Promise.all([
@@ -49,9 +47,6 @@ export class TronWitnessService {
     ]);
     if (witness)
       throw new ChainError("already_witness", `${owner} is already a registered witness`);
-    // "Activated" means the node returned a record carrying an address. Testing for an EMPTY object
-    // is not the same thing: a node that answers with a stub (just `address`, no balance) would pass
-    // that check and the user would get an opaque node rejection instead of `account_not_active`.
     if (!account.address) {
       throw new ChainError("account_not_active", `${owner} is not activated on-chain`);
     }
@@ -66,49 +61,51 @@ export class TronWitnessService {
         `witness registration requires ${registrationFeeSun} SUN but the account balance is ${account.balance ?? "0"} SUN`,
       );
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       build: async (address) =>
-        gateway.buildWitnessCreate(address, input.url, { permissionId: input.permissionId }),
+        gateway.buildWitnessCreate(address, url, { permissionId: input.permissionId }),
       estimate: async (_tx: UnsignedTx) => ({
         feeModel: "tron-resource",
-        feeSun: registrationFeeSun.toString(),
+        feeSun: sunAmount(registrationFeeSun),
         note: "irreversible witness registration burn plus bandwidth",
       }),
     });
     return witnessReceipt("witness-create", outcomeData(outcome), owner, {
-      url: input.url,
-      // The node receipt's `fee` generally covers bandwidth/energy only. Witness registration
-      // also burns getAccountUpgradeCost, which is the economically relevant fee for this action.
+      url,
+      // Registration burns getAccountUpgradeCost in addition to receipt resource fees.
       feeSun: registrationFeeSun.toString(),
       registrationFeeSun: registrationFeeSun.toString(),
     });
   }
 
   async update(scope: TransactionScope, network: NetworkDescriptor, input: WitnessUrlInput) {
-    const gateway = this.gateways.get(network, "tron");
+    const url = witnessUrl(input.url);
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       build: async (address) =>
-        gateway.buildWitnessUpdate(address, input.url, { permissionId: input.permissionId }),
+        gateway.buildWitnessUpdate(address, url, { permissionId: input.permissionId }),
       estimate: bandwidthEstimate,
     });
-    return witnessReceipt("witness-update", outcomeData(outcome), owner, { url: input.url });
+    return witnessReceipt("witness-update", outcomeData(outcome), owner, { url });
   }
 
   async setBrokerage(
@@ -116,26 +113,28 @@ export class TronWitnessService {
     network: NetworkDescriptor,
     input: WitnessBrokerageInput,
   ) {
-    const gateway = this.gateways.get(network, "tron");
+    const brokerage = percent(input.percent, "brokerage");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const mode = governanceTransactionMode(this.pipeline, scope, input, LEDGER_CANNOT_SIGN);
     const owner = scope.resolveAddress("tron");
     await requireWitness(gateway, owner);
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...mode,
       confirm: tronConfirmation(gateway, scope),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       build: async (address) =>
-        gateway.buildWitnessSetBrokerage(address, input.percent, {
+        gateway.buildWitnessSetBrokerage(address, brokerage, {
           permissionId: input.permissionId,
         }),
       estimate: bandwidthEstimate,
     });
     return witnessReceipt("witness-set-brokerage", outcomeData(outcome), owner, {
-      brokerage: input.percent,
+      brokerage,
     });
   }
 }
@@ -146,15 +145,17 @@ async function requireWitness(gateway: TronGateway, address: string): Promise<vo
   }
 }
 
+type WitnessReceiptKind = "witness-create" | "witness-update" | "witness-set-brokerage";
+
 async function bandwidthEstimate(_tx: UnsignedTx) {
-  return { feeModel: "tron-resource", note: "witness governance uses bandwidth only" };
+  return { feeModel: "tron-resource" as const, note: "witness governance uses bandwidth only" };
 }
 
-function witnessReceipt(
-  kind: "witness-create" | "witness-update" | "witness-set-brokerage",
-  data: Record<string, unknown>,
+function witnessReceipt<K extends WitnessReceiptKind, F extends object>(
+  kind: K,
+  data: TxOutcomeView,
   witnessAddress: string,
-  fields: Record<string, unknown>,
+  fields: F,
 ) {
   const resource = transactionResource(data);
   return {

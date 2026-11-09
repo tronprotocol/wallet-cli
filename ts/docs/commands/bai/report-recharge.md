@@ -21,7 +21,7 @@ Give the values of the original recharge:
 
 The hash must be 64 hex characters on TRON and `0x` plus 64 hex characters on BSC and Base.
 
-The transaction is reported once; the CLI does not retry. When B.AI cannot find the transaction yet, or is rate-limiting the client, the command still succeeds with `creditStatus: "unconfirmed"` and a `code` / `warning` (a rate limit also carries `error.details.retryAfterMs` when B.AI sends `Retry-After`); run it again later. Do not recharge again. Reporting a transaction that is already credited is safe: it returns `credited` again and adds nothing.
+The transaction is reported once; the CLI does not retry. When B.AI cannot find the transaction yet, or is rate-limiting the client, the command still succeeds with `creditStatus: "unconfirmed"` and a `code` / `warning` (a rate limit also carries `error.details.retryAfterSeconds` when B.AI sends a usable `Retry-After`); run it again later. Do not recharge again. Reporting a transaction that is already credited is safe: it returns `credited` again and adds nothing.
 
 Requires a B.AI API key stored with [`config baiApiKey`](../config.md); see [`bai`](index.md#the-api-key).
 

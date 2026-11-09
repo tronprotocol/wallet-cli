@@ -1,12 +1,3 @@
-/**
- * Black-box checks for `sunswap add-liquidity`.
- *
- * Everything here is refused BEFORE a key is touched and, except where noted, before a request
- * would be made — so the suite needs neither a funded account nor a reachable node. The cases
- * that do need the chain (the dry-run's amounts and fee, the build-only transaction list) are
- * covered by unit tests and by the live Nile smoke, because pinning a golden file to a pool whose
- * reserves move every block would fail for the wrong reason.
- */
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -36,7 +27,7 @@ function run(args: string[]) {
   try {
     json = JSON.parse(r.stdout);
   } catch {
-    /* not json */
+    /* not JSON */
   }
   return { stdout: r.stdout, stderr: r.stderr, status: r.status, json };
 }
@@ -49,15 +40,6 @@ const PAIR = [
 ];
 
 describe("protocol", () => {
-  /**
-   * V4 is SERVED now, so the old case asserting "not supported yet" is gone.
-   *
-   * What replaces it is the refusal a V4 caller actually meets. A V4 pool key has FIVE parts, and a
-   * pair is two of them: the tier and the SPACING are missing, and the spacing cannot be derived
-   * from the tier the way V3's can. So a pair alone is a MISSING option rather than a rejected
-   * protocol — and the message has to say which flag and why, because the natural assumption
-   * carried over from V3 is that the fee tier fixes the spacing.
-   */
   it("asks a V4 caller for the parts of the pool key a pair does not carry", () => {
     const r = run([
       "sunswap",
@@ -100,11 +82,6 @@ describe("protocol", () => {
     expect(r.json.error.message).toContain("SAME fee tier");
   });
 
-  /**
-   * `--pool` IS GONE. It named a V4 pool by a 32-byte id that nothing here published —
-   * inconsistent with every other V4 money command, which locate by `--position-id`. An
-   * undeclared flag is refused by the parser, which is the right answer.
-   */
   it("no longer accepts --pool", () => {
     const r = run([
       "sunswap",
@@ -129,7 +106,6 @@ describe("protocol", () => {
     expect(r.json.error.code).toBe("invalid_option");
   });
 
-  // And a protocol that genuinely does not exist is still refused by value.
   it("still refuses a protocol that does not exist", () => {
     const r = run([
       "sunswap",
@@ -150,11 +126,6 @@ describe("protocol", () => {
 });
 
 describe("the flag matrix", () => {
-  /**
-   * The concentrated-liquidity flags are not declared on a V2-only command, so the parser refuses
-   * them as unknown rather than a refinement rejecting a flag that `--help` advertises. Either
-   * way it is `invalid_option` at exit 2, which is what the matrix asks for.
-   */
   it.each([
     ["--fee", "3000"],
     ["--tick-lower", "-887220"],
@@ -183,8 +154,6 @@ describe("the flag matrix", () => {
     expect(r.json.error.message).toContain(flag);
   });
 
-  // --sign-only is not offered anywhere in this group: a multi-transaction flow cannot guarantee
-  // offline what order its parts land in, or that the allowance is there when the deposit is.
   it("does not offer --sign-only", () => {
     const r = run([
       "sunswap",
@@ -206,8 +175,6 @@ describe("the flag matrix", () => {
 });
 
 describe("the V3 increase scenario", () => {
-  // A position's pair, tier and range are fixed at birth. Accepting these flags alongside
-  // --position-id would suggest they can be changed, which they cannot.
   it.each([
     ["--token0", "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"],
     ["--token1", "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a"],
@@ -238,14 +205,6 @@ describe("the V3 increase scenario", () => {
   });
 });
 
-/**
- * The V4 increase scenario: adding to an existing position.
- *
- * Its matrix is NOT V3's, and the difference is the point. On V3 an increase refuses the pair; on V4
- * it is required, because there the pair is a cross-check against what the position reports rather
- * than a selector. Everything the position genuinely fixes — its range, its holder, its pool — is
- * still refused.
- */
 describe("the V4 increase scenario", () => {
   const V4_INCREASE = [
     "sunswap",
@@ -279,7 +238,6 @@ describe("the V4 increase scenario", () => {
     expect(r.json.error.code).toBe("invalid_option");
   });
 
-  // The ceiling points the other way from a floor, on every V4 scenario.
   it.each([["--min0"], ["--min1"]])("refuses %s, because V4 bounds from above", (flag) => {
     const r = run([...V4_INCREASE, flag, "1", "--network", "nile", "-o", "json"]);
     expect(r.status).toBe(2);
@@ -287,13 +245,6 @@ describe("the V4 increase scenario", () => {
     expect(r.json.error.message).toContain("ABOVE");
   });
 
-  /**
-   * And the pair is REQUIRED, which is where V4 parts company with V3.
-   *
-   * It selects nothing — the position names its own pool — so the only thing it can be is a guard
-   * against adding to a position the caller did not mean. Dropping it would remove that guard
-   * silently, which is why its absence is an error rather than a default.
-   */
   it.each([["--token0"], ["--token1"]])("requires %s", (missing) => {
     const kept = missing === "--token0" ? ["--token1", PAIR[3]!] : ["--token0", PAIR[1]!];
     const r = run([
@@ -316,11 +267,6 @@ describe("the V4 increase scenario", () => {
     expect(r.json.error.message).toContain("checked against the pair the position holds");
   });
 
-  /**
-   * `--fee` and `--slippage` ARE accepted here — the tier as a second cross-check, the tolerance on
-   * the ceiling. Asserted by what the command fails on instead: it gets past the whole flag matrix
-   * and stops on the account it has no way to resolve, which is the next gate rather than this one.
-   */
   it("accepts --fee and --slippage, and stops on the account instead", () => {
     const r = run([
       ...V4_INCREASE,
@@ -334,15 +280,12 @@ describe("the V4 increase scenario", () => {
       "-o",
       "json",
     ]);
-    // Exit 1, not 2: the flag matrix is a usage gate and this is past it.
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("missing_wallet_address");
   });
 });
 
 describe("network availability", () => {
-  // The capability is registered from the network's own SunSwap contract block, so the networks
-  // without one refuse before any request.
   it("refuses shasta and names where the command does work", () => {
     const r = run([
       "sunswap",
@@ -363,15 +306,6 @@ describe("network availability", () => {
     expect(r.json.error.message).toBe("sunswap add-liquidity is available on tron and nile only");
   });
 
-  /**
-   * An EVM network fails EARLIER, and for a different reason: family resolution runs before the
-   * capability gate, so a TRON-only command on an EVM network is `family_mismatch` — the same
-   * answer `stake`, `vote`, `gasfree` and `exchange` give. Reporting
-   * `unsupported_network_capability` here instead would mean special-casing the family check for
-   * this one group so the same user error reported differently in sunswap than everywhere else.
-   *
-   * The pair of cases is the assertion worth keeping: it documents where the boundary sits.
-   */
   it("refuses an EVM network earlier still, on the family", () => {
     const r = run([
       "sunswap",
@@ -402,26 +336,16 @@ describe("help", () => {
     expect(r.stdout).toContain("--protocol");
     expect(r.stdout).toContain("--min0");
     expect(r.stdout).toContain("--deadline");
-    // V3's flags are served now and must be documented.
     expect(r.stdout).toContain("--tick-lower");
     expect(r.stdout).toContain("--position-id");
-    // On V3 a caller's TRX silently becomes WTRX, so help has to say so.
     expect(r.stdout).toContain("WTRX");
-    // V4's flags are served now too, so they must be documented rather than absent.
     expect(r.stdout).toContain("--sqrt-price");
     expect(r.stdout).toContain("--create-pool");
     expect(r.stdout).toContain("--slippage");
-    /*
-     * And a V4 caller has to be able to READ OFF the help that a pool takes four flags, and why the
-     * fourth exists. `--tick-spacing` is no longer a creation-only setting: it is part of the pool's
-     * identity, with no default, because two pools at one fee tier can differ in it.
-     */
     expect(r.stdout).toContain("--tick-spacing");
     expect(r.stdout).toContain("--hooks");
     expect(r.stdout).toMatch(/tick spacing/i);
-    // `--pool` is gone. Matched as a whole word, since `--create-pool` ends in the same letters.
     expect(r.stdout).not.toMatch(/(^|[\s,[(])--pool([\s,\].)=]|$)/m);
-    // And the one flag this command genuinely does not serve must still not appear.
     expect(r.stdout).not.toContain("--sign-only");
   });
 });

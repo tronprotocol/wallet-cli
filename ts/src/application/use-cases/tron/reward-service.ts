@@ -1,66 +1,81 @@
+import { requestDispatchCheck } from "../../services/command-deadline.js";
+import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError } from "../../../domain/errors/index.js";
+import { decimalToBigInt } from "../../../domain/numbers/index.js";
+import {
+  REWARD_WITHDRAW_INTERVAL_MS,
+  rewardWithdrawStatus,
+} from "../../../domain/tron/governance/voting.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAccount } from "../../ports/chain/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import {
   outcomeData,
+  receiptOf,
   transactionMode,
   transactionRequiresSigner,
   type TransactionModeInput,
 } from "../../services/transaction-mode.js";
-import { tronConfirmation } from "../../services/tron-confirmation.js";
+import { tronConfirmation } from "../../services/tron/tron-confirmation.js";
 import { tronTransactionHooks } from "./multisig-authorization.js";
-
-const WITHDRAW_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export class TronRewardService {
   constructor(
     private readonly gateways: ChainGatewayProvider,
     private readonly pipeline: TxPipeline,
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: WallClock = systemWallClock,
   ) {}
 
-  async balance(scope: Pick<TransactionScope, "resolveAddress">, network: NetworkDescriptor) {
-    const gateway = this.gateways.get(network, "tron");
+  async balance(
+    scope: Pick<TransactionScope, "resolveAddress" | "deadline">,
+    network: NetworkDescriptor,
+  ) {
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([
       gateway.getReward(address),
-      gateway.getAccount(address),
+      gateway.getAccountState(address),
     ]);
     return {
       address,
       rewardSun,
-      ...withdrawStatus(account, this.now()),
+      ...rewardWithdrawStatus(account.latestWithdrawAt, this.now()),
     };
   }
 
   async withdraw(scope: TransactionScope, network: NetworkDescriptor, input: TransactionModeInput) {
     if (transactionRequiresSigner(input)) this.pipeline.assertCanSign(scope.activeAccount, "tron");
-    const gateway = this.gateways.get(network, "tron");
+    const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const address = scope.resolveAddress("tron");
     const [rewardSun, account] = await Promise.all([
       gateway.getReward(address),
-      gateway.getAccount(address),
+      gateway.getAccountState(address),
     ]);
-    if (toUnsignedBigInt(rewardSun) === 0n) {
+    if (
+      decimalToBigInt(
+        rewardSun,
+        "claimable reward",
+        (message) => new ChainError("invalid_node_response", message),
+      ) === 0n
+    ) {
       throw new ChainError("no_reward", "no voting/block reward is currently claimable");
     }
-    const status = withdrawStatus(account, this.now());
+    const status = rewardWithdrawStatus(account.latestWithdrawAt, this.now());
     if (!status.withdrawableNow) {
       throw new ChainError(
         "withdraw_too_frequent",
         `reward can be withdrawn after ${new Date(status.withdrawableAt!).toISOString()}`,
       );
     }
-    const outcome = await this.pipeline.run({
+    const outcome = await this.pipeline.runTron({
       ctx: scope,
       net: network,
       account: scope.activeAccount,
       broadcaster: gateway,
       ...transactionMode(input),
-      ...tronTransactionHooks(gateway),
+      ...tronTransactionHooks(gateway, this.now),
+      preflight: null,
       confirm: tronConfirmation(gateway, scope),
       build: (owner) => gateway.buildWithdrawBalance(owner),
       estimate: async () => ({
@@ -72,27 +87,8 @@ export class TronRewardService {
     return {
       kind: "reward-withdraw" as const,
       ...data,
-      rewardSun: String(data.withdrawnSun ?? rewardSun),
+      rewardSun: String(receiptOf(data).withdrawnSun ?? rewardSun),
+      withdrawIntervalMs: REWARD_WITHDRAW_INTERVAL_MS,
     };
   }
-}
-
-function withdrawStatus(
-  account: TronAccount,
-  now: number,
-): { withdrawableNow: boolean; withdrawableAt: number | null } {
-  const latest = toUnsignedBigInt(account.latest_withdraw_time);
-  if (latest === 0n) return { withdrawableNow: true, withdrawableAt: null };
-  const at = Number(latest) + WITHDRAW_INTERVAL_MS;
-  return at <= now
-    ? { withdrawableNow: true, withdrawableAt: null }
-    : { withdrawableNow: false, withdrawableAt: at };
-}
-
-function toUnsignedBigInt(value: unknown): bigint {
-  if (typeof value === "bigint") return value >= 0n ? value : 0n;
-  if (typeof value === "number")
-    return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : 0n;
-  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
-  return 0n;
 }

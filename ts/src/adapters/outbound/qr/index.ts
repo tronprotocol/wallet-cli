@@ -1,21 +1,13 @@
 import QRCode from "qrcode";
-import type { QrEncoder } from "../../../application/ports/qr-encoder.js";
+import type { QrDisplay, QrEncoder } from "../../../application/ports/qr-encoder.js";
 import { UsageError } from "../../../domain/errors/index.js";
 
-interface TerminalShape {
-  isTTY?: boolean;
-  columns?: number;
-}
-
-/** Compact ANSI-free half-block QR renderer with a four-module quiet zone. */
 export class TerminalQrEncoder implements QrEncoder {
-  constructor(private readonly terminal: TerminalShape = process.stdout) {}
-
-  encode(payload: string): string | null {
+  encode(payload: string, display: QrDisplay): string | null {
     if (payload.length === 0 || payload.length > 512 || /[\p{Cc}\p{Cf}]/u.test(payload)) {
       throw new UsageError("invalid_value", "QR payload must contain 1-512 safe characters");
     }
-    if (!this.terminal.isTTY) return null;
+    if (!display.isTTY) return null;
 
     let matrix: ReturnType<typeof QRCode.create>["modules"];
     try {
@@ -27,7 +19,7 @@ export class TerminalQrEncoder implements QrEncoder {
     }
     const quietZone = 4;
     const width = matrix.size + quietZone * 2;
-    if ((this.terminal.columns ?? 0) < width) return null;
+    if (display.columns < width) return null;
 
     const bit = (row: number, column: number): boolean =>
       row >= quietZone &&
@@ -43,7 +35,7 @@ export class TerminalQrEncoder implements QrEncoder {
         const bottom = bit(row + 1, column);
         line += top ? (bottom ? "█" : "▀") : bottom ? "▄" : " ";
       }
-      // Retain the right quiet zone; it is part of the scannable symbol.
+      // Keep trailing spaces: the quiet zone is part of the scannable symbol.
       lines.push(line);
     }
     return lines.join("\n");

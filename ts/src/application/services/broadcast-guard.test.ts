@@ -24,8 +24,6 @@ describe("broadcast guard", () => {
     });
   });
 
-  // A bar that outlived its section would turn every later broadcast in the same process into a
-  // false bug report — the failure mode of a guard is that it fires when it should not.
   it("lifts the bar once the section returns", async () => {
     await barBroadcasts("tx broadcast --dry-run", async () => {});
     expect(() => assertBroadcastAllowed()).not.toThrow();

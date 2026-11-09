@@ -66,7 +66,7 @@ wallet-cli token balance --contract 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 -
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`, `timeout`) · `2` usage error (`invalid_value` — missing or conflicting selector; `invalid_option` — `--asset-id` on an EVM network).
+`0` success · `1` execution failure (`rpc_error`, `timeout`) · `2` usage error (`invalid_value` — malformed values; `missing_option` — missing `--contract` on EVM; `invalid_option` — missing or conflicting selector on TRON, or `--asset-id` on an EVM network).
 
 ## See also
 

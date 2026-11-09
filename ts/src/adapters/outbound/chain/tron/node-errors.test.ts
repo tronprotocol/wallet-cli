@@ -15,7 +15,6 @@ describe("node rejection classification", () => {
   });
 
   it("sees through java-tron's envelope, which is what actually reaches the wire", () => {
-    // captured verbatim from a Nile node on 2026-08-09
     expect(
       classifyNodeRejection("Contract validate error : ExchangeTransactionContract is rejected")
         ?.code,
@@ -42,7 +41,6 @@ describe("node rejection classification", () => {
   });
 
   it("does not match a longer message that merely contains a rule's text", () => {
-    // anchored rules must not fire on a message that embeds their wording in a different claim
     expect(
       classifyNodeRejection("Not precise enough for the withdrawal, but proceeding"),
     ).toBeUndefined();

@@ -1,5 +1,6 @@
-import { baiApiError } from "./api-error.js";
-import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "../http/http-response.js";
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import { baiApiError, credentialRefusal } from "./api-error.js";
+import { requestJson } from "../http/json-service.js";
 import { z } from "zod";
 import { parse as parseLosslessJson } from "lossless-json";
 import type {
@@ -7,7 +8,9 @@ import type {
   BaiPageInput,
   BaiPageView,
   BaiStatusView,
+  BaiUsageRecord,
 } from "../../../application/ports/bai-api.js";
+import type { BaiRawOrder } from "../../../application/ports/bai-recharge.js";
 import type { Config } from "../../../domain/types/index.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
 
@@ -23,13 +26,12 @@ export const DEFAULT_BAI_BASE_URL = "https://chat.bankofai.io";
 export class BaiClient implements BaiApi {
   constructor(
     private readonly config: Pick<Config, "baiApiKey">,
-    private readonly timeoutMs: number,
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly baseUrl = DEFAULT_BAI_BASE_URL,
   ) {}
 
-  async status(): Promise<BaiStatusView> {
-    const value = responseObject(await this.call("usage.summary", null));
+  async status(check: DispatchCheck): Promise<BaiStatusView> {
+    const value = responseObject(await this.call("usage.summary", null, check));
     return {
       pointsBalance: scalar(value.points_balance, "points_balance"),
       monthlySpent: scalar(value.monthly_spent, "monthly_spent"),
@@ -40,26 +42,42 @@ export class BaiClient implements BaiApi {
     };
   }
 
-  async usageList(input: BaiPageInput): Promise<BaiPageView> {
-    const raw = await this.call("usage.records", { ...input, mode: "all" });
+  async usageList(input: BaiPageInput, check: DispatchCheck): Promise<BaiPageView<BaiUsageRecord>> {
+    const raw = await this.call(
+      "usage.records",
+      {
+        page: input.page,
+        pageSize: input.pageSize,
+        sortBy: "created_at",
+        sortOrder: input.sortOrder,
+        ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+        mode: "all",
+      },
+      check,
+    );
     const parsed = z.looseObject({ data: z.array(ObjectSchema) }).safeParse(raw);
     if (!parsed.success)
       throw new TransportError("provider_error", "B.AI returned invalid usage records");
-    return page(parsed.data);
+    const result = page(parsed.data);
+    return { ...result, items: result.items.map(usageRecord) };
   }
 
-  async rechargeList(input: BaiPageInput): Promise<BaiPageView> {
+  async rechargeList(input: BaiPageInput, check: DispatchCheck): Promise<BaiPageView<BaiRawOrder>> {
     return page(
-      await this.call("order.listOrders", {
-        page: input.page,
-        pageSize: input.pageSize,
-        sortBy: input.sortBy === "created_at" ? "createdAt" : input.sortBy,
-        order: input.sortOrder,
-      }),
-    );
+      await this.call(
+        "order.listOrders",
+        {
+          page: input.page,
+          pageSize: input.pageSize,
+          sortBy: "createdAt",
+          order: input.sortOrder,
+        },
+        check,
+      ),
+    ) as unknown as BaiPageView<BaiRawOrder>;
   }
 
-  private async call(procedure: string, input: unknown): Promise<unknown> {
+  private async call(procedure: string, input: unknown, check: DispatchCheck): Promise<unknown> {
     const key = this.config.baiApiKey;
     if (!key) {
       throw new UsageError(
@@ -87,52 +105,38 @@ export class BaiClient implements BaiApi {
           ? ""
           : `?batch=1&input=${encoded}`;
     const url = `${this.baseUrl}/trpc/lambda/${procedure}${suffix}`;
-    const signal = AbortSignal.timeout(this.timeoutMs);
-    let response: Response;
-    try {
-      response = await this.fetcher(url, {
-        method: "GET",
-        headers: { Accept: "application/json", Authorization: `Bearer ${key}` },
-        redirect: "error",
-        signal,
-      });
-      if ([401, 403, 429].includes(response.status)) {
-        await response.body?.cancel();
-        throw baiApiError(undefined, procedure, response.status)!;
-      }
-      response = await boundedResponse(response, MAX_HTTP_RESPONSE_BYTES, signal);
-    } catch (error) {
-      if (error instanceof TransportError) throw error;
-      if (
-        signal.aborted ||
-        (error instanceof Error && /TimeoutError|AbortError/.test(error.name))
-      ) {
-        throw new TransportError("timeout", "B.AI API request timed out");
-      }
-      throw new TransportError(
-        "provider_error",
-        "B.AI API connection failed; check connectivity and the service endpoint",
-        { procedure, reason: "connection_failed" },
-      );
-    }
-    let decoded: unknown;
-    try {
-      const body = await response.text();
-      // Summary scalars are exposed as strings; preserve numeric literals before any rounding.
-      // Lists retain their existing numeric fields and pagination contract.
-      decoded =
-        procedure === "usage.summary"
-          ? parseLosslessJson(body, undefined, (value) => value)
-          : JSON.parse(body);
-    } catch {
-      const statusError = baiApiError(undefined, procedure, response.status);
-      if (statusError) throw statusError;
-      throw new TransportError("provider_error", "B.AI API returned malformed JSON", {
-        procedure,
-        reason: "malformed_json",
-      });
-    }
-    const apiError = baiApiError(decoded, procedure, response.status);
+    const { status, body: decoded } = await requestJson(
+      this.fetcher,
+      url,
+      { method: "GET", headers: { Accept: "application/json", Authorization: `Bearer ${key}` } },
+      {
+        service: "B.AI",
+        context: { procedure, retryPayment: false },
+        check,
+        // Preserve summary precision; list responses use JSON numbers.
+        parse: (text) =>
+          procedure === "usage.summary"
+            ? parseLosslessJson(text, undefined, (value) => value)
+            : JSON.parse(text),
+        refuse: (response) => credentialRefusal(procedure, response.status),
+        errors: {
+          timeout: () => new TransportError("timeout", "B.AI API request timed out"),
+          unreachable: () =>
+            new TransportError(
+              "provider_error",
+              "B.AI API connection failed; check connectivity and the service endpoint",
+              { procedure, reason: "connection_failed" },
+            ),
+          malformed: (status) =>
+            baiApiError(undefined, procedure, status) ??
+            new TransportError("provider_error", "B.AI API returned malformed JSON", {
+              procedure,
+              reason: "malformed_json",
+            }),
+        },
+      },
+    );
+    const apiError = baiApiError(decoded, procedure, status);
     if (apiError) throw apiError;
     const first = Array.isArray(decoded) ? decoded[0] : decoded;
     if (
@@ -173,7 +177,35 @@ function arrayOfObjects(value: unknown): Record<string, unknown>[] {
   });
 }
 
-function page(raw: unknown): BaiPageView {
+// The service has sent both snake_case and camelCase field names.
+function usageRecord(row: Record<string, unknown>): BaiUsageRecord {
+  return {
+    id: optionalString(row.id),
+    createdAt: optionalString(row.created_at ?? row.createdAt),
+    model: optionalString(row.model),
+    inputTokens: optionalScalar(row.input_tokens ?? row.inputTokens),
+    outputTokens: optionalScalar(row.output_tokens ?? row.outputTokens),
+    totalTokens: optionalScalar(row.total_tokens ?? row.totalTokens),
+    credits: optionalScalar(row.cost_points ?? row.credits),
+    latencyMs: secondsToMilliseconds(row.duration_sec ?? row.durationSec),
+    source: optionalString(row.source_type ?? row.source),
+  };
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function optionalScalar(value: unknown): string | undefined {
+  return typeof value === "string" || typeof value === "number" ? String(value) : undefined;
+}
+
+function secondsToMilliseconds(value: unknown): number | undefined {
+  const seconds = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : undefined;
+}
+
+function page(raw: unknown): BaiPageView<Record<string, unknown>> {
   const value = responseObject(raw);
   const items = arrayOfObjects(Array.isArray(value.data) ? value.data : value.orders);
   const pageNumber = finiteInteger(value.page, 1) ?? 1;

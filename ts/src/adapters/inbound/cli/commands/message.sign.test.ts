@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { messageSignSpec, messageSignBinding } from "./shared.js";
 
-// SecretResolver.pick is an exactly-one selector: both sources → invalid_option, neither →
-// missing_option. That constraint used to live only in the runtime and in prose inside the
-// --message description, so `--help` listed a lone "[optional]" flag and never named --message-stdin
-// as the alternative.
 describe("message sign exclusive group", () => {
   it("declares the inline flag and the stdin channel as jointly required", () => {
     expect(messageSignSpec.exclusive).toEqual([

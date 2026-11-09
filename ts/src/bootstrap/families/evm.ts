@@ -1,3 +1,4 @@
+import { processBroadcastGuard } from "../../application/services/broadcast-guard.js";
 import type { AgentService } from "../../application/use-cases/agent-service.js";
 import {
   showSpec,
@@ -17,24 +18,13 @@ import {
   operatorCheckSpec,
   operatorCheckEvmBinding,
 } from "../../adapters/inbound/cli/commands/erc8004.js";
-/**
- * The EVM family plugin — the composition root's entry for `evm`.
- *
- * The plugin supplies the family's identity, signing strategy and gateway factory;
- * `registerEvmChainCommands` binds the commands EVM can serve. Paths with no binding here still
- * refuse cleanly at dispatch (`family_mismatch`).
- *
- * Twenty-nine commands are bound: eight ERC-8004 identity commands, the two signing commands (which need nothing from the chain —
- * the family difference lives entirely inside `evmSignStrategy` — and so reuse the very binding
- * objects the TRON family registers), plus the account, block, chain, tx, token and contract
- * commands that sit on the JSON-RPC gateway.
- */
 import { FAMILIES } from "../../domain/family/index.js";
 import { evmSignStrategy } from "../../adapters/outbound/chain/evm/signing-strategy.js";
 import { EvmRpcClient } from "../../adapters/outbound/chain/evm/evm.js";
 import { MessageService } from "../../application/use-cases/message-service.js";
 import { TypedDataService } from "../../application/use-cases/typed-data-service.js";
 import type { SignerResolver } from "../../application/services/signer/index.js";
+import type { SigningService } from "../../application/services/signing/signing-service.js";
 import type { CommandRegistry } from "../../adapters/inbound/cli/registry/index.js";
 import { messageSignBinding, messageSignSpec } from "../../adapters/inbound/cli/commands/shared.js";
 import {
@@ -107,18 +97,17 @@ import type { FamilyPlugin } from "./types.js";
 export const evmFamily: FamilyPlugin<"evm"> = {
   meta: FAMILIES.evm,
   signStrategy: evmSignStrategy,
-  createGateway: (network, timeoutMs) => new EvmRpcClient(network, timeoutMs),
+  createGateway: (network) => new EvmRpcClient(network, undefined, processBroadcastGuard),
 };
 
 export interface EvmChainCommandDependencies {
   agents: AgentService;
   signers: SignerResolver;
+  signing: SigningService;
   gateways: ChainGatewayProvider;
-  /** the family-neutral native-balance service, shared with every other family. */
   balances: AccountBalanceService;
   tokens: TokenRepository;
   prices: PriceProvider;
-  /** the family-neutral address-book listing, shared with every other family. */
   tokenBook: TokenBookService;
   transactions: TxPipeline;
   recipients: RecipientResolver;
@@ -137,8 +126,16 @@ export function registerEvmChainCommands(
   reg.addChain(operatorRemoveSpec, "evm", operatorRemoveEvmBinding(deps.agents));
   reg.addChain(operatorCheckSpec, "evm", operatorCheckEvmBinding(deps.agents));
 
-  reg.addChain(messageSignSpec, "evm", messageSignBinding(new MessageService(deps.signers)));
-  reg.addChain(typedDataSignSpec, "evm", typedDataSignBinding(new TypedDataService(deps.signers)));
+  reg.addChain(
+    messageSignSpec,
+    "evm",
+    messageSignBinding(new MessageService(deps.signers, deps.signing)),
+  );
+  reg.addChain(
+    typedDataSignSpec,
+    "evm",
+    typedDataSignBinding(new TypedDataService(deps.signers, deps.signing)),
+  );
 
   const account = new EvmAccountService(deps.gateways, deps.tokens, deps.prices);
   reg.addChain(accountBalanceSpec, "evm", accountBalanceBinding(deps.balances));
@@ -154,13 +151,10 @@ export function registerEvmChainCommands(
     deps.tokens,
     deps.transactions,
     deps.recipients,
+    new SecureTransactionArtifactWriter(),
   );
   reg.addChain(txSendSpec, "evm", txSendEvmBinding(transaction));
-  reg.addChain(
-    txSignSpec,
-    "evm",
-    txSignEvmBinding(transaction, new SecureTransactionArtifactWriter()),
-  );
+  reg.addChain(txSignSpec, "evm", txSignEvmBinding(transaction));
   reg.addChain(txBroadcastSpec, "evm", txBroadcastEvmBinding(transaction));
   reg.addChain(txStatusSpec, "evm", txStatusEvmBinding(transaction));
   reg.addChain(txInfoSpec, "evm", txInfoEvmBinding(transaction));

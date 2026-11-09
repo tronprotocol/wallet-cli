@@ -30,8 +30,8 @@ wallet-cli chain prices --network nile
 ```
 
 ```console
-Energy price     100 SUN / unit    (current)
-Bandwidth price  1,000 SUN / unit  (current)
+Energy price     100 sun / unit    (current)
+Bandwidth price  1,000 sun / unit  (current)
 Memo fee         1 TRX
 ```
 
@@ -92,7 +92,7 @@ EVM:
 
 ## Exit status
 
-`0` success · `1` execution failure (`rpc_error`, `timeout`) · `2` usage error.
+`0` success · `1` execution failure (`rpc_error`, `timeout`; `invalid_node_response` when a TRON price timeline is empty or malformed) · `2` usage error.
 
 ## See also
 

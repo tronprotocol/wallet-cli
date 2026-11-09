@@ -106,7 +106,7 @@ Each record (a field B.AI does not supply is absent):
 
 ## Exit status
 
-`0` success · `1` execution failure (`bai_auth_failed`; `bai_rejected`; `provider_error` — including a `--cursor` B.AI does not accept; `timeout`) · `2` usage error (`bai_credentials_missing`; `invalid_value` — `--offset` not a multiple of `--limit`, or out of range).
+`0` success · `1` execution failure (`bai_auth_failed`; `bai_rejected`; `provider_error` — including a `--cursor` B.AI does not accept; `provider_rate_limited` — HTTP 429; `timeout`) · `2` usage error (`bai_credentials_missing`; `invalid_value` — `--offset` not a multiple of `--limit`, or out of range).
 
 ## See also
 

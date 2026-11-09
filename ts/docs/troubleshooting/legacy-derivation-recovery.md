@@ -1,6 +1,6 @@
 # Recover addresses after `legacy_derivation`
 
-Before 4.13.1, wallet-cli derived TRON accounts at `m/44'/195'/<index>'/0/0`. It now uses `m/44'/195'/0'/0/<index>`, the same layout as EVM. Account #0 is the same under both, and EVM paths never changed. **TRON accounts #1 and later in an older wallet keep their old address**, and this version handles them like this:
+The default TRON seed path is `m/44'/195'/0'/0/<index>`. A stored seed account can instead use `m/44'/195'/<index>'/0/0`. The paths agree at index 0. **At indexes greater than zero, the CLI retains the stored TRON address** and applies these rules:
 
 | What you do | Result |
 |---|---|
@@ -14,10 +14,7 @@ The old key is not lost — the recovery phrase still produces it at the old pat
 
 ## The error
 
-```console
-error [legacy_derivation]: account "main-1" was derived at m/44'/195'/1'/0/0, a TRON path this version no longer produces, so it cannot be signed here. Follow the complete recovery procedure before deleting anything:
-  https://github.com/tronprotocol/wallet-cli/blob/wallet-cli-4.13.1/ts/docs/troubleshooting/legacy-derivation-recovery.md
-```
+`legacy_derivation` identifies the affected account and its TRON path, and points to this recovery procedure.
 
 ## Before you start
 
@@ -43,11 +40,10 @@ wallet-cli list -o json > ./accounts-before.json
 wallet-cli backup main --out ./main-mnemonic.json
 ```
 
-Choose **Native wallet backup** at the prompt. The backup lists every account that needs step 1, with the command for it:
+Choose **Native wallet backup** at the prompt. The warning lists each affected account and supplies its keystore export command:
 
-```console
-warning: this version's default mnemonic recovery will NOT recreate wlt_n5g8s27j.1 (m/44'/195'/1'/0/0) — that account was derived at a TRON path this version no longer produces, but the recovery phrase can still derive that key at the listed path. Export it separately before deleting anything:
-  wallet-cli backup wlt_n5g8s27j.1 --keystore --network tron:728126428 --password-stdin
+```bash
+wallet-cli backup wlt_n5g8s27j.1 --keystore --network tron:728126428 --password-stdin
 ```
 
 Keep both files private and out of version control.
@@ -77,7 +73,7 @@ wallet-cli import keystore ./main-1-tron.keystore.json --label main-1-legacy-tro
 
 The TRON address matches the old one and signs normally. The EVM address comes from the same private key and is **not** the wallet's EVM address for `main-1` — ignore it unless you mean to use it.
 
-Check that every old TRON address now also appears under `private key`:
+Check that every affected TRON address also appears under `private key`:
 
 ```bash
 wallet-cli list --network tron:728126428

@@ -1,12 +1,3 @@
-/**
- * Black-box checks for `sunpump buy` and `sunpump sell`.
- *
- * Everything here is refused before a key is touched, and every case but the network gate is
- * refused before a request would be made — so the suite needs neither a funded account nor a
- * reachable node. Pricing, the curve's state gate and the platform-fee floor are covered by unit
- * tests and by the live mainnet smoke, because a curve's price moves with every trade and a golden
- * file pinned to one would fail for the wrong reason.
- */
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -38,7 +29,7 @@ function run(args: string[]) {
   try {
     json = JSON.parse(r.stdout);
   } catch {
-    /* not json */
+    /* not JSON */
   }
   return { stdout: r.stdout, stderr: r.stderr, status: r.status, json };
 }
@@ -63,7 +54,6 @@ describe("--quote excludes the flags that describe a transaction", () => {
     expect(r.json.error.message).toContain("which sends no transaction");
   });
 
-  // A floor given to a quote would be accepted and then protect nothing.
   it.each([
     ["buy", "--trx", "--slippage", "0.0001", "a tolerance"],
     ["sell", "--amount", "--min-out", "1", "a minimum"],
@@ -89,7 +79,7 @@ describe("--quote excludes the flags that describe a transaction", () => {
     );
   });
 
-  it.each([["--wait"], ["--wait-timeout", "1000"]])("refuses %s alongside --quote", (...flag) => {
+  it("refuses --wait alongside --quote", () => {
     const r = run([
       "sunpump",
       "sell",
@@ -97,7 +87,7 @@ describe("--quote excludes the flags that describe a transaction", () => {
       "--amount",
       "1",
       "--quote",
-      ...flag,
+      "--wait",
       "--network",
       "tron",
       "-o",
@@ -106,14 +96,32 @@ describe("--quote excludes the flags that describe a transaction", () => {
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_option");
     expect(r.json.error.message).toBe(
-      `${flag[0]} cannot be used with --quote, which sends no transaction`,
+      "--wait cannot be used with --quote, which submits no transaction",
     );
+  });
+
+  it("rejects the removed --wait-timeout as an unknown option", () => {
+    const r = run([
+      "sunpump",
+      "sell",
+      TOKEN,
+      "--amount",
+      "1",
+      "--quote",
+      "--wait-timeout",
+      "1000",
+      "--network",
+      "tron",
+      "-o",
+      "json",
+    ]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toBe("unknown option(s): --wait-timeout");
   });
 });
 
 describe("the two floors are exclusive", () => {
-  // Two ways of setting the same thing. A caller who gave both does not know which they are
-  // getting, so neither silently wins.
   it.each([
     ["buy", "--trx"],
     ["sell", "--amount"],
@@ -158,12 +166,6 @@ describe("--slippage bounds", () => {
     expect(r.json.error.code).toBe("invalid_value");
   });
 
-  /**
-   * The conversion to basis points is integer arithmetic on the digits, not
-   * `Number(value) * 10000` — which turns 0.0003 into 2.9999999999999996 and floors it to 2,
-   * silently giving a caller a worse floor than they asked for. Four decimals is the limit
-   * precisely so the conversion is always exact; a fifth is refused rather than rounded away.
-   */
   it("refuses a tolerance finer than one basis point rather than rounding it to zero", () => {
     const r = run([
       "sunpump",
@@ -213,12 +215,6 @@ describe("required options", () => {
 });
 
 describe("network availability", () => {
-  /**
-   * This group is mainnet only, and the gate is the network's own config block rather than a
-   * branch on its id. Nile's launchpad contract exists and is reachable, but the released
-   * binary does not carry its address — so a tester opens it in config.yaml and nothing in the
-   * code has to change.
-   */
   it.each([
     ["nile", "buy"],
     ["nile", "sell"],
@@ -266,13 +262,11 @@ describe("help", () => {
     expect(r.stdout).toContain("--quote");
     expect(r.stdout).toContain("--slippage");
     expect(r.stdout).toContain("--min-out");
-    // The two facts a caller cannot infer from the flags.
     expect(r.stdout).toContain("0.01 TRX MINIMUM");
     expect(r.stdout).toContain("TRADING");
     expect(r.stdout).not.toContain("--sign-only");
   });
 
-  // A buy approves nothing; a sale approves without limit. Both are surprising, so both are said.
   it("buy says nothing is approved", () => {
     const r = run(["sunpump", "buy", "--help"]);
     expect(r.stdout).toContain("NOTHING is approved");
@@ -285,16 +279,7 @@ describe("help", () => {
   });
 });
 
-/**
- * A quote publishes no floor, in either direction.
- *
- * `--quote` refuses `--slippage`, so a minimum would come from a default the caller never chose,
- * and nothing would enforce it because a quote produces no transaction. An agent reading it would
- * believe it had protection it does not have.
- *
- * These cases reach the chain — they are the one part of this file that does — because the
- * omission is a property of the real payload and asserting it against a stub would prove nothing.
- */
+// These quote cases read live state and may return before assertions.
 describe("quote mode carries no minimum", () => {
   const TRADING = "TBCjrpTjwjF61J8pYY6DKa8JvevbmBah1E";
 
@@ -311,7 +296,7 @@ describe("quote mode carries no minimum", () => {
       "-o",
       "json",
     ]);
-    if (r.status !== 0) return; // the curve may have launched; the offline cases still hold
+    if (r.status !== 0) return;
     expect(r.json.data.mode).toBe("quote");
     expect(r.json.data).not.toHaveProperty("slippage");
     expect(r.json.data).not.toHaveProperty("tokensOutMinimum");

@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { classifyEvmRejection, CLASSIFIED_METHODS } from "./node-errors.js";
 
-/**
- * The classifier answers per RPC METHOD, because that is what decides whether a node error can be
- * a verdict at all. Everything below is a statement about a method, not about a call site.
- */
 describe("classifyEvmRejection", () => {
   it("reads a simulation's funding failure as insufficient_balance", () => {
     expect(
@@ -28,9 +24,6 @@ describe("classifyEvmRejection", () => {
     );
   });
 
-  // `out of gas` is the one phrase whose meaning genuinely depends on the method: inside a
-  // simulation the EVM halted while running the call (the contract's answer); on a submission the
-  // transaction never carried enough gas to start.
   it("splits `out of gas` by method", () => {
     expect(classifyEvmRejection("eth_call", "out of gas")?.code).toBe("execution_reverted");
     expect(classifyEvmRejection("eth_estimateGas", "out of gas")?.code).toBe("execution_reverted");
@@ -43,12 +36,6 @@ describe("classifyEvmRejection", () => {
     );
   });
 
-  /**
-   * The line this whole design exists to hold. A read method has no transaction to judge, so its
-   * errors are the NODE failing — a rate limit, an unimplemented method, a bad gateway — and must
-   * stay `rpc_error`. Classifying them would turn an outage into a confident claim about the
-   * user's funds. Do not "extend coverage" by adding read methods to CLASSIFIED_METHODS.
-   */
   it.each(["eth_getBalance", "eth_getTransactionCount", "eth_getCode", "eth_chainId"])(
     "refuses to classify %s, whatever the wording",
     (method) => {

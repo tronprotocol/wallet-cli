@@ -1,28 +1,23 @@
-/**
- * MigrationRunner — reads each registered file, decides what lags this binary, and applies the
- * pending migrations as one transaction. Splitting plan from apply is deliberate: the gate must
- * know whether a password will be needed BEFORE it prompts for one.
- */
+// Plan separately to determine password needs before prompting.
 import { planMigrations, storedVersionOf } from "../../../domain/migration/index.js";
 import { ExecutionError } from "../../../domain/errors/index.js";
 import type { AtomicFileStore } from "./fs/index.js";
+import type {
+  DataMigrationPlan,
+  DataMigrations,
+  PendingUpgrade,
+} from "../../../application/ports/data-migration.js";
 
 export interface MigrationStep {
-  /** absolute path of the file this step owns. */
+  // Absolute path.
   path: string;
-  /** the version this binary expects the file to be at. */
   currentVersion: number;
-  /** whether migrating THIS document needs the master password (contents decide, not the file). */
   needsPassword(doc: unknown): boolean;
-  /** `password` is present only when this step's needsPassword() said so. */
+  // Password is supplied when the plan requires it.
   migrate(doc: unknown, password?: string): unknown;
 }
 
-/**
- * A file the plan found lagging, named by the version it was AT when planned. The document itself
- * is deliberately not carried: `commit()` re-reads it under the lock, and a copy kept here would
- * only be the stale read that copy exists to avoid.
- */
+// Carry versions, not documents: commit must re-read each file under its lock.
 export interface StaleFile {
   step: MigrationStep;
   storedVersion: number;
@@ -33,7 +28,7 @@ export interface RunnerPlan {
   needsPassword: boolean;
 }
 
-/** stable, never-pruned name for a file's pre-migration copy. */
+// Pre-migration copies persist after a successful write.
 export function backupPathFor(path: string, storedVersion: number): string {
   return `${path}.v${storedVersion}.bak`;
 }
@@ -63,53 +58,27 @@ export class MigrationRunner {
     };
   }
 
-  /**
-   * Applies every pending migration as ONE transaction: either the whole set lands, or none.
-   * The pre-migration copies ride inside the same transaction, so a rollback removes them too —
-   * nothing changed, so there is nothing to recover from.
-   */
-  apply(stale: StaleFile[], password?: string): void {
-    if (stale.length === 0) return;
-    this.write(stale, password);
+  // Migrated documents and backup copies share one rollback batch. Returns the rollback copies left
+  // on disk after the commit.
+  apply(stale: StaleFile[], password?: string): string[] {
+    if (stale.length === 0) return [];
+    return this.write(stale, password);
   }
 
-  /**
-   * Nested locks, one per migrated file, so the whole read-modify-write sits inside them — the
-   * same discipline every keystore mutator follows.
-   *
-   * Without it the race is the worst kind available here: process A reads the v1 document and
-   * blocks on an interactive password prompt while process B migrates and creates an account
-   * under the lock; A then writes the migration of its now-stale read, erasing B's account and
-   * orphaning its encrypted key blob.
-   */
-  private write(stale: StaleFile[], password: string | undefined, held = 0): void {
+  // Hold all file locks across the complete read-modify-write.
+  private write(stale: StaleFile[], password: string | undefined, held = 0): string[] {
     if (held === stale.length) return this.commit(stale, password);
-    this.store.withLock(stale[held]!.step.path, () => this.write(stale, password, held + 1));
+    return this.store.withLock(stale[held]!.step.path, () => this.write(stale, password, held + 1));
   }
 
-  /**
-   * Re-read under the lock, and migrate what is ON DISK rather than what `plan()` captured.
-   *
-   * The snapshot is older than the lock by the whole length of the gate's notice, consent and
-   * password prompt, so anything another process committed in that window is missing from it and
-   * writing it back would erase that work.
-   *
-   * A version comparison is enough to detect any such change: the gate is absolute, so a second
-   * process cannot touch a stale file without migrating it first, and migrating it moves the
-   * version. Hashing the document would cost more and catch nothing extra.
-   */
-  private commit(stale: StaleFile[], password: string | undefined): void {
+  // Re-read under lock to preserve changes made while confirmation or password prompts were open.
+  private commit(stale: StaleFile[], password: string | undefined): string[] {
     const writes: Array<{ path: string; value: unknown }> = [];
     for (const { step, storedVersion } of stale) {
       const doc = this.store.readJson<unknown>(step.path);
       const found = storedVersionOf(doc, step.currentVersion, step.path);
-      // Another process ran this same upgrade while we waited. The file already holds what this
-      // binary wants, so there is nothing to write — and nothing to take a copy of either.
       if (found === step.currentVersion) continue;
       if (found !== storedVersion) {
-        // `io_error` is the closest existing code with retry: "same"; the condition is transient
-        // and re-running the command re-plans against the file as it now stands. It is not worth
-        // a new code in the published error vocabulary for a window this narrow.
         throw new ExecutionError(
           "io_error",
           `${step.path} changed from version ${storedVersion} to ${found} while this upgrade was ` +
@@ -121,7 +90,41 @@ export class MigrationRunner {
         { path: step.path, value: step.migrate(doc, password) },
       );
     }
-    if (writes.length === 0) return;
-    this.store.writeJsonAll(writes);
+    if (writes.length === 0) return [];
+    return this.store.writeJsonAll(writes);
   }
+}
+
+// Pending upgrades map back to their steps by path.
+export class FileDataMigrations implements DataMigrations {
+  readonly #runner: MigrationRunner;
+
+  constructor(
+    store: AtomicFileStore,
+    private readonly steps: MigrationStep[],
+  ) {
+    this.#runner = new MigrationRunner(store);
+  }
+
+  plan(): DataMigrationPlan {
+    const plan = this.#runner.plan(this.steps);
+    return { pending: plan.stale.map(pendingUpgrade), needsPassword: plan.needsPassword };
+  }
+
+  apply(pending: PendingUpgrade[], password?: string): string[] {
+    const byPath = new Map(this.steps.map((step) => [step.path, step]));
+    return this.#runner.apply(
+      pending.map((file) => ({ step: byPath.get(file.path)!, storedVersion: file.from })),
+      password,
+    );
+  }
+}
+
+function pendingUpgrade(file: StaleFile): PendingUpgrade {
+  return {
+    path: file.step.path,
+    from: file.storedVersion,
+    to: file.step.currentVersion,
+    backup: backupPathFor(file.step.path, file.storedVersion),
+  };
 }

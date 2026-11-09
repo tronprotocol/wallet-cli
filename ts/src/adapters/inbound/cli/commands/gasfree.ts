@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
-import type { GasFreeService } from "../../../../application/use-cases/tron/gasfree-service.js";
+import type { GasFreeService } from "../../../../application/use-cases/gasfree/gasfree-service.js";
 import { TextFormatters } from "../render/index.js";
+import { isZeroAmount } from "../../../../domain/amounts/index.js";
+import { defaultToken } from "../../../../application/services/default-token.js";
 
 export const gasFreeInfoSpec: ChainSpec = {
   path: ["gasfree", "info"],
@@ -27,14 +29,14 @@ const transferFields = z.object({
   amount: z
     .string()
     .regex(/^\d+(\.\d+)?$/, "must be a positive decimal amount")
-    .refine((value) => !/^0+(\.0+)?$/.test(value), "must be greater than zero")
+    .refine((value) => !isZeroAmount(value), "must be greater than zero")
     .describe("human token amount to transfer, in token units"),
   token: z
     .string()
     .trim()
     .min(1)
     .max(32)
-    .default("USDT")
+    .default(defaultToken("gasfree.transfer"))
     .describe("token symbol supported by the GasFree provider"),
   dryRun: z
     .boolean()
@@ -56,21 +58,12 @@ export const gasFreeTransferSpec: ChainSpec = {
   description:
     "Sign a GasFree PermitTransfer and submit it to the provider. No TRX is needed; --dry-run checks the token balance and fee breakdown without unlocking or signing.",
   baseFields: transferFields,
-  baseRefine: (value, context) => {
-    if (value.dryRun && value.wait) {
-      context.addIssue({
-        code: "custom",
-        path: ["dryRun"],
-        message: "--dry-run cannot be combined with --wait",
-      });
-    }
-  },
   examples: [
     {
       cmd: "wallet-cli gasfree transfer --to T... --amount 25 --password-stdin",
     },
     {
-      cmd: "wallet-cli gasfree transfer --to alice --amount 25 --wait --password-stdin",
+      cmd: "wallet-cli gasfree transfer --to alice --amount 25 --no-wait --password-stdin",
     },
   ],
   formatText: TextFormatters.gasFreeTransfer,
@@ -111,5 +104,5 @@ export const gasFreeTraceSpec: ChainSpec = {
 };
 
 export const gasFreeTraceTronBinding = (service: GasFreeService): FamilyBinding => ({
-  run: async (_context, network, input) => service.trace(network, input.traceId),
+  run: async (context, network, input) => service.trace(context.deadline, network, input.traceId),
 });

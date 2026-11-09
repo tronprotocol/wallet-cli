@@ -1,5 +1,5 @@
 import type { NetworkDescriptor } from "../types/index.js";
-import { UsageError, ExecutionError } from "../errors/index.js";
+import { errorMessage, inputRef, UsageError, ExecutionError } from "../errors/index.js";
 
 export function parseAgentId(value: string): bigint {
   if (!/^\d+$/.test(value)) {
@@ -30,7 +30,7 @@ export function resolveAgentId(value: string, network: NetworkDescriptor): bigin
   if (!/^\d+$/.test(chainId)) {
     throw new UsageError(
       "invalid_value",
-      "Agent ID prefixes require a numeric chain ID (for example tron:3448148188:170); use --network for aliases",
+      errorMessage`Agent ID prefixes require a numeric chain ID (for example tron:3448148188:170); use ${inputRef("network")} for aliases`,
     );
   }
   if (`${namespace}:${chainId}` !== network.id) {

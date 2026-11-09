@@ -2,10 +2,10 @@ import { z } from "zod";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { ChainSpec, ExecutionContext, FamilyBinding } from "../contracts/index.js";
 import type { TronStakeService } from "../../../../application/use-cases/tron/stake-service.js";
-import { RESOURCES } from "../../../../domain/resources/index.js";
+import { RESOURCES } from "../../../../domain/tron/resources/index.js";
 import { Schemas } from "../schemas/index.js";
 import { ciEnum } from "../arity/index.js";
-import { txModeFields, tronTxModeFields } from "./shared.js";
+import { txModeExclusive, txModeFields, tronTxModeFields } from "./shared.js";
 import { TextFormatters } from "../render/index.js";
 
 const resourceField = (description: string) =>
@@ -42,6 +42,7 @@ function stakeCommand(
       summary,
       requires: options.requires,
       baseFields: fields,
+      exclusive: [txModeExclusive],
       baseRefine: options.refine,
       examples: [{ cmd: `wallet-cli stake ${action}` }],
       formatText: TextFormatters.txReceipt,
@@ -81,8 +82,7 @@ export function stakeDefinitions(
       (context, network, input) => service.cancelUnfreeze(context, network, input),
       {},
       {
-        // The Ledger TRON app firmware rejects CancelAllUnfreezeV2Contract (APDU 0x6a80),
-        // even with blind-signing enabled; software accounts sign it fine.
+        // Ledger rejects this contract type even with blind signing enabled.
         requires: [
           "a software (non-Ledger) account — the Ledger TRON app cannot sign this transaction type",
         ],

@@ -35,9 +35,9 @@ Which one a command acts as follows the **selected network**, not a setting on t
 
 Ledger accounts use a different template: `import ledger --index <n>` follows Ledger Live's `m/44'/<coin>'/<n>'/0/0`. The two agree only at index 0. See [`import ledger`](../commands/import/ledger.md).
 
-### Accounts from before 4.13.1
+### Seed accounts with an alternate TRON path
 
-Earlier versions derived TRON accounts at `m/44'/195'/<index>'/0/0`. For account #0 that is the same path, so nothing changes. Accounts #1 and later keep their old TRON address, but this version no longer signs with it:
+A stored seed account can use `m/44'/195'/<index>'/0/0`. At index 0 this matches the default path. For indexes greater than zero, the stored TRON address is retained, with these restrictions:
 
 - Signing as that TRON address fails with `legacy_derivation`. The account's EVM address, `--build-only`, and queries still work.
 - `derive` refuses to add new accounts to that seed with `legacy_derivation`.
@@ -68,7 +68,7 @@ Labels are unique, 1–64 chars, renameable (`rename`) — the stable handle is 
 ## Lifecycle
 
 - `backup <account>` exports secret + metadata to a file created with mode **0600** and never overwritten (in the current working directory by default). Treat the file as the secret it contains — and mind where you run it, since the CLI does not check whether that directory is shared or version-controlled. The native format carries the seed or key itself, so it covers every family at once; `backup --keystore` carries a **single private key**, so `--network` selects which family's key it holds.
-- `delete` removes accounts; **deleting an HD wallet cascades from the seed root** — all derived accounts of that seed go with it. The on-chain assets are untouched. Run `backup` first and follow any warning it prints — see [Accounts from before 4.13.1](#accounts-from-before-4131).
+- `delete` removes accounts; **deleting an HD wallet cascades from the seed root** — all derived accounts of that seed go with it. The on-chain assets are untouched. Run `backup` first and follow any warning it prints — see [Seed accounts with an alternate TRON path](#seed-accounts-with-an-alternate-tron-path).
 - Losing the master password is unrecoverable locally; the escape hatch is always the mnemonic → `import mnemonic`.
 
 ## See also

@@ -1,11 +1,3 @@
-/**
- * The `sunswap collect-fees` receipts.
- *
- * One row carries this command: what was collected. On V3 it is a figure the contract itself
- * quoted, and afterwards the one its Collect event recorded. On V4 there is no such read behind
- * the port, so the row must say so rather than print a zero — a zero here reads as "there was
- * nothing to collect", which is a statement this command cannot make about a V4 position.
- */
 import { describe, expect, it } from "vitest";
 import { SunSwapCollectFeesFormatters } from "./sunswap-collect-fees.js";
 
@@ -58,17 +50,12 @@ describe("collect-fees receipt — V3", () => {
     expect(render({ ...V3, mode: "dry-run" })).toContain("Collected (est)");
   });
 
-  // Zero is a real answer on V3: the contract was asked and said nothing is owed.
   it("prints a zero when that is what was owed", () => {
     const zero = { ...V3, token0: { ...V3.token0, amount: "0" } };
     expect(render(zero)).toContain("0 WTRX / 0.000009 USDT");
   });
 });
 
-/**
- * V4's amounts come from the LP fee helper, and the receipt has three shapes rather than two:
- * a figure, a zero that was measured, and no figure at all when the helper could not be read.
- */
 describe("collect-fees receipt — V4", () => {
   const PRICED = {
     ...V4,
@@ -86,7 +73,6 @@ describe("collect-fees receipt — V4", () => {
     expect(render({ ...PRICED, mode: "dry-run" })).toContain("Collected (est)");
   });
 
-  // A measured zero is a real answer, and it prints as one — unlike an unread amount below.
   it("prints a zero that was measured", () => {
     const zero = {
       ...PRICED,

@@ -1,19 +1,22 @@
+import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { facilitatorUrl } from "./facilitator-url.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { sameX402Network } from "../../../domain/x402/network-id.js";
+import { X402_FAMILIES } from "../../../domain/x402/families.js";
 import { TransportError, UsageError } from "../../../domain/errors/index.js";
 import { fetchBounded } from "../http/http-response.js";
+import { rateLimitDetails } from "../http/json-service.js";
 import { sdkPaymentError } from "./payment-error.js";
 
-/** Negotiate TRON's wire representation before advertising or signing any requirement. */
+// Use the facilitator's own spelling of a network id where peers spell it differently.
 export async function facilitatorNetwork(
   network: NetworkDescriptor,
   scheme: string,
   base: string,
   fetcher: typeof fetch,
-  timeoutMs: number,
+  check: DispatchCheck,
 ): Promise<string> {
-  if (network.family !== "tron") return network.id;
+  if (!X402_FAMILIES[network.family].peerSpellingVaries) return network.id;
   let response: Response;
   try {
     response = await fetchBounded(
@@ -24,7 +27,7 @@ export async function facilitatorNetwork(
         headers: { accept: "application/json" },
         redirect: "error",
       },
-      timeoutMs,
+      check,
       1024 * 1024,
     );
   } catch (error) {
@@ -34,13 +37,19 @@ export async function facilitatorNetwork(
     throw new TransportError(
       response.status === 429 ? "provider_rate_limited" : "provider_error",
       "Could not determine facilitator support; no payment was authorized",
-      { httpStatus: response.status, phase: "challenge", retryPayment: false },
+      {
+        ...(response.status === 429
+          ? rateLimitDetails(response.headers)
+          : { httpStatus: response.status }),
+        phase: "challenge",
+        retryPayment: false,
+      },
     );
   let data: unknown;
   try {
     data = await response.json();
   } catch {
-    /* handled below */
+    // Report invalid JSON below.
   }
   const kinds = data && typeof data === "object" ? (data as { kinds?: unknown }).kinds : undefined;
   if (!Array.isArray(kinds))
@@ -57,7 +66,6 @@ export async function facilitatorNetwork(
       typeof kind.network === "string" &&
       sameX402Network(kind.network, network.id),
   );
-  // Prefer canonical decimal if supported; otherwise use the facilitator's exact advertised ID.
   const selected = candidates.find((kind) => kind.network === network.id) ?? candidates[0];
   if (!selected)
     throw new UsageError(

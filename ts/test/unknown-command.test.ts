@@ -5,8 +5,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DETACHED } from "./detached.js";
 
-// A built entry (WALLET_CLI_TEST_ENTRY, set by vitest.config for the golden project) runs as
-// plain `node <entry>`; without one, the TypeScript source is executed through tsx per spawn.
 const ENTRY_ARGS = process.env.WALLET_CLI_TEST_ENTRY
   ? [process.env.WALLET_CLI_TEST_ENTRY]
   : ["--import", "tsx", join(process.cwd(), "src", "index.ts")];
@@ -29,20 +27,11 @@ function run(args: string[]) {
   try {
     json = JSON.parse(r.stdout);
   } catch {
-    /* not json */
+    /* not JSON */
   }
   return { stdout: r.stdout, stderr: r.stderr, status: r.status, json };
 }
 
-/**
- * A mistyped command must fail the same way whether or not `--help` is on the line.
- *
- * Dispatch already got this right (`unknown_command`, exit 2). The meta path did not: any token
- * matching --help / --json-schema short-circuited into HelpService, which fell back to the ROOT
- * listing and returned 0. So `wallet-cli tx snd --help` printed a plausible page and reported
- * success — for an agent-first CLI that is the worst possible answer, because the caller has
- * nothing to branch on and a full help page that looks like it answered the question.
- */
 describe("unknown commands fail identically with and without --help", () => {
   const unknown: string[][] = [
     ["bogus"],
@@ -64,7 +53,6 @@ describe("unknown commands fail identically with and without --help", () => {
       const r = run([...path, "--help"]);
       expect(r.status, path.join(" ")).toBe(2);
       expect(r.stderr, path.join(" ")).toContain("unknown_command");
-      // and it must NOT hand back a help page as if it had understood
       expect(r.stdout, path.join(" ")).not.toContain("Usage:");
     }
   });
@@ -89,12 +77,6 @@ describe("unknown commands fail identically with and without --help", () => {
     expect(JSON.stringify(r.json)).toContain("unknown_command");
   });
 
-  /**
-   * Appending --help to a command you were already typing is the most common way anyone reaches
-   * help, and the line still carries its arguments. `metaPositionals` only knows which GLOBAL
-   * flags take a value, so a command flag's value (`--to T...` → "T...") stays in the path — as
-   * do real positionals. The longest prefix that names a command wins; the rest are arguments.
-   */
   it("serves the command's own help when arguments are still on the line", () => {
     for (const [args, usage] of [
       [["tx", "send", "--to", "T...", "--help"], "wallet-cli tx send"],
@@ -108,8 +90,6 @@ describe("unknown commands fail identically with and without --help", () => {
     }
   });
 
-  // ...but a prefix that is only a GROUP must not rescue a bad verb: `tx` is not a command,
-  // so `tx bogus` has no resolvable prefix and stays an error.
   it("does not let a group prefix mask a mistyped verb", () => {
     for (const args of [
       ["tx", "bogus", "--help"],
@@ -121,7 +101,6 @@ describe("unknown commands fail identically with and without --help", () => {
     }
   });
 
-  // The paths that legitimately return a listing must keep doing so.
   it("still serves root, group and leaf help", () => {
     for (const args of [
       ["--help"],

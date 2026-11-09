@@ -7,7 +7,7 @@ Send the native coin, or a token, with a human `--amount`.
 ```
 wallet-cli tx send --to <address|contact> (--amount <n> | --raw-amount <n>)
                    [--token <symbol> | --contract <address> | --asset-id <id>]
-                   [--dry-run | --sign-only | --build-only | --wait [--wait-timeout <ms>]]
+                   [--dry-run | --sign-only | --build-only | --wait | --no-wait]
                    [--fee-limit <sun>] [--permission-id <n>] [--expiration <ms>]
                    [--gas-limit <n>] [--max-fee <gwei>] [--priority-fee <gwei>] [--nonce <n>]
                    [options]
@@ -18,7 +18,7 @@ wallet-cli tx send --to <address|contact> (--amount <n> | --raw-amount <n>)
 Builds, signs, and submits a transfer from the active account (or `--account`), on TRON or EVM networks alike. What is sent depends on which selector you pass:
 
 - **none** → the network's native coin;
-- `--token <symbol>` → token resolved from the local address book;
+- `--token <symbol>` → token resolved from the local address book; the symbol is matched case-insensitively and must match exactly one entry;
 - `--contract <address>` → contract token by address — TRC20 on TRON, ERC20 on EVM;
 - `--asset-id <id>` → TRC10 by numeric asset id (**TRON only**).
 
@@ -32,7 +32,7 @@ Omitted EVM values are taken from the node: the gas limit from `eth_estimateGas`
 
 TRON multi-sig uses `--permission-id` to select the signing group and `--expiration` to extend how long co-signers have to add their signatures.
 
-**By default the command returns at submission** (`stage: "submitted"`), not confirmation — add `--wait` to block until confirmed/failed, or poll [`tx status`](status.md).
+**By default the command waits for confirmation** (`stage: "confirmed"` or `"failed"`); `--no-wait` returns at submission (`stage: "submitted"`), and [`tx status`](status.md) checks it later.
 
 Requires an account — the active one, unless `--account <accountId|label>` overrides it. The master password via `--password-stdin` is needed only when the selected mode signs; `--dry-run` and `--build-only` never unlock the wallet. Signing commands show no interactive prompt, so a signing mode without the password fails with `auth_required`.
 
@@ -48,7 +48,8 @@ Requires an account — the active one, unless `--account <accountId|label>` ove
 | `--dry-run` | Build and estimate through the selected network; no signing or broadcast; excludes `--sign-only` / `--build-only` |
 | `--sign-only` | Build, estimate, sign, and output the signed hex without broadcasting; excludes `--dry-run` / `--build-only` |
 | `--build-only` | Build and estimate, output the **unsigned** hex without unlocking; excludes `--dry-run` / `--sign-only` |
-| `--wait` / `--wait-timeout <ms>` | Poll after broadcast until confirmed/failed (cap default 60000; on cap returns the submitted receipt) |
+| `--wait` | Poll after broadcast until confirmed or failed, up to the command deadline (`--timeout`); at the deadline it returns the submitted receipt with a warning. This is the default |
+| `--no-wait` | Return the submitted receipt without polling for confirmation |
 | `--password-stdin` | Master password from stdin |
 
 TRON only:
@@ -105,10 +106,10 @@ wallet-cli tx send --to TSx72ViULFepRGCS4PM5dP4FqD1d8qggCc --amount 1 --network 
   Tx   {"to":"0x7...000000"}
 ```
 
-Submit receipt (default mode, text and json):
+Submit receipt with `--no-wait` (text and json):
 
 ```bash
-printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --amount 1 --network nile --password-stdin
+printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH --amount 1 --network nile --no-wait --password-stdin
 ```
 
 ```console
@@ -129,9 +130,9 @@ printf '%s' "$PW" | wallet-cli tx send --to TGkbaCYB4kRBc3Q6wjqkACefUvRwf2KzkH -
 
 | Mode | Fields |
 |---|---|
-| default (submit) | `kind: "send"`, `stage: "submitted"`, `txId`, `rawAmount` (string), `to`, plus `toContact` when `--to` was a contact name |
-| `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `failed`, and the realised cost — `netUsed` (bandwidth used) / `feeSun` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
-| `--wait` (reverted) | the same fields, but `stage: "failed"` and `failed: true` — the transaction was mined and then reverted |
+| `--no-wait` (submitted) | `kind: "send"`, `stage: "submitted"`, `txId`, `rawAmount` (string), `to`, plus `toContact` when `--to` was a contact name |
+| default or `--wait` (confirmed) | the above, but `stage: "confirmed"`, plus `confirmed`, `blockNumber`, `failed`, and the realised cost — `netUsed` (bandwidth used) / `feeSun` on TRON, `gasUsed` / `feeWei` / `effectiveGasPriceWei` on EVM |
+| default or `--wait` (reverted) | the same fields, but `stage: "failed"` and `failed: true` — the transaction was mined and then reverted |
 | `--dry-run` | `kind`, `mode: "dry-run"`, `fee`, the unsigned `tx`, `rawAmount`, `to` (plus `nonce` on EVM) |
 | `--sign-only` | `kind`, `mode: "sign-only"`, `hex` (signed transaction hex), `signed`, `address` (signer), `txId`, `fee`, `rawAmount`, `to` |
 | `--build-only` | `kind`, `mode: "build-only"`, `hex` (**unsigned** transaction hex), unsigned `tx`, `fee`, `rawAmount`, `to` |
@@ -144,9 +145,11 @@ A reverted transaction still leaves the envelope at `success: true` and exit `0`
 
 ## Exit status
 
-`0` submitted (or built/signed in early-exit modes) · `1` execution failure (`nonce_too_low` — `--dry-run` with an already-mined `--nonce`, `rpc_error`, `timeout` — **on timeout the tx may still be in flight; check `tx status` before resending**) · `2` usage error (conflicting selectors/amounts/modes; `family_mismatch` when the recipient or the account belongs to another family; `invalid_option` when a fee flag is scoped to the other family).
+`0` submitted, with `stage` `confirmed`, `failed`, or `submitted` (or built/signed in early-exit modes) · `1` execution failure (`insufficient_token_balance` — a TRC20 or ERC20 transfer above the sender's token balance, refused before the fee estimate and before signing in every mode including `--dry-run`; a failed balance read keeps its own code; `nonce_too_low` — `--dry-run` with an already-mined `--nonce`, `rpc_error`, `timeout`, `invalid_node_response` — **on submission these can leave the outcome unknown**) · `2` usage error (`invalid_option` — conflicting selectors/amounts/modes; `family_mismatch` when the recipient or the account belongs to another family; `invalid_option` when a fee flag is scoped to the other family; `token_not_in_book` — no address-book entry has the `--token` symbol; `ambiguous_token_symbol` — more than one entry has it, and the message lists their ids).
 
-`0` also covers `--wait` reporting `stage: "failed"`: the exit code reflects the command, not the on-chain result. See [script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
+A `timeout`, `rpc_error` or `invalid_node_response` from submission includes the locally computed signed transaction id in `error.details.txId` and [`error.details.outcome: "unknown"`](../../machine-interface.md#unknown-outcome-errordetailsoutcome); text output shows the id too. Check it with [`tx status`](status.md) before sending again. Resending `tx send` builds and signs a new transaction, which on TRON can be a second transfer. Definite rejections and failures before submission gain neither field.
+
+`0` also covers a receipt with `stage: "failed"`: the exit code reflects the command, not the on-chain result. See [script safety](../../machine-interface.md#script-safety-never-mistake-submitted-for-confirmed).
 
 ## See also
 

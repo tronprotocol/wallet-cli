@@ -1,6 +1,3 @@
-/**
- * SharedTypes — keystore blobs (encrypted secret-at-rest).
- */
 export type KeystoreType = "bip39-seed" | "raw-privkey" | "verifier";
 export interface CryptoParams {
   cipher: "aes-128-ctr";

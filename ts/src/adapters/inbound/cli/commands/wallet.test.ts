@@ -16,19 +16,17 @@ import { commandId } from "../command-id.js";
 import { isChainCommand } from "../contracts/index.js";
 import type { CommandDefinition, Globals } from "../contracts/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
-// Cheap KDF for keystore encryption in this suite — see cheap-scrypt.ts. Production untouched.
+// Use a cheap KDF for test fixtures.
 vi.mock(
   "@noble/hashes/scrypt.js",
   async () => import("../../../outbound/persistence/crypto/__test-support__/cheap-scrypt.js"),
 );
 
-// ── test constants ─────────────────────────────────────────────────────────────
 const VALID_MNEMONIC = "test test test test test test test test test test test junk";
 const VALID_PRIVATE_KEY = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 const VALID_PASSWORD = "Abcdef1!";
-
-// ── helpers ────────────────────────────────────────────────────────────────────
 
 interface FakePromptOpts {
   tty?: boolean;
@@ -47,7 +45,6 @@ function makeFakeBackend(opts: FakePromptOpts = {}): ConstructorParameters<typeo
       if (hidden) {
         return hiddenAnswers[hiddenIdx++] ?? VALID_PASSWORD;
       }
-      // confirm prompts are not hidden
       return confirmAnswer ?? "";
     },
     async readKey() {
@@ -70,8 +67,6 @@ function buildTestDeps(opts: FakePromptOpts & { root?: string } = {}): {
   const store = new AtomicFileStore();
   const streams = new StreamManager("text", false);
   const prompter = new Prompter(makeFakeBackend(opts));
-  // password: "-" means "read from stdin"; we prime the stdin via streams
-  // Actually: use no paths for password, rely on primePassword via prompter
   const secrets = new SecretResolver(streams, {}, prompter);
   const ks = new Keystore(root, store, () => secrets.masterPassword());
   const config = ConfigLoader.load();
@@ -79,10 +74,11 @@ function buildTestDeps(opts: FakePromptOpts & { root?: string } = {}): {
   const formatter = createOutputFormatter("text", streams, Date.now());
   const deps: RuntimeDeps = {
     config,
+    deadline: new CommandDeadline(0),
     networkRegistry,
     streams,
     secrets,
-    keystore: ks,
+    accounts: new WalletService(ks, {} as never, {} as never, {} as never),
     prompter,
     formatter,
   };
@@ -102,7 +98,6 @@ function buildServices(ks: Keystore) {
       { write: () => ({ out: "unused", fileMode: "0600", bytes: 0 }) },
       { append: () => {}, list: () => [] },
     ),
-    ledger,
     tokenBook: {} as any,
     priceProvider: {} as any,
     rpc: {} as any,
@@ -112,7 +107,6 @@ function buildServices(ks: Keystore) {
   };
 }
 
-/** Resolve a command by its derived canonical id (e.g. "create", "import.mnemonic"). */
 function getCmd(registry: CommandRegistry, id: string): CommandDefinition | null {
   const cmd =
     registry.all().find((c) => commandId(isChainCommand(c) ? { path: c.spec.path } : c) === id) ??
@@ -131,7 +125,7 @@ async function runCmd(
   opts: FakePromptOpts & { root?: string } = {},
 ) {
   const { deps, ks } = buildTestDeps(opts);
-  // Prime the password before command runs (simulating what dispatch does for passwordMode)
+  // Prime the password to simulate dispatch.
   await deps.secrets.primePassword({ mode: "set" });
   const ctx = buildExecutionContext(buildGlobals(), deps);
   const registry = new CommandRegistry();
@@ -140,8 +134,6 @@ async function runCmd(
   const result = await cmd.run(ctx, undefined as any, input as any);
   return { result, ks };
 }
-
-// ── wallet create ──────────────────────────────────────────────────────────────
 
 describe("wallet create", () => {
   it("creates an account with a tron address", async () => {
@@ -161,7 +153,6 @@ describe("wallet create", () => {
   });
 
   it("createFields schema does NOT have a words key", async () => {
-    // We verify the schema at runtime by checking the registered command's fields
     const { ks } = buildTestDeps({
       tty: true,
       hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD],
@@ -175,14 +166,12 @@ describe("wallet create", () => {
   });
 
   it("generates a 12-word mnemonic", async () => {
-    // create, then backup to read mnemonic word count
     const root = mkdtempSync(join(tmpdir(), "wallet-create-test-"));
     const { deps, ks, secrets } = buildTestDeps({
       root,
       tty: true,
       hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD],
     });
-    // prime password for create
     await secrets.primePassword({ mode: "set" });
     const ctx = buildExecutionContext(buildGlobals(), deps);
     const registry = new CommandRegistry();
@@ -191,13 +180,11 @@ describe("wallet create", () => {
     const createCmd = getCmd(registry, "create")!;
     const createResult = await createCmd.run(ctx, undefined as any, {} as any);
 
-    // verify the created account has a seed source
     const accountList = ks.list();
     expect(accountList).toHaveLength(1);
     const wallet = ks.resolveAccount(createResult.accountId).wallet;
     expect(wallet.source.type).toBe("seed");
 
-    // reveal the mnemonic to check word count
     const vaultId = (wallet.source as any).vaultId as string;
     const revealed = ks.revealMnemonic(vaultId);
     const words = revealed.mnemonic.split(" ").filter(Boolean);
@@ -205,15 +192,13 @@ describe("wallet create", () => {
   });
 });
 
-// ── wallet import-mnemonic ─────────────────────────────────────────────────────
-
 describe("wallet import-mnemonic", () => {
   it("creates an account from a mnemonic provided via interactive prompt", async () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-import-mnemonic-test-"));
     const { deps, ks, secrets } = buildTestDeps({
       root,
       tty: true,
-      // order: set password, confirm password, then mnemonic
+      // Prompt order: set password, confirm password, then import secret.
       hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD, VALID_MNEMONIC],
     });
 
@@ -231,15 +216,13 @@ describe("wallet import-mnemonic", () => {
   });
 });
 
-// ── wallet import-private-key ──────────────────────────────────────────────────
-
 describe("wallet import-private-key", () => {
   it("creates an account from a private key provided via interactive prompt", async () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-import-pk-test-"));
     const { deps, ks, secrets } = buildTestDeps({
       root,
       tty: true,
-      // order: set password, confirm password, then private key
+      // Prompt order: set password, confirm password, then import secret.
       hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD, VALID_PRIVATE_KEY],
     });
 
@@ -257,8 +240,6 @@ describe("wallet import-private-key", () => {
   });
 });
 
-// ── wallet delete ─────────────────────────────────────────────────────────────
-
 describe("wallet delete", () => {
   async function setupAccountForDelete(root: string, opts: FakePromptOpts) {
     const { deps, ks, secrets } = buildTestDeps({ root, ...opts });
@@ -267,7 +248,6 @@ describe("wallet delete", () => {
     const registry = new CommandRegistry();
     registerWalletCommands(registry, buildServices(ks));
 
-    // import an account first
     const importCmd = getCmd(registry, "import.mnemonic")!;
     const importResult = await importCmd.run(ctx, undefined as any, {} as any);
     return { ctx, registry, ks, accountId: importResult.accountId };
@@ -275,7 +255,7 @@ describe("wallet delete", () => {
 
   it("deletes an account when --yes is true", async () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-delete-test-"));
-    // hiddenAnswers for set+confirm password, then mnemonic for import
+    // Prompt order: set password, confirm password, then mnemonic.
     const { ctx, registry, ks, accountId } = await setupAccountForDelete(root, {
       tty: true,
       hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD, VALID_MNEMONIC],
@@ -320,7 +300,6 @@ describe("wallet delete", () => {
       deleteCmd.run(ctx, undefined as any, { account: accountId } as any),
     ).rejects.toMatchObject({ code: "aborted" });
 
-    // account should still exist
     expect(ks.list()).toHaveLength(1);
   });
 
@@ -330,9 +309,7 @@ describe("wallet delete", () => {
       root,
       tty: false,
     });
-    // for non-TTY, secrets need password via stdin path
     const storeNonTty = new AtomicFileStore();
-    // Use a separate TTY keystore just to create the account
     const root2 = mkdtempSync(join(tmpdir(), "wallet-delete-notty2-test-"));
     const streams2 = new StreamManager("text", false);
     const fakeBackend2 = {
@@ -353,7 +330,6 @@ describe("wallet delete", () => {
     await secrets2.primePassword({ mode: "set" });
     const { accountId } = ks2.import({ secret: VALID_MNEMONIC, type: "seed" });
 
-    // Now set up a non-TTY context pointing to the same root
     const storeNonTty2 = new AtomicFileStore();
     const streamsNT = new StreamManager("text", false);
     const fakeBackendNT = {
@@ -369,10 +345,7 @@ describe("wallet delete", () => {
       endRaw() {},
     };
     const prompterNT = new Prompter(fakeBackendNT);
-    // prime password via stdin path by priming it directly
     const secretsNT = new SecretResolver(streamsNT, {}, prompterNT);
-    // manually prime the password so ks.delete can proceed if needed
-    // Actually we just need the delete to fail at the TTY check, before touching ks
     const ksNT = new Keystore(root2, storeNonTty2, () => secrets2.masterPassword());
 
     const config = ConfigLoader.load();
@@ -380,10 +353,11 @@ describe("wallet delete", () => {
     const formatter = createOutputFormatter("text", streamsNT, Date.now());
     const depsNT: RuntimeDeps = {
       config,
+      deadline: new CommandDeadline(0),
       networkRegistry,
       streams: streamsNT,
       secrets: secretsNT,
-      keystore: ksNT,
+      accounts: new WalletService(ksNT, {} as never, {} as never, {} as never),
       prompter: prompterNT,
       formatter,
     };
@@ -398,15 +372,11 @@ describe("wallet delete", () => {
   });
 });
 
-// The text listing is filtered to the selected network's family. Filtering silently would let a
-// user with only an EVM Ledger run `list` on the default TRON network and see no hardware
-// account at all, with nothing telling them --network exists.
 describe("list reports what the family filter hid", () => {
   function listCommand(accounts: unknown[], family: string) {
     const registry = new CommandRegistry();
     registerWalletCommands(registry, {
       walletService: { list: () => accounts, unreadableWallets: () => [] } as never,
-      ledger: {} as never,
       qr: { encode: () => null },
     });
     const list = registry.resolveNeutral(["list"]);
@@ -436,7 +406,6 @@ describe("list reports what the family filter hid", () => {
     expect(f.warn).not.toHaveBeenCalled();
   });
 
-  // json carries every family already, so a warning there would be noise about nothing.
   it("stays silent in json mode, which is not filtered", async () => {
     const f = listCommand(mixed, "tron");
     await f.list.run({ warn: f.warn, output: "json" } as never, f.net as never, {});

@@ -1,17 +1,24 @@
-import type { AccountRef, ChainFamily, WarningView } from "../../domain/types/index.js";
+import type { AccountSelector, ChainFamily, WarningView } from "../../domain/types/index.js";
+import type { UserMessage } from "../../domain/errors/index.js";
+import type { ExecutionDeadline } from "./deadline.js";
 import type { ProgressEvent } from "./progress.js";
 
+// A coded warning whose message names inputs or follow-up steps.
+export interface CodedWarning {
+  readonly code: string;
+  readonly message: UserMessage;
+}
+
 export interface AccountScope {
-  readonly activeAccount: AccountRef;
+  readonly deadline: ExecutionDeadline;
+  readonly activeAccount: AccountSelector;
   resolveAddress(family: ChainFamily): string;
 }
 
 export interface TransactionScope extends AccountScope {
-  readonly timeoutMs: number;
-  readonly wait: boolean;
-  readonly waitTimeoutMs: number;
+  // Explicit wait intent; undefined applies the default of the execution mode.
+  readonly wait: boolean | undefined;
   emit(event: ProgressEvent): void;
-  /** surface a non-fatal warning: captured into the JSON envelope's meta.warnings and, in text
-   *  mode, printed to stderr. Use when an outcome silently degrades (e.g. --wait not confirmed). */
-  warn(message: string | WarningView): void;
+  // Nonfatal warning for JSON meta.warnings or text-mode stderr.
+  warn(message: string | WarningView | UserMessage | CodedWarning): void;
 }

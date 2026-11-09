@@ -4,7 +4,7 @@ import type { NetworkRegistry } from "../../../../application/ports/network-regi
 import type { PromptPort } from "../../../../application/ports/prompt.js";
 import type { SecretResolver, StreamManager } from "./runtime.js";
 
-/** CLI command context; application workflows receive only narrower execution scopes. */
+// Application workflows receive narrower execution scopes.
 export interface ExecutionContext extends TransactionScope {
   readonly config: Config;
   readonly networkRegistry: NetworkRegistry;

@@ -29,7 +29,7 @@ export interface GasFreeAddressInfo {
   assets: GasFreeAssetConfig[];
 }
 
-/** Exact immutable TIP-712 PermitTransfer fields. uint256 values remain decimal strings. */
+// TIP-712 PermitTransfer uint256 values use decimal strings.
 export interface GasFreeAuthorization {
   token: string;
   serviceProvider: string;
@@ -43,11 +43,11 @@ export interface GasFreeAuthorization {
 }
 
 export interface SignedGasFreeAuthorization extends GasFreeAuthorization {
-  /** Java-compatible lowercase r || s || v hex without a 0x prefix. */
+  // Lowercase r||s||v hex without 0x.
   sig: string;
 }
 
-/** Untrusted provider receipt, normalized losslessly before application-layer validation. */
+// Untrusted provider receipt; requires application validation.
 export interface GasFreeTransferRecord {
   id: string;
   state: GasFreeState;
@@ -59,7 +59,7 @@ export interface GasFreeTransferRecord {
   amount: string;
   maxFee?: string;
   nonce: string;
-  /** GasFree returns this timestamp in milliseconds, while the signed deadline is in seconds. */
+  // Milliseconds; the signed deadline uses seconds.
   expiredAt?: string;
   estimatedTransferFee?: string;
   estimatedActivateFee?: string;

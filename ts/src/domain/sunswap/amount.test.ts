@@ -27,7 +27,6 @@ describe("toBaseUnitsTruncating", () => {
     expect(toBaseUnitsTruncating("2", 6)).toBe("2000000");
   });
 
-  // The indexer's own rounding artefacts, not digits anyone can spend.
   it("truncates rather than rounding past the token's precision", () => {
     expect(toBaseUnitsTruncating("1.9999999", 6)).toBe("1999999");
     expect(toBaseUnitsTruncating("0.0000009", 6)).toBe("0");
@@ -52,7 +51,6 @@ describe("toBaseUnitsTruncating", () => {
     expect(toBaseUnitsTruncating("-1.5", 6)).toBe("-1500000");
   });
 
-  // Returning it unchanged sends the surprise to the caller instead of inventing a number here.
   it("passes a non-decimal literal through untouched", () => {
     expect(toBaseUnitsTruncating("7.06e-05", 6)).toBe("7.06e-05");
     expect(toBaseUnitsTruncating("", 6)).toBe("");
@@ -103,7 +101,6 @@ describe("expandScientificNotation", () => {
     expect(expandScientificNotation("")).toBe("");
   });
 
-  // The two compose: the API's exponent form has to survive into base units.
   it("feeds a plain decimal into the base-unit conversion", () => {
     expect(toBaseUnitsTruncating(expandScientificNotation("7.06e-05"), 6)).toBe("70");
   });
