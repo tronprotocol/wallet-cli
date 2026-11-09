@@ -13,8 +13,8 @@
   {
     "type": "dependency",
     "from": "src/adapters/outbound/x402/gasfree-errors.test.ts",
-    "to": "node_modules/@bankofai/x402-fetch/dist/cjs/index.js",
-    "unresolvedTo": "@bankofai/x402-fetch",
+    "to": "node_modules/@x402/fetch/dist/cjs/index.js",
+    "unresolvedTo": "@x402/fetch",
     "dependencyTypes": ["npm-dev", "import"],
     "rule": {
       "severity": "error",

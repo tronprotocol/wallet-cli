@@ -102,7 +102,10 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
         .toLowerCase(),
     ).toBe(`0x${TronWeb.address.toHex(address).slice(2)}`.toLowerCase());
     expect(fetcher).toHaveBeenCalledTimes(2);
-    expect((fetcher.mock.calls[1]![0] as Request).headers.has("payment-signature")).toBe(true);
+    const signature = (fetcher.mock.calls[1]![0] as Request).headers.get("payment-signature");
+    expect(signature).not.toBeNull();
+    const payment = JSON.parse(Buffer.from(signature!, "base64").toString("utf8"));
+    expect(payment.accepted.network).toBe(wireNetwork);
   },
 );
 

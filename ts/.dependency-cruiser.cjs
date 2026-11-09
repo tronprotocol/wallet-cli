@@ -9,7 +9,7 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { readdirSync } = require("node:fs");
 
-const SDK_PACKAGES = "(tronweb|ethers)(/|$)|@(sun-protocol|bankofai|ledgerhq)/";
+const SDK_PACKAGES = "(tronweb|ethers)(/|$)|@(sun-protocol|bankofai|ledgerhq|x402)/";
 const HTTP_CLIENT_PACKAGES = "(axios|undici|node-fetch|got|ky)(/|$)";
 
 // Only a missing directory means "no integrations"; any other error would silently drop rules.
@@ -40,8 +40,8 @@ const LEDGER_SIGNING_MODULES = {
   "hw-app-eth": ["Eth", "modules/EIP712"],
 };
 const X402_PAYMENT_MODULES = {
-  "x402-core": ["client", "facilitator"],
-  "x402-evm": [
+  "@x402/core": ["client", "facilitator"],
+  "@x402/evm": [
     "exact/client",
     "exact/facilitator",
     "exact/v1/client",
@@ -52,9 +52,8 @@ const X402_PAYMENT_MODULES = {
     "batch-settlement/server",
     "batch-settlement/facilitator",
     "auth-capture/client",
-    "adapters/agent-wallet",
   ],
-  "x402-tron": [
+  "@bankofai/x402-tron": [
     "exact",
     "exact/client",
     "exact/facilitator",
@@ -72,7 +71,8 @@ const LEDGER_SIGNING_PATTERN = Object.entries(LEDGER_SIGNING_MODULES)
   .map(([app, modules]) => `${app}($|/(lib/|lib-es/|)(${modules.join("|")})(/index|)(\\.js|)$)`)
   .join("|");
 const X402_PAYMENT_PATTERN = [
-  "x402-fetch($|/dist/(esm|cjs)/index\\.(mjs|js)$)",
+  "@bankofai/x402-tron-extensions(/|$)",
+  "@x402/fetch($|/dist/(esm|cjs)/index\\.(mjs|js)$)",
   ...Object.entries(X402_PAYMENT_MODULES).map(
     ([pkg, modules]) => `${pkg}/(dist/(esm|cjs)/|)(${modules.join("|")})(/index|)(\\.(mjs|js)|)$`,
   ),
@@ -231,7 +231,7 @@ module.exports = {
       comment:
         "the x402 modules that sign, send, or settle payments; only the payment client imports them",
       from: { path: "^src/", pathNot: "^src/adapters/outbound/x402/payment-client\\.ts$" },
-      to: { path: `(^|node_modules/)@bankofai/(${X402_PAYMENT_PATTERN})` },
+      to: { path: `(^|node_modules/)(${X402_PAYMENT_PATTERN})` },
     },
   ],
   options: {

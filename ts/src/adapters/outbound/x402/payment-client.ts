@@ -17,12 +17,9 @@ import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "../http/
 import { rateLimitDetails } from "../http/json-service.js";
 import { abortReason, untilAborted, withDispatchCheck } from "../http/dispatch-context.js";
 import { evmRpcCapabilities } from "./evm-rpc.js";
-import {
-  x402Client,
-  wrapFetchWithPayment,
-  decodePaymentResponseHeader,
-} from "@bankofai/x402-fetch";
-import { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";
+import { x402Client } from "@x402/core/client";
+import { wrapFetchWithPayment } from "@x402/fetch";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
 import {
   createClientTronSigner,
   registerToken,
@@ -30,12 +27,13 @@ import {
   getPermit2AllowanceReadParams,
   type ClientTronSigner,
 } from "@bankofai/x402-tron";
-import { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";
-import { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
-import { PERMIT2_ADDRESS as EVM_PERMIT2_ADDRESS, type ClientEvmSigner } from "@bankofai/x402-evm";
+import { createTrc20ApprovalResourceSponsoringClientExtension } from "@bankofai/x402-tron-extensions/trc20-approval-resource-sponsoring/client";
+import { ExactTronScheme } from "@bankofai/x402-tron/exact/client";
+import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
+import { PERMIT2_ADDRESS as EVM_PERMIT2_ADDRESS, type ClientEvmSigner } from "@x402/evm";
 import { EvmAddress } from "../../../domain/address/index.js";
-import type { Network } from "@bankofai/x402-core/types";
-import { decodePaymentRequiredHeader } from "@bankofai/x402-core/http";
+import type { Network } from "@x402/core/types";
+import { decodePaymentRequiredHeader, decodePaymentResponseHeader } from "@x402/core/http";
 import { open, unlink, type FileHandle } from "node:fs/promises";
 import type {
   HttpHeader,
@@ -155,7 +153,8 @@ export class X402PaymentClient implements X402PaymentPort {
         type: "activity",
         message: "Payment required (HTTP 402); checking network, asset and payment limits…",
       });
-      const inspection = await inspectChallenge(input.url, initial, network, input);
+      const { accepts } = await decodeChallenge(initial.clone());
+      const inspection = inspectChallenge(input.url, accepts, network, input);
       return {
         kind: "payment-required",
         inspection,
@@ -180,6 +179,7 @@ export class X402PaymentClient implements X402PaymentPort {
                 input,
                 limits,
                 initial,
+                accepts,
                 relay,
                 authorization,
                 check,
@@ -387,6 +387,7 @@ export class X402PaymentClient implements X402PaymentPort {
     input: X402PaymentRequest,
     limits: X402PayerLimits,
     initial: Response,
+    offered: readonly OfferedRequirement[],
     relay: ReturnType<typeof gasfreeRelayClient>,
     authorization: PaymentAuthorization,
     check: DispatchCheck,
@@ -467,6 +468,7 @@ export class X402PaymentClient implements X402PaymentPort {
     });
     await family.registerSchemes(client, {
       network,
+      offered,
       check,
       bridge,
       payer: signer,
@@ -590,6 +592,7 @@ const evmAddress = new EvmAddress();
 // What the SDK's scheme clients need from one payment.
 interface SchemeContext {
   readonly network: NetworkDescriptor;
+  readonly offered: readonly OfferedRequirement[];
   // Every SDK read and wallet callback runs this check before it starts.
   readonly check: DispatchCheck;
   // Wallet signer in the shape the SDK calls.
@@ -631,6 +634,7 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
       client,
       {
         network,
+        offered,
         check,
         bridge,
         payer,
@@ -678,7 +682,7 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
                   network: x402Network,
                   tokenAddress: token,
                   ownerAddress: payer.address,
-                }) as Parameters<ClientTronSigner["readContract"]>[0],
+                }) as Parameters<typeof readContract>[0],
               ),
             );
           const current = BigInt(await readAllowance());
@@ -704,15 +708,21 @@ const FAMILY_INTEGRATIONS: Readonly<Record<ChainFamily, FamilyIntegration>> = {
           return true;
         },
       };
-      registerExactTronScheme(client, {
-        signer: tronSigner,
-        networks: [network.id as Network],
+      client.registerExtension(createTrc20ApprovalResourceSponsoringClientExtension(tronSigner));
+      const exact = new ExactTronScheme(tronSigner);
+      const gasfree = new ExactGasFreeTronScheme(tronSigner, {
+        apiClients: relay ? { [network.id]: relay } : {},
       });
-      registerExactGasFreeTronScheme(client, {
-        schemeOptions: relay ? { apiClients: { [network.id]: relay } } : undefined,
-        signer: tronSigner,
-        networks: [network.id as Network],
-      });
+      // Core matches wire IDs before policy selection; both TRON spellings must reach it.
+      const wireNetworks = new Set(
+        offered
+          .filter((offer) => sameX402Network(offer.network, network.id))
+          .map((offer) => offer.network),
+      );
+      for (const wireNetwork of wireNetworks) {
+        client.register(wireNetwork as Network, exact);
+        client.register(wireNetwork as Network, gasfree);
+      }
     },
     permit2: (network, tokens) => {
       const spender = PERMIT2_ADDRESSES[toX402Network(network)];
@@ -853,7 +863,7 @@ interface OfferedRequirement {
 }
 
 function selectMatching<T extends OfferedRequirement>(
-  requirements: T[],
+  requirements: readonly T[],
   network: NetworkDescriptor,
   input: X402PaymentRequest,
   limits: Pick<X402PayerLimits, "maxRawAmount" | "limitAsset"> = {},
@@ -899,14 +909,13 @@ function selectMatching<T extends OfferedRequirement>(
   return [selected];
 }
 
-async function inspectChallenge(
+function inspectChallenge(
   url: string,
-  response: Response,
+  accepts: readonly OfferedRequirement[],
   network: NetworkDescriptor,
   input: X402PaymentRequest,
-): Promise<X402Inspection> {
-  const decoded = await decodeChallenge(response.clone());
-  const selected = selectMatching(decoded.accepts, network, input)[0]!;
+): X402Inspection {
+  const selected = selectMatching(accepts, network, input)[0]!;
   return {
     url,
     status: 402,
