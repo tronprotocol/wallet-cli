@@ -88,7 +88,7 @@
     "lossless-json": "^4.3.0",
     "qrcode": "^1.5.4",
     "string-width": "7.2.0",
-    "tronweb": "6.4.0",
+    "tronweb": "6.5.1",
     "wrap-ansi": "9.0.2",
     "ws": "8.21.1",
     "yaml": "^2.9.0",
