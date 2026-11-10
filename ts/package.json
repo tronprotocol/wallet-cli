@@ -102,8 +102,8 @@
     "nanoid": "^3.3.18"
   },
   "devDependencies": {
-    "@bankofai/x402-tron": "2.1.1",
-    "@bankofai/x402-tron-extensions": "2.1.1",
+    "@bankofai/x402-tron": "2.1.2",
+    "@bankofai/x402-tron-extensions": "2.1.2",
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.9.3",
     "@types/qrcode": "^1.5.6",
