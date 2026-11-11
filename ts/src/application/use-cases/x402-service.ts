@@ -28,7 +28,6 @@ import {
 } from "../services/command-deadline.js";
 import type { TransactionScope } from "../contracts/execution-scope.js";
 import type { X402PaywallHost } from "../contracts/x402-paywall.js";
-import type { ProviderCatalogPort, ProviderListInput } from "../ports/provider-catalog.js";
 import type { X402FacilitatorPort } from "../ports/x402-facilitator.js";
 import type {
   X402Inspection,
@@ -45,8 +44,6 @@ import {
   paywallTerms,
   sharedRequestDeadline,
 } from "./x402-paywall.js";
-
-import type { NetworkRegistry } from "../ports/network-registry.js";
 
 // A payment request with the payer's ceilings; amounts named raw are token base units.
 export interface X402PayRequest extends X402PaymentRequest {
@@ -77,8 +74,6 @@ export class X402Service {
   constructor(
     private readonly payments: X402PaymentPort,
     private readonly signers: SignerResolver,
-    private readonly catalog: ProviderCatalogPort,
-    private readonly networks: Pick<NetworkRegistry, "resolve">,
     private readonly paywalls?: X402PaywallRuntime,
     private readonly approvals?: Pick<X402Permit2Approvals, "approver">,
     private readonly signing?: Pick<SigningService, "sign">,
@@ -192,34 +187,6 @@ export class X402Service {
         );
       },
     };
-  }
-
-  providerList(deadline: ExecutionDeadline, input: ProviderListInput) {
-    const network = input.network;
-    // Explicit chain IDs need no configured RPC; resolve aliases through the network registry.
-    const canonical =
-      network && !/^(?:tron|eip155):(?:[0-9]+|0x[0-9a-f]+)$/i.test(network)
-        ? this.networks.resolve(network).id
-        : network;
-    return this.catalog.list(
-      {
-        ...input,
-        ...(canonical === undefined ? {} : { network: canonical }),
-      },
-      requestDispatchCheck(deadline),
-    );
-  }
-
-  providerShow(deadline: ExecutionDeadline, fqn: string) {
-    return this.catalog.show(fqn, requestDispatchCheck(deadline));
-  }
-
-  providerEndpoints(deadline: ExecutionDeadline, fqn: string) {
-    return this.catalog.endpoints(fqn, requestDispatchCheck(deadline));
-  }
-
-  providerUpdate(deadline: ExecutionDeadline) {
-    return this.catalog.update(requestDispatchCheck(deadline));
   }
 
   validate(network: NetworkDescriptor, input: X402ServeInput): void {

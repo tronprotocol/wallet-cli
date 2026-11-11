@@ -8,7 +8,7 @@ wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` se
 
 - **Portable** — the same command on either family, with the family-specific parts named per family: `account balance` / `info` / `portfolio`, `block`, `tx send` / `broadcast` / `status` / `info` / `sign`, `token` (all five), `contract call` / `send` / `deploy`, `chain node` / `prices`, `message sign`, `typed-data sign`.
 - **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange`, `gasfree`, `sunswap` and `sunpump` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call. `sunswap` and `sunpump` narrow further: `sunpump`, `sunswap swap` and the six `sunswap` market queries run on mainnet only, while `sunswap position-info` and the three liquidity commands run on `tron` and `nile`. Elsewhere they fail with **`unsupported_network_capability`**, and the message names the network that works. Availability is per network config, not per build: the market queries need `sunswap.marketApiBaseUrl`, `swap` needs `sunswap.routerApiBaseUrl` or `sunpump.curve: true`, `sunpump buy` / `sell` need `sunpump.curve: true`, the other `sunpump` commands need `sunpump.apiBaseUrl`, and the liquidity commands and `position-info` need `sunswap.liquidity: true`. Contract addresses come from the SunSwap / SunPump SDK, not from config.
-- **Service commands** — `x402` and `bai` talk to HTTP services rather than to a chain node. The ones that pay (`x402 pay` / `roundtrip`, `bai recharge`) use the selected network's family; the catalog, usage, and report commands take no network. `8004` runs on both families, but only on networks with an ERC-8004 registry — not `ethereum` or `sepolia`.
+- **Service commands** — `x402` and `bai` talk to HTTP services rather than to a chain node. The ones that pay (`x402 pay` / `roundtrip`, `bai recharge`) use the selected network's family; the usage and report commands take no network. `8004` runs on both families, but only on networks with an ERC-8004 registry — not `ethereum` or `sepolia`.
 - **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
 
 Individual flags are family-scoped the same way. `--help` tags them `(TRON only)` / `(EVM only)`, and using one on the other family is a usage error — `invalid_option`, exit `2`.
@@ -197,10 +197,6 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 | `x402 pay` | [x402/pay.md](x402/pay.md) |
 | `x402 serve` | [x402/serve.md](x402/serve.md) |
 | `x402 roundtrip` | [x402/roundtrip.md](x402/roundtrip.md) |
-| `x402 provider-list` | [x402/provider-list.md](x402/provider-list.md) |
-| `x402 provider-show` | [x402/provider-show.md](x402/provider-show.md) |
-| `x402 endpoint-list` | [x402/endpoint-list.md](x402/endpoint-list.md) |
-| `x402 update-catalog` | [x402/update-catalog.md](x402/update-catalog.md) |
 | `bai` (group) | [bai/index.md](bai/index.md) |
 | `bai usage-summary` | [bai/usage-summary.md](bai/usage-summary.md) |
 | `bai usage-records` | [bai/usage-records.md](bai/usage-records.md) |

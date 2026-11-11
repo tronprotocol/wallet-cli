@@ -860,16 +860,6 @@
       "retry": "never",
       "meaning": "the agent token does not exist"
     },
-    "provider_not_found": {
-      "exit": 1,
-      "retry": "never",
-      "meaning": "the requested provider does not exist"
-    },
-    "catalog_schema_unsupported": {
-      "exit": 1,
-      "retry": "never",
-      "meaning": "the provider catalog schema version is unsupported"
-    },
     "internal_error": {
       "exit": 1,
       "retry": "never",
@@ -9109,40 +9099,6 @@
       }
     },
     {
-      "id": "x402.endpoint-list",
-      "kind": "neutral",
-      "path": [
-        "x402",
-        "endpoint-list"
-      ],
-      "usage": "wallet-cli x402 endpoint-list [options]",
-      "summary": "List one x402 provider's endpoints",
-      "requires": {
-        "network": "none",
-        "auth": "none",
-        "wallet": "none"
-      },
-      "examples": [
-        "wallet-cli x402 endpoint-list defillama"
-      ],
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {
-          "provider": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128,
-            "description": "provider fully-qualified name"
-          }
-        },
-        "required": [
-          "provider"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
       "id": "x402.pay",
       "kind": "neutral",
       "path": [
@@ -9296,105 +9252,6 @@
           "method",
           "header",
           "dryRun"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "id": "x402.provider-list",
-      "kind": "neutral",
-      "path": [
-        "x402",
-        "provider-list"
-      ],
-      "usage": "wallet-cli x402 provider-list [options]",
-      "summary": "List x402 catalog providers",
-      "requires": {
-        "network": "none",
-        "auth": "none",
-        "wallet": "none"
-      },
-      "examples": [
-        "wallet-cli x402 provider-list",
-        "wallet-cli x402 provider-list --network tron:728126428"
-      ],
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {
-          "limit": {
-            "default": 20,
-            "description": "maximum providers to return",
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 200
-          },
-          "offset": {
-            "default": 0,
-            "description": "zero-based pagination offset",
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "category": {
-            "description": "filter by a category exposed by the provider catalog",
-            "type": "string",
-            "minLength": 1
-          },
-          "capability": {
-            "description": "filter by a featured tag exposed by the provider catalog",
-            "type": "string",
-            "minLength": 1
-          },
-          "network": {
-            "description": "network alias or CAIP-2 network id",
-            "type": "string",
-            "minLength": 1
-          },
-          "includeBlocked": {
-            "default": false,
-            "description": "include providers marked as blocked",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "limit",
-          "offset",
-          "includeBlocked"
-        ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "id": "x402.provider-show",
-      "kind": "neutral",
-      "path": [
-        "x402",
-        "provider-show"
-      ],
-      "usage": "wallet-cli x402 provider-show [options]",
-      "summary": "Show one x402 provider",
-      "requires": {
-        "network": "none",
-        "auth": "none",
-        "wallet": "none"
-      },
-      "examples": [
-        "wallet-cli x402 provider-show defillama"
-      ],
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {
-          "provider": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128,
-            "description": "provider fully-qualified name"
-          }
-        },
-        "required": [
-          "provider"
         ],
         "additionalProperties": false
       }
@@ -9672,30 +9529,6 @@
           "port",
           "facilitatorUrl"
         ],
-        "additionalProperties": false
-      }
-    },
-    {
-      "id": "x402.update-catalog",
-      "kind": "neutral",
-      "path": [
-        "x402",
-        "update-catalog"
-      ],
-      "usage": "wallet-cli x402 update-catalog [options]",
-      "summary": "Refresh the local x402 provider catalog cache",
-      "requires": {
-        "network": "none",
-        "auth": "none",
-        "wallet": "none"
-      },
-      "examples": [
-        "wallet-cli x402 update-catalog"
-      ],
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "type": "object",
-        "properties": {},
         "additionalProperties": false
       }
     }

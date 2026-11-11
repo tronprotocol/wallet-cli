@@ -2,7 +2,6 @@ import { CommandDeadline } from "../services/command-deadline.js";
 import { DeadlineExpiredError } from "../contracts/deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { X402Service } from "./x402-service.js";
-import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
 import type { X402Inspection, X402PaidResult } from "../ports/x402-payment.js";
 import type { X402ServeDetails } from "../ports/x402-server.js";
 import type { SignerResolver } from "../services/signer/index.js";
@@ -40,33 +39,21 @@ function fixture(failure?: "prepare" | "resolve" | "pay") {
       return { address: "payer", kind: "software", sign: vi.fn(), signTypedData: vi.fn() };
     }),
   };
-  const catalog = {
-    list: vi.fn(async () => ({ results: [], pagination: {} })),
-    show: vi.fn(async () => ({ fqn: "a/b" })),
-    endpoints: vi.fn(async () => ({ endpoints: [] })),
-    update: vi.fn(async () => ({ updated: true })),
-  } as unknown as ProviderCatalogPort;
   const serverClose = vi.fn(async () => {});
   const start = vi.fn(async () => ({
     details: { payUrl: input.url, asset: "0xasset", rawAmount: "10000000" } as X402ServeDetails,
     close: serverClose,
   }));
-  const service = new X402Service(
-    { request, facts },
-    signers as unknown as SignerResolver,
-    catalog,
-    { resolve: vi.fn() },
-    {
-      facilitator: {
-        assetBySymbol: () => ({ symbol: "USDT", address: "0xasset", decimals: 6 }),
-        assetByAddress: () => undefined,
-        offer: vi.fn(),
-      },
-      host: { start },
-      requestTimeoutMs: 0,
+  const service = new X402Service({ request, facts }, signers as unknown as SignerResolver, {
+    facilitator: {
+      assetBySymbol: () => ({ symbol: "USDT", address: "0xasset", decimals: 6 }),
+      assetByAddress: () => undefined,
+      offer: vi.fn(),
     },
-  );
-  return { service, request, pay, close, signers, catalog, serverClose, start, facts };
+    host: { start },
+    requestTimeoutMs: 0,
+  });
+  return { service, request, pay, close, signers, serverClose, start, facts };
 }
 
 describe("X402Service", () => {
@@ -142,15 +129,6 @@ describe("X402Service", () => {
     });
     expect(f.pay).not.toHaveBeenCalled();
     expect(f.close).toHaveBeenCalledOnce();
-  });
-
-  it("delegates catalog operations", async () => {
-    const { service, catalog } = fixture();
-    await service.providerList(NO_DEADLINE, { limit: 20, offset: 0 });
-    await service.providerShow(NO_DEADLINE, "a/b");
-    await service.providerEndpoints(NO_DEADLINE, "a/b");
-    await service.providerUpdate(NO_DEADLINE);
-    expect(catalog.list).toHaveBeenCalledWith({ limit: 20, offset: 0 }, expect.anything());
   });
 });
 
@@ -239,8 +217,6 @@ describe("payer limits", () => {
     const service = new X402Service(
       { request, facts: () => ({ tokenDecimals: () => decimals }) },
       signers as unknown as SignerResolver,
-      {} as ProviderCatalogPort,
-      { resolve: vi.fn() },
     );
     return { service, request, pay, close };
   }

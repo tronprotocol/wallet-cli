@@ -1,8 +1,7 @@
 import { fromBaseUnits } from "../../../../domain/amounts/index.js";
 import { structuredText } from "./structured.js";
-import wrapAnsi from "wrap-ansi";
 import { sanitizeText } from "./scalars.js";
-import { asObj, query, table, receipt, ok, warn, type Pair } from "./layout.js";
+import { asObj, query, receipt, ok, warn, type Pair } from "./layout.js";
 import { fromX402Network } from "../../../../domain/x402/network-id.js";
 import { CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js";
 
@@ -40,69 +39,6 @@ function network(value: unknown): string {
   } catch {
     return text(value);
   }
-}
-function networks(value: unknown): string {
-  return Array.isArray(value) ? [...new Set(value.map(network))].join(", ") : "";
-}
-export function providerListText(value: unknown): string {
-  return table(
-    ["Provider", "Title", "Type", "Category", "Endpoints", "Networks", "Tags"],
-    rows(asObj(value).results).map((p) => [
-      text(p.fqn),
-      text(p.title ?? p.name),
-      text(p.type),
-      text(p.category),
-      text(p.endpointCount),
-      networks(p.chains),
-      Array.isArray(p.featuredTags) ? p.featuredTags.map(text).join(", ") : "",
-    ]),
-  );
-}
-export function providerShowText(value: unknown): string {
-  const p = asObj(value);
-  return query([
-    ["Provider", text(p.fqn)],
-    ["Name", text(p.title ?? p.name)],
-    ["Service", text(p.serviceUrl)],
-    [
-      "Endpoints",
-      text(p.endpointCount ?? (Array.isArray(p.endpoints) ? p.endpoints.length : undefined)),
-    ],
-    [
-      "Summary",
-      wrapAnsi(
-        summary(p.description ?? p.summary),
-        Math.max(12, (process.stdout.columns || 80) - 11),
-        { hard: true },
-      ).replace(/\n/g, "\n           "),
-    ],
-    ["Type", text(p.type)],
-    ["Category", text(p.category)],
-    ["Networks", networks(p.chains)],
-  ]);
-}
-export function providerEndpointsText(value: unknown): string {
-  return table(
-    ["Method", "Path", "Price (USD)", "Networks", "Description"],
-    rows(asObj(value).endpoints).map((p) => {
-      const routes = rows(p.x402Routes);
-      const min = p.minPriceUsd,
-        max = p.maxPriceUsd;
-      const price =
-        !routes.length || min === undefined || max === undefined
-          ? "——"
-          : min === max
-            ? text(min)
-            : `${text(min)}–${text(max)}`;
-      return [
-        text(p.method),
-        text(p.path),
-        price,
-        networks(routes.map((r) => r.network)) || "——",
-        summary(p.description),
-      ];
-    }),
-  );
 }
 export function paymentText(value: unknown): string {
   const p = asObj(value),
@@ -235,17 +171,4 @@ export function operatorCheckText(value: unknown): string {
     ["Approved for all Agents", data.approved === true ? "Yes" : "No"],
     ["Registry", text(data.registry)],
   ]);
-}
-
-export function catalogUpdateText(value: unknown): string {
-  const data = asObj(value);
-  return receipt(
-    data.updated === true ? ok() : warn(),
-    data.updated === true ? "Provider catalog updated" : "Provider catalog update not confirmed",
-    [
-      ["Providers", text(data.providers)],
-      ["Cache", text(data.cache)],
-      ["Generated at", text(data.generatedAt)],
-    ],
-  );
 }

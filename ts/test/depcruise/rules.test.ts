@@ -145,7 +145,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/adapters/inbound/node-fetch-leak.ts": `import fetch from "node-fetch";\nexport const leak = fetch;\n`,
         "src/adapters/inbound/got-leak.ts": `import got from "got";\nexport const leak = got;\n`,
         "src/adapters/inbound/ky-leak.ts": `import ky from "ky";\nexport const leak = ky;\n`,
-        "src/bootstrap/x402-leak.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const leak = setLogger;\n`,
+        "src/bootstrap/x402-leak.ts": `import { x402HTTPClient } from "@x402/core/client";\nexport const leak = x402HTTPClient;\n`,
         "src/bootstrap/ledger-leak.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const leak = Trx;\n`,
         "src/domain/sun-leak.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Leak = SunApiClient;\n`,
         "src/application/services/axios-leak.ts": `import axios from "axios";\nexport const leak = axios;\n`,
@@ -208,7 +208,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
       files: {
         "src/adapters/outbound/shared.ts": `import { Wallet } from "ethers";\nexport const shared = Wallet;\n`,
         "src/adapters/outbound/chain/shared.ts": `import { TronWeb } from "tronweb";\nexport const shared = TronWeb;\n`,
-        "src/adapters/outbound/http/client.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const client = setLogger;\n`,
+        "src/adapters/outbound/http/client.ts": `import { decodePaymentRequiredHeader } from "@x402/core/http";\nexport const client = decodePaymentRequiredHeader;\n`,
         "src/adapters/outbound/persistence/fs/store.ts": `import type Trx from "@ledgerhq/hw-app-trx";\nexport type Store = Trx;\n`,
         "src/adapters/outbound/persistence/sun.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Sun = SunApiClient;\n`,
       },
@@ -324,8 +324,8 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/adapters/outbound/x402/core-facilitator.ts",
         "src/adapters/outbound/x402/batch.ts",
         "src/adapters/outbound/x402/types.ts",
-        "src/adapters/outbound/x402/agent-wallet.ts",
-        "src/adapters/outbound/x402/agent-wallet-dist.ts",
+        "src/adapters/outbound/x402/sponsoring.ts",
+        "src/adapters/outbound/x402/sponsoring-dist.ts",
         "src/adapters/outbound/x402/exact.ts",
         "src/adapters/outbound/x402/upto.ts",
         "src/adapters/outbound/x402/gasfree-facilitator.ts",
@@ -334,14 +334,14 @@ describe("dependency-cruiser layer and cycle rules", () => {
       ],
       files: {
         "src/adapters/outbound/x402/server.ts": `import { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";\nexport const server = ExactTronScheme;\n`,
-        "src/adapters/outbound/x402/gasfree-errors.test.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nexport const probe = wrapFetchWithPayment;\n`,
+        "src/adapters/outbound/x402/gasfree-errors.test.ts": `import { wrapFetchWithPayment } from "@x402/fetch";\nexport const probe = wrapFetchWithPayment;\n`,
         "src/adapters/outbound/x402/gasfree-client.test.ts": `import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";\nexport const probe = ExactGasFreeTronScheme;\n`,
-        "src/adapters/outbound/x402/evm.ts": `import { registerExactEvmScheme } from "@bankofai/x402-evm/exact/v1/client";\nexport const evm = registerExactEvmScheme;\n`,
-        "src/adapters/outbound/x402/core-client.ts": `import { x402Client } from "@bankofai/x402-core/client";\nexport const client = x402Client;\n`,
-        "src/adapters/outbound/x402/core-facilitator.ts": `import { x402Facilitator } from "@bankofai/x402-core/facilitator";\nexport const facilitator = x402Facilitator;\n`,
-        "src/adapters/outbound/x402/batch.ts": `import { BatchSettlementEvmScheme } from "@bankofai/x402-evm/batch-settlement/client";\nexport const batch = BatchSettlementEvmScheme;\n`,
-        "src/adapters/outbound/x402/agent-wallet.ts": `import { createFacilitatorEvmSigner } from "@bankofai/x402-evm/adapters/agent-wallet";\nexport const signer = createFacilitatorEvmSigner;\n`,
-        "src/adapters/outbound/x402/agent-wallet-dist.ts": `import { createClientEvmSigner } from "@bankofai/x402-evm/dist/esm/adapters/agent-wallet.mjs";\nexport const signer = createClientEvmSigner;\n`,
+        "src/adapters/outbound/x402/evm.ts": `import { registerExactEvmScheme } from "@x402/evm/exact/v1/client";\nexport const evm = registerExactEvmScheme;\n`,
+        "src/adapters/outbound/x402/core-client.ts": `import { x402Client } from "@x402/core/client";\nexport const client = x402Client;\n`,
+        "src/adapters/outbound/x402/core-facilitator.ts": `import { x402Facilitator } from "@x402/core/facilitator";\nexport const facilitator = x402Facilitator;\n`,
+        "src/adapters/outbound/x402/batch.ts": `import { BatchSettlementEvmScheme } from "@x402/evm/batch-settlement/client";\nexport const batch = BatchSettlementEvmScheme;\n`,
+        "src/adapters/outbound/x402/sponsoring.ts": `import { createTrc20ApprovalResourceSponsoringClientExtension } from "@bankofai/x402-tron-extensions/trc20-approval-resource-sponsoring/client";\nexport const signer = createTrc20ApprovalResourceSponsoringClientExtension;\n`,
+        "src/adapters/outbound/x402/sponsoring-dist.ts": `import { createTrc20ApprovalResourceSponsoringClientExtension } from "@bankofai/x402-tron-extensions/dist/esm/trc20-approval-resource-sponsoring/client.mjs";\nexport const signer = createTrc20ApprovalResourceSponsoringClientExtension;\n`,
         "src/adapters/outbound/x402/exact.ts": `import { ExactTronScheme } from "@bankofai/x402-tron/exact";\nexport const scheme = ExactTronScheme;\n`,
         "src/adapters/outbound/x402/upto.ts": `import { UptoTronScheme, createUptoPermit2Payload } from "@bankofai/x402-tron/upto";\nexport const scheme = [UptoTronScheme, createUptoPermit2Payload];\n`,
         "src/adapters/outbound/x402/gasfree-facilitator.ts": `import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/facilitator";\nexport const scheme = ExactGasFreeTronScheme;\n`,
@@ -418,9 +418,9 @@ describe("dependency-cruiser layer and cycle rules", () => {
   it("allows SDKs and HTTP clients in outbound and in tests, and names that only resemble them", () => {
     const dir = buildTree({
       "src/adapters/outbound/chain/tron/chain.ts": `import { TronWeb } from "tronweb";\nimport { Wallet } from "ethers";\nimport axios from "axios";\nexport const chain = [TronWeb, Wallet, axios];\n`,
-      "src/adapters/outbound/x402/x402.ts": `import { setLogger } from "@bankofai/x402-core";\nimport Hid from "@ledgerhq/hw-transport-node-hid-noevents";\nexport const x402 = [setLogger, Hid];\n`,
+      "src/adapters/outbound/x402/x402.ts": `import { decodePaymentRequiredHeader } from "@x402/core/http";\nimport Hid from "@ledgerhq/hw-transport-node-hid-noevents";\nexport const x402 = [decodePaymentRequiredHeader, Hid];\n`,
       "src/adapters/inbound/command.test.ts": `import { Wallet } from "ethers";\nimport axios from "axios";\nexport const probe = [Wallet, axios];\n`,
-      "src/bootstrap/composition.test.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const probe = setLogger;\n`,
+      "src/bootstrap/composition.test.ts": `import { decodePaymentRequiredHeader } from "@x402/core/http";\nexport const probe = decodePaymentRequiredHeader;\n`,
       "src/adapters/inbound/look-alike.ts": `import { kyber } from "kyber-crypto";\nimport { gotcha } from "gotcha";\nimport { wallet } from "@acme/ethers";\nexport const lookAlike = [kyber, gotcha, wallet];\n`,
     });
     try {
@@ -461,7 +461,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
     const dir = buildTree({
       "src/adapters/outbound/chain/tron/gateway.ts": `import { TronWeb } from "tronweb";\nexport const gateway = TronWeb;\n`,
       "src/adapters/outbound/ledger/index.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const ledger = Trx;\n`,
-      "src/adapters/outbound/x402/client.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const client = setLogger;\n`,
+      "src/adapters/outbound/x402/client.ts": `import { decodePaymentRequiredHeader } from "@x402/core/http";\nexport const client = decodePaymentRequiredHeader;\n`,
       "src/adapters/outbound/http/client.ts": `import axios from "axios";\nimport { request } from "undici";\nexport const client = [axios, request];\n`,
       "src/adapters/outbound/http/client.test.ts": `import { Wallet } from "ethers";\nexport const probe = Wallet;\n`,
       "src/adapters/outbound/persistence/store.test.ts": `import { TronWeb } from "tronweb";\nexport const probe = TronWeb;\n`,
@@ -477,7 +477,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
   it("reports SDK signing and payment roots by their bare specifier when they do not resolve", () => {
     const dir = buildTree({
       "src/adapters/outbound/chain/tron/device.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const device = Trx;\n`,
-      "src/adapters/outbound/http/pay.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nexport const pay = wrapFetchWithPayment;\n`,
+      "src/adapters/outbound/http/pay.ts": `import { wrapFetchWithPayment } from "@x402/fetch";\nexport const pay = wrapFetchWithPayment;\n`,
       "src/adapters/outbound/chain/evm/registry.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`,
     });
     try {
@@ -487,7 +487,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "ledger-apps-only-in-ledger-wrapper: src/adapters/outbound/chain/tron/device.ts → @ledgerhq/hw-app-trx\n",
       );
       expect(output).toContain(
-        "x402-payment-modules-only-in-payment-client: src/adapters/outbound/http/pay.ts → @bankofai/x402-fetch\n",
+        "x402-payment-modules-only-in-payment-client: src/adapters/outbound/http/pay.ts → @x402/fetch\n",
       );
       expect(output).toContain(
         "erc8004-sdk-only-in-registry-wrapper: src/adapters/outbound/chain/evm/registry.ts → @bankofai/8004-sdk\n",
@@ -506,11 +506,11 @@ describe("dependency-cruiser layer and cycle rules", () => {
       "src/adapters/outbound/erc8004/sdk-registry.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`,
       "src/adapters/outbound/erc8004/types.ts": `import type { SDK } from "@bankofai/8004-sdk";\nexport type Sdk = SDK;\n`,
       "src/adapters/outbound/erc8004/sdk-registry.test.ts": `export type Probe = typeof import("@bankofai/8004-sdk");\n`,
-      "src/adapters/outbound/x402/payment-client.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nimport { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";\nimport { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";\nimport { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";\nimport { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";\nimport { x402Client } from "@bankofai/x402-core/client";\nimport { createClientEvmSigner } from "@bankofai/x402-evm/adapters/agent-wallet";\nimport { UptoTronScheme } from "@bankofai/x402-tron/upto";\nexport const client = [wrapFetchWithPayment, registerExactTronScheme, registerExactGasFreeTronScheme, ExactTronScheme, registerExactEvmScheme, x402Client, createClientEvmSigner, UptoTronScheme];\n`,
+      "src/adapters/outbound/x402/payment-client.ts": `import { wrapFetchWithPayment } from "@x402/fetch";\nimport { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";\nimport { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";\nimport { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";\nimport { registerExactEvmScheme } from "@x402/evm/exact/client";\nimport { x402Client } from "@x402/core/client";\nimport { createTrc20ApprovalResourceSponsoringClientExtension } from "@bankofai/x402-tron-extensions/trc20-approval-resource-sponsoring/client";\nimport { UptoTronScheme } from "@bankofai/x402-tron/upto";\nexport const client = [wrapFetchWithPayment, registerExactTronScheme, registerExactGasFreeTronScheme, ExactTronScheme, registerExactEvmScheme, x402Client, createTrc20ApprovalResourceSponsoringClientExtension, UptoTronScheme];\n`,
       "src/adapters/outbound/x402/gasfree-relay.ts": `import { GasFreeAPIClient } from "@bankofai/x402-tron/gasfree";\nexport const relay = GasFreeAPIClient;\n`,
-      "src/adapters/outbound/x402/server.ts": `import { encodePaymentRequiredHeader } from "@bankofai/x402-core/http";\nimport { scheme } from "@bankofai/x402-tron/exact/server";\nimport type { Network } from "@bankofai/x402-core/types";\nexport const server = [encodePaymentRequiredHeader, scheme];\nexport type Net = Network;\n`,
+      "src/adapters/outbound/x402/server.ts": `import { encodePaymentRequiredHeader } from "@x402/core/http";\nimport { scheme } from "@bankofai/x402-tron/exact/server";\nimport type { Network } from "@x402/core/types";\nexport const server = [encodePaymentRequiredHeader, scheme];\nexport type Net = Network;\n`,
       "src/adapters/outbound/x402/tokens.ts": `import { registerToken } from "@bankofai/x402-tron";\nimport { fetcher } from "@bankofai/x402-fetcher";\nimport { clients } from "@bankofai/x402-tron/clients";\nimport { exactly } from "@bankofai/x402-tron/exactly";\nexport const tokens = [registerToken, fetcher, clients, exactly];\n`,
-      "src/adapters/outbound/x402/storage.ts": `import { FileClientChannelStorage } from "@bankofai/x402-evm/batch-settlement/client/file-storage";\nimport { FileClientChannelStorage as DistStorage } from "@bankofai/x402-evm/dist/esm/batch-settlement/client/file-storage.mjs";\nimport { RedisChannelStorage } from "@bankofai/x402-evm/batch-settlement/server/redis-storage";\nimport type { ClientWallet } from "@bankofai/x402-core/wallets";\nexport const storage = [FileClientChannelStorage, DistStorage, RedisChannelStorage];\nexport type Wallet = ClientWallet;\n`,
+      "src/adapters/outbound/x402/storage.ts": `import { FileClientChannelStorage } from "@x402/evm/batch-settlement/client/file-storage";\nimport { FileClientChannelStorage as DistStorage } from "@x402/evm/dist/esm/batch-settlement/client/file-storage.mjs";\nimport { RedisChannelStorage } from "@x402/evm/batch-settlement/server/redis-storage";\nimport type { ClientWallet } from "@x402/core/wallets";\nexport const storage = [FileClientChannelStorage, DistStorage, RedisChannelStorage];\nexport type Wallet = ClientWallet;\n`,
     });
     try {
       expect(cruise(dir)).toContain("no dependency violations found");

@@ -610,7 +610,7 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   contact: "Manage the recipient address book.",
   bai: "Query B.AI account credits, usage records, and recharge orders.",
   "8004": "Read and manage ERC-8004 Agent identities on supported networks.",
-  x402: "Pay x402 endpoints and inspect the provider catalog.",
+  x402: "Pay or serve x402 endpoints.",
 };
 
 function globalFlagHead(g: GlobalFlag): string {

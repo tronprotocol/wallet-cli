@@ -1,17 +1,7 @@
-import type { ExecutionDeadline } from "../../../../application/contracts/deadline.js";
-import {
-  paymentText,
-  roundtripText,
-  catalogUpdateText,
-  serveText,
-  providerListText,
-  providerShowText,
-  providerEndpointsText,
-} from "../render/x402.js";
+import { paymentText, roundtripText, serveText } from "../render/x402.js";
 import { paymentAmount, rawPaymentAmount, integerLiteral } from "../schemas/payment-values.js";
 import { z } from "zod";
 import { SECRET_KINDS, type CommandDefinition, type ExclusiveGroup } from "../contracts/index.js";
-import { sanitizeText } from "../render/scalars.js";
 import type { CommandRegistry } from "../registry/index.js";
 import type { X402Service } from "../../../../application/use-cases/x402-service.js";
 import type { HttpHeader } from "../../../../application/ports/x402-payment.js";
@@ -28,7 +18,6 @@ const url = z
   .string()
   .url()
   .refine((value) => /^https?:\/\//.test(value), "must use http:// or https://");
-const fqn = z.string().trim().min(1).max(128).describe("provider fully-qualified name");
 
 const payFields = z.object({
   url: url.describe("x402-protected endpoint URL"),
@@ -123,28 +112,6 @@ const payCommand: CommandDefinition = {
   ],
   run: async () => ({}),
 };
-
-const listFields = z.object({
-  limit: integerLiteral(1, 200).default(20).describe("maximum providers to return"),
-  offset: integerLiteral(0, Number.MAX_SAFE_INTEGER)
-    .default(0)
-    .describe("zero-based pagination offset"),
-
-  category: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .describe("filter by a category exposed by the provider catalog"),
-  capability: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .describe("filter by a featured tag exposed by the provider catalog"),
-  network: z.string().trim().min(1).optional().describe("network alias or CAIP-2 network id"),
-  includeBlocked: z.boolean().default(false).describe("include providers marked as blocked"),
-});
 
 const serveFields = z.object({
   payTo: z.string().trim().min(1).describe("recipient address on the selected network"),
@@ -282,65 +249,6 @@ export function registerX402Commands(registry: CommandRegistry, service: X402Ser
       return { serve, pay };
     },
   } satisfies CommandDefinition);
-
-  registry.add({
-    path: ["x402", "provider-list"],
-    formatText: providerListText,
-    network: "none",
-    wallet: "none",
-    auth: "none",
-    summary: "List x402 catalog providers",
-    fields: listFields,
-    input: listFields,
-    examples: [
-      { cmd: "wallet-cli x402 provider-list" },
-      { cmd: "wallet-cli x402 provider-list --network tron:728126428" },
-    ],
-    run: async (ctx, _network, input) =>
-      providerResult(ctx, service.providerList(ctx.deadline, input)),
-  } satisfies CommandDefinition);
-
-  for (const [verb, summary, run] of [
-    [
-      "provider-show",
-      "Show one x402 provider",
-      (deadline: ExecutionDeadline, name: string) => service.providerShow(deadline, name),
-    ],
-    [
-      "endpoint-list",
-      "List one x402 provider's endpoints",
-      (deadline: ExecutionDeadline, name: string) => service.providerEndpoints(deadline, name),
-    ],
-  ] as const) {
-    const fields = z.object({ provider: fqn });
-    registry.add({
-      path: ["x402", verb],
-      formatText: verb === "provider-show" ? providerShowText : providerEndpointsText,
-      network: "none",
-      wallet: "none",
-      auth: "none",
-      positionals: [{ field: "provider" }],
-      summary,
-      fields,
-      input: fields,
-      examples: [{ cmd: `wallet-cli x402 ${verb} defillama` }],
-      run: async (ctx, _network, input) => providerResult(ctx, run(ctx.deadline, input.provider)),
-    } satisfies CommandDefinition);
-  }
-
-  const empty = z.object({});
-  registry.add({
-    path: ["x402", "update-catalog"],
-    formatText: catalogUpdateText,
-    network: "none",
-    wallet: "none",
-    auth: "none",
-    summary: "Refresh the local x402 provider catalog cache",
-    fields: empty,
-    input: empty,
-    examples: [{ cmd: "wallet-cli x402 update-catalog" }],
-    run: async (ctx) => providerResult(ctx, service.providerUpdate(ctx.deadline)),
-  } satisfies CommandDefinition);
 }
 
 // Splits each "Name: value" argument at its first colon.
@@ -385,17 +293,4 @@ function checkedBody(body: Uint8Array, source: string): Uint8Array {
     throw new UsageError("invalid_value", errorMessage`request body from ${source} exceeds 1 MiB`);
   }
   return body;
-}
-
-async function providerResult(
-  ctx: Parameters<CommandDefinition["run"]>[0],
-  pending: Promise<{ warnings?: unknown }>,
-) {
-  ctx.emit({ type: "activity", message: "Loading provider catalog data…" });
-  const { warnings, ...data } = await pending;
-  // Sanitize remote warnings; the diagnostic channel bypasses the result renderer.
-  if (Array.isArray(warnings))
-    for (const warning of warnings)
-      if (typeof warning === "string") ctx.warn(sanitizeText(warning));
-  return data;
 }

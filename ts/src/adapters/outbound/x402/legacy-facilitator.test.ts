@@ -85,8 +85,6 @@ it.each(
     const service = new X402Service(
       new X402PaymentClient(),
       signers as never,
-      {} as never,
-      {} as never,
       {
         facilitator: new X402FacilitatorClient(facilitator),
         requestTimeoutMs: 0,

@@ -74,8 +74,6 @@ function fixture(
   const service = new X402Service(
     new X402PaymentClient(fetcher as typeof fetch),
     resolver,
-    {} as never,
-    {} as never,
     undefined,
     undefined,
     signing,

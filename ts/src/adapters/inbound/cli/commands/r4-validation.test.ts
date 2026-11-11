@@ -43,9 +43,6 @@ describe("R4 payment input contracts", () => {
   it.each(["1e3", "1.5", "-1"])("rejects port literal %s", (port) => {
     expect(() => parse("serve", { payTo: "x", port })).toThrow();
   });
-  it.each(["201", "1e2"])("rejects page limit %s", (limit) => {
-    expect(() => parse("provider-list", { limit })).toThrow();
-  });
   it("accepts the maximum uint256 and precision 18", () => {
     expect(
       parse("pay", {

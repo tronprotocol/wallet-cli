@@ -104,8 +104,6 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
       const client = new X402Service(
         new X402PaymentClient(globalThis.fetch, retry ? async () => paidFetch : undefined),
         resolver,
-        {} as never,
-        {} as never,
       );
       await command(client).run(context() as never, network, {
         url: `http://127.0.0.1:${address.port}`,
@@ -137,14 +135,16 @@ describe.each(["file", "stdin"])("x402 request bytes from %s", (source) => {
     try {
       await writeFile(path, bytes);
       if (source === "stdin") await stdin(bytes);
-      const result = command(
-        new X402Service(new X402PaymentClient(fetcher), {} as never, {} as never, {} as never),
-      ).run(context() as never, network, {
-        url: "http://example.test",
-        method: "POST",
-        header: [],
-        bodyFile: source === "stdin" ? "-" : path,
-      });
+      const result = command(new X402Service(new X402PaymentClient(fetcher), {} as never)).run(
+        context() as never,
+        network,
+        {
+          url: "http://example.test",
+          method: "POST",
+          header: [],
+          bodyFile: source === "stdin" ? "-" : path,
+        },
+      );
       if (length === 1_048_576) {
         await expect(result).resolves.toMatchObject({ delivered: true });
         expect(fetcher).toHaveBeenCalledOnce();
@@ -163,14 +163,16 @@ it("keeps inline --body as text", async () => {
     expect(init?.body).toBe("中文\r\n");
     return new Response("ok");
   });
-  await command(
-    new X402Service(new X402PaymentClient(fetcher), {} as never, {} as never, {} as never),
-  ).run(context() as never, network, {
-    url: "http://example.test",
-    method: "POST",
-    header: [],
-    body: "中文\r\n",
-  });
+  await command(new X402Service(new X402PaymentClient(fetcher), {} as never)).run(
+    context() as never,
+    network,
+    {
+      url: "http://example.test",
+      method: "POST",
+      header: [],
+      body: "中文\r\n",
+    },
+  );
   expect(fetcher).toHaveBeenCalledOnce();
 });
 

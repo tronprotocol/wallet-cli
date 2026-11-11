@@ -7,15 +7,7 @@ import { pathToFileURL } from "node:url";
 
 const entry = process.env.WALLET_CLI_TEST_ENTRY;
 const commands = [
-  ...[
-    "pay",
-    "serve",
-    "roundtrip",
-    "provider-list",
-    "provider-show",
-    "endpoint-list",
-    "update-catalog",
-  ].map((v) => ["x402", v]),
+  ...["pay", "serve", "roundtrip"].map((v) => ["x402", v]),
   ...["recharge", "report-recharge", "usage-summary", "usage-records", "recharge-orders"].map(
     (v) => ["bai", v],
   ),
@@ -80,54 +72,6 @@ it.skipIf(!entry).each(commands)("%s %s help and unknown-flag rejection", (group
   expect(bad.status).not.toBe(0);
   expect(JSON.parse(bad.stdout).success).toBe(false);
 });
-const catalog = {
-  version: 1,
-  generated_at: "2026-09-14T00:00:00Z",
-  warnings: ["catalog fixture warning"],
-  providers: [
-    {
-      fqn: "bai/recharge",
-      name: "B.AI",
-      category: "ai",
-      chains: ["base"],
-      featuredTags: ["recharge"],
-    },
-  ],
-};
-const provider = {
-  fqn: "bai/recharge",
-  endpoints: [{ path: "/m/credit/recharge", method: "POST" }],
-};
-it.skipIf(!entry).each(["provider-list", "provider-show", "endpoint-list", "update-catalog"])(
-  "x402 %s against catalog fixture",
-  (verb) => {
-    const mock = `globalThis.fetch=async(url)=>new Response(JSON.stringify(String(url).endsWith('catalog.json')?${JSON.stringify(catalog)}:${JSON.stringify(provider)}));`;
-    const r = run(
-      [
-        "x402",
-        verb,
-        ...(["provider-show", "endpoint-list"].includes(verb) ? ["bai/recharge"] : []),
-        "--output",
-        "json",
-      ],
-      mock,
-    );
-    expect(r.status, r.stderr + r.stdout).toBe(0);
-    expect(JSON.parse(r.stdout).command).toBe(`x402.${verb}`);
-    const data = JSON.parse(r.stdout).data;
-    if (verb === "provider-list") expect(data.count).toBe(1);
-    if (verb === "provider-show") expect(data.fqn).toBe("bai/recharge");
-    if (verb === "endpoint-list") expect(data.endpoints).toHaveLength(1);
-    if (verb === "update-catalog") {
-      expect(data.updated).toBe(true);
-      expect(data.generatedAt).toBe(catalog.generated_at);
-      expect(data).not.toHaveProperty("warnings");
-      expect(JSON.stringify(JSON.parse(r.stdout).meta.warnings)).toContain(
-        "catalog fixture warning",
-      );
-    }
-  },
-);
 it.skipIf(!entry).each(["usage-summary", "usage-records", "recharge-orders"])(
   "bai %s against authenticated fixture",
   (verb) => {
@@ -144,6 +88,15 @@ it.skipIf(!entry).each(["usage-summary", "usage-records", "recharge-orders"])(
     const data = JSON.parse(r.stdout).data;
     if (verb === "usage-summary") expect(data.credits).toBe("100");
     else expect(JSON.stringify(data)).toContain(verb === "usage-records" ? "r1" : "o1");
+  },
+);
+
+it.skipIf(!entry).each(["provider-list", "provider-show", "endpoint-list", "update-catalog"])(
+  "installed CLI rejects removed x402 command %s",
+  (verb) => {
+    const result = run(["x402", verb, "-o", "json"]);
+    expect(result.status, result.stderr).toBe(2);
+    expect(JSON.parse(result.stdout).error.code).toBe("unknown_command");
   },
 );
 
@@ -179,10 +132,6 @@ it.skipIf(!entry).each([
   ],
   [["x402", "serve", "--pay-to", "x", "--port", "1e3"], "invalid_value", 2],
   [["x402", "roundtrip", "--pay-to", "x", "--amount", "0"], "invalid_amount", 2],
-  [["x402", "provider-list", "--limit", "201"], "invalid_value", 2],
-  [["x402", "provider-list", "--limit", "1e2"], "invalid_value", 2],
-  [["x402", "provider-list", "--account", "ignored"], "invalid_option", 2],
-  [["x402", "provider-show", "demo/provider", "--network", "nile"], "invalid_option", 2],
   [["bai", "usage-records", "--limit", "201"], "invalid_value", 2],
   [["8004", "show", "eip155:97:123", "--network", "nile"], "chain_id_mismatch", 1],
   [

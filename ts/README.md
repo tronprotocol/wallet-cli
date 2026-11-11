@@ -188,7 +188,7 @@ Trade and provide liquidity on SunSwap, and trade or launch tokens on the SunPum
 
 | Command | Description |
 |---|---|
-| [`x402`](docs/commands/x402/index.md) | Pay x402-protected HTTP endpoints, run a local paywall, and browse the provider catalog |
+| [`x402`](docs/commands/x402/index.md) | Pay x402-protected HTTP endpoints and run a local paywall |
 | [`bai`](docs/commands/bai/index.md) | B.AI credits, usage records, and stablecoin recharges |
 | [`8004`](docs/commands/8004/index.md) | Read and manage ERC-8004 Agent identities |
 

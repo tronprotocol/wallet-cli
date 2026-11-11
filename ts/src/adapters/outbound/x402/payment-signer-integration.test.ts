@@ -76,8 +76,6 @@ function fixture(wrongType = false, multiple = false) {
     client: new X402Service(
       new X402PaymentClient(fetcher),
       resolver,
-      {} as never,
-      {} as never,
       undefined,
       undefined,
       signing,

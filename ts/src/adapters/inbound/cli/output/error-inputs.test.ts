@@ -174,7 +174,7 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
   it("preserves a keystore error's safe text through payment preparation", () => {
     const keystore = new Keystore(root(), new AtomicFileStore(), () => "unused");
     const resolver = new SignerResolver(keystore, {} as never, {} as never);
-    const client = new X402Service(new X402PaymentClient(), resolver, {} as never, {} as never);
+    const client = new X402Service(new X402PaymentClient(), resolver);
     const error = thrown(() =>
       client.prepare({ activeAccount: "missing\nFAKE_LOG" } as never, { family: "tron" } as never),
     );
@@ -245,12 +245,10 @@ describe("x402 not-sent errors keep CLI input spelling", () => {
     const fetcher = vi.fn<typeof fetch>(
       async () => new Response(new Uint8Array(body), { headers: { "content-type": contentType } }),
     );
-    const client = new X402Service(
-      new X402PaymentClient(fetcher),
-      { resolve: vi.fn(), assertCanSign: vi.fn() } as never,
-      {} as never,
-      {} as never,
-    );
+    const client = new X402Service(new X402PaymentClient(fetcher), {
+      resolve: vi.fn(),
+      assertCanSign: vi.fn(),
+    } as never);
     const error = await client
       .pay(scope, net, { url: "https://api.example/resource", method: "GET", headers: [] })
       .catch((caught: unknown) => caught);
