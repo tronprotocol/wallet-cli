@@ -53,8 +53,6 @@ it("reports the installed SDK's GasFree shortfall before signing, without a wall
   const client = new X402Service(
     new X402PaymentClient(fetcher, async () => wrapFetchWithPayment(fetcher, sdk)),
     { assertCanSign: vi.fn(), resolve: () => ({ address: payer }) } as never,
-    {} as never,
-    {} as never,
   );
   await expect(
     client.pay(

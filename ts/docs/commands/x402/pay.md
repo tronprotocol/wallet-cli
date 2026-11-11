@@ -68,17 +68,17 @@ Plus the [global options](../index.md#global-options-every-command). `--timeout`
 
 ## Examples
 
-Paying an x402 endpoint takes two steps: see what it charges, then pay. The examples use DIA's BTC price quotation from the x402 catalog (see [`x402 endpoint-list`](endpoint-list.md)), which takes payment on TRON mainnet.
+Paying an x402 endpoint takes two steps: see what it charges, then pay. Replace the example URL with the resource URL from your provider. The examples assume that endpoint accepts USDT on TRON mainnet.
 
 **1. See what the endpoint charges.** `--dry-run` reads the price without signing anything, so nothing is paid:
 
 ```bash
-wallet-cli x402 pay https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC --network tron --dry-run
+wallet-cli x402 pay https://merchant.example/quotes/BTC --network tron --dry-run
 ```
 
 ```console
 Payment preview — no payment sent
-URL        https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC
+URL        https://merchant.example/quotes/BTC
 Status     402
 Settled    No
 Delivered  No
@@ -94,11 +94,11 @@ Payment requirements:
 ```
 
 ```bash
-wallet-cli x402 pay https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC --network tron --dry-run -o json
+wallet-cli x402 pay https://merchant.example/quotes/BTC --network tron --dry-run -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"x402.pay","data":{"url":"https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC","status":402,"delivered":false,"settled":false,"dryRun":true,"paymentRequired":true,"selected":{"scheme":"exact","network":"tron:728126428","amount":"1","asset":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","payTo":"TLXPgJVJFgL97gc49j8w8kC22mDTpH9EGa","maxTimeoutSeconds":300,"extra":{"assetTransferMethod":"permit2"}}},"meta":{"durationMs":900,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"x402.pay","data":{"url":"https://merchant.example/quotes/BTC","status":402,"delivered":false,"settled":false,"dryRun":true,"paymentRequired":true,"selected":{"scheme":"exact","network":"tron:728126428","amount":"1","asset":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","payTo":"TLXPgJVJFgL97gc49j8w8kC22mDTpH9EGa","maxTimeoutSeconds":300,"extra":{"assetTransferMethod":"permit2"}}},"meta":{"durationMs":900,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 `status: 402` means the endpoint wants payment. `selected` (text: `Payment requirements`) is the route that would be paid: `amount` is in the token's smallest unit, so `"1"` is 0.000001 USDT (6 decimals); `asset` is the USDT contract on TRON mainnet; `payTo` is who receives it.
@@ -106,11 +106,11 @@ wallet-cli x402 pay https://x402-gateway.bankofai.io/providers/dia-price-tron/v1
 **2. Pay.** This spends real USDT on mainnet. `--max-amount 0.001` refuses any price above 0.001 USDT, and `--out` saves the response to `btc-quote.json`. `$PW` is your master password (from an environment variable, password manager, etc.), fed on stdin via `--password-stdin`:
 
 ```bash
-printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC --network tron --max-amount 0.001 --out btc-quote.json --password-stdin
+printf '%s' "$PW" | wallet-cli x402 pay https://merchant.example/quotes/BTC --network tron --max-amount 0.001 --out btc-quote.json --password-stdin
 ```
 
 ```console
-URL          https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC
+URL          https://merchant.example/quotes/BTC
 Status       200
 Settled      Yes
 Delivered    Yes
@@ -122,11 +122,11 @@ Output       btc-quote.json
 ```
 
 ```bash
-printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC --network tron --max-amount 0.001 --out btc-quote.json --password-stdin -o json
+printf '%s' "$PW" | wallet-cli x402 pay https://merchant.example/quotes/BTC --network tron --max-amount 0.001 --out btc-quote.json --password-stdin -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"x402.pay","data":{"url":"https://x402-gateway.bankofai.io/providers/dia-price-tron/v1/quotation/BTC","status":200,"delivered":true,"settled":true,"payer":{"address":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"},"paymentResponse":{"success":true,"transaction":"9b41c7e2d05f83a6e1c4b8d27f9a03e5c6d8b1f4a2e7c9d0b3f5a8e1c6d2b7f4","network":"tron:0x2b6653dc","payer":"0xe2e1a54926527fbb4e4420de4c6bab82beaee24d"},"output":{"path":"btc-quote.json","bytes":214},"payment":{"asset":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","token":"USDT","decimals":6,"amount":"0.000001","rawAmount":"1"}},"meta":{"durationMs":6412,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"x402.pay","data":{"url":"https://merchant.example/quotes/BTC","status":200,"delivered":true,"settled":true,"payer":{"address":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6"},"paymentResponse":{"success":true,"transaction":"9b41c7e2d05f83a6e1c4b8d27f9a03e5c6d8b1f4a2e7c9d0b3f5a8e1c6d2b7f4","network":"tron:0x2b6653dc","payer":"0xe2e1a54926527fbb4e4420de4c6bab82beaee24d"},"output":{"path":"btc-quote.json","bytes":214},"payment":{"asset":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","token":"USDT","decimals":6,"amount":"0.000001","rawAmount":"1"}},"meta":{"durationMs":6412,"warnings":[]},"chain":{"family":"tron","network":"tron:728126428","chainId":"728126428"}}
 ```
 
 `Settled Yes` means the payment went through on chain; `Delivered Yes` means the paid response arrived and was written to `btc-quote.json`. `Amount` and `Asset` are what was paid (JSON: `data.payment`). `From` is the paying account and `Transaction` the payment's transaction ID (JSON: `data.payer.address` and `data.paymentResponse.transaction`). The facilitator submits the payment transaction and pays its energy, so the payment itself costs the account only the quoted price. This account already had a Permit2 allowance; on a first payment without one, see the Permit2 approve note above.
@@ -153,4 +153,4 @@ printf '%s' "$PW" | wallet-cli x402 pay https://x402-gateway.bankofai.io/provide
 
 ## See also
 
-[`x402 serve`](serve.md) · [`x402 roundtrip`](roundtrip.md) · [`x402 endpoint-list`](endpoint-list.md) · [`gasfree info`](../gasfree/info.md)
+[`x402 serve`](serve.md) · [`x402 roundtrip`](roundtrip.md) · [`gasfree info`](../gasfree/info.md)

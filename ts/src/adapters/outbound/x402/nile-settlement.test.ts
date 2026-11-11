@@ -157,8 +157,6 @@ it.each([true, false])(
     const client = new X402Service(
       new X402PaymentClient(fetcher),
       signers as never,
-      {} as never,
-      {} as never,
       undefined,
       undefined,
       signing,

@@ -2,7 +2,6 @@ import { expect, it, vi } from "vitest";
 import { createServer } from "node:net";
 import { X402Service } from "../../../application/use-cases/x402-service.js";
 import type { SignerResolver } from "../../../application/services/signer/index.js";
-import type { ProviderCatalogPort } from "../../../application/ports/provider-catalog.js";
 import { X402PaymentClient } from "./payment-client.js";
 import { X402FacilitatorClient } from "./facilitator-client.js";
 import { X402PaywallHttpServer } from "../../inbound/http/x402/paywall-server.js";
@@ -61,8 +60,6 @@ it.each([
     const service = new X402Service(
       new X402PaymentClient(),
       resolver,
-      {} as ProviderCatalogPort,
-      {} as never,
       {
         facilitator: new X402FacilitatorClient(facilitator as typeof fetch),
         requestTimeoutMs: 0,
@@ -132,8 +129,6 @@ it.each([
   const service = new X402Service(
     new X402PaymentClient(),
     resolver,
-    {} as ProviderCatalogPort,
-    {} as never,
     {
       facilitator: new X402FacilitatorClient(facilitator),
       requestTimeoutMs: 0,
@@ -193,8 +188,6 @@ it("pins a raw-amount roundtrip to the asset its own paywall serves", async () =
   const service = new X402Service(
     new X402PaymentClient(),
     resolver,
-    {} as ProviderCatalogPort,
-    {} as never,
     {
       facilitator: new X402FacilitatorClient(facilitator),
       requestTimeoutMs: 0,
@@ -252,8 +245,6 @@ it("ends a roundtrip whose settlement hangs at the deadline and closes its liste
       assertCanSign: vi.fn(),
       resolve: () => ({ address: payer, kind: "software", signTypedData }),
     } as never,
-    {} as ProviderCatalogPort,
-    {} as never,
     {
       facilitator: new X402FacilitatorClient(facilitator),
       host: new X402PaywallHttpServer(

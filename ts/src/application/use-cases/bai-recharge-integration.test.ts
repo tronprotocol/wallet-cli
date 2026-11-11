@@ -205,20 +205,14 @@ it("previews a recipient recharge without creating an order or obtaining any sig
       throw new Error("must not unlock");
     }),
   };
-  const payments = new X402Service(
-    new X402PaymentClient(),
-    signing as never,
-    {} as never,
-    {} as never,
-    {
-      facilitator: new X402FacilitatorClient(undefined),
-      requestTimeoutMs: 0,
-      host: new X402PaywallHttpServer(
-        () => {},
-        () => {},
-      ),
-    },
-  );
+  const payments = new X402Service(new X402PaymentClient(), signing as never, {
+    facilitator: new X402FacilitatorClient(undefined),
+    requestTimeoutMs: 0,
+    host: new X402PaywallHttpServer(
+      () => {},
+      () => {},
+    ),
+  });
   const api = {
     isBound: vi.fn(async () => true),
     resolveTarget: vi.fn(async () => ({ targetId: "recipient-id" })),
@@ -295,7 +289,7 @@ it("checks relay configuration before creating any preorder", async () => {
   const { X402Service } = await import("./x402-service.js");
   const { X402PaymentClient } = await import("../../adapters/outbound/x402/payment-client.js");
   const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
-  const payments = new X402Service(new X402PaymentClient(), {} as never, {} as never, {} as never, {
+  const payments = new X402Service(new X402PaymentClient(), {} as never, {
     facilitator: new X402FacilitatorClient(),
     requestTimeoutMs: 0,
     host: new X402PaywallHttpServer(
@@ -492,8 +486,6 @@ it.each([false, true])(
     const payments = new X402Service(
       { request, facts: () => ({ tokenDecimals: () => 18 }) },
       { prepare } as never,
-      {} as never,
-      {} as never,
       {
         facilitator: new X402FacilitatorClient(),
         requestTimeoutMs: 0,

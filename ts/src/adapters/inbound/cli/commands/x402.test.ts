@@ -7,39 +7,31 @@ import type { X402Service } from "../../../../application/use-cases/x402-service
 function service(): X402Service {
   return {
     pay: vi.fn(async () => ({})),
-    providerList: vi.fn(async () => ({})),
-    providerShow: vi.fn(async () => ({})),
-    providerEndpoints: vi.fn(async () => ({})),
-    providerUpdate: vi.fn(async () => ({})),
     serve: vi.fn(async () => ({})),
     roundtrip: vi.fn(async () => ({})),
   } as unknown as X402Service;
 }
 
 describe("x402 command surface", () => {
-  it("registers pay for EVM and TRON and four provider commands", () => {
+  it("registers direct pay, serve, and roundtrip", () => {
     const registry = new CommandRegistry();
     registerX402Commands(registry, service());
 
     const pay = registry.resolveNeutral(["x402", "pay"]);
     expect(pay?.network).toBe("optional");
-    for (const verb of [
-      "serve",
-      "roundtrip",
-      "provider-list",
-      "provider-show",
-      "endpoint-list",
-      "update-catalog",
-    ]) {
+    for (const verb of ["serve", "roundtrip"]) {
       expect(registry.resolveNeutral(["x402", verb])?.path).toEqual(["x402", verb]);
     }
   });
 
-  it("does not register search or gateway commands", () => {
+  it("does not register search, gateway, or Catalog commands", () => {
     const registry = new CommandRegistry();
     registerX402Commands(registry, service());
     expect(registry.resolveNeutral(["x402", "search"])).toBeNull();
     expect(registry.resolveNeutral(["x402", "gateway"])).toBeNull();
+    for (const verb of ["provider-list", "provider-show", "endpoint-list", "update-catalog"]) {
+      expect(registry.resolveNeutral(["x402", verb])).toBeNull();
+    }
   });
 
   it("exposes dry-run and mutually exclusive payment limits", () => {
@@ -132,12 +124,9 @@ describe("x402 command surface", () => {
   });
 });
 
-it("does not advertise unsupported provider type or facilitator waiting", () => {
+it("does not advertise facilitator waiting", () => {
   const registry = new CommandRegistry();
   registerX402Commands(registry, service());
-  expect(registry.resolveNeutral(["x402", "provider-list"])!.fields.shape).not.toHaveProperty(
-    "type",
-  );
   for (const command of ["pay", "roundtrip"])
     expect(registry.resolveNeutral(["x402", command])!.rejectsWait).toBeDefined();
 });
@@ -168,29 +157,6 @@ it.each(["password", "privateKey", "mnemonic", "apiKey", "tx", "message"])(
     expect(svc.pay).not.toHaveBeenCalled();
   },
 );
-
-it("strips terminal control sequences from remote catalog warnings before warning", async () => {
-  const registry = new CommandRegistry();
-  const svc = service();
-  const ESC = String.fromCharCode(27);
-  const BEL = String.fromCharCode(7);
-  (svc.providerList as ReturnType<typeof vi.fn>).mockResolvedValue({
-    providers: [],
-    warnings: [`stale ${ESC}[2J${ESC}[H${BEL}catalog`, "plain"],
-  });
-  registerX402Commands(registry, svc);
-  const list = registry.resolveNeutral(["x402", "provider-list"])!;
-  const warn = vi.fn();
-  await list.run({ warn, emit: vi.fn() } as never, undefined, { limit: 20, offset: 0 });
-  expect(warn).toHaveBeenCalledTimes(2);
-  for (const [message] of warn.mock.calls) {
-    expect(message).not.toContain(ESC);
-    expect(message).not.toContain(BEL);
-  }
-  expect(warn).toHaveBeenCalledWith("plain");
-  expect(warn.mock.calls[0]![0]).toContain("stale");
-  expect(warn.mock.calls[0]![0]).toContain("catalog");
-});
 
 describe("x402 pay headers", () => {
   const run = async (header: string[]) => {

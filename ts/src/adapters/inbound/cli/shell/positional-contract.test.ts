@@ -123,9 +123,7 @@ describe("every registered positional command rejects its --<field> spelling", (
       "sunswap token-search",
       "use",
       "witness set-brokerage",
-      "x402 endpoint-list",
       "x402 pay",
-      "x402 provider-show",
     ]);
   });
 

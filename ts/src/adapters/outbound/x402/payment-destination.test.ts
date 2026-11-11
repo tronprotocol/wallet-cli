@@ -39,12 +39,10 @@ function fixture(
         { status: 402, headers: { "content-type": "application/json" } },
       ),
   );
-  const client = new X402Service(
-    new X402PaymentClient(fetcher),
-    { resolve, assertCanSign: vi.fn() } as never,
-    {} as never,
-    {} as never,
-  );
+  const client = new X402Service(new X402PaymentClient(fetcher), {
+    resolve,
+    assertCanSign: vi.fn(),
+  } as never);
   const pay = (dryRun = false) =>
     client.pay(
       { deadline: new CommandDeadline(0), emit: vi.fn() } as never,
@@ -102,12 +100,7 @@ it("accepts an EVM address with different casing at the exact amount", async () 
 it("rejects a registered token precision override before HTTP or signing", async () => {
   const fetcher = vi.fn();
   const resolve = vi.fn();
-  const client = new X402Service(
-    new X402PaymentClient(fetcher),
-    { resolve } as never,
-    {} as never,
-    {} as never,
-  );
+  const client = new X402Service(new X402PaymentClient(fetcher), { resolve } as never);
   await expect(
     client.pay({ emit: vi.fn() } as never, network as never, {
       url: "https://example.test",

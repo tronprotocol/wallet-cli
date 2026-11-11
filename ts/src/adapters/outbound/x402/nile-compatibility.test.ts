@@ -67,8 +67,6 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
     const client = new X402Service(
       new X402PaymentClient(fetcher),
       signers as never,
-      {} as never,
-      {} as never,
       undefined,
       undefined,
       signing,
@@ -174,8 +172,6 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
   const client = new X402Service(
     new X402PaymentClient(fetcher),
     signers as never,
-    {} as never,
-    {} as never,
     undefined,
     undefined,
     signing,

@@ -42,13 +42,8 @@ function harness(
   } as unknown as SignerResolver;
   const client =
     mode === "free"
-      ? new X402Service(new X402PaymentClient(fetcher), resolver, {} as never, {} as never)
-      : new X402Service(
-          new X402PaymentClient(challengeFetch, async () => fetcher),
-          resolver,
-          {} as never,
-          {} as never,
-        );
+      ? new X402Service(new X402PaymentClient(fetcher), resolver)
+      : new X402Service(new X402PaymentClient(challengeFetch, async () => fetcher), resolver);
   return { client, fetcher, resolver };
 }
 
@@ -148,12 +143,7 @@ describe("x402 response bytes", () => {
       "application/octet-stream",
       "settled",
     );
-    const client = new X402Service(
-      new X402PaymentClient(fetcher),
-      resolver,
-      {} as never,
-      {} as never,
-    );
+    const client = new X402Service(new X402PaymentClient(fetcher), resolver);
     const error = await rejection(client.pay(scope, net, input));
     expect(error).toMatchObject({
       code: "invalid_option",
@@ -234,8 +224,6 @@ describe("x402 response bytes", () => {
         async () => async () => new Response(body, { headers }),
       ),
       resolver,
-      {} as never,
-      {} as never,
     );
     const error = await rejection(client.pay(scope, net, input));
     expect(error).toMatchObject({

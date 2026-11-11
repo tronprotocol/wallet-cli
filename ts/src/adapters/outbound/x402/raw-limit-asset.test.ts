@@ -120,8 +120,6 @@ async function payEvm(asset: string, input: Partial<X402PayRequest>): Promise<Ou
     out.result = await new X402Service(
       new X402PaymentClient(fetcher),
       signers,
-      {} as never,
-      {} as never,
       undefined,
       undefined,
       signing,
@@ -186,8 +184,6 @@ async function payTron(
     out.result = await new X402Service(
       new X402PaymentClient(fetcher),
       signers,
-      {} as never,
-      {} as never,
       undefined,
       undefined,
       signing,

@@ -77,7 +77,6 @@ import { registryContracts } from "../adapters/outbound/erc8004/registry-contrac
 import { RegistrationLoader } from "../adapters/outbound/erc8004/registration-loader.js";
 import { AgentService } from "../application/use-cases/agent-service.js";
 import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
-import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.js";
 import { X402Service } from "../application/use-cases/x402-service.js";
 import { registerX402Commands } from "../adapters/inbound/cli/commands/x402.js";
 import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
@@ -157,8 +156,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const x402Service = new X402Service(
     x402Payments,
     signerResolver,
-    new X402ProviderCatalog(),
-    networkRegistry,
     {
       facilitator: x402Facilitator,
       host: new ManagedX402Server(
