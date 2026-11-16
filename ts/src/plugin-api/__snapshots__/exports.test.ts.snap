@@ -17,6 +17,9 @@ exports[`pins the runtime export names of each plugin-api entry 1`] = `
     "query",
     "receipt",
     "table",
+    "tronTxModeFields",
+    "txModeExclusive",
+    "txModeFields",
     "z",
   ],
   "domain": [
@@ -35,8 +38,10 @@ exports[`pins the runtime export names of each plugin-api entry 1`] = `
     "matchTokenSymbol",
     "networkBlock",
     "normalizeTxHash",
+    "sunAmount",
     "toBaseUnits",
     "tronAddressBytes",
+    "weiAmount",
   ],
   "http": [
     "requestJson",

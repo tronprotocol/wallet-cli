@@ -18,9 +18,12 @@ export type {
   CapabilitySupport,
 } from "../application/services/capability/predicates.js";
 export type {
+  MessagePayload,
+  TypedDataSignPayload,
   HostServices,
   PluginClock,
   PluginConfig,
+  PluginContracts,
   PluginGateways,
   PluginRecipients,
   PluginSigningService,

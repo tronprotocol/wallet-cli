@@ -21,6 +21,7 @@ import {
   HTTP_URL_RULE,
   isOutputMode,
   NETWORK_CREDENTIAL_FIELD,
+  normalizeRegistryUrl,
   TIMEOUT_MS_RULE,
 } from "../../../domain/config/index.js";
 
@@ -44,6 +45,7 @@ export class ConfigLoader {
     let defaultNetwork: string | undefined = CONFIG_DEFAULTS.defaultNetwork;
     let defaultOutput: OutputMode = CONFIG_DEFAULTS.defaultOutput;
     let timeoutMs = CONFIG_DEFAULTS.timeoutMs;
+    let pluginRegistry = CONFIG_DEFAULTS.pluginRegistry;
     let price: Config["price"];
     let tronlinkSecretId: string | undefined;
     let tronlinkSecretKey: string | undefined;
@@ -67,6 +69,9 @@ export class ConfigLoader {
       // Invalid scalar values fall back to their defaults.
       if (isOutputMode(raw.defaultOutput)) defaultOutput = raw.defaultOutput;
       if (TIMEOUT_MS_RULE.accepts(raw.timeoutMs)) timeoutMs = raw.timeoutMs;
+      if (HTTP_URL_RULE.accepts(raw.pluginRegistry)) {
+        pluginRegistry = normalizeRegistryUrl(raw.pluginRegistry);
+      }
       if (raw.price && typeof raw.price === "object") {
         const p = raw.price as Record<string, unknown>;
         const provider = p.provider === "none" ? "none" : "coingecko";
@@ -127,6 +132,7 @@ export class ConfigLoader {
       defaultNetwork,
       defaultOutput,
       timeoutMs,
+      pluginRegistry,
       networks,
       aliases,
       price,

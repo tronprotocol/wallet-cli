@@ -13,6 +13,7 @@ import { CONFIG_DEFAULTS } from "../../../../application/contracts/config-defaul
 import { MAX_TIMEOUT_MS } from "../../../../domain/config/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
 import type { ErrorCodeTable } from "../../../../domain/errors/codes.js";
+import { PLUGIN_TRUST_NOTICE } from "../../../../application/use-cases/plugin-service.js";
 import { introspectFields, type FieldInfo } from "../arity/index.js";
 import {
   GLOBAL_FLAGS,
@@ -161,6 +162,7 @@ export class HelpService {
       ["encoding", "Convert / validate addresses & encodings", ""],
       ["address", "Generate a random keypair (local, not stored)", ""],
       ["contact", "Manage the recipient address book", ""],
+      ["plugin", "Install and manage plugins", ""],
     ] as const;
     const sections = [common, management, commands] as const;
     const nameWidth = Math.max(...sections.flat().map(([name]) => name.length)) + 2;
@@ -618,6 +620,7 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   encoding: "Convert and validate addresses and encodings across formats.",
   address: "Generate a random secp256k1 keypair locally without storing it in the wallet.",
   contact: "Manage the recipient address book.",
+  plugin: `Install, list, update and remove plugins.\n${PLUGIN_TRUST_NOTICE}`,
   bai: "Query B.AI account credits, usage records, and recharge orders.",
   "8004": "Read and manage ERC-8004 Agent identities on supported networks.",
   x402: "Pay x402 endpoints and inspect the provider catalog.",

@@ -33,11 +33,18 @@ import {
   type PluginHost,
 } from "../../plugin-api/index.js";
 import { WALLET_MANAGEMENT_FIELDS, type PluginCommandContext } from "../../plugin-api/command.js";
-import type { ServiceCredentialKey } from "../../plugin-api/host-services.js";
+import type {
+  PluginSigningService,
+  PluginSignRequest,
+  ServiceCredentialKey,
+} from "../../plugin-api/host-services.js";
+import type { TransactionScope } from "../../application/contracts/execution-scope.js";
+import type { TronContractService } from "../../application/use-cases/tron/contract-service.js";
+import type { EvmContractService } from "../../application/use-cases/evm/contract-service.js";
 
 const PLUGIN_NAME = /^[a-z0-9][a-z0-9-]*$/;
 // Words the core keeps for itself even before it registers a command under them.
-const RESERVED_WORDS: ReadonlySet<string> = new Set(["plugin", "help"]);
+export const RESERVED_WORDS: ReadonlySet<string> = new Set(["plugin", "help"]);
 const SERVICE_CREDENTIAL_KEYS: readonly ServiceCredentialKey[] = [
   "gasfreeApiKey",
   "gasfreeApiSecret",
@@ -52,6 +59,10 @@ export function facade<T extends object>(members: T): T {
 export interface HostServiceDependencies {
   readonly signing: PluginSigning;
   readonly gateways: ChainGatewayProvider;
+  readonly contracts: {
+    readonly tron: Pick<TronContractService, "call" | "send">;
+    readonly evm: Pick<EvmContractService, "call" | "send">;
+  };
   readonly recipients: Pick<RecipientResolver, "resolve">;
   readonly config: Pick<Config, ServiceCredentialKey>;
   readonly broadcastGuard: BroadcastGuard;
@@ -59,12 +70,13 @@ export interface HostServiceDependencies {
 }
 
 export function hostServices(deps: HostServiceDependencies): HostServices {
-  const { signing, gateways, recipients, config, broadcastGuard, clock } = deps;
+  const { signing, gateways, contracts, recipients, config, broadcastGuard, clock } = deps;
   return facade<HostServices>({
     signing: facade({
       assertCanSign: (account, family) => signing.assertCanSign(account, family),
       signerAddress: (account, family) => signing.signerAddress(account, family),
-      sign: (scope, request) => signing.sign(scope, request),
+      sign: ((scope: TransactionScope, request: PluginSignRequest<never>) =>
+        signing.sign(scope, request)) as PluginSigningService["sign"],
     }),
     gateways: facade({
       get: (network: NetworkDescriptor, family: "tron", check) => {
@@ -75,6 +87,18 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
           getTokenInfo: (contract: string) => gateway.getTokenInfo(contract),
         });
       },
+    }),
+    contracts: facade({
+      tron: facade({
+        call: (deadline, network, contract, method, parameters) =>
+          contracts.tron.call(deadline, network, contract, method, parameters),
+        send: (scope, network, input) => contracts.tron.send(scope, network, input),
+      }),
+      evm: facade({
+        call: (deadline, network, contract, method, params) =>
+          contracts.evm.call(deadline, network, contract, method, params),
+        send: (scope, network, input) => contracts.evm.send(scope, network, input),
+      }),
     }),
     recipients: facade({ resolve: (family, input) => recipients.resolve(family, input) }),
     config: facade({

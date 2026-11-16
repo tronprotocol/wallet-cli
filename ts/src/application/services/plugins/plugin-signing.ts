@@ -6,7 +6,11 @@ import type {
 import type { TypedDataSignature } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { SignerResolver } from "../signer/index.js";
-import type { SigningService, TypedDataSignPayload } from "../signing/signing-service.js";
+import type {
+  MessagePayload,
+  SigningService,
+  TypedDataSignPayload,
+} from "../signing/signing-service.js";
 
 export interface PluginSignRequest<P> {
   readonly network: NetworkDescriptor;
@@ -30,15 +34,23 @@ export class PluginSigning {
     return this.signers.resolve(account, family).address;
   }
 
-  async sign(
+  sign(scope: TransactionScope, request: PluginSignRequest<MessagePayload>): Promise<string>;
+  sign(
     scope: TransactionScope,
     request: PluginSignRequest<TypedDataSignPayload>,
-  ): Promise<TypedDataSignature> {
-    return this.signing.sign(scope, {
+  ): Promise<TypedDataSignature>;
+  async sign(
+    scope: TransactionScope,
+    request: PluginSignRequest<MessagePayload | TypedDataSignPayload>,
+  ): Promise<string | TypedDataSignature> {
+    this.signers.assertCanSign(scope.activeAccount, request.family);
+    const signRequest = {
       network: request.network,
-      origin: "service",
+      origin: "service" as const,
       signer: this.signers.resolve(scope.activeAccount, request.family),
-      payload: request.payload,
-    });
+    };
+    return request.payload.kind === "message"
+      ? this.signing.sign(scope, { ...signRequest, payload: request.payload })
+      : this.signing.sign(scope, { ...signRequest, payload: request.payload });
   }
 }

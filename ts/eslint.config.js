@@ -6,8 +6,16 @@ import environmentReads from "./eslint-rules/environment-reads.mjs";
 
 export default tseslint.config(
   {
-    // Build scripts use Node/Bun streams directly.
-    ignores: ["dist/**", "node_modules/**", ".wallet-cli/**", ".private/**", "scripts/**"],
+    // Build scripts use Node/Bun streams directly; plugin-sdk/dist is generated.
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      ".wallet-cli/**",
+      ".private/**",
+      "scripts/**",
+      "plugin-sdk/bin/**",
+      "plugin-sdk/dist/**",
+    ],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

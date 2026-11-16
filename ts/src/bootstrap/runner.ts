@@ -12,6 +12,7 @@ import { StreamManager } from "../adapters/inbound/cli/stream/index.js";
 import {
   commandPathOf,
   commandTokens,
+  firstCommandWord,
   hasCommand,
   invalidGlobalError,
   parseGlobals,
@@ -41,6 +42,27 @@ function reportBootstrapFailure(
   }
   createOutputFormatter(output, streams, startedAt).error(normalized);
   return exitCodeOf(normalized);
+}
+
+// Imports installed plugins only for the commands that need their code, then names the plugin that
+// serves this command in the envelope, or fails when that plugin cannot serve it.
+async function loadInstalledPlugins(
+  runtime: ReturnType<typeof composeCliRuntime>,
+  tokens: string[],
+): Promise<void> {
+  const word = firstCommandWord(tokens);
+  const listing =
+    commandPathOf(tokens, (path) => path.length === 2 && path.join(" ") === "plugin list") !==
+    undefined;
+  await runtime.plugins.load(
+    { all: tokens.includes("--json-schema") || listing, ...(word === undefined ? {} : { word }) },
+    (message) => runtime.streams.diagnostic("warn", message),
+  );
+  runtime.registerCapabilities();
+  const owner = word === undefined ? undefined : runtime.plugins.owner(word);
+  if (owner === undefined) return;
+  runtime.formatter.attribute({ name: owner.name, version: owner.version });
+  if (owner.failure) throw owner.failure;
 }
 
 // Callable from tests: never ends the process.
@@ -114,6 +136,7 @@ async function runCommand(argv: string[]): Promise<CommandEnd> {
   const end = (code: ExitCode): CommandEnd => ({ code, longLived: runtime.lifetime.longLived });
 
   try {
+    await loadInstalledPlugins(runtime, tokens);
     if (hasMeta(tokens) || !hasCommand(tokens)) {
       const help = new HelpService(
         runtime.registry,

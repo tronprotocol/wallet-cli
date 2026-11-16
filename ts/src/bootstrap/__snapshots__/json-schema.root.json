@@ -870,6 +870,36 @@
       "retry": "never",
       "meaning": "the provider catalog schema version is unsupported"
     },
+    "plugin_conflict": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "the plugin's name or command group is taken, already installed, or built in"
+    },
+    "plugin_not_installed": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no installed plugin by that name"
+    },
+    "plugin_invalid": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the plugin package is malformed, incomplete, or holds an unsafe archive entry"
+    },
+    "plugin_incompatible": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the plugin was built for a plugin API this wallet-cli does not support"
+    },
+    "plugin_integrity": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "the downloaded plugin package does not match the registry's integrity value"
+    },
+    "plugin_load_failed": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "an installed plugin could not be loaded or registered"
+    },
     "internal_error": {
       "exit": 1,
       "retry": "never",
@@ -3044,7 +3074,7 @@
         "type": "object",
         "properties": {
           "key": {
-            "description": "config key to read or set (defaultNetwork, defaultOutput, timeoutMs, networks, aliases, tronlinkSecretId, tronlinkSecretKey, tronlinkChannel, gasfreeApiKey, gasfreeApiSecret, baiApiKey, or networks.<id> / networks.<id>.{httpEndpoint | apiKeyHeader | apiKey}); omit to show the whole effective config",
+            "description": "config key to read or set (defaultNetwork, defaultOutput, timeoutMs, pluginRegistry, networks, aliases, tronlinkSecretId, tronlinkSecretKey, tronlinkChannel, gasfreeApiKey, gasfreeApiSecret, baiApiKey, or networks.<id> / networks.<id>.{httpEndpoint | apiKeyHeader | apiKey}); omit to show the whole effective config",
             "type": "string",
             "minLength": 1
           },
@@ -5238,6 +5268,129 @@
           "buildOnly",
           "permissionId"
         ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "plugin.install",
+      "kind": "neutral",
+      "path": [
+        "plugin",
+        "install"
+      ],
+      "usage": "wallet-cli plugin install [options]",
+      "summary": "Install a plugin",
+      "requires": {
+        "network": "none",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli plugin install sunswap",
+        "wallet-cli plugin install @tron-walletcli/plugin-sunswap@1.0.0",
+        "wallet-cli plugin install ./my-plugin-1.0.0.tgz"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string",
+            "minLength": 1,
+            "description": "plugin to install: short name, npm package, directory or .tgz"
+          }
+        },
+        "required": [
+          "spec"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "plugin.list",
+      "kind": "neutral",
+      "path": [
+        "plugin",
+        "list"
+      ],
+      "usage": "wallet-cli plugin list [options]",
+      "summary": "List built-in and installed plugins",
+      "requires": {
+        "network": "none",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli plugin list"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "plugin.remove",
+      "kind": "neutral",
+      "path": [
+        "plugin",
+        "remove"
+      ],
+      "usage": "wallet-cli plugin remove [options]",
+      "summary": "Remove an installed plugin",
+      "requires": {
+        "network": "none",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli plugin remove sunswap"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "installed plugin to remove"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "id": "plugin.update",
+      "kind": "neutral",
+      "path": [
+        "plugin",
+        "update"
+      ],
+      "usage": "wallet-cli plugin update [options]",
+      "summary": "Update installed plugins from their sources",
+      "requires": {
+        "network": "none",
+        "auth": "none",
+        "wallet": "none"
+      },
+      "examples": [
+        "wallet-cli plugin update",
+        "wallet-cli plugin update sunswap"
+      ],
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "installed plugin to update; omit to update all",
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "additionalProperties": false
       }
     },

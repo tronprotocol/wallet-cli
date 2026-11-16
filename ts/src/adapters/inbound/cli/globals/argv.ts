@@ -98,15 +98,20 @@ export function parseGlobals(tokens: string[]): {
 }
 
 export function hasCommand(tokens: string[]): boolean {
+  return firstCommandWord(tokens) !== undefined;
+}
+
+// The first token that is neither a global flag nor a global flag's value.
+export function firstCommandWord(tokens: string[]): string | undefined {
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
     if (token.startsWith("-")) {
       if (VALUE_FLAGS[token] && !token.includes("=")) i++;
       continue;
     }
-    return true;
+    return token;
   }
-  return false;
+  return undefined;
 }
 
 export function stdinConflictError(stdinFlags: string[]): UsageError | undefined {

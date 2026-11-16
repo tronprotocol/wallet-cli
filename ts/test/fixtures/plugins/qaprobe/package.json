@@ -1,0 +1,27 @@
+{
+  "name": "@tron-walletcli/plugin-qaprobe",
+  "version": "1.0.0",
+  "description": "QA probe plugin for wallet-cli tests",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "walletCli": {
+    "plugin": {
+      "name": "qaprobe",
+      "apiVersion": 0,
+      "apiRevision": 0,
+      "entry": "dist/index.mjs",
+      "groups": [
+        {
+          "name": "qaprobe",
+          "summary": "QA probe commands",
+          "families": [
+            "tron"
+          ]
+        }
+      ]
+    }
+  }
+}

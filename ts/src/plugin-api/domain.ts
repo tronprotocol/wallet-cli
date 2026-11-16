@@ -24,7 +24,11 @@ export {
   assertPositiveAmount,
   fromBaseUnits,
   isZeroAmount,
+  sunAmount,
   toBaseUnits,
+  weiAmount,
+  type Sun,
+  type Wei,
 } from "../domain/amounts/index.js";
 export { TronAddress, tronAddressBytes } from "../domain/address/index.js";
 export { normalizeTxHash } from "../domain/family/index.js";

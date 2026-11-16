@@ -443,6 +443,10 @@ describe("objects handed to a plugin", () => {
     const services = hostServices({
       signing: { assertCanSign: vi.fn(), signerAddress: vi.fn(), sign: vi.fn() } as never,
       gateways: { get: () => gateway, client: vi.fn() } as never,
+      contracts: {
+        tron: { call: vi.fn(), send: vi.fn(), deploy: vi.fn() },
+        evm: { call: vi.fn(), send: vi.fn(), deploy: vi.fn() },
+      } as never,
       recipients: { resolve: vi.fn() },
       config: { gasfreeApiKey: "k", gasfreeApiSecret: "s", baiApiKey: "b" },
       broadcastGuard: { assertAllowed: vi.fn() },
@@ -451,6 +455,7 @@ describe("objects handed to a plugin", () => {
     expect(reachable(services)).toEqual([
       "signing",
       "gateways",
+      "contracts",
       "recipients",
       "config",
       "broadcastGuard",
@@ -462,6 +467,9 @@ describe("objects handed to a plugin", () => {
       "getTrc20Balance",
       "getTokenInfo",
     ]);
+    expect(reachable(services.contracts)).toEqual(["tron", "evm"]);
+    expect(reachable(services.contracts.tron)).toEqual(["call", "send"]);
+    expect(reachable(services.contracts.evm)).toEqual(["call", "send"]);
     expect(reachable(services.recipients)).toEqual(["resolve"]);
     expect(reachable(services.config)).toEqual(["networkBlock", "credential"]);
     expect(reachable(services.broadcastGuard)).toEqual(["assertAllowed"]);

@@ -46,6 +46,7 @@
   "scripts": {
     "build": "tsup",
     "build:standalone": "bun run scripts/build-standalone.mjs",
+    "build:plugin-sdk": "node --import tsx scripts/build-plugin-sdk.mjs",
     "dev": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "depcruise": "depcruise src --ignore-known && node scripts/check-depcruise-baseline.mjs",

@@ -193,6 +193,12 @@ export const ERROR_CODES = {
   agent_not_found: { exit: 1, retry: "never", meaning: "the agent token does not exist" },
   provider_not_found: { exit: 1, retry: "never", meaning: "the requested provider does not exist" },
   catalog_schema_unsupported: { exit: 1, retry: "never", meaning: "the provider catalog schema version is unsupported" },
+  plugin_conflict: { exit: 2, retry: "never", meaning: "the plugin's name or command group is taken, already installed, or built in" },
+  plugin_not_installed: { exit: 2, retry: "never", meaning: "no installed plugin by that name" },
+  plugin_invalid: { exit: 1, retry: "never", meaning: "the plugin package is malformed, incomplete, or holds an unsafe archive entry" },
+  plugin_incompatible: { exit: 1, retry: "never", meaning: "the plugin was built for a plugin API this wallet-cli does not support" },
+  plugin_integrity: { exit: 1, retry: "same", meaning: "the downloaded plugin package does not match the registry's integrity value" },
+  plugin_load_failed: { exit: 1, retry: "never", meaning: "an installed plugin could not be loaded or registered" },
   internal_error: { exit: 1, retry: "never", meaning: "an unexpected internal failure; the message is redacted on purpose" },
 } as const satisfies Record<string, ErrorCodeEntry>;
 

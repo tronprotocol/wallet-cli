@@ -29,6 +29,13 @@ export interface Meta {
   pagination?: Pagination;
   // Ordered listings only; the JSON formatter lifts this out of data.
   query?: QueryEcho;
+  // The installed plugin that served the command; absent for core and built-in commands.
+  plugin?: PluginAttribution;
+}
+
+export interface PluginAttribution {
+  name: string;
+  version: string;
 }
 export interface ResultEnvelope {
   schema: "wallet-cli.result.v1";

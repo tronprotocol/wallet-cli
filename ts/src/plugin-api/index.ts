@@ -6,8 +6,7 @@ import type { HostServices } from "./host-services.js";
 import type { PluginChainSpec, PluginCommand, PluginFamilyBinding } from "./command.js";
 
 // Removing or changing an export raises the version; adding one raises the revision.
-export const PLUGIN_API_VERSION = 1;
-export const PLUGIN_API_REVISION = 1;
+export { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "../domain/plugins/index.js";
 
 export interface PluginGroup {
   // Top-level command word.

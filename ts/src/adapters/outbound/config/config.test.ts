@@ -22,6 +22,7 @@ describe("ConfigLoader defaults", () => {
       defaultNetwork: config.defaultNetwork,
       defaultOutput: config.defaultOutput,
       timeoutMs: config.timeoutMs,
+      pluginRegistry: config.pluginRegistry,
     }).toEqual(CONFIG_DEFAULTS);
   });
 });

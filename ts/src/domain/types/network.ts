@@ -75,6 +75,8 @@ export interface Config {
   defaultOutput: OutputMode;
   // Default command deadline; 0 means no deadline.
   timeoutMs: number;
+  // Base URL of the npm registry that plugin packages come from.
+  pluginRegistry: string;
   networks: Record<NetworkId, NetworkDescriptor>;
   // Resolve to canonical ids at the --network boundary.
   aliases: Record<string, NetworkId>;

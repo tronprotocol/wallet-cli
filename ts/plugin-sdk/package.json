@@ -1,0 +1,41 @@
+{
+  "name": "@tron-walletcli/plugin-sdk",
+  "version": "1.1.0",
+  "description": "Types and host bindings for building wallet-cli plugins",
+  "private": true,
+  "type": "module",
+  "license": "LGPL-3.0-or-later",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./domain": {
+      "types": "./dist/domain.d.ts",
+      "import": "./dist/domain.mjs"
+    },
+    "./application": {
+      "types": "./dist/application.d.ts",
+      "import": "./dist/application.mjs"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.mjs"
+    },
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "import": "./dist/http.mjs"
+    }
+  },
+  "bin": {
+    "wallet-cli-plugin-stamp": "./bin/stamp.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "zod": "^4.6.6"
+  }
+}

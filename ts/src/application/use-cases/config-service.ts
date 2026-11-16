@@ -14,6 +14,7 @@ import {
   isCredentialConfigKey,
   isOutputMode,
   NETWORK_CREDENTIAL_FIELD,
+  normalizeRegistryUrl,
   OUTPUT_MODES,
   TIMEOUT_MS_RULE,
   timeoutMsFromText,
@@ -31,6 +32,7 @@ export const CONFIG_KEYS = [
   "defaultNetwork",
   "defaultOutput",
   "timeoutMs",
+  "pluginRegistry",
   "networks",
   "aliases",
   ...TRONLINK_CONFIG_KEYS,
@@ -41,6 +43,7 @@ export const WRITABLE_CONFIG_KEYS = [
   "defaultNetwork",
   "defaultOutput",
   "timeoutMs",
+  "pluginRegistry",
   ...TRONLINK_CONFIG_KEYS,
   ...GASFREE_CONFIG_KEYS,
   ...BAI_CONFIG_KEYS,
@@ -101,6 +104,7 @@ export interface ConfigView {
   defaultNetwork: Config["defaultNetwork"];
   defaultOutput: Config["defaultOutput"];
   timeoutMs: Config["timeoutMs"];
+  pluginRegistry: Config["pluginRegistry"];
   networks: Record<string, NetworkConfigView>;
   aliases: Config["aliases"];
   tronlinkSecretId: string | undefined;
@@ -128,6 +132,7 @@ export class ConfigService {
       defaultNetwork: effective.defaultNetwork,
       defaultOutput: effective.defaultOutput,
       timeoutMs: effective.timeoutMs,
+      pluginRegistry: effective.pluginRegistry,
       // Listings hide endpoint paths that may contain API keys; explicit network reads reveal them.
       networks: Object.fromEntries(
         Object.entries(effective.networks).map(([id, n]) => [id, networkView(n, false)]),
@@ -217,6 +222,7 @@ export class ConfigService {
     networks: NetworkRegistry,
   ): string | number {
     if (key === "timeoutMs") return ruled(key, timeoutMsFromText(raw), TIMEOUT_MS_RULE);
+    if (key === "pluginRegistry") return normalizeRegistryUrl(ruled(key, raw, HTTP_URL_RULE));
     if (key === "defaultOutput") {
       if (!isOutputMode(raw)) {
         throw new UsageError(

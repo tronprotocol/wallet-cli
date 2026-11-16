@@ -1,7 +1,13 @@
 // Format results and progress; errors are written through the streams port.
 import type { NetworkDescriptor, OutputMode } from "../../../../domain/types/index.js";
 import type { ProgressEvent } from "../../../../application/contracts/index.js";
-import type { Pagination, QueryEcho, StreamManager, TextFormatter } from "../contracts/index.js";
+import type {
+  Pagination,
+  PluginAttribution,
+  QueryEcho,
+  StreamManager,
+  TextFormatter,
+} from "../contracts/index.js";
 import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
@@ -22,6 +28,8 @@ export interface OutputFormatter {
   error(err: CliError, ctx?: { commandId?: string; net?: NetworkDescriptor }): void;
   // Return a progress frame for streams.event; null suppresses it.
   event(e: ProgressEvent): string | null;
+  // Names the installed plugin in the meta of every later envelope.
+  attribute(plugin: PluginAttribution): void;
 }
 
 abstract class BaseOutputFormatter {
@@ -33,8 +41,18 @@ abstract class BaseOutputFormatter {
     protected readonly followUps?: FollowUpTable,
   ) {}
 
+  #plugin: PluginAttribution | undefined;
+
+  attribute(plugin: PluginAttribution): void {
+    this.#plugin = { name: plugin.name, version: plugin.version };
+  }
+
   protected meta() {
-    return { durationMs: Date.now() - this.startedAt, warnings: this.streams.warnings() };
+    return {
+      durationMs: Date.now() - this.startedAt,
+      warnings: this.streams.warnings(),
+      ...(this.#plugin ? { plugin: this.#plugin } : {}),
+    };
   }
 }
 

@@ -86,7 +86,13 @@ import { createX402DaemonLog } from "../adapters/outbound/x402/daemon-log.js";
 import { X402PaywallHttpServer } from "../adapters/inbound/http/x402/paywall-server.js";
 import { PluginSigning } from "../application/services/plugins/plugin-signing.js";
 import { BUILTIN_PLUGINS, gasfreeOpenApi } from "./plugins/builtin.js";
-import { hostServices, registerPlugin } from "./plugins/host.js";
+import { hostServices, registerPlugin, RESERVED_WORDS } from "./plugins/host.js";
+import { PluginLoader } from "./plugins/loader.js";
+import { FilePluginStore } from "../adapters/outbound/plugins/store.js";
+import { PackageSource } from "../adapters/outbound/plugins/source.js";
+import { PluginService } from "../application/use-cases/plugin-service.js";
+import { registerPluginCommands } from "../adapters/inbound/cli/commands/plugin.js";
+import { FAMILIES } from "../domain/family/index.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -262,37 +268,71 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const services = hostServices({
     signing: new PluginSigning(signerResolver, signing),
     gateways: gatewayProvider,
+    contracts: agentContracts,
     recipients: recipientResolver,
     config,
     broadcastGuard: processBroadcastGuard,
     clock: systemWallClock,
   });
+  const pluginTargets = {
+    commands: registry,
+    capabilities: capabilityRegistry,
+    errorCodes,
+    followUps,
+    networks: Object.values(config.networks),
+    services,
+    timeoutMs,
+  };
   const failedPlugins = new Map<string, string>();
   for (const plugin of BUILTIN_PLUGINS) {
-    const registration = registerPlugin(plugin, {
-      commands: registry,
-      capabilities: capabilityRegistry,
-      errorCodes,
-      followUps,
-      networks: Object.values(config.networks),
-      services,
-      timeoutMs,
-    });
+    const registration = registerPlugin(plugin, pluginTargets);
     if (!registration.ok) {
       failedPlugins.set(plugin.name, registration.reason);
       streams.diagnostic("debug", `plugin ${plugin.name} was not loaded: ${registration.reason}`);
     }
   }
 
-  const capabilitiesByFamily = registry.capabilityKeysByFamily();
-  const neutralCapabilities = registry.neutralCapabilityKeys();
-  for (const network of Object.values(config.networks)) {
-    capabilityRegistry.register(network, [
-      ...(capabilitiesByFamily.get(network.family) ?? []),
-      ...neutralCapabilities,
-      ...network.capabilities,
-    ]);
-  }
+  // Installed plugins may not take a word that core commands, families or built-in plugins use.
+  const reservedWords = new Set([
+    ...registry.topLevelWords(),
+    ...Object.keys(FAMILIES),
+    ...RESERVED_WORDS,
+  ]);
+  const pluginStore = new FilePluginStore(root, store);
+  const plugins = new PluginLoader(pluginStore, pluginTargets);
+  registerPluginCommands(
+    registry,
+    new PluginService(
+      pluginStore,
+      new PackageSource(),
+      {
+        builtins: BUILTIN_PLUGINS.map((p) => ({
+          name: p.name,
+          version: p.version,
+          apiVersion: p.apiVersion,
+          apiRevision: p.apiRevision,
+          groups: p.groups.map((g) => g.name),
+        })),
+        reservedWords,
+        loadState: (name) => plugins.state(name),
+      },
+      systemWallClock,
+    ),
+  );
+
+  // Runs again after installed plugins load; a capability already recorded keeps its result.
+  const registerCapabilities = () => {
+    const capabilitiesByFamily = registry.capabilityKeysByFamily();
+    const neutralCapabilities = registry.neutralCapabilityKeys();
+    for (const network of Object.values(config.networks)) {
+      capabilityRegistry.register(network, [
+        ...(capabilitiesByFamily.get(network.family) ?? []),
+        ...neutralCapabilities,
+        ...network.capabilities,
+      ]);
+    }
+  };
+  registerCapabilities();
 
   const deps = {
     config,
@@ -323,6 +363,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
     errorCodes,
     followUps,
     failedPlugins,
+    plugins,
+    registerCapabilities,
     targetResolver: new TargetResolver({ networkRegistry, keystore }),
   };
 }

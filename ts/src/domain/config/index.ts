@@ -59,6 +59,11 @@ export const HEADER_NAME_RULE: ValueRule<string> = {
   description: "an HTTP header name: 1 to 64 characters, no spaces, colons or control characters",
 };
 
+// Without a trailing slash, so `<registry>/<package>` is one join.
+export function normalizeRegistryUrl(value: string): string {
+  return new URL(value.trim()).toString().replace(/\/+$/, "");
+}
+
 export const HTTP_URL_RULE: ValueRule<string> = {
   accepts: (value): value is string => {
     if (typeof value !== "string") return false;

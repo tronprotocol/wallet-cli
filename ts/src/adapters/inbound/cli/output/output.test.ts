@@ -351,3 +351,21 @@ it.each(["next-page", "", null])("preserves B.AI cursor pagination (%s)", (nextC
   });
   expect(result.data).toEqual({ records: [] });
 });
+
+describe("meta.plugin", () => {
+  it("names the installed plugin on success and on failure, and is absent otherwise", () => {
+    const plain = capture("json");
+    const core = createOutputFormatter("json", plain.sm, 0);
+    expect(JSON.parse(core.success("account.balance", net, {})).meta.plugin).toBeUndefined();
+
+    const { sm, out } = capture("json");
+    const f = createOutputFormatter("json", sm, 0);
+    f.attribute({ name: "qaprobe", version: "1.0.0" });
+    expect(JSON.parse(f.success("qaprobe.read", net, {})).meta.plugin).toEqual({
+      name: "qaprobe",
+      version: "1.0.0",
+    });
+    f.error(new UsageError("invalid_value", "bad"), { commandId: "qaprobe.read" });
+    expect(JSON.parse(out.at(-1)!).meta.plugin).toEqual({ name: "qaprobe", version: "1.0.0" });
+  });
+});
