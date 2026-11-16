@@ -18,7 +18,8 @@
           "name": "qaprobe",
           "summary": "QA probe commands",
           "families": [
-            "tron"
+            "tron",
+            "evm"
           ]
         }
       ]

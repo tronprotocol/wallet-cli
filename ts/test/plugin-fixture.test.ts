@@ -1,11 +1,13 @@
 // The qaprobe fixture, installed into an empty home and run through the built CLI.
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { run, seedWallet, testHome } from "./golden-harness.js";
+import { HDNodeWallet } from "ethers";
+import { TronWeb } from "tronweb";
+import { DEFAULT_PW, MNEMONIC, run, seedWallet, testHome, TRON1 } from "./golden-harness.js";
 import { buildQaprobe, packDirectory, type QaprobeVariant } from "./plugins/qaprobe.js";
 
 const work = mkdtempSync(join(tmpdir(), "wcli-qaprobe-"));
@@ -40,6 +42,7 @@ function imports(): number {
 
 describe("an installed plugin", () => {
   it("serves its commands with meta.plugin, and keeps its own error code and exit", () => {
+    seedWallet();
     install();
     const ok = json(["qaprobe", "read", "--value", "hello"]);
     expect(ok.status).toBe(0);
@@ -85,6 +88,7 @@ describe("an installed plugin", () => {
   });
 
   it("is not imported by core commands or root help, which lists its group from the manifest", () => {
+    seedWallet();
     install();
     const before = imports();
     expect(json(["networks"]).status).toBe(0);
@@ -106,6 +110,7 @@ describe("an installed plugin", () => {
   });
 
   it("is stopped by the command deadline", () => {
+    seedWallet();
     install();
     const r = json(["qaprobe", "read", "--value", "slow", "--timeout", "300"]);
     expect(r.status).toBe(1);
@@ -113,6 +118,7 @@ describe("an installed plugin", () => {
   });
 
   it("sees only the documented context, services and host members", () => {
+    seedWallet();
     install();
     expect(json(["qaprobe", "inspect"]).json.data).toMatchObject({
       context: [
@@ -150,6 +156,179 @@ describe("an installed plugin", () => {
         "services",
       ],
     });
+  });
+});
+
+const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+const privateKey = (path: string) =>
+  HDNodeWallet.fromPhrase(MNEMONIC, undefined, path).privateKey.slice(2);
+
+// Runs `body` with the plugin's test controls in the CLI's environment.
+function withEnv(env: Record<string, string>, body: () => void): void {
+  const saved = Object.fromEntries(Object.keys(env).map((k) => [k, process.env[k]]));
+  Object.assign(process.env, env);
+  try {
+    body();
+  } finally {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  }
+}
+
+describe("an installed plugin on both families", () => {
+  it("reads with the selected network and account on TRON and EVM", () => {
+    seedWallet();
+    install();
+    const evmAddress = HDNodeWallet.fromPhrase(MNEMONIC, undefined, "m/44'/60'/0'/0/0").address;
+    const tronAddress = TronWeb.address.fromPrivateKey(privateKey("m/44'/195'/0'/0/0"));
+    const tron = json(["qaprobe", "read", "--value", "hello", "--network", "nile"]);
+    expect(tron.json, tron.stdout + tron.stderr).toMatchObject({
+      success: true,
+      data: { value: "hello", network: "tron:3448148188", address: tronAddress },
+      chain: { network: "tron:3448148188" },
+    });
+    const text = run(["qaprobe", "read", "--value", "hello", "--network", "nile", "-o", "text"], {
+      password: null,
+    });
+    expect(text.stdout).toContain(`address: ${tronAddress}`);
+    const evm = json(["qaprobe", "read", "--value", "hello", "--network", "sepolia"]);
+    expect(evm.json, evm.stdout + evm.stderr).toMatchObject({
+      success: true,
+      data: { network: "eip155:11155111", address: evmAddress },
+    });
+  });
+
+  it("signs a message on EVM exactly as message sign does", () => {
+    seedWallet();
+    install();
+    const args = ["--message", "QA", "--network", "sepolia"];
+    const own = json(["message", "sign", ...args], {});
+    const probe = json(["qaprobe", "sign", ...args], {});
+    expect(probe.json?.success, probe.stdout + probe.stderr).toBe(true);
+    expect(probe.json.data.signature).toBe(own.json.data.signature);
+    expect(probe.json.data.address).toBe(own.json.data.address);
+  });
+
+  it("reaches none of the wallet's secrets, with or without an authorized signature", () => {
+    seedWallet();
+    install();
+    const canaries = {
+      privateKey: [privateKey("m/44'/195'/0'/0/0"), privateKey("m/44'/60'/0'/0/0")].map(sha256),
+      mnemonic: [sha256(MNEMONIC)],
+      password: [sha256(DEFAULT_PW)],
+    };
+    const none = { privateKey: false, mnemonic: false, password: false };
+    withEnv({ QAPROBE_CANARIES: JSON.stringify(canaries) }, () => {
+      const plain = json(["qaprobe", "inspect", "--network", "nile"]);
+      expect(plain.json?.data?.secretsReachable, plain.stdout + plain.stderr).toEqual(none);
+      const signed = json(["qaprobe", "inspect", "--sign", "--network", "nile"], {});
+      expect(signed.json?.success, signed.stdout + signed.stderr).toBe(true);
+      expect(signed.json.data.signature).toMatch(/^0x[0-9a-f]{130}$/);
+      expect(signed.json.data.secretsReachable).toEqual(none);
+      for (const secret of [DEFAULT_PW, MNEMONIC, ...canaries.privateKey]) {
+        expect(signed.stdout + signed.stderr).not.toContain(secret);
+      }
+    });
+    // The walk does find a value the plugin can reach: the selected network's id.
+    withEnv({ QAPROBE_CANARIES: JSON.stringify({ mnemonic: [sha256("tron:3448148188")] }) }, () => {
+      const control = json(["qaprobe", "inspect", "--network", "nile"]);
+      expect(control.json.data.secretsReachable.mnemonic).toBe(true);
+    });
+  });
+});
+
+const NODE_STUB = pathToFileURL(join(import.meta.dirname, "plugins/tron-node-stub.mjs")).href;
+const TOKEN = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
+const transfer = ["qaprobe", "transfer", "--contract", TOKEN, "--to", TRON1, "--amount", "1"];
+
+// The transfer runs the host's TRON lifecycle against a controlled node in the CLI process.
+describe("an installed plugin's transaction against a controlled node", () => {
+  let observations: string;
+  beforeEach(() => {
+    seedWallet();
+    install();
+    observations = join(testHome, "observations.jsonl");
+  });
+
+  function send(mode: string, args: string[], password: boolean) {
+    let result!: ReturnType<typeof json>;
+    let seen!: { signatures: number; submissions: number };
+    withEnv(
+      {
+        NODE_OPTIONS: `--import ${NODE_STUB}`,
+        QAPROBE_NODE: mode,
+        QAPROBE_OBSERVATIONS: observations,
+      },
+      () => {
+        result = json([...transfer, "--network", "nile", ...args], password ? {} : undefined);
+        seen = json(["qaprobe", "inspect", "--network", "nile"]).json.data.observed;
+      },
+    );
+    return { result, seen };
+  }
+
+  it.each([
+    ["--dry-run", false, "dry-run"],
+    ["--build-only", false, "build-only"],
+  ])("signs and submits nothing with %s", (flag, password, mode) => {
+    const { result, seen } = send("ok", [flag], password);
+    expect(result.json, result.stdout + result.stderr).toMatchObject({
+      success: true,
+      data: { mode },
+      meta: { plugin: { name: "qaprobe" } },
+    });
+    expect(seen).toEqual({ signatures: 0, submissions: 0 });
+  });
+
+  it("signs once and submits nothing with --sign-only", () => {
+    const { result, seen } = send("ok", ["--sign-only"], true);
+    expect(result.json, result.stdout + result.stderr).toMatchObject({
+      success: true,
+      data: { mode: "sign-only", signed: { signature: [expect.any(String)] } },
+    });
+    expect(seen).toEqual({ signatures: 1, submissions: 0 });
+  });
+
+  it("refuses conflicting modes before signing or submitting", () => {
+    for (const flags of [
+      ["--dry-run", "--sign-only"],
+      ["--dry-run", "--wait"],
+    ]) {
+      const { result, seen } = send("ok", flags, false);
+      expect(result.status).toBe(2);
+      expect(result.json.error.code).toBe("invalid_option");
+      expect(seen).toEqual({ signatures: 0, submissions: 0 });
+    }
+  });
+
+  it.each([
+    ["by default", "ok", [], "confirmed"],
+    ["with --wait", "ok", ["--wait"], "confirmed"],
+    ["with --no-wait", "ok", ["--no-wait"], "submitted"],
+    ["with a reverted receipt", "revert", [], "failed"],
+  ])("submits once and reports the receipt %s", (_label, mode, args, stage) => {
+    const { result, seen } = send(mode, args, true);
+    expect(result.status, result.stdout + result.stderr).toBe(0);
+    expect(result.json).toMatchObject({
+      success: true,
+      data: { stage, txId: expect.stringMatching(/^[0-9a-f]{64}$/) },
+    });
+    expect(seen).toEqual({ signatures: 1, submissions: 1 });
+  });
+
+  it("reports a lost submit reply as outcome unknown with the transaction id", () => {
+    const { result, seen } = send("lost", [], true);
+    expect(result.status).toBe(1);
+    expect(result.json).toMatchObject({
+      success: false,
+      error: {
+        details: { outcome: "unknown", txId: expect.stringMatching(/^[0-9a-f]{64}$/) },
+      },
+      meta: { plugin: { name: "qaprobe" } },
+    });
+    expect(seen).toEqual({ signatures: 1, submissions: 1 });
   });
 });
 
