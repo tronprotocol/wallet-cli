@@ -2,24 +2,27 @@
 // wallet-cli process, where the host has published its plugin API.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { build } from "esbuild";
 
 const TS_ROOT = resolve(import.meta.dirname, "..");
-const SDK = join(TS_ROOT, "plugin-sdk");
 const CONDITION = "wallet-cli-testing";
 
 // A package that depends on the SDK, as a plugin repository does.
 const consumer = mkdtempSync(join(tmpdir(), "wcli-sdk-consumer-"));
+// A private SDK build from the current sources; other tests read plugin-sdk/dist in parallel.
+const SDK = join(consumer, "sdk");
 beforeAll(() => {
-  // The SDK is rebuilt so the checks run against the current sources.
-  execFileSync(process.execPath, ["--import", "tsx", "scripts/build-plugin-sdk.mjs"], {
-    cwd: TS_ROOT,
-    stdio: "ignore",
-  });
+  mkdirSync(SDK);
+  copyFileSync(join(TS_ROOT, "plugin-sdk/package.json"), join(SDK, "package.json"));
+  execFileSync(
+    process.execPath,
+    ["--import", "tsx", "scripts/build-plugin-sdk.mjs", join(SDK, "dist")],
+    { cwd: TS_ROOT, stdio: "ignore" },
+  );
   mkdirSync(join(consumer, "node_modules/@tron-walletcli"), { recursive: true });
   symlinkSync(SDK, join(consumer, "node_modules/@tron-walletcli/plugin-sdk"), "dir");
   writeFileSync(join(consumer, "package.json"), '{ "type": "module" }');

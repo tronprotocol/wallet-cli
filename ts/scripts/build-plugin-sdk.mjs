@@ -1,19 +1,21 @@
 // Builds plugin-sdk/dist: type declarations of the five plugin-api entries, one runtime module per
 // entry that binds each export to the API object the host publishes, and the self-contained `testing`
-// entry that publishes the real API for plugin tests. Run with `node --import tsx`.
+// entry that publishes the real API for plugin tests. Run with `node --import tsx`; an optional
+// argument names another output directory, for tests that must not touch plugin-sdk/dist.
+import process from "node:process";
 import { mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { build } from "tsup";
 import { PLUGIN_API_GLOBAL, PLUGIN_API_OBJECT } from "../src/bootstrap/plugins/api-object.ts";
 import { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "../src/plugin-api/index.ts";
 
-const OUT = "plugin-sdk/dist";
+const OUT = process.argv[2] ?? "plugin-sdk/dist";
 const ENTRIES = ["index", "domain", "application", "cli", "http"];
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 rmSync(OUT, { recursive: true, force: true });
 // The testing runtime inlines everything, so the API object, its Zod and the test seams are one copy.
 // Built in its own directory: tsup builds of one directory remove each other's output.
-const TESTING_OUT = "plugin-sdk/.testing";
+const TESTING_OUT = process.argv[2] ? `${OUT}.testing` : "plugin-sdk/.testing";
 rmSync(TESTING_OUT, { recursive: true, force: true });
 await build({
   entry: { testing: "plugin-sdk/src/testing.ts" },
