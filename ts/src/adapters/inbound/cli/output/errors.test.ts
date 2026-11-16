@@ -2,11 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   ChainError,
   errorMessage,
-  followUp,
+  followUpStep,
   inputRef,
   UsageError,
 } from "../../../../domain/errors/index.js";
-import { cliMessage, errorEnvelope, exitCodeOf, flagFor, normalizeCliError } from "./errors.js";
+import {
+  cliMessage,
+  errorEnvelope,
+  exitCodeOf,
+  flagFor,
+  normalizeCliError,
+  registerFollowUps,
+} from "./errors.js";
+import { GASFREE_FOLLOW_UPS } from "../../../../plugins/gasfree/adapters/inbound/follow-ups.js";
 import { assertPositiveAmount } from "../../../../domain/amounts/index.js";
 import { resolveAgentId } from "../../../../domain/erc8004/index.js";
 import {
@@ -35,9 +43,10 @@ describe("CLI error projection", () => {
   });
 
   it("renders references in the envelope and the text message", () => {
+    registerFollowUps(GASFREE_FOLLOW_UPS);
     const error = new UsageError(
       "invalid_option",
-      errorMessage`${inputRef("tickSpacing")} is wrong for ${"a\nb"}; see ${followUp("gasfree-trace", "t1")}`,
+      errorMessage`${inputRef("tickSpacing")} is wrong for ${"a\nb"}; see ${followUpStep("gasfree-trace", "t1")}`,
     );
     expect(errorEnvelope(error)).toEqual({
       code: "invalid_option",

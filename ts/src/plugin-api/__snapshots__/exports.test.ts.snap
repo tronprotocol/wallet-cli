@@ -1,0 +1,49 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`pins the runtime export names of each plugin-api entry 1`] = `
+{
+  "application": [
+    "DeadlineExpiredError",
+    "assertSubmitAdmitted",
+    "requestDispatchCheck",
+    "sleepWithin",
+    "submitDispatchCheck",
+    "waitsForConfirmation",
+  ],
+  "cli": [
+    "fail",
+    "ok",
+    "pending",
+    "query",
+    "receipt",
+    "table",
+    "z",
+  ],
+  "domain": [
+    "ChainError",
+    "CliError",
+    "TransportError",
+    "TronAddress",
+    "UsageError",
+    "assertPositiveAmount",
+    "errorMessage",
+    "followUp",
+    "fromBaseUnits",
+    "inputRef",
+    "isTronNetwork",
+    "isZeroAmount",
+    "matchTokenSymbol",
+    "networkBlock",
+    "normalizeTxHash",
+    "toBaseUnits",
+    "tronAddressBytes",
+  ],
+  "http": [
+    "requestJson",
+  ],
+  "index": [
+    "PLUGIN_API_REVISION",
+    "PLUGIN_API_VERSION",
+  ],
+}
+`;

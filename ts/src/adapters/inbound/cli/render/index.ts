@@ -14,7 +14,6 @@ import { MiscFormatters } from "./misc.js";
 import { GovernanceFormatters } from "./governance.js";
 import { PermissionFormatters } from "./permission.js";
 import { MultisigFormatters } from "./multisig.js";
-import { GasFreeFormatters } from "./gasfree.js";
 import { SunSwapFormatters } from "./sunswap.js";
 import { SunSwapLiquidityFormatters } from "./sunswap-liquidity.js";
 import { SunSwapRemoveLiquidityFormatters } from "./sunswap-remove-liquidity.js";
@@ -44,7 +43,6 @@ export const TextFormatters = {
   ...GovernanceFormatters,
   ...PermissionFormatters,
   ...MultisigFormatters,
-  ...GasFreeFormatters,
   ...SunSwapFormatters,
   // Token-book notes identify user-resolved tokens omitted from the receipt rows.
   sunswapLiquidity: withTokenBookNotes(SunSwapLiquidityFormatters.sunswapLiquidity),

@@ -1,12 +1,12 @@
-import type { DispatchCheck } from "../contracts/deadline.js";
+import type { DispatchCheck } from "../../../../plugin-api/application.js";
+import type { NetworkDescriptor } from "../../../../plugin-api/domain.js";
 import type {
   GasFreeAddressInfo,
   GasFreeProviderConfig,
   GasFreeTokenConfig,
   GasFreeTransferRecord,
-  NetworkDescriptor,
   SignedGasFreeAuthorization,
-} from "../../domain/types/index.js";
+} from "../../domain/types.js";
 
 export interface GasFreeProvider {
   listTokens(network: NetworkDescriptor, check: DispatchCheck): Promise<GasFreeTokenConfig[]>;

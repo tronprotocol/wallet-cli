@@ -19,7 +19,7 @@ import type {
   SessionRef,
   StreamManager,
 } from "../contracts/index.js";
-import { CommandRegistry } from "../registry/index.js";
+import { CommandRegistry, unknownCommand } from "../registry/index.js";
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { barBroadcasts } from "../../../../application/services/broadcast-guard.js";
 import { buildExecutionContext, type RuntimeDeps } from "../context/index.js";
@@ -33,7 +33,7 @@ import {
   isAccountRef,
 } from "../arity/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
-import { ERROR_CODES, type ErrorCodeEntry } from "../../../../domain/errors/codes.js";
+import { errorCodeEntry } from "../../../../domain/errors/codes.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, globalYargsOptions } from "../globals/index.js";
 import { exclusiveRefine } from "../schemas/exclusive.js";
@@ -156,9 +156,7 @@ export function buildCli(opts: ShellOptions): Argv {
     (y) => y,
     (argv) => {
       const positionals = (argv._ as (string | number)[]).map(String).filter(Boolean);
-      if (positionals.length > 0) {
-        throw new UsageError("unknown_command", `unknown command: ${positionals.join(" ")}`);
-      }
+      if (positionals.length > 0) throw unknownCommand(opts.registry, positionals);
     },
   );
   return cli;
@@ -598,8 +596,7 @@ export function parseInputSchema(
   // Refines may select only registered usage-error codes; other codes fall back to invalid_value.
   const declared = (issue as { params?: { errorCode?: unknown } }).params?.errorCode;
   const declaredCode = typeof declared === "string" ? declared : undefined;
-  const table = ERROR_CODES as Record<string, ErrorCodeEntry | undefined>;
-  const entry = declaredCode ? table[declaredCode] : undefined;
+  const entry = declaredCode ? errorCodeEntry(declaredCode) : undefined;
   const code =
     declaredCode && entry && (entry.exit === 2 || entry.exit === "either")
       ? declaredCode

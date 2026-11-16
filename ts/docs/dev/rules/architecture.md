@@ -32,6 +32,8 @@ subject. Production modules never import test files or test helpers. Sections 2 
 | `adapters/inbound` | What drives the app: parse argv, prompt, render output, the envelope | `application`, `domain` |
 | `adapters/outbound` | What the app calls: implement ports, translate external data into port types, I/O, locks, encryption at rest | `application/ports`, `application/contracts`, `domain` |
 | `bootstrap` | Composition root and process lifecycle; assembly only, no decisions | everything |
+| `plugin-api` | The contract between the core and a plugin: types a plugin implements, host service interfaces, curated re-exports | `domain`, `application`, and the adapter helper modules it re-exports |
+| `plugins/<name>` | One protocol feature as a vertical slice (section 9) | `plugin-api`, its own directory |
 
 1.1 Dependencies point inward, as the table shows. **depcruise**.
 
@@ -273,3 +275,54 @@ the registry against the contract.
 8.1 Comments follow [comments.md](comments.md).
 
 8.2 Design decisions that must survive are recorded in this directory, not in code comments.
+
+## 9. Plugins
+
+A protocol feature (SunSwap, x402, GasFree, ...) is a plugin. The core owns wallets, accounts, credentials,
+configuration, signing, the transaction lifecycle and chain-native commands, and does not know a plugin's
+commands, options, error codes or settings. A built-in plugin lives in `plugins/<name>/`; an installed plugin
+is built in its own repository against the same contract and loaded from the wallet-cli home directory.
+
+9.1 The core does not import `plugins/`. The one exception is `bootstrap/plugins/builtin.ts`, the list of
+built-in plugins. A plugin imports the core only through `plugin-api`. A built-in plugin may import the
+`api.ts` of a built-in plugin it depends on; installed plugins do not depend on each other. **depcruise**.
+
+9.2 A plugin has the layout `index.ts`, `domain/`, `application/`, `adapters/inbound/`, `adapters/outbound/`.
+Rules 1.1 to 1.6, 1.8 and 1.9 hold inside it for those directories, with `index.ts` in the role of
+`bootstrap`: it builds the plugin's services from the host services and registers its commands. Each layer
+imports only its entry of `plugin-api`:
+
+| Plugin layer | `plugin-api` entries |
+|---|---|
+| `domain` | `domain` |
+| `application` | `domain`, `application` |
+| `adapters/inbound` | `domain`, `application`, `cli` |
+| `adapters/outbound` | `domain`, `application`, `http` |
+| `index.ts` | all |
+
+**depcruise**.
+
+9.3 A plugin declares and the core acts. A plugin registers commands (one Zod schema each, rule 2.3), error
+codes, capability predicates and follow-up steps through `PluginHost`. Its commands return typed results and
+supply a text formatter; the core prints. A plugin does not write to stdout or stderr. **review**.
+
+9.4 A plugin never receives a signer, the keystore, the secret resolver or the master password. It signs
+through the `signing` host service, which resolves the signer in the core and passes through the signing entry
+of 6.4. It submits to a chain only through the host services that run the lifecycle of 6.2, and its submits to
+its own service check the dry-run guard of 6.1. The context and the services the host hands over expose only
+their listed methods. **test** for the members of the context and of each service, **review**.
+
+9.5 A plugin's registrations are published together or not at all. A plugin that cannot be loaded or
+registered affects no core command and no other plugin. **test**.
+
+9.6 The plugin store publishes an install or an update by replacing one active manifest that points to a
+complete, immutable version directory (3.5). **test**.
+
+9.7 Every export of `plugin-api` is part of the contract. Removing or changing one raises the API version;
+adding one raises the API revision. **test**: a snapshot of the export names.
+
+9.8 Sections 2 to 8 apply to plugin code as written. Inside a plugin, its `domain` owns its error codes (7.2)
+and its `application` owns its capability predicates (5.3); both reach the core's registries through
+`PluginHost`. The closed-type rule (3.1) covers a plugin's ports and contracts. No plugin reads a secret; a
+plugin's `index.ts` may read the non-secret environment variables on the allowlist of 6.5. **review**, plus
+the checks each section names.

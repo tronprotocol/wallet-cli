@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { coerceGlobalValue, GLOBAL_FLAG_SPECS } from "./index.js";
-import { gasFreeTransferSpec } from "../commands/gasfree.js";
+import { gasFreeTransferSpec } from "../../../../plugins/gasfree/adapters/inbound/commands.js";
 
 const spec = (name: string) => GLOBAL_FLAG_SPECS.find((f) => f.name === name)!;
 

@@ -1,17 +1,33 @@
+import { bytesToHex } from "@noble/hashes/utils.js";
 import {
   assertSubmitAdmitted,
+  DeadlineExpiredError,
   requestDispatchCheck,
+  sleepWithin,
   submitDispatchCheck,
-} from "../../services/command-deadline.js";
-import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
-import { sleepWithin } from "../../services/deadline-poll.js";
-import { DeadlineExpiredError, type ExecutionDeadline } from "../../contracts/deadline.js";
-import { gasfreeService } from "../../services/capability/predicates.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
-import type { GasFreeProvider } from "../../ports/gasfree-provider.js";
-import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { SignerResolver } from "../../services/signer/index.js";
-import type { TransactionScope } from "../../contracts/execution-scope.js";
+  waitsForConfirmation,
+  type ExecutionDeadline,
+  type PluginClock,
+  type PluginConfig,
+  type PluginGateways,
+  type PluginRecipients,
+  type PluginSigningService,
+  type TransactionScope,
+} from "../../../../plugin-api/application.js";
+import {
+  assertPositiveAmount,
+  ChainError,
+  CliError,
+  errorMessage,
+  followUp,
+  inputRef,
+  matchTokenSymbol,
+  toBaseUnits,
+  TransportError,
+  UsageError,
+  type NetworkDescriptor,
+} from "../../../../plugin-api/domain.js";
+import type { GasFreeProvider } from "../ports/gasfree-provider.js";
 import type {
   GasFreeAddressInfo,
   GasFreeAuthorization,
@@ -21,28 +37,15 @@ import type {
   GasFreeTraceView,
   GasFreeTransferRecord,
   GasFreeTransferView,
-  NetworkDescriptor,
-} from "../../../domain/types/index.js";
-import {
-  ChainError,
-  CliError,
-  errorMessage,
-  followUp,
-  inputRef,
-  TransportError,
-  UsageError,
-} from "../../../domain/errors/index.js";
-import { waitsForConfirmation } from "../../services/transaction-mode.js";
+} from "../../domain/types.js";
 import {
   gasFreeDigest,
   gasFreeTypedData,
   normalizeGasFreeSignature,
   recoverGasFreeSigner,
-} from "../../../domain/gasfree/index.js";
-import { assertPositiveAmount, toBaseUnits } from "../../../domain/amounts/index.js";
-import { matchTokenSymbol } from "../../../domain/token/symbol.js";
-import type { SigningService } from "../../services/signing/signing-service.js";
-import type { RecipientResolver } from "../../services/recipient-resolver.js";
+} from "../../domain/typed-data.js";
+import { gasfreeNetworkConfig } from "../../domain/network.js";
+import { GASFREE_TRACE } from "../follow-ups.js";
 
 const MAX_DEADLINE_SECONDS = 86_400n;
 const POLL_MS = 1_000;
@@ -62,11 +65,11 @@ interface ResolvedGasFreeToken extends GasFreeTokenConfig {
 export class GasFreeService {
   constructor(
     private readonly provider: GasFreeProvider,
-    private readonly gateways: ChainGatewayProvider,
-    private readonly signers: SignerResolver,
-    private readonly signing: SigningService,
-    private readonly recipients: RecipientResolver,
-    private readonly clock: WallClock = systemWallClock,
+    private readonly gateways: PluginGateways,
+    private readonly signing: PluginSigningService,
+    private readonly recipients: PluginRecipients,
+    private readonly config: Pick<PluginConfig, "networkBlock">,
+    private readonly clock: PluginClock,
     private readonly sleep: (
       milliseconds: number,
       deadline: ExecutionDeadline,
@@ -126,9 +129,9 @@ export class GasFreeService {
   ): Promise<GasFreeTransferView> {
     const wait = waitsForConfirmation(scope.wait, !input.dryRun);
     if (!input.dryRun) {
-      this.signers.assertCanSign(scope.activeAccount, "tron");
+      this.signing.assertCanSign(scope.activeAccount, "tron");
     }
-    const metadata = gasfreeService(network);
+    const metadata = gasfreeNetworkConfig(network, this.config.networkBlock(network, "gasfree"));
     if (!metadata) {
       throw new UsageError("unsupported_network", `network ${network.id} does not support GasFree`);
     }
@@ -177,7 +180,7 @@ export class GasFreeService {
       receiver: recipient.address,
       value,
       maxFee: authorizedMaxFee,
-      deadline: String(BigInt(Math.floor(this.clock() / 1000)) + duration),
+      deadline: String(BigInt(Math.floor(this.clock.now() / 1000)) + duration),
       version: "1",
       nonce: addressInfo.nonce,
     };
@@ -193,8 +196,7 @@ export class GasFreeService {
       );
     }
 
-    const signer = this.signers.resolve(scope.activeAccount, "tron");
-    if (signer.address !== owner) {
+    if (this.signing.signerAddress(scope.activeAccount, "tron") !== owner) {
       throw new UsageError(
         "invalid_account",
         "resolved signer address changed during GasFree construction",
@@ -207,8 +209,7 @@ export class GasFreeService {
     const expectedDigest = gasFreeDigest(domain, authorization);
     const signed = await this.signing.sign(scope, {
       network,
-      origin: "built",
-      signer,
+      family: "tron",
       payload: { kind: "typed-data", typedData: gasFreeTypedData(domain, authorization) },
     });
     const reportedDigest = signed.digest.replace(/^0x/i, "").toLowerCase();
@@ -397,7 +398,7 @@ export class GasFreeService {
         scope.warn(
           errorMessage`GasFree trace could not be polled (${
             error instanceof CliError ? error.code : "provider_error"
-          }); returning submitted — reconcile with \`${followUp("gasfree-trace", initial.id)}\``,
+          }); returning submitted — reconcile with \`${followUp(GASFREE_TRACE, initial.id)}\``,
         );
         return undefined;
       }

@@ -1,8 +1,13 @@
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { keccak_256 } from "@noble/hashes/sha3.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
-import type { Bytes, GasFreeAuthorization, TypedDataPayload } from "../types/index.js";
-import { TronAddress, tronAddressBytes } from "../address/index.js";
+import {
+  TronAddress,
+  tronAddressBytes,
+  type Bytes,
+  type TypedDataPayload,
+} from "../../../plugin-api/domain.js";
+import type { GasFreeAuthorization } from "./types.js";
 
 export const GASFREE_DOMAIN_TYPE =
   "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)";

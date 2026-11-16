@@ -1,11 +1,10 @@
-import { z } from "zod";
-import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
-import type { GasFreeService } from "../../../../application/use-cases/gasfree/gasfree-service.js";
-import { TextFormatters } from "../render/index.js";
-import { isZeroAmount } from "../../../../domain/amounts/index.js";
-import { defaultToken } from "../../../../application/services/default-token.js";
+import { z, type PluginChainSpec, type PluginFamilyBinding } from "../../../../plugin-api/cli.js";
+import { isZeroAmount } from "../../../../plugin-api/domain.js";
+import type { GasFreeService } from "../../application/use-cases/gasfree-service.js";
+import { GASFREE_DEFAULT_TOKEN } from "../../application/capabilities.js";
+import { GasFreeFormatters } from "./render.js";
 
-export const gasFreeInfoSpec: ChainSpec = {
+export const gasFreeInfoSpec: PluginChainSpec = {
   path: ["gasfree", "info"],
   network: "optional",
   wallet: "optional",
@@ -17,10 +16,10 @@ export const gasFreeInfoSpec: ChainSpec = {
     "Show this account's GasFree address, activation status, nonce, supported tokens, balances, and current token-denominated fees.",
   baseFields: z.object({}),
   examples: [{ cmd: "wallet-cli gasfree info" }],
-  formatText: TextFormatters.gasFreeInfo,
+  formatText: GasFreeFormatters.gasFreeInfo,
 };
 
-export const gasFreeInfoTronBinding = (service: GasFreeService): FamilyBinding => ({
+export const gasFreeInfoTronBinding = (service: GasFreeService): PluginFamilyBinding => ({
   run: async (context, network) => service.info(context, network),
 });
 
@@ -36,7 +35,7 @@ const transferFields = z.object({
     .trim()
     .min(1)
     .max(32)
-    .default(defaultToken("gasfree.transfer"))
+    .default(GASFREE_DEFAULT_TOKEN)
     .describe("token symbol supported by the GasFree provider"),
   dryRun: z
     .boolean()
@@ -46,7 +45,7 @@ const transferFields = z.object({
     ),
 });
 
-export const gasFreeTransferSpec: ChainSpec = {
+export const gasFreeTransferSpec: PluginChainSpec = {
   path: ["gasfree", "transfer"],
   network: "optional",
   wallet: "optional",
@@ -66,10 +65,10 @@ export const gasFreeTransferSpec: ChainSpec = {
       cmd: "wallet-cli gasfree transfer --to alice --amount 25 --no-wait --password-stdin",
     },
   ],
-  formatText: TextFormatters.gasFreeTransfer,
+  formatText: GasFreeFormatters.gasFreeTransfer,
 };
 
-export const gasFreeTransferTronBinding = (service: GasFreeService): FamilyBinding => ({
+export const gasFreeTransferTronBinding = (service: GasFreeService): PluginFamilyBinding => ({
   run: async (context, network, input) => service.transfer(context, network, input),
 });
 
@@ -83,7 +82,7 @@ const traceFields = z.object({
     .describe("trace id returned by `gasfree transfer`"),
 });
 
-export const gasFreeTraceSpec: ChainSpec = {
+export const gasFreeTraceSpec: PluginChainSpec = {
   path: ["gasfree", "trace"],
   network: "optional",
   wallet: "none",
@@ -100,9 +99,9 @@ export const gasFreeTraceSpec: ChainSpec = {
       cmd: "wallet-cli gasfree trace 7f3e9a02-58c1-4d2e-b6a4-91d0c3f8e527",
     },
   ],
-  formatText: TextFormatters.gasFreeTrace,
+  formatText: GasFreeFormatters.gasFreeTrace,
 };
 
-export const gasFreeTraceTronBinding = (service: GasFreeService): FamilyBinding => ({
+export const gasFreeTraceTronBinding = (service: GasFreeService): PluginFamilyBinding => ({
   run: async (context, network, input) => service.trace(context.deadline, network, input.traceId),
 });

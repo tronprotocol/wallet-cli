@@ -26,16 +26,6 @@ const evm = (id: string): NetworkDescriptor => ({
 
 describe("capabilitySupport", () => {
   it("enables service capabilities only on a TRON network with that service configured", () => {
-    expect(capabilitySupport("gasfree.info", tron(), facts(true))).toBe("unsupported");
-    expect(
-      capabilitySupport(
-        "gasfree.info",
-        tron({
-          gasfree: { baseUrl: "", apiPrefix: "", controllerChainId: "1", verifyingContract: "" },
-        } as never),
-        facts(true),
-      ),
-    ).toBe("supported");
     expect(capabilitySupport("sunswap.market", evm("eip155:1"), facts(true))).toBe("unsupported");
   });
 
@@ -65,6 +55,21 @@ describe("capabilitySupport", () => {
   it("marks x402 serve as needing inputs where no default token is registered", () => {
     expect(capabilitySupport("x402.serve", evm("eip155:1"), facts(false))).toBe("needs-inputs");
     expect(capabilitySupport("x402.serve", evm("eip155:56"), facts(true))).toBe("supported");
+  });
+
+  it("asks a registered predicate for a capability the core does not define", () => {
+    const registered = new Map([["demo.read", () => "needs-inputs" as const]]);
+    expect(capabilitySupport("demo.read", evm("eip155:1"), facts(true), registered)).toBe(
+      "needs-inputs",
+    );
+    expect(
+      capabilitySupport(
+        "x402.serve",
+        evm("eip155:56"),
+        facts(true),
+        new Map([["x402.serve", () => "unsupported" as const]]),
+      ),
+    ).toBe("supported");
   });
 
   it("leaves a family-wide capability to the command's bindings", () => {

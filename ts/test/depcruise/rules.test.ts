@@ -520,6 +520,169 @@ describe("dependency-cruiser layer and cycle rules", () => {
   });
 });
 
+const exported = (from: string) =>
+  `import { marker } from "${from}";\nexport const probe = marker;\n`;
+const marker = `export const marker = 1;\n`;
+
+// A core tree with a plugin-api and one plugin whose modules each import nothing yet.
+const PLUGIN_BASE: Record<string, string> = {
+  "src/domain/marker.ts": marker,
+  "src/application/services/marker.ts": marker,
+  "src/adapters/inbound/marker.ts": marker,
+  "src/bootstrap/plugins/builtin.ts": exported("../../plugins/demo/index.js"),
+  "src/plugin-api/index.ts": marker,
+  "src/plugin-api/domain.ts": marker,
+  "src/plugin-api/application.ts": marker,
+  "src/plugin-api/cli.ts": marker,
+  "src/plugin-api/http.ts": marker,
+  "src/plugin-api/command.ts": marker,
+  "src/plugins/demo/index.ts": marker,
+  "src/plugins/demo/api.ts": marker,
+  "src/plugins/demo/domain/marker.ts": marker,
+  "src/plugins/demo/application/marker.ts": marker,
+  "src/plugins/demo/application/ports/marker.ts": marker,
+  "src/plugins/demo/application/use-cases/demo-service.ts": marker,
+  "src/plugins/demo/adapters/inbound/marker.ts": marker,
+  "src/plugins/demo/adapters/outbound/marker.ts": marker,
+  "src/plugins/demo/adapters/outbound/service/marker.ts": marker,
+  "src/plugins/demo/adapters/outbound/store/marker.ts": marker,
+  "src/plugins/other/index.ts": marker,
+  "src/plugins/other/api.ts": marker,
+  "src/plugins/other/domain/marker.ts": marker,
+};
+
+describe("dependency-cruiser plugin rules", () => {
+  it.each<{ rule: string; files: Record<string, string> }>([
+    {
+      rule: "core-does-not-import-plugins",
+      files: { "src/adapters/inbound/leak.ts": exported("../../plugins/demo/index.js") },
+    },
+    {
+      rule: "plugins-reach-the-core-only-through-plugin-api",
+      files: { "src/plugins/demo/domain/leak.ts": exported("../../../domain/marker.js") },
+    },
+    {
+      rule: "plugins-import-only-their-own-directory",
+      files: { "src/plugins/demo/domain/leak.ts": exported("../../other/domain/marker.js") },
+    },
+    {
+      rule: "plugin-layers-import-only-their-api-entries",
+      files: { "src/plugins/demo/domain/leak.ts": exported("../../../plugin-api/application.js") },
+    },
+    {
+      rule: "plugin-layers-import-only-their-api-entries",
+      files: { "src/plugins/demo/application/leak.ts": exported("../../../plugin-api/cli.js") },
+    },
+    {
+      rule: "plugin-layers-import-only-their-api-entries",
+      files: {
+        "src/plugins/demo/adapters/inbound/leak.ts": exported("../../../../plugin-api/http.js"),
+      },
+    },
+    {
+      rule: "plugin-layers-import-only-their-api-entries",
+      files: {
+        "src/plugins/demo/adapters/outbound/service/leak.ts": exported(
+          "../../../../../plugin-api/cli.js",
+        ),
+      },
+    },
+    {
+      rule: "plugin-roots-import-only-api-entries",
+      files: { "src/plugins/demo/leak.ts": exported("../../plugin-api/command.js") },
+    },
+    {
+      rule: "ports-are-innermost",
+      files: { "src/plugins/demo/application/ports/leak.ts": exported("../marker.js") },
+    },
+    {
+      rule: "application-imports-no-use-case",
+      files: { "src/plugins/demo/application/leak.ts": exported("./use-cases/demo-service.js") },
+    },
+    {
+      rule: "domain-is-independent",
+      files: { "src/plugins/demo/domain/leak.ts": exported("../application/marker.js") },
+    },
+    {
+      rule: "domain-is-independent",
+      files: { "src/plugins/demo/domain/leak.ts": exported("../api.js") },
+    },
+    {
+      rule: "application-owns-ports",
+      files: { "src/plugins/demo/application/leak.ts": exported("../adapters/inbound/marker.js") },
+    },
+    {
+      rule: "inbound-does-not-know-outbound",
+      files: {
+        "src/plugins/demo/adapters/inbound/leak.ts": exported("../outbound/service/marker.js"),
+      },
+    },
+    {
+      rule: "outbound-does-not-know-inbound",
+      files: {
+        "src/plugins/demo/adapters/outbound/service/leak.ts": exported("../../inbound/marker.js"),
+      },
+    },
+    {
+      rule: "outbound-imports-no-service-or-use-case",
+      files: {
+        "src/plugins/demo/adapters/outbound/service/leak.ts": exported(
+          "../../../application/use-cases/demo-service.js",
+        ),
+      },
+    },
+    {
+      rule: "domain-and-application-use-allowlisted-packages",
+      files: { "src/plugins/demo/domain/leak.ts": exported("node:fs") },
+    },
+    {
+      rule: "sdks-and-http-clients-only-in-outbound",
+      files: { "src/plugins/demo/adapters/inbound/leak.ts": exported("tronweb") },
+    },
+    {
+      rule: "integrations-do-not-import-each-other",
+      files: {
+        "src/plugins/demo/adapters/outbound/service/leak.ts": exported("../store/marker.js"),
+      },
+    },
+    {
+      rule: "sdks-only-inside-integrations",
+      files: { "src/plugins/demo/adapters/outbound/leak.ts": exported("tronweb") },
+    },
+    {
+      rule: "plugin-outbound-modules-outside-integrations-import-no-integration",
+      files: { "src/plugins/demo/adapters/outbound/leak.ts": exported("./service/marker.js") },
+    },
+  ])("reports $rule from $files", ({ rule, files }) => {
+    const dir = buildTree({ ...PLUGIN_BASE, ...files });
+    try {
+      expect(cruise(dir)).toContain(`${rule}: ${Object.keys(files)[0]} →`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("allows each plugin layer its entries, its own inner layers, another plugin's api.ts, and tests anything", () => {
+    const dir = buildTree({
+      ...PLUGIN_BASE,
+      "src/plugins/demo/index.ts": `import { marker as a } from "../../plugin-api/index.js";\nimport { marker as b } from "../../plugin-api/cli.js";\nimport { marker as c } from "./adapters/inbound/marker.js";\nimport { marker as d } from "./adapters/outbound/service/marker.js";\nimport { marker as e } from "../other/api.js";\nexport const probe = a + b + c + d + e;\n`,
+      "src/plugins/demo/domain/marker.ts": `import { marker as a } from "../../../plugin-api/domain.js";\nimport { sha256 } from "@noble/hashes/sha2.js";\nexport const marker = a;\nexport const hash = sha256;\n`,
+      "src/plugins/demo/application/marker.ts": `import { marker as a } from "../../../plugin-api/application.js";\nimport { marker as b } from "../domain/marker.js";\nexport const marker = a + b;\n`,
+      "src/plugins/demo/adapters/inbound/marker.ts": `import { marker as a } from "../../../../plugin-api/cli.js";\nimport { marker as b } from "../../application/use-cases/demo-service.js";\nexport const marker = a + b;\n`,
+      "src/plugins/demo/adapters/outbound/service/marker.ts": `import { marker as a } from "../../../../../plugin-api/http.js";\nimport { marker as b } from "../../../application/ports/marker.js";\nimport { marker as c } from "./other.js";\nexport const marker = a + b + c;\n`,
+      "src/plugins/demo/adapters/outbound/service/other.ts": marker,
+      "src/plugins/demo/domain/marker.test.ts": `import { marker as a } from "../../../domain/marker.js";\nimport { marker as b } from "../../../plugin-api/command.js";\nexport const probe = a + b;\n`,
+      "src/adapters/inbound/marker.test.ts": exported("../../plugins/demo/index.js"),
+      "src/bootstrap/host.ts": exported("../plugin-api/index.js"),
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("dependency-cruiser integration discovery", () => {
   function cruiseResult(cwd: string) {
     return spawnSync(depcruiseBin, ["--config", configPath, "src"], { cwd, encoding: "utf8" });

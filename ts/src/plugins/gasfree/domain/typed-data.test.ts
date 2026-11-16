@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { utils as tronUtils } from "tronweb";
-import { TronAddress } from "../address/index.js";
-import type { GasFreeAuthorization } from "../types/index.js";
+import { TronAddress } from "../../../plugin-api/domain.js";
+import type { GasFreeAuthorization } from "./types.js";
 import {
   gasFreeDigest,
   gasFreeDomainSeparator,
@@ -11,7 +11,7 @@ import {
   gasFreeTypedData,
   normalizeGasFreeSignature,
   recoverGasFreeSigner,
-} from "./index.js";
+} from "./typed-data.js";
 
 const DOMAIN = {
   controllerChainId: "3448148188",

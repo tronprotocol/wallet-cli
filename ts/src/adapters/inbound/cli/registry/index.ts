@@ -1,4 +1,5 @@
 import type { ChainFamily } from "../../../../domain/types/index.js";
+import { UsageError } from "../../../../domain/errors/index.js";
 import type {
   ChainCommandDefinition,
   ChainSpec,
@@ -7,9 +8,40 @@ import type {
   StoredCommand,
 } from "../contracts/index.js";
 
+// A top-level command word declared by a plugin, for the root and group help.
+export interface HelpGroup {
+  readonly name: string;
+  readonly summary: string;
+  readonly description?: string;
+  readonly families: readonly ChainFamily[];
+}
+
 export class CommandRegistry {
   #byPath = new Map<string, CommandDefinition>();
   #chainByPath = new Map<string, ChainCommandDefinition>();
+  #groups = new Map<string, HelpGroup>();
+
+  addGroup(group: HelpGroup): void {
+    if (this.#groups.has(group.name)) throw new Error(`duplicate group ${group.name}`);
+    this.#groups.set(group.name, group);
+  }
+
+  groups(): HelpGroup[] {
+    return [...this.#groups.values()];
+  }
+
+  group(name: string): HelpGroup | undefined {
+    return this.#groups.get(name);
+  }
+
+  // The first words of every registered command and group.
+  topLevelWords(): Set<string> {
+    return new Set([
+      ...[...this.#byPath.values()].map((cmd) => cmd.path[0]!),
+      ...[...this.#chainByPath.values()].map((cmd) => cmd.spec.path[0]!),
+      ...this.#groups.keys(),
+    ]);
+  }
 
   add(cmd: CommandDefinition): void {
     const key = cmd.path.join(".");
@@ -71,4 +103,16 @@ export class CommandRegistry {
   all(): StoredCommand[] {
     return [...this.#byPath.values(), ...this.#chainByPath.values()];
   }
+}
+
+// An unknown first word may name a plugin that is not installed.
+export function unknownCommand(registry: CommandRegistry, path: readonly string[]): UsageError {
+  const known =
+    registry.topLevelWords().has(path[0]!) || (registry.families() as string[]).includes(path[0]!);
+  return new UsageError(
+    "unknown_command",
+    known
+      ? `unknown command: ${path.join(" ")}`
+      : `unknown command: ${path.join(" ")}; run 'wallet-cli plugin list' to see the installed plugins, or 'wallet-cli plugin install <name>' to add one`,
+  );
 }

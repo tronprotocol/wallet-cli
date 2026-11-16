@@ -90,11 +90,11 @@ describe("CapabilityRegistry.check", () => {
 describe("CapabilityRegistry.register", () => {
   it("records the predicate result once per key", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(network(MAINNET), ["demo.market", "gasfree.info"]);
+    caps.register(network(MAINNET), ["demo.market", "sunswap.market"]);
     caps.register(network(MAINNET), ["demo.market"]);
     expect(caps.support(MAINNET, "demo.market")).toBe("supported");
-    // The bare descriptor has no GasFree service configured.
-    expect(caps.support(MAINNET, "gasfree.info")).toBe("unsupported");
+    // The bare descriptor has no SunSwap market configured.
+    expect(caps.support(MAINNET, "sunswap.market")).toBe("unsupported");
     expect(caps.support(NILE, "demo.market")).toBe("unsupported");
   });
 
@@ -106,5 +106,18 @@ describe("CapabilityRegistry.register", () => {
       { network: MAINNET, family: "tron", support: "supported" },
       { network: NILE, family: "tron", support: "unsupported" },
     ]);
+  });
+});
+
+describe("CapabilityRegistry.addPredicates", () => {
+  it("records a registered predicate's result and keeps the first predicate of a key", () => {
+    const caps = new CapabilityRegistry(ALIASES);
+    caps.addPredicates({ "demo.read": () => "unsupported" });
+    caps.addPredicates({ "demo.read": () => "supported", "sunswap.market": () => "supported" });
+    caps.register(network(MAINNET), ["demo.read", "sunswap.market"]);
+    expect(caps.support(MAINNET, "demo.read")).toBe("unsupported");
+    expect(caps.support(MAINNET, "sunswap.market")).toBe("unsupported");
+    expect(caps.hasPredicate("demo.read")).toBe(true);
+    expect(caps.hasPredicate("other.read")).toBe(false);
   });
 });

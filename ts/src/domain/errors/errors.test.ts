@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   classifyError,
   errorMessage,
-  followUp,
+  followUpStep,
   inputRef,
   replaceMessageLayout,
   UsageError,
@@ -35,7 +35,7 @@ describe("structured references", () => {
   it("names inputs by field and keeps the references for the interface to spell", () => {
     const error = new UsageError(
       "invalid_option",
-      errorMessage`${inputRef("permissionId")} must be from 0 to ${9}; see ${followUp("gasfree-trace", "abc")}`,
+      errorMessage`${inputRef("permissionId")} must be from 0 to ${9}; see ${followUpStep("gasfree-trace", "abc")}`,
     );
     expect(error.message).toBe("permissionId must be from 0 to 9; see gasfree-trace abc");
     expect(error.parts).toEqual([

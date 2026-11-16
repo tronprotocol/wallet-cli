@@ -49,7 +49,6 @@ import { registerEvmChainCommands } from "./families/evm.js";
 import { AccountBalanceService } from "../application/use-cases/account-balance-service.js";
 import { TokenBookService } from "../application/use-cases/token-book-service.js";
 import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
-import { GasFreeClient } from "../adapters/outbound/gasfree/client.js";
 import { SunSwapMarketApi } from "../adapters/outbound/sunswap/market-api.js";
 import { SunSwapLiquidityContracts } from "../adapters/outbound/sunswap/liquidity-contracts.js";
 import { SunPumpLaunchpadContracts } from "../adapters/outbound/sunpump/launchpad-contracts.js";
@@ -83,6 +82,9 @@ import { registerX402Commands } from "../adapters/inbound/cli/commands/x402.js";
 import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
 import { createX402DaemonLog } from "../adapters/outbound/x402/daemon-log.js";
 import { X402PaywallHttpServer } from "../adapters/inbound/http/x402/paywall-server.js";
+import { PluginSigning } from "../application/services/plugins/plugin-signing.js";
+import { BUILTIN_PLUGINS, gasfreeOpenApi } from "./plugins/builtin.js";
+import { hostServices, registerPlugin } from "./plugins/host.js";
 
 export interface BootstrapOptions {
   readonly globals: Globals;
@@ -153,7 +155,11 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
-  const x402Payments = new X402PaymentClient(undefined, undefined, config);
+  const x402Payments = new X402PaymentClient(undefined, undefined, {
+    gasfreeApiKey: config.gasfreeApiKey,
+    gasfreeApiSecret: config.gasfreeApiSecret,
+    gasfreeOpenApi,
+  });
   const x402Service = new X402Service(
     x402Payments,
     signerResolver,
@@ -214,7 +220,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     transactions: txPipeline,
     accounts: keystore,
     tronlink: new TronLinkClient(config, processBroadcastGuard),
-    gasfree: new GasFreeClient(config, processBroadcastGuard),
     sunswapMarket: new SunSwapMarketApi(),
     sunswapLiquidity: new SunSwapLiquidityContracts(gatewayProvider),
     sunpumpLaunchpad: new SunPumpLaunchpadContracts(gatewayProvider),
@@ -242,6 +247,26 @@ export function composeCliRuntime(options: BootstrapOptions) {
     transactions: txPipeline,
     recipients: recipientResolver,
   });
+
+  const services = hostServices({
+    signing: new PluginSigning(signerResolver, signing),
+    gateways: gatewayProvider,
+    recipients: recipientResolver,
+    config,
+    broadcastGuard: processBroadcastGuard,
+    clock: systemWallClock,
+  });
+  for (const plugin of BUILTIN_PLUGINS) {
+    const registration = registerPlugin(plugin, {
+      commands: registry,
+      capabilities: capabilityRegistry,
+      services,
+      timeoutMs,
+    });
+    if (!registration.ok) {
+      streams.diagnostic("debug", `plugin ${plugin.name} was not loaded: ${registration.reason}`);
+    }
+  }
 
   const capabilitiesByFamily = registry.capabilityKeysByFamily();
   const neutralCapabilities = registry.neutralCapabilityKeys();

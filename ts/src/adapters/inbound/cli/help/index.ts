@@ -8,7 +8,7 @@ import type {
   StoredCommand,
   StreamManager,
 } from "../contracts/index.js";
-import { CommandRegistry } from "../registry/index.js";
+import { CommandRegistry, unknownCommand } from "../registry/index.js";
 import { CONFIG_DEFAULTS } from "../../../../application/contracts/config-defaults.js";
 import { MAX_TIMEOUT_MS } from "../../../../domain/config/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
@@ -77,7 +77,7 @@ export class HelpService {
     if (family && this.registry.resolveChain(path)) {
       throw new UsageError("family_mismatch", `${path.join(" ")} has no ${family} implementation`);
     }
-    throw new UsageError("unknown_command", `unknown command: ${path.join(" ")}`);
+    throw unknownCommand(this.registry, path);
   }
 
   #split(positionals: string[]): { family?: ChainFamily; path: string[] } {
@@ -114,12 +114,16 @@ export class HelpService {
       ["import", "Import a wallet", ""],
       ["list", "List wallets / accounts", ""],
     ] as const;
+    // Plugin groups follow tx, in registration order.
+    const pluginGroups = this.registry
+      .groups()
+      .map((g) => [g.name, g.summary, groupRowTag(g.families)] as const);
     const management = [
       ["account", "Query on-chain account state", ""],
       ["permission", "View / update account permissions (multi-sig)", "tron"],
       ["token", "Manage the token address book and query tokens", ""],
       ["tx", "Build, send, broadcast, and inspect transactions", ""],
-      ["gasfree", "Gas-free token transfers via the GasFree service", "tron"],
+      ...pluginGroups,
       [
         "sunswap",
         "Swap, manage liquidity, and look up pools, positions and prices on SunSwap",
@@ -141,7 +145,7 @@ export class HelpService {
       ["x402", "Pay and inspect x402 service providers", ""],
       ["bai", "Query and recharge a B.AI account", ""],
       ["8004", "Read and manage ERC-8004 Agent identities", ""],
-    ] as const;
+    ];
     const commands = [
       ["use", "Set the active account", ""],
       ["current", "Show the current (active) account", ""],
@@ -240,7 +244,7 @@ export class HelpService {
     const width = Math.max(0, ...rows.map(([verb]) => verb.length)) + 2;
     const tagCol = Math.max(0, ...rows.map(([, summary]) => summary.length)) + 2;
     const lines = [`${bold("Usage:")}  wallet-cli ${group} COMMAND`, ""];
-    const desc = GROUP_DESCRIPTIONS[group];
+    const desc = GROUP_DESCRIPTIONS[group] ?? this.registry.group(group)?.description;
     if (desc) lines.push(desc, "");
     lines.push(bold("Commands:"));
     for (const [verb, summary, tag] of rows) {
@@ -588,8 +592,6 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   contract: "Call, deploy, govern, and inspect smart contracts.",
   proposal: "Create, approve, delete, and query on-chain governance proposals.",
   witness: "Register and operate a super representative candidacy.",
-  gasfree:
-    "Gas-free token transfers via the GasFree service (open.gasfree.io).\nFees are charged in the transferred token — a per-transfer service fee, plus a one-time\nactivation fee on the first transfer from an inactive GasFree address — so no TRX is needed.\nRequires API credentials (config gasfreeApiKey / gasfreeApiSecret).",
   sunswap:
     "Add, remove and collect fees on SunSwap liquidity, and look up pools, positions and prices.",
   sunpump: "Buy and sell SunPump tokens on their bonding curve, before they launch onto SunSwap.",

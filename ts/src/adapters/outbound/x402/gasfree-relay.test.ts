@@ -13,8 +13,8 @@ const network = {
   id: "tron:3448148188",
   family: "tron",
   chainId: "3448148188",
-  gasfree: { baseUrl: "https://open-test.gasfree.io", apiPrefix: "/nile" },
 } as NetworkDescriptor;
+const OPEN_API = { baseUrl: "https://open-test.gasfree.io", apiPrefix: "/nile" };
 it("keeps official credential-free and rejects missing Open API credentials early", () => {
   const fetcher = vi.fn();
   expect(gasfreeRelayClient(network, undefined, {}, NO_CHECK, fetcher)).toBeDefined();
@@ -25,7 +25,11 @@ it("keeps official credential-free and rejects missing Open API credentials earl
 });
 it("signs only the configured GasFree Open API path and never leaks credentials to custom relays", async () => {
   const fetcher = vi.fn(async () => Response.json({ code: 200, data: { providers: [] } }));
-  const creds = { gasfreeApiKey: "test-key", gasfreeApiSecret: "test-secret" };
+  const creds = {
+    gasfreeApiKey: "test-key",
+    gasfreeApiSecret: "test-secret",
+    gasfreeOpenApi: () => OPEN_API,
+  };
   await gasfreeRelayClient(network, "gasfree", creds, NO_CHECK, fetcher)!.getProviders();
   const [url, init] = fetcher.mock.calls[0]! as unknown as [string, RequestInit];
   expect(url).toBe("https://open-test.gasfree.io/nile/api/v1/config/provider/all");

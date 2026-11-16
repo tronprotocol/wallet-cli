@@ -171,7 +171,6 @@ import type { AccountStore } from "../../application/ports/account-store.js";
 import { SecureTransactionArtifactWriter } from "../../adapters/outbound/persistence/transaction-artifact-writer.js";
 import type { FamilyPlugin } from "./types.js";
 import type { TronLinkCollaborationPort } from "../../application/ports/tronlink-collaboration.js";
-import type { GasFreeProvider } from "../../application/ports/gasfree-provider.js";
 import type { MarketDataPort } from "../../application/ports/sunswap/market-data.js";
 import type { LiquidityPort } from "../../application/ports/sunswap/liquidity.js";
 import type { LaunchpadPort } from "../../application/ports/sunpump/launchpad.js";
@@ -181,7 +180,6 @@ import type { RouterPort } from "../../application/ports/sunswap/router.js";
 import type { RouterExecutionPort } from "../../application/ports/sunswap/router-execution.js";
 import type { Permit2Port } from "../../application/ports/sunswap/permit2.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
-import { GasFreeService } from "../../application/use-cases/gasfree/gasfree-service.js";
 import { SunSwapMarketQueryService } from "../../application/use-cases/sunswap/market-query-service.js";
 import { SunSwapLiquidityService } from "../../application/use-cases/sunswap/liquidity-service.js";
 import { SunSwapRemoveLiquidityService } from "../../application/use-cases/sunswap/remove-liquidity-service.js";
@@ -260,14 +258,6 @@ import {
   sunswapTokenSearchSpec,
   sunswapTokenSearchTronBinding,
 } from "../../adapters/inbound/cli/commands/sunswap/token-search.js";
-import {
-  gasFreeInfoSpec,
-  gasFreeInfoTronBinding,
-  gasFreeTraceSpec,
-  gasFreeTraceTronBinding,
-  gasFreeTransferSpec,
-  gasFreeTransferTronBinding,
-} from "../../adapters/inbound/cli/commands/gasfree.js";
 
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
@@ -285,7 +275,6 @@ export interface TronChainCommandDependencies {
   transactions: TxPipeline;
   accounts: AccountStore;
   tronlink: TronLinkCollaborationPort;
-  gasfree: GasFreeProvider;
   sunswapMarket: MarketDataPort;
   sunswapLiquidity: LiquidityPort;
   sunpumpLaunchpad: LaunchpadPort;
@@ -345,14 +334,6 @@ export function registerTronChainCommands(
     deps.tronlink,
     deps.gateways,
     multisig,
-    deps.clock,
-  );
-  const gasfree = new GasFreeService(
-    deps.gasfree,
-    deps.gateways,
-    deps.signers,
-    deps.signing,
-    deps.recipients,
     deps.clock,
   );
   const sunswapTokens = new SunSwapTokenResolver(deps.tokens, deps.aliases);
@@ -449,9 +430,6 @@ export function registerTronChainCommands(
   reg.addChain(txInfoSpec, "tron", txInfoTronBinding(transaction));
   reg.addChain(txApprovalsSpec, "tron", txApprovalsTronBinding(multisig));
   reg.addChain(txTronLinkMultisigSpec, "tron", txTronLinkMultisigBinding(multisigCollaboration));
-  reg.addChain(gasFreeInfoSpec, "tron", gasFreeInfoTronBinding(gasfree));
-  reg.addChain(gasFreeTransferSpec, "tron", gasFreeTransferTronBinding(gasfree));
-  reg.addChain(gasFreeTraceSpec, "tron", gasFreeTraceTronBinding(gasfree));
   reg.addChain(sunswapAddLiquiditySpec, "tron", sunswapAddLiquidityTronBinding(sunswapLiquidity));
   reg.addChain(
     sunswapRemoveLiquiditySpec,

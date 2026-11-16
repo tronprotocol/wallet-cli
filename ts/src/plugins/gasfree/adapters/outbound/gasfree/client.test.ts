@@ -1,16 +1,17 @@
 import {
   CommandDeadline,
   requestDispatchCheck,
-} from "../../../application/services/command-deadline.js";
+} from "../../../../../application/services/command-deadline.js";
 import {
   barBroadcasts,
   processBroadcastGuard,
-} from "../../../application/services/broadcast-guard.js";
+} from "../../../../../application/services/broadcast-guard.js";
 import { describe, expect, it, vi } from "vitest";
-import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
+import { networkBlock, type NetworkDescriptor } from "../../../../../domain/types/index.js";
+import type { PluginConfig } from "../../../../../plugin-api/application.js";
 import { GasFreeClient } from "./client.js";
-import { expiredCheck } from "../http/__test-support__/dispatch.js";
-import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
+import { expiredCheck } from "../../../../../adapters/outbound/http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../../../application/contracts/deadline.js";
 
 const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
@@ -20,17 +21,20 @@ const NETWORK = {
   nativeSymbol: "TRX",
   chainId: "nile",
   capabilities: [],
-  gasfree: {
-    baseUrl: "https://open-test.gasfree.io",
-    apiPrefix: "/nile",
-    controllerChainId: "3448148188",
-    verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
+  extensions: {
+    gasfree: {
+      baseUrl: "https://open-test.gasfree.io",
+      apiPrefix: "/nile",
+      controllerChainId: "3448148188",
+      verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
+    },
   },
 } satisfies NetworkDescriptor;
-const CONFIG = {
+const CREDENTIALS: Record<string, string> = {
   gasfreeApiKey: "test-key",
   gasfreeApiSecret: "test-secret",
-} as Config;
+};
+const CONFIG: PluginConfig = { networkBlock, credential: (key) => CREDENTIALS[key] };
 
 function response(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -189,11 +193,38 @@ describe("GasFreeClient", () => {
     const fetcher = vi.fn();
     const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);
     await expect(
-      client.listTokens({ ...NETWORK, gasfree: undefined }, NO_CHECK),
+      client.listTokens({ ...NETWORK, extensions: { gasfree: null } }, NO_CHECK),
     ).rejects.toMatchObject({
       code: "unsupported_network",
     });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("refuses a configured endpoint that is not an HTTPS origin before sending", async () => {
+    const fetcher = vi.fn();
+    const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);
+    for (const baseUrl of ["not a url", "http://open-test.gasfree.io", "https://x.example/api"]) {
+      const network = { ...NETWORK, extensions: { gasfree: { baseUrl, apiPrefix: "/nile" } } };
+      await expect(client.listTokens(network, NO_CHECK)).rejects.toMatchObject({
+        code: "invalid_config",
+      });
+    }
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("replaces the builtin block whole, so a block without its prefix is refused", async () => {
+    const fetcher = vi.fn();
+    const client = new GasFreeClient(CONFIG, processBroadcastGuard, fetcher as typeof fetch);
+    const builtin = { ...NETWORK, extensions: undefined };
+    const partial = { ...NETWORK, extensions: { gasfree: { baseUrl: "https://custom.example" } } };
+    await client.listTokens(builtin, NO_CHECK).catch(() => {});
+    expect(String(fetcher.mock.calls[0]?.[0])).toBe(
+      "https://open-test.gasfree.io/nile/api/v1/config/token/all",
+    );
+    await expect(client.listTokens(partial, NO_CHECK)).rejects.toMatchObject({
+      code: "invalid_config",
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
 

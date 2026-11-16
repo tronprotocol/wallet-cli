@@ -8,12 +8,6 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     chainId: "728126428",
     httpEndpoint: "https://api.trongrid.io",
     tronlinkHttpEndpoint: "https://api.walletadapter.org",
-    gasfree: {
-      baseUrl: "https://open.gasfree.io",
-      apiPrefix: "/tron",
-      controllerChainId: "728126428",
-      verifyingContract: "TFFAMQLZybALaLb4uxHA9RBE7pxhUAjF3U",
-    },
     sunswap: {
       marketApiBaseUrl: "https://open.sun.io",
       routerApiBaseUrl: "https://open.sun.io/apiv2/quote/swap",
@@ -35,12 +29,6 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
     chainId: "3448148188",
     httpEndpoint: "https://nile.trongrid.io",
     tronlinkHttpEndpoint: "https://apinile.walletadapter.org",
-    gasfree: {
-      baseUrl: "https://open-test.gasfree.io",
-      apiPrefix: "/nile",
-      controllerChainId: "3448148188",
-      verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
-    },
     // The market API serves mainnet data; Nile enables only contract-backed liquidity.
     sunswap: { liquidity: true },
     feeModel: "tron-resource",

@@ -3,7 +3,7 @@ import {
   type DispatchCheck,
   withErrorDetails,
 } from "../../../application/contracts/deadline.js";
-import { gasfreeRelayClient } from "./gasfree-relay.js";
+import { gasfreeRelayClient, type GasFreeRelayConfig } from "./gasfree-relay.js";
 import { X402_TOKENS, GASFREE_TOKENS, tokensForScheme } from "./tokens.js";
 import {
   unsentPaymentError,
@@ -50,7 +50,7 @@ import type {
   X402Settlement,
 } from "../../../application/ports/x402-payment.js";
 import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
-import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
+import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import {
   ChainError,
   errorMessage,
@@ -95,7 +95,7 @@ export class X402PaymentClient implements X402PaymentPort {
   constructor(
     private readonly fetcher: typeof fetch = globalThis.fetch,
     private readonly paidFetchFactory?: PaidFetchFactory,
-    private readonly config: Pick<Config, "gasfreeApiKey" | "gasfreeApiSecret"> = {},
+    private readonly config: GasFreeRelayConfig = {},
   ) {
     silenceX402SdkLogs();
   }

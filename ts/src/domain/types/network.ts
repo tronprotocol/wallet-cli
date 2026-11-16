@@ -19,6 +19,8 @@ interface NetworkBase {
   // RPC authentication header; apiKey must be masked in output and stored with mode 0600.
   apiKeyHeader?: string;
   apiKey?: string;
+  // Per-network blocks that are not core fields, as the user wrote them, by block name.
+  extensions?: Readonly<Record<string, JsonValue>>;
 }
 
 // httpEndpoint is a FullNode HTTP REST endpoint, not gRPC or EVM JSON-RPC.
@@ -27,8 +29,6 @@ export interface TronNetworkDescriptor extends NetworkBase {
   httpEndpoint?: string;
   // TronLink service URL; credentials are stored separately in Config.
   tronlinkHttpEndpoint?: string;
-  // GasFree service and TIP-712 controller domain.
-  gasfree?: GasFreeNetworkConfig;
   sunswap?: SunSwapNetworkConfig;
   sunpump?: SunPumpNetworkConfig;
 }
@@ -40,6 +40,20 @@ export interface EvmNetworkDescriptor extends NetworkBase {
 }
 
 export type NetworkDescriptor = TronNetworkDescriptor | EvmNetworkDescriptor;
+
+export type JsonValue =
+  string | number | boolean | null | readonly JsonValue[] | { readonly [key: string]: JsonValue };
+
+// A per-network block: whether the user wrote it, and its value when they did.
+export type NetworkBlock =
+  { readonly present: false } | { readonly present: true; readonly value: JsonValue };
+
+export function networkBlock(network: NetworkDescriptor, name: string): NetworkBlock {
+  const extensions = network.extensions;
+  return extensions !== undefined && Object.hasOwn(extensions, name)
+    ? { present: true, value: extensions[name] as JsonValue }
+    : { present: false };
+}
 
 export function isTronNetwork(network: NetworkDescriptor): network is TronNetworkDescriptor {
   return network.family === "tron";
@@ -74,15 +88,6 @@ export interface Config {
   gasfreeApiSecret?: string;
   // Mask the B.AI bearer key in output.
   baiApiKey?: string;
-}
-
-export interface GasFreeNetworkConfig {
-  // HTTPS origin only; the adapter appends paths.
-  baseUrl: string;
-  apiPrefix: string;
-  // Decimal uint256.
-  controllerChainId: string;
-  verifyingContract: string;
 }
 
 // Optional service fields enable capabilities; contract addresses come from SDK chain config.

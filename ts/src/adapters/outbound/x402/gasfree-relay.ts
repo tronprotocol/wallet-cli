@@ -6,11 +6,7 @@ import {
   type GasFreeAddressInfo,
   type GasFreeProvider,
 } from "@bankofai/x402-tron/gasfree";
-import type {
-  Config,
-  NetworkDescriptor,
-  TronNetworkDescriptor,
-} from "../../../domain/types/index.js";
+import type { Config, NetworkDescriptor } from "../../../domain/types/index.js";
 import {
   CliError,
   errorMessage,
@@ -21,11 +17,20 @@ import { fetchBounded } from "../http/http-response.js";
 import { rateLimitDetails } from "../http/json-service.js";
 import { X402_FAMILIES } from "../../../domain/x402/families.js";
 
+// Where the GasFree Open API of a network is, when it has one; the GasFree plugin decides.
+export type GasFreeOpenApiLocator = (
+  network: NetworkDescriptor,
+) => { readonly baseUrl: string; readonly apiPrefix: string } | null | undefined;
+
+export type GasFreeRelayConfig = Pick<Config, "gasfreeApiKey" | "gasfreeApiSecret"> & {
+  readonly gasfreeOpenApi?: GasFreeOpenApiLocator;
+};
+
 // Reads authorization data; the endpoint's facilitator submits payment.
 export function gasfreeRelayClient(
   network: NetworkDescriptor,
   selection: string | undefined,
-  config: Pick<Config, "gasfreeApiKey" | "gasfreeApiSecret">,
+  config: GasFreeRelayConfig,
   // Undefined only to validate the selection; such a relay never reads.
   check: DispatchCheck | undefined,
   fetcher: typeof fetch,
@@ -46,7 +51,7 @@ export function gasfreeRelayClient(
   }
   if (!X402_FAMILIES[network.family].gasfree)
     throw new UsageError("invalid_option", "GasFree relay selection requires TRON");
-  const gasfree = (network as Partial<TronNetworkDescriptor>).gasfree;
+  const gasfree = config.gasfreeOpenApi?.(network);
   let base: string;
   let credentials: { key: string; secret: string } | undefined;
   if (selection === "gasfree") {

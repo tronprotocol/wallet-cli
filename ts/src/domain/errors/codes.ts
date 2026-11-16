@@ -197,3 +197,23 @@ export const ERROR_CODES = {
 } as const satisfies Record<string, ErrorCodeEntry>;
 
 export type ErrorCode = keyof typeof ERROR_CODES;
+
+// Codes that plugins declare; the plugin host checks each against the table before adding it.
+const declaredCodes = new Map<string, ErrorCodeEntry>();
+
+export function errorCodeEntry(code: string): ErrorCodeEntry | undefined {
+  return Object.hasOwn(ERROR_CODES, code)
+    ? (ERROR_CODES as Record<string, ErrorCodeEntry>)[code]
+    : declaredCodes.get(code);
+}
+
+export function declareErrorCodes(codes: Readonly<Record<string, ErrorCodeEntry>>): void {
+  for (const [code, entry] of Object.entries(codes)) {
+    if (errorCodeEntry(code) === undefined) declaredCodes.set(code, entry);
+  }
+}
+
+// Core codes in their published order, then declared codes in declaration order.
+export function errorCodeTable(): Readonly<Record<string, ErrorCodeEntry>> {
+  return { ...ERROR_CODES, ...Object.fromEntries(declaredCodes) };
+}

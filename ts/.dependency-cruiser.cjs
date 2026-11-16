@@ -33,6 +33,26 @@ const OUTBOUND_INTEGRATIONS = [
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// Built-in plugins and, per plugin, its outbound integrations.
+const PLUGINS = directories("src/plugins");
+const PLUGIN_INTEGRATIONS = PLUGINS.flatMap((plugin) =>
+  directories(`src/plugins/${plugin}/adapters/outbound`).map((integration) => ({
+    plugin,
+    integration,
+  })),
+);
+// A core layer directory, or the same directory inside a plugin.
+const layer = (directory) => `^src/(${directory}|plugins/[^/]+/${directory})`;
+// A plugin's index.ts and api.ts play the role of bootstrap.
+const PLUGIN_ROOT = "^src/plugins/[^/]+/[^/]+$";
+// The plugin-api entries each plugin layer may import (rule 9.2).
+const PLUGIN_LAYER_ENTRIES = {
+  domain: ["domain"],
+  application: ["domain", "application"],
+  "adapters/inbound": ["domain", "application", "cli"],
+  "adapters/outbound": ["domain", "application", "http"],
+};
+
 // Export-map subpaths of the modules that sign, send, or settle. Each pattern matches the bare
 // specifier and the file it resolves to, since depcruise reports whichever it ends up with.
 const LEDGER_SIGNING_MODULES = {
@@ -83,16 +103,19 @@ module.exports = {
     {
       name: "ports-are-innermost",
       severity: "error",
-      from: { path: "^src/application/(ports|contracts)/", pathNot: "\\.test\\.ts$" },
-      to: { path: "^src/application/", pathNot: "^src/application/(ports|contracts)/" },
+      from: { path: `${layer("application")}/(ports|contracts)/`, pathNot: "\\.test\\.ts$" },
+      to: {
+        path: `${layer("application")}/`,
+        pathNot: `${layer("application")}/(ports|contracts)/`,
+      },
     },
     {
       name: "application-imports-no-use-case",
       severity: "error",
       comment:
         "a use case is a *-service.ts module under application/use-cases; nothing in application imports one",
-      from: { path: "^src/application/", pathNot: "\\.test\\.ts$" },
-      to: { path: "^src/application/use-cases/.*[^/]-service\\.ts$" },
+      from: { path: `${layer("application")}/`, pathNot: "\\.test\\.ts$" },
+      to: { path: `${layer("application")}/use-cases/.*[^/]-service\\.ts$` },
     },
     {
       name: "no-circular",
@@ -103,44 +126,62 @@ module.exports = {
     {
       name: "domain-is-independent",
       severity: "error",
-      from: { path: "^src/domain/" },
-      to: { path: "^src/(application|adapters|bootstrap)/" },
+      from: { path: `${layer("domain")}/` },
+      to: {
+        path: [
+          "^src/(application|adapters|bootstrap)/",
+          "^src/plugins/[^/]+/(application|adapters)/",
+          PLUGIN_ROOT,
+        ],
+      },
     },
     {
       name: "application-owns-ports",
       severity: "error",
       comment: "production application code depends on domain and its own ports, never adapters",
-      from: { path: "^src/application/", pathNot: "\\.test\\.ts$" },
-      to: { path: "^src/(adapters|bootstrap)/" },
+      from: { path: `${layer("application")}/`, pathNot: "\\.test\\.ts$" },
+      to: { path: ["^src/(adapters|bootstrap)/", "^src/plugins/[^/]+/adapters/", PLUGIN_ROOT] },
     },
     {
       name: "inbound-does-not-know-outbound",
       severity: "error",
       comment:
         "CLI adapters call application ports/use-cases; bootstrap/composition supplies outbound implementations",
-      from: { path: "^src/adapters/inbound/", pathNot: "\\.test\\.ts$" },
-      to: { path: "^src/(adapters/outbound|bootstrap)/" },
+      from: { path: `${layer("adapters")}/inbound/`, pathNot: "\\.test\\.ts$" },
+      to: {
+        path: [
+          "^src/(adapters/outbound|bootstrap)/",
+          "^src/plugins/[^/]+/adapters/outbound/",
+          PLUGIN_ROOT,
+        ],
+      },
     },
     {
       name: "outbound-does-not-know-inbound",
       severity: "error",
-      from: { path: "^src/adapters/outbound/", pathNot: "\\.test\\.ts$" },
-      to: { path: "^src/(adapters/inbound|bootstrap)/" },
+      from: { path: `${layer("adapters")}/outbound/`, pathNot: "\\.test\\.ts$" },
+      to: {
+        path: [
+          "^src/(adapters/inbound|bootstrap)/",
+          "^src/plugins/[^/]+/adapters/inbound/",
+          PLUGIN_ROOT,
+        ],
+      },
     },
     {
       name: "outbound-imports-no-service-or-use-case",
       severity: "error",
       comment:
         "outbound adapters import application ports and contracts, never services or use cases",
-      from: { path: "^src/adapters/outbound/", pathNot: "\\.test\\.ts$" },
-      to: { path: "^src/application/(services|use-cases)/" },
+      from: { path: `${layer("adapters")}/outbound/`, pathNot: "\\.test\\.ts$" },
+      to: { path: `${layer("application")}/(services|use-cases)/` },
     },
     {
       name: "domain-and-application-use-allowlisted-packages",
       severity: "error",
       comment:
         "domain and application import outside packages only from @noble/*, @scure/*, and node:crypto",
-      from: { path: "^src/(domain|application)/", pathNot: "\\.test\\.ts$" },
+      from: { path: `${layer("(domain|application)")}/`, pathNot: "\\.test\\.ts$" },
       // Node core modules resolve without the `node:` prefix.
       to: { pathNot: "^(src/|crypto$)|(^|node_modules/)@(noble|scure)/" },
     },
@@ -149,9 +190,22 @@ module.exports = {
       severity: "error",
       comment:
         "chain, device, and protocol SDKs and HTTP clients are imported only in adapters/outbound",
-      from: { path: "^src/", pathNot: "^src/adapters/outbound/|\\.test\\.ts$" },
+      from: { path: "^src/", pathNot: `${layer("adapters")}/outbound/|\\.test\\.ts$` },
       to: { path: `(^|node_modules/)(${SDK_PACKAGES}|${HTTP_CLIENT_PACKAGES})` },
     },
+    ...PLUGIN_INTEGRATIONS.map(({ plugin, integration }) => ({
+      name: "integrations-do-not-import-each-other",
+      severity: "error",
+      comment: "within a plugin's outbound, an integration imports only itself",
+      from: {
+        path: `^src/plugins/${escapeRegExp(plugin)}/adapters/outbound/${escapeRegExp(integration)}/`,
+        pathNot: "\\.test\\.ts$",
+      },
+      to: {
+        path: `^src/plugins/${escapeRegExp(plugin)}/adapters/outbound/`,
+        pathNot: `^src/plugins/${escapeRegExp(plugin)}/adapters/outbound/${escapeRegExp(integration)}/`,
+      },
+    })),
     ...OUTBOUND_INTEGRATIONS.map((integration) => ({
       name: "integrations-do-not-import-each-other",
       severity: "error",
@@ -172,7 +226,10 @@ module.exports = {
       comment:
         "outbound modules outside an integration, and the shared http/ and persistence/ plumbing, import no SDK",
       from: {
-        path: "^src/adapters/outbound/((chain/)?[^/]+$|(http|persistence)/)",
+        path: [
+          "^src/adapters/outbound/((chain/)?[^/]+$|(http|persistence)/)",
+          "^src/plugins/[^/]+/adapters/outbound/[^/]+$",
+        ],
         pathNot: "\\.test\\.ts$",
       },
       to: { path: `(^|node_modules/)(${SDK_PACKAGES})` },
@@ -186,6 +243,59 @@ module.exports = {
       to: {
         path: "^src/adapters/outbound/",
         pathNot: "^src/adapters/outbound/(http|persistence)/",
+      },
+    },
+    {
+      name: "plugin-outbound-modules-outside-integrations-import-no-integration",
+      severity: "error",
+      comment:
+        "a module directly in a plugin's adapters/outbound/ imports none of its integrations",
+      from: { path: "^src/plugins/[^/]+/adapters/outbound/[^/]+$", pathNot: "\\.test\\.ts$" },
+      to: { path: "^src/plugins/[^/]+/adapters/outbound/[^/]+/" },
+    },
+    {
+      name: "core-does-not-import-plugins",
+      severity: "error",
+      comment: "only bootstrap/plugins/builtin.ts, the list of built-in plugins, imports plugins/",
+      from: {
+        path: "^src/",
+        pathNot: "^src/plugins/|^src/bootstrap/plugins/builtin\\.ts$|\\.test\\.ts$",
+      },
+      to: { path: "^src/plugins/" },
+    },
+    {
+      name: "plugins-reach-the-core-only-through-plugin-api",
+      severity: "error",
+      comment: "a plugin imports the core only through plugin-api",
+      from: { path: "^src/plugins/", pathNot: "\\.test\\.ts$" },
+      to: { path: "^src/", pathNot: "^src/(plugins|plugin-api)/" },
+    },
+    ...PLUGINS.map((plugin) => ({
+      name: "plugins-import-only-their-own-directory",
+      severity: "error",
+      comment: "a built-in plugin imports another built-in plugin only through its api.ts",
+      from: { path: `^src/plugins/${escapeRegExp(plugin)}/`, pathNot: "\\.test\\.ts$" },
+      to: {
+        path: "^src/plugins/",
+        pathNot: `^src/plugins/(${escapeRegExp(plugin)}/|[^/]+/api\\.ts$)`,
+      },
+    })),
+    ...Object.entries(PLUGIN_LAYER_ENTRIES).map(([layer, entries]) => ({
+      name: "plugin-layers-import-only-their-api-entries",
+      severity: "error",
+      comment:
+        "each plugin layer imports only its plugin-api entries; index.ts may import all of them",
+      from: { path: `^src/plugins/[^/]+/${layer}/`, pathNot: "\\.test\\.ts$" },
+      to: { path: "^src/plugin-api/", pathNot: `^src/plugin-api/(${entries.join("|")})\\.ts$` },
+    })),
+    {
+      name: "plugin-roots-import-only-api-entries",
+      severity: "error",
+      comment: "a plugin's index.ts and api.ts import plugin-api only through its five entries",
+      from: { path: PLUGIN_ROOT, pathNot: "\\.test\\.ts$" },
+      to: {
+        path: "^src/plugin-api/",
+        pathNot: "^src/plugin-api/(index|domain|application|cli|http)\\.ts$",
       },
     },
     {

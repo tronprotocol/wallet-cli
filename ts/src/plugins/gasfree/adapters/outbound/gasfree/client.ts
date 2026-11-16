@@ -1,5 +1,3 @@
-import type { DispatchCheck } from "../../../application/contracts/deadline.js";
-import { isTronNetwork } from "../../../domain/types/network.js";
 import { createHmac } from "node:crypto";
 import {
   isLosslessNumber,
@@ -7,22 +5,31 @@ import {
   parse as parseLosslessJson,
   stringify as stringifyLosslessJson,
 } from "lossless-json";
-import type { BroadcastGuard } from "../../../application/contracts/broadcast-guard.js";
+import type {
+  BroadcastGuard,
+  DispatchCheck,
+  PluginConfig,
+} from "../../../../../plugin-api/application.js";
+import {
+  ChainError,
+  CliError,
+  normalizeTxHash,
+  TransportError,
+  TronAddress,
+  UsageError,
+  type NetworkDescriptor,
+} from "../../../../../plugin-api/domain.js";
+import { type JsonServiceErrors, requestJson } from "../../../../../plugin-api/http.js";
 import type { GasFreeProvider } from "../../../application/ports/gasfree-provider.js";
 import type {
-  Config,
   GasFreeAddressInfo,
   GasFreeProviderConfig,
   GasFreeState,
   GasFreeTokenConfig,
   GasFreeTransferRecord,
-  NetworkDescriptor,
   SignedGasFreeAuthorization,
-} from "../../../domain/types/index.js";
-import { ChainError, CliError, TransportError, UsageError } from "../../../domain/errors/index.js";
-import { TronAddress } from "../../../domain/address/index.js";
-import { normalizeTxHash } from "../../../domain/family/index.js";
-import { type JsonServiceErrors, requestJson } from "../http/json-service.js";
+} from "../../../domain/types.js";
+import { gasfreeNetworkConfig, type GasFreeNetworkConfig } from "../../../domain/network.js";
 
 const MAX_BYTES = 1024 * 1024;
 const ADDRESS = new TronAddress();
@@ -34,7 +41,7 @@ type Fetch = typeof globalThis.fetch;
 // Never retry transfer submissions.
 export class GasFreeClient implements GasFreeProvider {
   constructor(
-    private readonly config: Config,
+    private readonly config: PluginConfig,
     private readonly guard: BroadcastGuard,
     private readonly fetchImpl: Fetch = globalThis.fetch,
     private readonly clock: () => number = () => Date.now(),
@@ -165,7 +172,10 @@ export class GasFreeClient implements GasFreeProvider {
     check: DispatchCheck,
     body?: unknown,
   ): Promise<unknown> {
-    const metadata = endpoint(network);
+    const metadata = endpoint(
+      network,
+      gasfreeNetworkConfig(network, this.config.networkBlock(network, "gasfree")),
+    );
     const credentials = this.#credentials();
     const path = `${metadata.apiPrefix}${suffix}`;
     const timestamp = String(Math.floor(this.clock() / 1000));
@@ -204,7 +214,8 @@ export class GasFreeClient implements GasFreeProvider {
   }
 
   #credentials(): { apiKey: string; apiSecret: string } {
-    const { gasfreeApiKey: apiKey, gasfreeApiSecret: apiSecret } = this.config;
+    const apiKey = this.config.credential("gasfreeApiKey");
+    const apiSecret = this.config.credential("gasfreeApiSecret");
     if (!apiKey || !apiSecret) {
       throw new UsageError(
         "gasfree_credentials_missing",
@@ -215,8 +226,10 @@ export class GasFreeClient implements GasFreeProvider {
   }
 }
 
-function endpoint(network: NetworkDescriptor): { baseUrl: string; apiPrefix: string } {
-  const value = isTronNetwork(network) ? network.gasfree : undefined;
+function endpoint(
+  network: NetworkDescriptor,
+  value: GasFreeNetworkConfig | null | undefined,
+): { baseUrl: string; apiPrefix: string } {
   if (!value) {
     throw new UsageError("unsupported_network", `network ${network.id} does not support GasFree`);
   }

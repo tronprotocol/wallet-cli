@@ -1,10 +1,6 @@
-import type {
-  GasFreeInfoView,
-  GasFreeTraceView,
-  GasFreeTransferView,
-} from "../../../../domain/types/index.js";
-import { fromBaseUnits } from "../../../../domain/amounts/index.js";
-import { fail, ok, pending, query, receipt, table } from "./layout.js";
+import { fromBaseUnits } from "../../../../plugin-api/domain.js";
+import { fail, ok, pending, query, receipt, table } from "../../../../plugin-api/cli.js";
+import type { GasFreeInfoView, GasFreeTraceView, GasFreeTransferView } from "../../domain/types.js";
 
 function amount(value: string, decimals: number, symbol: string): string {
   return `${fromBaseUnits(value, decimals)} ${symbol}`;

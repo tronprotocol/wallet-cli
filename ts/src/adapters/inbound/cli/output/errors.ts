@@ -1,6 +1,6 @@
 // CLI projection of errors: flag and command spelling, the envelope, and exit-code fallback.
 import type { ExitCode } from "../../../../domain/types/primitives.js";
-import { ERROR_CODES, type ErrorCodeEntry } from "../../../../domain/errors/codes.js";
+import { errorCodeEntry } from "../../../../domain/errors/codes.js";
 import {
   classifyError,
   CliError,
@@ -19,7 +19,6 @@ const FOLLOW_UP_COMMANDS: Record<FollowUp, (subject: string | undefined) => stri
   "account-rename": (account) => `rename ${account ?? "<account>"} --label <new>`,
   "asset-info": (name) => `asset info ${name ?? "<name>"}`,
   "bai-report-recharge": () => "bai report-recharge",
-  "gasfree-trace": (id) => (id === undefined ? "gasfree trace" : `gasfree trace ${id}`),
   "keystore-backup": (account) =>
     `wallet-cli backup ${account ?? "<account>"} --keystore --network tron:728126428 --password-stdin`,
   "ledger-import": () => "import ledger",
@@ -33,13 +32,35 @@ const FOLLOW_UP_COMMANDS: Record<FollowUp, (subject: string | undefined) => stri
     contract === undefined ? "wallet-cli token add" : `wallet-cli token add --contract ${contract}`,
 };
 
+// Spellings of the follow-up steps plugins registered.
+const registeredFollowUps = new Map<string, (subject: string | undefined) => string>();
+
+export function registerFollowUps(
+  steps: Readonly<Record<string, (subject?: string) => string>>,
+): void {
+  for (const [step, spell] of Object.entries(steps)) registeredFollowUps.set(step, spell);
+}
+
+export function followUpSpelling(
+  step: string,
+): ((subject: string | undefined) => string) | undefined {
+  return Object.hasOwn(FOLLOW_UP_COMMANDS, step)
+    ? FOLLOW_UP_COMMANDS[step as FollowUp]
+    : registeredFollowUps.get(step);
+}
+
+function spellFollowUp(step: string, subject: string | undefined): string {
+  const spell = followUpSpelling(step);
+  return spell ? spell(subject) : subject === undefined ? step : `${step} ${subject}`;
+}
+
 export function flagFor(field: string): string {
   const global = GLOBAL_FLAG_SPECS.find((spec) => spec.field === field);
   return `--${global ? global.name : camelToKebab(field)}`;
 }
 
 function spell(ref: InputRef | FollowUpRef): string {
-  return "input" in ref ? flagFor(ref.input) : FOLLOW_UP_COMMANDS[ref.followUp](ref.subject);
+  return "input" in ref ? flagFor(ref.input) : spellFollowUp(ref.followUp, ref.subject);
 }
 
 // The message as the CLI shows it: JSON keeps raw values, text escapes them.
@@ -62,8 +83,7 @@ export function errorEnvelope(err: CliError): { code: string; message: string; d
 
 // The registry sets the exit code; unknown or "either" entries fall back to the class.
 export function exitCodeOf(err: CliError): ExitCode {
-  const table = ERROR_CODES as Record<string, ErrorCodeEntry | undefined>;
-  const declared = table[err.code]?.exit;
+  const declared = errorCodeEntry(err.code)?.exit;
   if (declared === 1 || declared === 2) return declared;
   return err.kind === "usage" ? 2 : 1;
 }

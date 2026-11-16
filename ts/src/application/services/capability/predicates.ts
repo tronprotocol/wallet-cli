@@ -1,6 +1,5 @@
 import {
   isTronNetwork,
-  type GasFreeNetworkConfig,
   type NetworkDescriptor,
   type TronNetworkDescriptor,
 } from "../../../domain/types/network.js";
@@ -16,6 +15,9 @@ export interface CapabilityFacts {
 }
 
 type Predicate = (network: NetworkDescriptor, facts: CapabilityFacts) => CapabilitySupport;
+
+// A capability predicate a plugin registers; it decides from the network alone.
+export type CapabilityPredicate = (network: NetworkDescriptor) => CapabilitySupport;
 
 // Networks with an ERC-8004 Identity Registry deployment.
 const ERC8004_NETWORKS: ReadonlySet<string> = new Set([
@@ -35,11 +37,6 @@ const tron =
   (network) =>
     when(isTronNetwork(network) && enabled(network));
 
-// The GasFree service of the network, when the network offers GasFree.
-export function gasfreeService(network: NetworkDescriptor): GasFreeNetworkConfig | undefined {
-  return isTronNetwork(network) ? network.gasfree : undefined;
-}
-
 // Whether the network has the SunSwap market API, which is also its price source.
 export function hasSunSwapMarket(network: NetworkDescriptor): boolean {
   return isTronNetwork(network) && Boolean(network.sunswap?.marketApiBaseUrl);
@@ -52,15 +49,11 @@ export function baiChain(network: NetworkDescriptor): string | undefined {
   if (network.family === "tron" && network.chainId === "728126428") return "tron";
 }
 
-const gasfree: Predicate = (network) => when(gasfreeService(network) !== undefined);
 const erc8004: Predicate = (network) => when(ERC8004_NETWORKS.has(network.id));
 
 // Capabilities absent here depend only on the family, which the command's bindings decide.
 const PREDICATES: Readonly<Record<string, Predicate>> = {
   "tx.multisig.tronlink": tron((n) => Boolean(n.tronlinkHttpEndpoint)),
-  "gasfree.info": gasfree,
-  "gasfree.transfer": gasfree,
-  "gasfree.trace": gasfree,
   "sunswap.market": (network) => when(hasSunSwapMarket(network)),
   // Contract liquidity can be available without a market API.
   "sunswap.liquidity": tron((n) => n.sunswap?.liquidity === true),
@@ -79,10 +72,16 @@ const PREDICATES: Readonly<Record<string, Predicate>> = {
       : "needs-inputs",
 };
 
+export function isCoreCapability(capability: string): boolean {
+  return Object.hasOwn(PREDICATES, capability);
+}
+
 export function capabilitySupport(
   capability: string,
   network: NetworkDescriptor,
   facts: CapabilityFacts,
+  registered: ReadonlyMap<string, CapabilityPredicate> = new Map(),
 ): CapabilitySupport {
-  return PREDICATES[capability]?.(network, facts) ?? "supported";
+  if (Object.hasOwn(PREDICATES, capability)) return PREDICATES[capability]!(network, facts);
+  return registered.get(capability)?.(network) ?? "supported";
 }

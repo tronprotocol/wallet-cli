@@ -2,7 +2,12 @@ import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { parseDocument } from "yaml";
-import type { Config, NetworkDescriptor, OutputMode } from "../../../domain/types/index.js";
+import type {
+  Config,
+  JsonValue,
+  NetworkDescriptor,
+  OutputMode,
+} from "../../../domain/types/index.js";
 import type { NetworkRegistry as INetworkRegistry } from "../../../application/ports/network-registry.js";
 import { errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 import { BUILTIN_ALIASES, BUILTIN_NETWORKS } from "./builtins.js";
@@ -105,8 +110,16 @@ export class ConfigLoader {
           }
           seen.set(id, key);
           const base = ownValue(networks, id) ?? {};
-          const own = { ...d, ...validConnectionFields(id, d) };
-          networks[id] = validNetwork(id, { ...base, ...own, ...mergedFeatureBlocks(base, d), id });
+          const written = isMapping(d) ? d : {};
+          const own = { ...coreFields(written), ...validConnectionFields(id, written) };
+          const extensions = extensionBlocks(written);
+          networks[id] = validNetwork(id, {
+            ...base,
+            ...own,
+            ...mergedFeatureBlocks(base, written),
+            id,
+            ...(extensions ? { extensions } : {}),
+          });
         }
       }
     }
@@ -172,6 +185,41 @@ function validNetwork(id: string, merged: Record<string, unknown>): NetworkDescr
   validSunSwapBlock(id, merged.sunswap);
   validSunPumpBlock(id, merged.sunpump);
   return { capabilities: [], ...merged } as unknown as NetworkDescriptor;
+}
+
+const CORE_NETWORK_FIELDS: ReadonlySet<string> = new Set([
+  "id",
+  "chainId",
+  "nativeSymbol",
+  "testnet",
+  "feeModel",
+  "capabilities",
+  "apiKeyHeader",
+  "apiKey",
+  "family",
+  "httpEndpoint",
+  "tronlinkHttpEndpoint",
+]);
+
+// Feature blocks the core still merges and validates until their features become plugins.
+const MERGED_FEATURE_BLOCKS: ReadonlySet<string> = new Set(["sunswap", "sunpump"]);
+
+function coreFields(network: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(network).filter(
+      ([key]) => CORE_NETWORK_FIELDS.has(key) || MERGED_FEATURE_BLOCKS.has(key),
+    ),
+  );
+}
+
+// Every key that is not a core field, as written, for the plugin that owns the block.
+function extensionBlocks(
+  network: Record<string, unknown>,
+): Readonly<Record<string, JsonValue>> | undefined {
+  const blocks = Object.entries(network).filter(([key]) => !CORE_NETWORK_FIELDS.has(key));
+  return blocks.length === 0
+    ? undefined
+    : (Object.fromEntries(blocks) as Record<string, JsonValue>);
 }
 
 // Merge feature fields so omitted settings retain their builtin values.

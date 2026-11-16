@@ -13,7 +13,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     files: ["src/**/*.ts"],
-    ignores: ["src/adapters/inbound/**", "**/*.test.ts"],
+    ignores: ["src/adapters/inbound/**", "src/plugins/*/adapters/inbound/**", "**/*.test.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -58,6 +58,11 @@ export default tseslint.config(
       "src/application/ports/**/*.ts",
       "src/application/contracts/**/*.ts",
       "src/domain/types/**/*.ts",
+      "src/plugins/*/application/ports/**/*.ts",
+      "src/plugins/*/application/contracts/**/*.ts",
+      "src/plugins/*/domain/types.ts",
+      "src/plugins/*/domain/types/**/*.ts",
+      "src/plugin-api/**/*.ts",
     ],
     ignores: ["**/*.test.ts"],
     languageOptions: {

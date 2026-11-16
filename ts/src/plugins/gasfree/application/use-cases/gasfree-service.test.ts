@@ -1,16 +1,25 @@
-import type { DispatchCheck } from "../../contracts/deadline.js";
+import type { DispatchCheck } from "../../../../application/contracts/deadline.js";
 import { describe, expect, it, vi } from "vitest";
-import { ChainError, TransportError } from "../../../domain/errors/index.js";
-import type { GasFreeProvider } from "../../ports/gasfree-provider.js";
-import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { SignerResolver } from "../../services/signer/index.js";
-import type { TransactionScope } from "../../contracts/execution-scope.js";
-import type { NetworkDescriptor, SignedGasFreeAuthorization } from "../../../domain/types/index.js";
+import { ChainError, TransportError } from "../../../../domain/errors/index.js";
+import type { GasFreeProvider } from "../ports/gasfree-provider.js";
+import type { PluginGateways } from "../../../../plugin-api/application.js";
+import type { SignerResolver } from "../../../../application/services/signer/index.js";
+import type { TransactionScope } from "../../../../application/contracts/execution-scope.js";
+import { networkBlock, type NetworkDescriptor } from "../../../../domain/types/index.js";
+import type { SignedGasFreeAuthorization } from "../../domain/types.js";
 import { GasFreeService } from "./gasfree-service.js";
-import { SigningService } from "../../services/signing/signing-service.js";
-import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
-import { CommandDeadline, type MonotonicClock } from "../../services/command-deadline.js";
-import { DeadlineExpiredError } from "../../contracts/deadline.js";
+import { SigningService } from "../../../../application/services/signing/signing-service.js";
+import { PluginSigning } from "../../../../application/services/plugins/plugin-signing.js";
+import { cliMessage } from "../../../../adapters/inbound/cli/output/errors.js";
+import {
+  CommandDeadline,
+  type MonotonicClock,
+} from "../../../../application/services/command-deadline.js";
+import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
+import { registerFollowUps } from "../../../../adapters/inbound/cli/output/errors.js";
+import { GASFREE_FOLLOW_UPS } from "../../adapters/inbound/follow-ups.js";
+
+registerFollowUps(GASFREE_FOLLOW_UPS);
 
 const cliWarnings = (ctx: TransactionScope) =>
   vi
@@ -33,11 +42,13 @@ const NETWORK = {
   nativeSymbol: "TRX",
   chainId: "3448148188",
   capabilities: [],
-  gasfree: {
-    baseUrl: "https://open-test.gasfree.io",
-    apiPrefix: "/nile",
-    controllerChainId: "3448148188",
-    verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
+  extensions: {
+    gasfree: {
+      baseUrl: "https://open-test.gasfree.io",
+      apiPrefix: "/nile",
+      controllerChainId: "3448148188",
+      verifyingContract: "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
+    },
   },
 } satisfies NetworkDescriptor;
 
@@ -147,7 +158,7 @@ function fixture(
   };
   const gateways = {
     get: () => gateway,
-  } as unknown as ChainGatewayProvider;
+  } as unknown as PluginGateways;
   const signer = {
     kind: "software" as const,
     address: OWNER,
@@ -172,10 +183,10 @@ function fixture(
   const service = new GasFreeService(
     provider,
     gateways,
-    signers,
-    new SigningService(gateways as never),
+    new PluginSigning(signers, new SigningService(gateways as never)),
     recipients as never,
-    () => now,
+    { networkBlock },
+    { now: () => now },
     async (milliseconds: number) => {
       now += milliseconds;
     },
@@ -305,7 +316,9 @@ describe("GasFreeService", () => {
     const fixtureValue = fixture({ active: true });
     const network = {
       ...NETWORK,
-      gasfree: { ...NETWORK.gasfree, controllerChainId: "728126428" },
+      extensions: {
+        gasfree: { ...NETWORK.extensions.gasfree, controllerChainId: "728126428" },
+      },
     };
     await expect(
       fixtureValue.service.transfer(scope(), network, {
@@ -633,11 +646,11 @@ describe("GasFree submit under the command deadline", () => {
           getTokenInfo: async () => ({ symbol: "USDT", decimals: 6 }),
           getTrc20Balance: async () => "100000000",
         }),
-      } as unknown as ChainGatewayProvider,
-      fixtureValue.signers,
-      new SigningService({} as never),
+      } as unknown as PluginGateways,
+      new PluginSigning(fixtureValue.signers, new SigningService({} as never)),
       fixtureValue.recipients as never,
-      () => 1_700_000_000_000,
+      { networkBlock },
+      { now: () => 1_700_000_000_000 },
     );
     vi.mocked(fixtureValue.provider.trace).mockImplementation(
       (_network, _id, check) =>

@@ -1,5 +1,5 @@
 import { classifyError } from "../../domain/errors/index.js";
-import { ERROR_CODES, type ErrorCodeEntry } from "../../domain/errors/codes.js";
+import { errorCodeEntry } from "../../domain/errors/codes.js";
 import type { ExecutionDeadline } from "../contracts/deadline.js";
 import { endedByDeadline, untilDeadline } from "./command-deadline.js";
 
@@ -24,9 +24,7 @@ export async function pollUntilDeadline<T>(
 }
 
 function retriesUnchanged(error: unknown): boolean {
-  const retry = (ERROR_CODES as Record<string, ErrorCodeEntry | undefined>)[
-    classifyError(error).code
-  ]?.retry;
+  const retry = errorCodeEntry(classifyError(error).code)?.retry;
   return retry === "same" || retry === "later";
 }
 

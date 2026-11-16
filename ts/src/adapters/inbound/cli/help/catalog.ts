@@ -11,7 +11,7 @@ import { CommandRegistry } from "../registry/index.js";
 import type { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, type GlobalFlagSpec } from "../globals/index.js";
-import { ERROR_CODES } from "../../../../domain/errors/codes.js";
+import { errorCodeTable } from "../../../../domain/errors/codes.js";
 import { exclusiveGroupsFor, exclusiveRefine } from "../schemas/exclusive.js";
 
 export interface GlobalFlag {
@@ -139,7 +139,7 @@ export function buildCatalog(
     tool: "wallet-cli",
     version,
     globalFlags: GLOBAL_FLAGS,
-    errorCodes: ERROR_CODES,
+    errorCodes: errorCodeTable(),
     commands,
   });
 }

@@ -9,7 +9,6 @@ export type FollowUp =
   | "account-rename"
   | "asset-info"
   | "bai-report-recharge"
-  | "gasfree-trace"
   | "keystore-backup"
   | "ledger-import"
   | "proposal-list"
@@ -20,7 +19,8 @@ export type FollowUp =
   | "token-add";
 
 export interface FollowUpRef {
-  readonly followUp: FollowUp;
+  // A core FollowUp, or a step a plugin registered.
+  readonly followUp: string;
   readonly subject?: string;
 }
 
@@ -42,6 +42,11 @@ export function inputRef(field: string): InputRef {
 }
 
 export function followUp(step: FollowUp, subject?: string): FollowUpRef {
+  return followUpStep(step, subject);
+}
+
+// A step named by a plugin; the plugin registers how the inbound adapter spells it.
+export function followUpStep(step: string, subject?: string): FollowUpRef {
   return subject === undefined ? { followUp: step } : { followUp: step, subject };
 }
 

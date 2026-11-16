@@ -1,6 +1,6 @@
 import type { NetworkId } from "../../domain/types/index.js";
 
-export type TokenDefaultCapability = "x402.serve" | "bai.recharge" | "gasfree.transfer";
+export type TokenDefaultCapability = "x402.serve" | "bai.recharge";
 
 interface TokenDefault {
   readonly token: string;
@@ -11,7 +11,6 @@ interface TokenDefault {
 const TOKEN_DEFAULTS: Readonly<Record<TokenDefaultCapability, TokenDefault>> = {
   "x402.serve": { token: "USDT" },
   "bai.recharge": { token: "USDT", byNetwork: { "eip155:8453": "USDC" } },
-  "gasfree.transfer": { token: "USDT" },
 };
 
 // The token symbol a capability uses when the caller names none; without a network, the

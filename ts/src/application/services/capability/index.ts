@@ -1,9 +1,15 @@
 import type { ChainFamily, NetworkDescriptor, NetworkId } from "../../../domain/types/index.js";
 import type { ExecutionPolicy } from "../../contracts/index.js";
 import { UsageError } from "../../../domain/errors/index.js";
-import { capabilitySupport, type CapabilityFacts, type CapabilitySupport } from "./predicates.js";
+import {
+  capabilitySupport,
+  isCoreCapability,
+  type CapabilityFacts,
+  type CapabilityPredicate,
+  type CapabilitySupport,
+} from "./predicates.js";
 
-export type { CapabilityFacts, CapabilitySupport } from "./predicates.js";
+export type { CapabilityFacts, CapabilityPredicate, CapabilitySupport } from "./predicates.js";
 
 const NO_DEFAULT_TOKENS: CapabilityFacts = { x402TokenRegistered: () => false };
 
@@ -11,17 +17,31 @@ const NO_DEFAULT_TOKENS: CapabilityFacts = { x402TokenRegistered: () => false };
 export class CapabilityRegistry {
   #byNetwork = new Map<NetworkId, Map<string, CapabilitySupport>>();
   #families = new Map<NetworkId, ChainFamily>();
+  #predicates = new Map<string, CapabilityPredicate>();
 
   constructor(
     private readonly aliases: Record<string, NetworkId> = {},
     private readonly facts: CapabilityFacts = NO_DEFAULT_TOKENS,
   ) {}
 
+  // A capability that already has a predicate keeps it.
+  hasPredicate(capability: string): boolean {
+    return isCoreCapability(capability) || this.#predicates.has(capability);
+  }
+
+  // Must run before register(), which records the results.
+  addPredicates(predicates: Readonly<Record<string, CapabilityPredicate>>): void {
+    for (const [key, predicate] of Object.entries(predicates)) {
+      if (!this.hasPredicate(key)) this.#predicates.set(key, predicate);
+    }
+  }
+
   // Records each capability's predicate result on the network; repeated keys keep the first result.
   register(network: NetworkDescriptor, capabilities: readonly string[]): void {
     const cur = this.#byNetwork.get(network.id) ?? new Map<string, CapabilitySupport>();
     for (const key of capabilities)
-      if (!cur.has(key)) cur.set(key, capabilitySupport(key, network, this.facts));
+      if (!cur.has(key))
+        cur.set(key, capabilitySupport(key, network, this.facts, this.#predicates));
     this.#byNetwork.set(network.id, cur);
     this.#families.set(network.id, network.family);
   }
