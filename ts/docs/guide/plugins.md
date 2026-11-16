@@ -99,7 +99,7 @@ The group is gone from the next command on. Settings the plugin read from `confi
 error [unknown_command]: unknown command: sunswap price; run 'wallet-cli plugin list' to see the installed plugins, or 'wallet-cli plugin install <name>' to add one
 ```
 
-The first word is not a wallet-cli command and not the group of an installed plugin. Install the plugin that provides it.
+The first word is not a wallet-cli command and not the group of an installed plugin. Install the plugin that provides it. If you did install it, run `wallet-cli plugin list`: a plugin shown as `broken` because its installation record cannot be read no longer provides its commands; remove it and install it again.
 
 ## For scripts and agents
 
