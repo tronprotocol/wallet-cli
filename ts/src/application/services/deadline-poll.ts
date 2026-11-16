@@ -1,9 +1,13 @@
 import { classifyError } from "../../domain/errors/index.js";
 import { errorCodeEntry } from "../../domain/errors/codes.js";
 import type { ExecutionDeadline } from "../contracts/deadline.js";
-import { endedByDeadline, untilDeadline } from "./command-deadline.js";
+import { endedByDeadline, untilDeadline, type MonotonicClock } from "./command-deadline.js";
 
 const POLL_INTERVAL_MS = 1500;
+// Shortest step after one that was cut to the deadline's remaining time and found it not expired, so a
+// remaining time that does not shrink (a paused deadline) cannot cause a run of sub-millisecond wakeups.
+const MIN_STEP_AFTER_CUT_MS = 25;
+const MONOTONIC_CLOCK: MonotonicClock = { now: () => performance.now() };
 
 // Polls until `attempt` yields a value; undefined once the deadline expires. No attempt starts after
 // expiry, and without a limit it polls indefinitely. An error whose retry class lets the same request
@@ -29,30 +33,37 @@ function retriesUnchanged(error: unknown): boolean {
 }
 
 // True only after the whole interval passed within the deadline; false as soon as the deadline expires.
-export function sleepWithin(deadline: ExecutionDeadline, ms: number): Promise<boolean> {
+// The interval is measured on `clock`, not by adding up timer delays.
+export function sleepWithin(
+  deadline: ExecutionDeadline,
+  ms: number,
+  clock: MonotonicClock = MONOTONIC_CLOCK,
+): Promise<boolean> {
   if (deadline.expired()) return Promise.resolve(false);
+  const end = clock.now() + ms;
   return new Promise((resolve) => {
     const signal = deadline.signal;
-    let left = ms;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const onAbort = () => {
       clearTimeout(timer);
       resolve(false);
     };
-    // A step is cut to the deadline's remaining time, so its end alone does not mean the interval passed.
-    const arm = () => {
-      const step = Math.min(left, deadline.remainingMs());
+    const settle = (value: boolean) => {
+      signal.removeEventListener("abort", onAbort);
+      resolve(value);
+    };
+    const arm = (afterCut: boolean) => {
+      const left = end - clock.now();
+      const remaining = deadline.remainingMs();
+      let step = Math.min(left, remaining);
+      if (afterCut) step = Math.max(step, Math.min(left, MIN_STEP_AFTER_CUT_MS));
       timer = setTimeout(() => {
-        left -= step;
-        if (deadline.expired() || left <= 0) {
-          signal.removeEventListener("abort", onAbort);
-          resolve(!deadline.expired());
-          return;
-        }
-        arm();
+        if (deadline.expired()) return settle(false);
+        if (end - clock.now() <= 0) return settle(true);
+        arm(remaining < left);
       }, step);
     };
     signal.addEventListener("abort", onAbort, { once: true });
-    arm();
+    arm(false);
   });
 }

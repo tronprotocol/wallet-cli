@@ -92,6 +92,9 @@ describe("sleepWithin", () => {
     } as unknown as ExecutionDeadline;
   }
 
+  // Fake timers move Date.now(); the sleep measures its interval on this clock.
+  const CLOCK = { now: () => Date.now() };
+
   async function settled(promise: Promise<boolean>) {
     let value: boolean | undefined;
     void promise.then((v) => (value = v));
@@ -109,7 +112,7 @@ describe("sleepWithin", () => {
         () => (first ? ((first = false), 100) : Math.max(0, 105 - (Date.now() - start))),
         () => Date.now() - start >= 105,
       );
-      const slept = sleepWithin(deadline, 1500);
+      const slept = sleepWithin(deadline, 1500, CLOCK);
       await vi.advanceTimersByTimeAsync(100);
       expect(await settled(slept)).toBeUndefined();
       await vi.advanceTimersByTimeAsync(1500);
@@ -129,6 +132,7 @@ describe("sleepWithin", () => {
           () => false,
         ),
         1500,
+        CLOCK,
       );
       await vi.advanceTimersByTimeAsync(1499);
       expect(await settled(slept)).toBeUndefined();
@@ -148,6 +152,7 @@ describe("sleepWithin", () => {
           () => false,
         ),
         1500,
+        CLOCK,
       );
       await vi.advanceTimersByTimeAsync(1400);
       expect(await settled(slept)).toBeUndefined();
@@ -163,5 +168,49 @@ describe("sleepWithin", () => {
     const started = performance.now();
     await expect(sleepWithin(deadline, 5_000)).resolves.toBe(false);
     expect(performance.now() - started).toBeLessThan(2_000);
+  });
+
+  it("needs a bounded number of timers for a paused deadline with 0.1 ms left", async () => {
+    vi.useFakeTimers();
+    try {
+      const timers = vi.spyOn(globalThis, "setTimeout");
+      const slept = sleepWithin(
+        deadlineOf(
+          () => 0.1,
+          () => false,
+        ),
+        1500,
+        CLOCK,
+      );
+      await vi.advanceTimersByTimeAsync(1499);
+      expect(await settled(slept)).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(slept).resolves.toBe(true);
+      // One cut step, then steps of at least 25 ms.
+      expect(timers.mock.calls.length).toBeLessThanOrEqual(62);
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("does not end early for a paused deadline with 1.9 ms left", async () => {
+    vi.useFakeTimers();
+    try {
+      const slept = sleepWithin(
+        deadlineOf(
+          () => 1.9,
+          () => false,
+        ),
+        1500,
+        CLOCK,
+      );
+      await vi.advanceTimersByTimeAsync(1499);
+      expect(await settled(slept)).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(slept).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
