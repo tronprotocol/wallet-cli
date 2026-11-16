@@ -11,8 +11,8 @@ const ENTRIES = ["index", "domain", "application", "cli", "http"];
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 rmSync(OUT, { recursive: true, force: true });
-// Everything inlined, so the API object, its Zod and the test seams are one copy. Built in its own
-// directory: tsup builds of one directory remove each other's output.
+// The testing runtime inlines everything, so the API object, its Zod and the test seams are one copy.
+// Built in its own directory: tsup builds of one directory remove each other's output.
 const TESTING_OUT = "plugin-sdk/.testing";
 rmSync(TESTING_OUT, { recursive: true, force: true });
 await build({
@@ -23,12 +23,15 @@ await build({
   target: "node22",
   outExtension: () => ({ js: ".mjs" }),
   noExternal: [/.*/],
-  dts: { compilerOptions: { ignoreDeprecations: "6.0" } },
   tsconfig: "tsconfig.json",
   silent: true,
 });
+// One declaration build, so testing.d.ts shares the declarations of the other entries.
 await build({
-  entry: Object.fromEntries(ENTRIES.map((e) => [e, `src/plugin-api/${e}.ts`])),
+  entry: {
+    ...Object.fromEntries(ENTRIES.map((e) => [e, `src/plugin-api/${e}.ts`])),
+    testing: "plugin-sdk/src/testing.ts",
+  },
   outDir: OUT,
   format: ["esm"],
   // tsup sets baseUrl for the declaration build, which TypeScript 6 reports as deprecated.
