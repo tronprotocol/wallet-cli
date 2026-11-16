@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, truncateSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
+import { runBounded } from "../../../../test/plugins/run-bounded.js";
 import { join } from "node:path";
 import { readPackageDirectory } from "./package.js";
 import { MAX_UNPACKED_BYTES } from "./tar.js";
@@ -48,4 +51,33 @@ describe("readPackageDirectory", () => {
       }),
     );
   });
+
+  // A FIFO with no writer would block a plain open; each case runs in a child with a time limit.
+  it.skipIf(process.platform === "win32")(
+    "refuses a FIFO package.json or entry file without blocking on it",
+    () => {
+      const reader = JSON.stringify(pathToFileURL(join(import.meta.dirname, "package.ts")).href);
+      execFileSync("mkfifo", [join(dir, "package.json")]);
+      const metadata = runBounded(`
+        import { readPackageDirectory } from ${reader};
+        try { readPackageDirectory(${JSON.stringify(dir)}); console.log("read"); }
+        catch (error) { console.log(JSON.stringify({ code: error.code, message: error.message })); }
+      `);
+      expect(metadata.signal, metadata.stderr).toBeNull();
+      expect(JSON.parse(metadata.stdout)).toEqual({
+        code: "plugin_invalid",
+        message: "invalid plugin package: package.json is missing",
+      });
+
+      rmSync(join(dir, "package.json"));
+      writeFileSync(join(dir, "package.json"), MANIFEST);
+      execFileSync("mkfifo", [join(dir, "dist/index.mjs")]);
+      const entry = runBounded(`
+        import { readPackageDirectory } from ${reader};
+        console.log(JSON.stringify({ entry: readPackageDirectory(${JSON.stringify(dir)}).file("dist/index.mjs") ?? null }));
+      `);
+      expect(entry.signal, entry.stderr).toBeNull();
+      expect(JSON.parse(entry.stdout)).toEqual({ entry: null });
+    },
+  );
 });

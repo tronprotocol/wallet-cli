@@ -1,5 +1,13 @@
 // A plugin package read from a tarball or a directory, as the plugin-source port returns it.
-import { closeSync, fstatSync, lstatSync, openSync, readSync, realpathSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+} from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { PluginPackage } from "../../../application/ports/plugin-source.js";
 import { ExecutionError, UsageError } from "../../../domain/errors/index.js";
@@ -16,7 +24,8 @@ function tooLarge(path: string): ExecutionError {
 // Reads a regular file of at most `limit` bytes through one handle: the size is checked before the
 // buffer is allocated, and a file that grows meanwhile is still refused.
 function readBounded(path: string, label: string, limit: number): Uint8Array | undefined {
-  const fd = openSync(path, "r");
+  // Non-blocking, so a FIFO is refused by the type check instead of blocking the open.
+  const fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));
   try {
     const stat = fstatSync(fd);
     if (!stat.isFile()) return undefined;

@@ -13,7 +13,10 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
+import { runBounded } from "../../../../test/plugins/run-bounded.js";
 import { join } from "node:path";
 import type { PluginPublication, StoredPlugin } from "../../../application/ports/plugin-store.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
@@ -168,30 +171,51 @@ describe("FilePluginStore", () => {
     expect(existsSync(join(home, "plugins.lock"))).toBe(false);
   });
 
-  it("makes the version directory and every directory it created durable before the commit point", () => {
+  it("makes every directory link and the version directory durable before each commit point", () => {
+    const links = [
+      "fsync ", // <home>: holds plugins/
+      "fsync plugins", // holds demo/
+      "fsync plugins/demo", // holds versions/
+    ];
+    const publishes = (version: string) => [
+      ...links,
+      `fsync plugins/demo/versions/${version}-<id>/index.mjs`,
+      `fsync plugins/demo/versions/${version}-<id>`,
+      "fsync plugins/demo/versions",
+      "fsync plugins/demo/active.json.tmp",
+      "rename plugins/demo/active.json.tmp",
+      "fsync plugins/demo",
+    ];
     const first = observed();
     first.store.update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
-    expect(first.calls).toEqual([
-      "fsync ", // <home>: holds the new plugins/ directory
-      "fsync plugins", // holds the new demo/ directory
-      "fsync plugins/demo", // holds the new versions/ directory
-      "fsync plugins/demo/versions/1.0.0-<id>/index.mjs",
-      "fsync plugins/demo/versions/1.0.0-<id>",
-      "fsync plugins/demo/versions",
-      "fsync plugins/demo/active.json.tmp",
-      "rename plugins/demo/active.json.tmp",
-      "fsync plugins/demo",
-    ]);
+    expect(first.calls).toEqual(publishes("1.0.0"));
     const second = observed();
     second.store.update("demo", () => ({ change: publication("2.0.0"), result: undefined }));
-    expect(second.calls).toEqual([
-      "fsync plugins/demo/versions/2.0.0-<id>/index.mjs",
-      "fsync plugins/demo/versions/2.0.0-<id>",
-      "fsync plugins/demo/versions",
-      "fsync plugins/demo/active.json.tmp",
-      "rename plugins/demo/active.json.tmp",
-      "fsync plugins/demo",
-    ]);
+    expect(second.calls).toEqual(publishes("2.0.0"));
+  });
+
+  it("syncs the directory links again on a retry after the first parent sync failed", () => {
+    mkdirSync(join(home, "plugins"));
+    let failed = false;
+    const failing = observed((op, path) => {
+      if (op === "fsync" && path === join(home, "plugins") && !failed) {
+        failed = true;
+        throw new Error("EIO");
+      }
+    });
+    expect(() =>
+      failing.store.update("demo", () => ({ change: publication("1.0.0"), result: undefined })),
+    ).toThrow(expect.objectContaining({ message: expect.stringContaining("unchanged") }));
+    // The failed attempt left plugins/demo/versions in place.
+    expect(existsSync(join(home, "plugins/demo/versions"))).toBe(true);
+    expect(store().list()).toEqual([]);
+    const retry = observed();
+    retry.store.update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    const rename = retry.calls.indexOf("rename plugins/demo/active.json.tmp");
+    expect(retry.calls.indexOf("fsync plugins")).toBeGreaterThan(-1);
+    expect(retry.calls.indexOf("fsync plugins")).toBeLessThan(rename);
+    expect(retry.calls.indexOf("fsync plugins/demo")).toBeLessThan(rename);
+    expect(installed(store().list())[0]?.version).toBe("1.0.0");
   });
 
   it("treats an active manifest removed before it is opened as not installed", () => {
@@ -289,4 +313,21 @@ describe("FilePluginStore", () => {
     );
     expect(installed(store().list())).toHaveLength(1);
   });
+
+  it.skipIf(process.platform === "win32")(
+    "lists a FIFO active manifest as unreadable without blocking on it",
+    () => {
+      mkdirSync(join(home, "plugins/demo"), { recursive: true });
+      execFileSync("mkfifo", [join(home, "plugins/demo/active.json")]);
+      const r = runBounded(`
+        import { FilePluginStore } from ${JSON.stringify(pathToFileURL(join(import.meta.dirname, "store.ts")).href)};
+        import { AtomicFileStore } from ${JSON.stringify(pathToFileURL(join(import.meta.dirname, "../persistence/fs/index.ts")).href)};
+        console.log(JSON.stringify(new FilePluginStore(${JSON.stringify(home)}, new AtomicFileStore()).list()));
+      `);
+      expect(r.signal, r.stderr).toBeNull();
+      expect(JSON.parse(r.stdout)).toEqual([
+        { state: "unreadable", name: "demo", reason: "active.json is not a file" },
+      ]);
+    },
+  );
 });

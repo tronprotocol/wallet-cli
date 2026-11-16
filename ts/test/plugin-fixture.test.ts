@@ -214,8 +214,10 @@ describe("an installed plugin on both families", () => {
   it("reaches none of the wallet's secrets, with or without an authorized signature", () => {
     seedWallet();
     install();
+    // The raw keys stay in this process; the plugin receives only their digests.
+    const keys = [privateKey("m/44'/195'/0'/0/0"), privateKey("m/44'/60'/0'/0/0")];
     const canaries = {
-      privateKey: [privateKey("m/44'/195'/0'/0/0"), privateKey("m/44'/60'/0'/0/0")].map(sha256),
+      privateKey: keys.map(sha256),
       mnemonic: [sha256(MNEMONIC)],
       password: [sha256(DEFAULT_PW)],
     };
@@ -227,8 +229,11 @@ describe("an installed plugin on both families", () => {
       expect(signed.json?.success, signed.stdout + signed.stderr).toBe(true);
       expect(signed.json.data.signature).toMatch(/^0x[0-9a-f]{130}$/);
       expect(signed.json.data.secretsReachable).toEqual(none);
-      for (const secret of [DEFAULT_PW, MNEMONIC, ...canaries.privateKey]) {
-        expect(signed.stdout + signed.stderr).not.toContain(secret);
+      const output = [plain, signed].map((r) => r.stdout + r.stderr).join("\n");
+      for (const secret of [DEFAULT_PW, MNEMONIC]) expect(output).not.toContain(secret);
+      for (const key of keys) {
+        expect(output.toLowerCase()).not.toContain(key);
+        expect(output.toLowerCase()).not.toContain(`0x${key}`);
       }
     });
     // The walk does find a value the plugin can reach: the selected network's id.

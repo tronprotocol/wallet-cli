@@ -73,12 +73,15 @@ const NODE_FILE_OPS: StoreFileOps = {
   unlink: unlinkSync,
 };
 
+// Opening a FIFO without a writer would block; the handle's type is checked after the open.
+const READ_FLAGS = constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
+
 // One snapshot of the active manifest, read through a single handle so a concurrent replacement or
 // removal is seen either wholly or not at all. Undefined when there is no manifest to open.
 function readActiveText(path: string, ops: StoreFileOps): string | undefined {
   let fd: number;
   try {
-    fd = ops.open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    fd = ops.open(path, READ_FLAGS);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
     throw error;
@@ -167,7 +170,7 @@ export class FilePluginStore implements PluginStore {
     decide: (installed: readonly StoredPlugin[]) => { change: PluginStoreChange; result: R },
   ): R {
     if (!PLUGIN_WORD.test(name)) throw new Error(`invalid plugin name ${name}`);
-    this.#makeDirs(this.#root);
+    mkdirSync(this.#root, { recursive: true, mode: 0o700 });
     // `<home>/plugins.lock`.
     return this.files.withLock(this.#root, () => {
       const { change, result } = decide(this.list());
@@ -175,16 +178,6 @@ export class FilePluginStore implements PluginStore {
       if (change.kind === "remove") this.#remove(name);
       return result;
     });
-  }
-
-  // Creates the directory and its missing ancestors, and makes each new directory's entry in its
-  // parent durable: an fsync of a directory does not persist its own entry in the parent.
-  #makeDirs(path: string): void {
-    const first = mkdirSync(path, { recursive: true, mode: 0o700 });
-    if (first === undefined) return;
-    const created = [path];
-    while (created[0] !== first) created.unshift(dirname(created[0]!));
-    for (const dir of created) this.ops.fsync(dirname(dir));
   }
 
   // Commit point: the rename of the new active manifest over the old one. Everything it references
@@ -204,7 +197,13 @@ export class FilePluginStore implements PluginStore {
     let created = false;
     let published = false;
     try {
-      this.#makeDirs(versions);
+      mkdirSync(versions, { recursive: true, mode: 0o700 });
+      // Each link on the path to versions/ is made durable on every publication: a directory left by
+      // an earlier failed attempt exists in memory, which does not mean its link reached the disk.
+      // An fsync of a directory does not persist its own link in its parent.
+      this.ops.fsync(dirname(this.#root));
+      this.ops.fsync(this.#root);
+      this.ops.fsync(dir);
       mkdirSync(versionDir, { mode: 0o700 });
       created = true;
       const entry = join(versionDir, ENTRY_FILE);
