@@ -134,18 +134,20 @@ describe("an installed plugin", () => {
         "warn",
       ],
       services: [
+        "accounts",
         "broadcastGuard",
         "clock",
         "config",
         "contracts",
         "gateways",
+        "lifetime",
         "networks",
         "recipients",
         "signing",
         "tokens",
         "tronCalls",
       ],
-      signing: ["assertCanSign", "sign", "signerAddress"],
+      signing: ["assertCanSign", "prepare", "sign", "signerAddress"],
       host: [
         "apiVersion",
         "capabilities",
@@ -375,6 +377,8 @@ describe("a plugin that cannot be loaded", () => {
       code: "plugin_incompatible",
       details: { plugin: "qaprobe", update: "wallet-cli" },
     });
-    expect(json(["plugin", "list"]).json.data[1]).toMatchObject({ state: "incompatible" });
+    expect(
+      json(["plugin", "list"]).json.data.find((p: { name: string }) => p.name === "qaprobe"),
+    ).toMatchObject({ state: "incompatible" });
   });
 });

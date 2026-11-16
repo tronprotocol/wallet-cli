@@ -115,7 +115,9 @@ describe("plugin install from a registry", () => {
       integrity: sha512(tarballs.get("1.0.0")!),
       notice: expect.stringContaining("wallet's privileges"),
     });
-    const listed = (await cli(["plugin", "list"])).json.data[1];
+    const listed = (await cli(["plugin", "list"])).json.data.find(
+      (p: { name: string }) => p.name === "qaprobe",
+    );
     expect(listed).toMatchObject({
       name: "qaprobe",
       version: "1.0.0",
