@@ -1,5 +1,5 @@
-import type { NetworkDescriptor } from "../types/index.js";
-import { errorMessage, inputRef, UsageError, ExecutionError } from "../errors/index.js";
+import type { NetworkDescriptor } from "../../../plugin-api/domain.js";
+import { errorMessage, inputRef, UsageError, ExecutionError } from "../../../plugin-api/domain.js";
 
 export function parseAgentId(value: string): bigint {
   if (!/^\d+$/.test(value)) {

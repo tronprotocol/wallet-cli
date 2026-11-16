@@ -1,15 +1,15 @@
-import type { ExecutionDeadline } from "../../../application/contracts/deadline.js";
+import type { ExecutionDeadline } from "../../../../../application/contracts/deadline.js";
 import {
   CommandDeadline,
   requestDispatchCheck,
-} from "../../../application/services/command-deadline.js";
+} from "../../../../../application/services/command-deadline.js";
 import { AbiCoder, Interface, id, toBeHex, zeroPadValue } from "ethers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
-import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import type { EvmGateway } from "../../../application/ports/chain/evm/evm-gateway.js";
-import type { TronGateway } from "../../../application/ports/chain/tron/tron-gateway.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
+import type { ChainGatewayProvider } from "../../../../../application/ports/chain/gateway-provider.js";
+import type { EvmGateway } from "../../../../../application/ports/chain/evm/evm-gateway.js";
+import type { TronGateway } from "../../../../../application/ports/chain/tron/tron-gateway.js";
+import type { NetworkDescriptor } from "../../../../../domain/types/index.js";
 import { SdkAgentRegistry } from "./sdk-registry.js";
 
 const NO_DEADLINE = new CommandDeadline(0);

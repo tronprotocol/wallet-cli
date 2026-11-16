@@ -1,5 +1,5 @@
-import type { DispatchCheck, ExecutionDeadline } from "../contracts/deadline.js";
-import type { NetworkDescriptor } from "../../domain/types/index.js";
+import type { DispatchCheck, ExecutionDeadline } from "../../../../plugin-api/application.js";
+import type { NetworkDescriptor } from "../../../../plugin-api/domain.js";
 
 declare const agentRegistrationMetadata: unique symbol;
 

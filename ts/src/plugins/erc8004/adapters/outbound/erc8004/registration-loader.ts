@@ -7,9 +7,9 @@ import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { BlockList, isIP, type LookupFunction } from "node:net";
 
-import type { DispatchCheck } from "../../../application/contracts/deadline.js";
+import type { DispatchCheck } from "../../../../../plugin-api/application.js";
 import type { AgentRegistrationMetadata } from "../../../application/ports/agent-sdk.js";
-import { abortReason } from "../http/dispatch-context.js";
+import { abortReason } from "../../../../../plugin-api/http.js";
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_JSON_DEPTH = 20;

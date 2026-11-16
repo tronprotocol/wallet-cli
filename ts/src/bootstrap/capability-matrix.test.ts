@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { composeCliRuntime } from "./composition.js";
 import type { NetworkDescriptor } from "../domain/types/index.js";
-import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
+import { SdkAgentRegistry } from "../plugins/erc8004/adapters/outbound/erc8004/sdk-registry.js";
 import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
 import { paywallTerms } from "../application/use-cases/x402-paywall.js";
 import { requireBaiChain } from "../application/use-cases/bai-wallet-binding.js";

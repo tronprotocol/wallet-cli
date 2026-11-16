@@ -1,7 +1,7 @@
 import {
   CommandDeadline,
   requestDispatchCheck,
-} from "../../../application/services/command-deadline.js";
+} from "../../../../../application/services/command-deadline.js";
 import { lookup } from "node:dns/promises";
 import { EventEmitter } from "node:events";
 import { request as httpRequest } from "node:http";
@@ -10,8 +10,11 @@ import { Readable } from "node:stream";
 import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RegistrationLoader } from "./registration-loader.js";
-import { expiredCheck, expiringCheck } from "../http/__test-support__/dispatch.js";
-import { DeadlineExpiredError } from "../../../application/contracts/deadline.js";
+import {
+  expiredCheck,
+  expiringCheck,
+} from "../../../../../adapters/outbound/http/__test-support__/dispatch.js";
+import { DeadlineExpiredError } from "../../../../../application/contracts/deadline.js";
 
 vi.mock("node:dns/promises", () => ({ lookup: vi.fn() }));
 vi.mock("node:http", () => ({ request: vi.fn() }));

@@ -478,6 +478,9 @@ describe("objects handed to a plugin", () => {
       "receivedAmount",
       "triggerConstantContract",
     ]);
+    expect(reachable(services.gateways.get({} as never, "evm", {} as never))).toEqual([
+      "getTransactionReceipt",
+    ]);
     expect(reachable(services.contracts)).toEqual(["tron", "evm"]);
     expect(reachable(services.contracts.tron)).toEqual(["call", "send"]);
     expect(reachable(services.contracts.evm)).toEqual(["call", "send"]);

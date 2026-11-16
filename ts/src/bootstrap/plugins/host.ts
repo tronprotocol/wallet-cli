@@ -6,7 +6,7 @@ import { UsageError } from "../../domain/errors/index.js";
 import { FAMILIES } from "../../domain/family/index.js";
 import type { BroadcastGuard } from "../../application/contracts/broadcast-guard.js";
 import type { WallClock } from "../../application/contracts/wall-clock.js";
-import type { ExecutionDeadline } from "../../application/contracts/deadline.js";
+import type { DispatchCheck, ExecutionDeadline } from "../../application/contracts/deadline.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type {
   CapabilityRegistry,
@@ -34,6 +34,8 @@ import {
 } from "../../plugin-api/index.js";
 import { WALLET_MANAGEMENT_FIELDS, type PluginCommandContext } from "../../plugin-api/command.js";
 import type {
+  PluginEvmGateway,
+  PluginGateways,
   PluginSigningService,
   PluginSignRequest,
   PluginTokens,
@@ -87,8 +89,14 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
         signing.sign(scope, request)) as PluginSigningService["sign"],
     }),
     gateways: facade({
-      get: (network: NetworkDescriptor, family: "tron", check) => {
-        const gateway = gateways.get(network, family, check);
+      get: ((network: NetworkDescriptor, family: ChainFamily, check: DispatchCheck) => {
+        if (family === "evm") {
+          const evm = gateways.get(network, "evm", check);
+          return facade({
+            getTransactionReceipt: (hash: string) => evm.getTransactionReceipt(hash),
+          } satisfies PluginEvmGateway);
+        }
+        const gateway = gateways.get(network, "tron", check);
         return facade({
           getTrc20Balance: (contract: string, address: string) =>
             gateway.getTrc20Balance(contract, address),
@@ -104,7 +112,7 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
             owner?: string,
           ) => gateway.triggerConstantContract(contract, method, parameters, owner),
         } satisfies PluginTronGateway);
-      },
+      }) as PluginGateways["get"],
     }),
     contracts: facade({
       tron: facade({

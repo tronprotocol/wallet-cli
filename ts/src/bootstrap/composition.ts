@@ -66,10 +66,6 @@ import { BaiService } from "../application/use-cases/bai-service.js";
 import { registerBaiCommands } from "../adapters/inbound/cli/commands/bai.js";
 import { EvmContractService } from "../application/use-cases/evm/contract-service.js";
 import { TronContractService } from "../application/use-cases/tron/contract-service.js";
-import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
-import { registryContracts } from "../adapters/outbound/erc8004/registry-contracts.js";
-import { RegistrationLoader } from "../adapters/outbound/erc8004/registration-loader.js";
-import { AgentService } from "../application/use-cases/agent-service.js";
 import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
 import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.js";
 import { X402Service } from "../application/use-cases/x402-service.js";
@@ -208,20 +204,14 @@ export function composeCliRuntime(options: BootstrapOptions) {
       keystore,
     ),
   );
-  const agentContracts = {
+  const contracts = {
     evm: new EvmContractService(gatewayProvider, txPipeline),
     tron: new TronContractService(gatewayProvider, txPipeline, systemWallClock),
   };
-  const agents = new AgentService(
-    registryContracts(agentContracts),
-    new SdkAgentRegistry(agentContracts, gatewayProvider),
-    new RegistrationLoader(),
-  );
   registerX402Commands(registry, x402Service);
   const accountBalances = new AccountBalanceService(gatewayProvider);
   const tokenBookService = new TokenBookService(tokenBook);
   registerTronChainCommands(registry, {
-    agents,
     gateways: gatewayProvider,
     tokens: tokenBook,
     prices: priceProvider,
@@ -236,7 +226,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     clock: systemWallClock,
   });
   registerEvmChainCommands(registry, {
-    agents,
     signers: signerResolver,
     signing,
     gateways: gatewayProvider,
@@ -254,7 +243,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     tokens: tokenBook,
     aliases: config.aliases,
     gateways: gatewayProvider,
-    contracts: agentContracts,
+    contracts,
     recipients: recipientResolver,
     config,
     broadcastGuard: processBroadcastGuard,

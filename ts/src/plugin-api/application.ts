@@ -4,13 +4,22 @@ export type {
   CodedWarning,
   TransactionScope,
 } from "../application/contracts/execution-scope.js";
-export type { TransactionModeInput } from "../application/contracts/transaction-input.js";
+export type {
+  ApprovalKind,
+  EvmContractWriteInput,
+  GovernanceTransactionInput,
+  TransactionModeInput,
+} from "../application/contracts/transaction-input.js";
 export { systemWallClock, type WallClock } from "../application/contracts/wall-clock.js";
 export type {
   ContractCallPayload,
   ContractParameter,
 } from "../application/contracts/tron/tron-contract-call.js";
-export type { TronAccount, TronTxInfo } from "../application/ports/chain/tron/tron-gateway.js";
+export type {
+  TronAccount,
+  TronContractParameter,
+  TronTxInfo,
+} from "../application/ports/chain/tron/tron-gateway.js";
 export type { TronCallOptions } from "../application/services/plugins/tron-contract-calls.js";
 export {
   DeadlineExpiredError,
@@ -49,6 +58,7 @@ export type {
   PluginClock,
   PluginConfig,
   PluginContracts,
+  PluginEvmGateway,
   PluginGateways,
   PluginNetworks,
   PluginRecipients,

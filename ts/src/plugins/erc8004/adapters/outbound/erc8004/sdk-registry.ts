@@ -1,4 +1,4 @@
-import type { DispatchCheck, ExecutionDeadline } from "../../../application/contracts/deadline.js";
+import type { DispatchCheck, ExecutionDeadline } from "../../../../../plugin-api/application.js";
 import { SDK } from "@bankofai/8004-sdk";
 import { Interface, type InterfaceAbi } from "ethers";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
@@ -6,10 +6,10 @@ import type {
   AgentRegistryReader,
   AgentRegistryValue,
 } from "../../../application/ports/agent-sdk.js";
-import type { ChainGatewayProvider } from "../../../application/ports/chain/gateway-provider.js";
-import { UsageError, ExecutionError } from "../../../domain/errors/index.js";
-import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { sameAddress, type ChainFamily } from "../../../domain/family/index.js";
+import type { PluginGateways as ChainGatewayProvider } from "../../../../../plugin-api/application.js";
+import { UsageError, ExecutionError } from "../../../../../plugin-api/domain.js";
+import type { NetworkDescriptor } from "../../../../../plugin-api/domain.js";
+import { sameAddress, type ChainFamily } from "../../../../../plugin-api/domain.js";
 
 interface SdkNetwork {
   sdk: SDK;

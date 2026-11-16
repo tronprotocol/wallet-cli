@@ -1,23 +1,4 @@
 import { processBroadcastGuard } from "../../application/services/broadcast-guard.js";
-import type { AgentService } from "../../application/use-cases/agent-service.js";
-import {
-  showSpec,
-  showEvmBinding,
-  registerSpec,
-  registerEvmBinding,
-  updateSpec,
-  updateEvmBinding,
-  transferSpec,
-  transferEvmBinding,
-  approveSpec,
-  approveEvmBinding,
-  operatorAddSpec,
-  operatorAddEvmBinding,
-  operatorRemoveSpec,
-  operatorRemoveEvmBinding,
-  operatorCheckSpec,
-  operatorCheckEvmBinding,
-} from "../../adapters/inbound/cli/commands/erc8004.js";
 import { FAMILIES } from "../../domain/family/index.js";
 import { evmSignStrategy } from "../../adapters/outbound/chain/evm/signing-strategy.js";
 import { EvmRpcClient } from "../../adapters/outbound/chain/evm/evm.js";
@@ -101,7 +82,6 @@ export const evmFamily: FamilyPlugin<"evm"> = {
 };
 
 export interface EvmChainCommandDependencies {
-  agents: AgentService;
   signers: SignerResolver;
   signing: SigningService;
   gateways: ChainGatewayProvider;
@@ -117,15 +97,6 @@ export function registerEvmChainCommands(
   reg: CommandRegistry,
   deps: EvmChainCommandDependencies,
 ): void {
-  reg.addChain(showSpec, "evm", showEvmBinding(deps.agents));
-  reg.addChain(registerSpec, "evm", registerEvmBinding(deps.agents));
-  reg.addChain(updateSpec, "evm", updateEvmBinding(deps.agents));
-  reg.addChain(transferSpec, "evm", transferEvmBinding(deps.agents));
-  reg.addChain(approveSpec, "evm", approveEvmBinding(deps.agents));
-  reg.addChain(operatorAddSpec, "evm", operatorAddEvmBinding(deps.agents));
-  reg.addChain(operatorRemoveSpec, "evm", operatorRemoveEvmBinding(deps.agents));
-  reg.addChain(operatorCheckSpec, "evm", operatorCheckEvmBinding(deps.agents));
-
   reg.addChain(
     messageSignSpec,
     "evm",

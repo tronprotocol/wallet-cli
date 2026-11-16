@@ -12,6 +12,7 @@ export type {
   NetworkId,
   TokenEntry,
   TronFeeReport,
+  TxReceiptView,
   TxOutcome,
   TypedDataPayload,
   TypedDataSignature,
@@ -57,7 +58,13 @@ export {
   tronHexAddress,
   tronHexToBase58,
 } from "../domain/address/index.js";
-export { FAMILIES, normalizeTxHash, sameAddress } from "../domain/family/index.js";
+export {
+  CHAIN_FAMILIES,
+  FAMILIES,
+  normalizeTxHash,
+  sameAddress,
+  tronAddressFromEvmHex,
+} from "../domain/family/index.js";
 export { matchTokenSymbol } from "../domain/token/symbol.js";
 export { isUnlimitedAllowance, UNLIMITED_ALLOWANCE } from "../domain/token/allowance.js";
 export { DEFAULT_FEE_LIMIT_SUN } from "../domain/fees/tron.js";

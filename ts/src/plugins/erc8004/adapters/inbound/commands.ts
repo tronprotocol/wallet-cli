@@ -1,12 +1,20 @@
-import { agentShowText, operatorCheckText } from "../render/x402.js";
-import { z } from "zod";
-import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
-import type { AgentService } from "../../../../application/use-cases/agent-service.js";
-import { Schemas, addressFamilyFieldsFor } from "../schemas/index.js";
-import { tronExpirationRefine, tronTxModeFields, txModeExclusive, txModeFields } from "./shared.js";
-import { TextFormatters } from "../render/index.js";
-import type { ChainFamily } from "../../../../domain/family/index.js";
-import { DEFAULT_FEE_LIMIT_SUN } from "../../../../domain/fees/tron.js";
+import { agentShowText, operatorCheckText } from "./render.js";
+import { z } from "../../../../plugin-api/cli.js";
+import type {
+  PluginChainSpec as ChainSpec,
+  PluginFamilyBinding as FamilyBinding,
+} from "../../../../plugin-api/cli.js";
+import type { AgentService } from "../../application/use-cases/agent-service.js";
+import { Schemas, addressFamilyFieldsFor } from "../../../../plugin-api/cli.js";
+import {
+  tronExpirationRefine,
+  tronTxModeFields,
+  txModeExclusive,
+  txModeFields,
+} from "../../../../plugin-api/cli.js";
+import { TxFormatters as TextFormatters } from "../../../../plugin-api/cli.js";
+import type { ChainFamily } from "../../../../plugin-api/domain.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../plugin-api/domain.js";
 
 const agentId = z
   .string()
@@ -305,3 +313,19 @@ export function operatorCheckTronBinding(service: AgentService): FamilyBinding {
     false,
   );
 }
+
+// Every ERC-8004 command, with its binding per family, in registration order.
+export const ERC8004_COMMANDS: readonly {
+  spec: ChainSpec;
+  tron: (service: AgentService) => FamilyBinding;
+  evm: (service: AgentService) => FamilyBinding;
+}[] = [
+  { spec: showSpec, tron: showTronBinding, evm: showEvmBinding },
+  { spec: registerSpec, tron: registerTronBinding, evm: registerEvmBinding },
+  { spec: updateSpec, tron: updateTronBinding, evm: updateEvmBinding },
+  { spec: transferSpec, tron: transferTronBinding, evm: transferEvmBinding },
+  { spec: approveSpec, tron: approveTronBinding, evm: approveEvmBinding },
+  { spec: operatorAddSpec, tron: operatorAddTronBinding, evm: operatorAddEvmBinding },
+  { spec: operatorRemoveSpec, tron: operatorRemoveTronBinding, evm: operatorRemoveEvmBinding },
+  { spec: operatorCheckSpec, tron: operatorCheckTronBinding, evm: operatorCheckEvmBinding },
+];

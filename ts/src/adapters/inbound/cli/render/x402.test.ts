@@ -1,26 +1,11 @@
 import { expect, it } from "vitest";
 import {
-  agentShowText,
   paymentText,
   providerEndpointsText,
   providerShowText,
   roundtripText,
   serveText,
 } from "./x402.js";
-it("renders known metadata fields without terminal controls or unknown fields", () => {
-  const rendered = agentShowText({
-    agentId: "1",
-    metadata: {
-      name: "Agent\x1b\x07\r\n",
-      description: "First. Second.",
-      unknownField: "DO_NOT_RENDER",
-    },
-  });
-  expect(rendered).toContain("Agent");
-  expect(rendered).not.toContain("DO_NOT_RENDER");
-  expect(rendered).not.toContain("\x1b");
-  expect(rendered).not.toContain("\x07");
-});
 it("renders a provider summary without dumping its full description", () => {
   const data = {
     fqn: "demo",

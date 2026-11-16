@@ -4,7 +4,6 @@ import wrapAnsi from "wrap-ansi";
 import { sanitizeText } from "./scalars.js";
 import { asObj, query, table, receipt, ok, warn, type Pair } from "./layout.js";
 import { fromX402Network } from "../../../../domain/x402/network-id.js";
-import { CHAIN_FAMILIES, FAMILIES } from "../../../../domain/family/index.js";
 
 // Sanitize untrusted text and flatten it to prevent forged terminal rows or cells.
 function text(value: unknown): string {
@@ -126,41 +125,6 @@ export function paymentText(value: unknown): string {
   const body = typeof p.response === "string" ? p.response : structuredText(p.response);
   return `${details}\n--- response ---\n${sanitizeText(body)}`;
 }
-export function agentShowText(value: unknown): string {
-  const p = asObj(value),
-    m = asObj(p.metadata);
-  return query([
-    ["Agent ID", text(p.agentId)],
-    ["Owner", text(p.owner)],
-    ["URI", text(p.uri)],
-    [
-      "Approved",
-      CHAIN_FAMILIES.some((family) => FAMILIES[family].zeroAddress === String(p.approved))
-        ? "None"
-        : text(p.approved),
-    ],
-    ["Registry", text(p.registry)],
-    ["Name", text(m.name)],
-    ["Description", summary(m.description)],
-    ["Image", text(m.image)],
-    [
-      "Endpoints",
-      rows(m.endpoints ?? m.services)
-        .map((endpoint) => text(endpoint.type ?? endpoint.name))
-        .filter(Boolean)
-        .join(", "),
-    ],
-    [
-      "Skills",
-      Array.isArray(m.skills)
-        ? m.skills
-            .filter((skill) => typeof skill === "string")
-            .map(text)
-            .join(", ")
-        : "",
-    ],
-  ]);
-}
 
 function paymentAmountText(value: Record<string, unknown>): string {
   const symbol = text(value.token);
@@ -225,16 +189,6 @@ export function serveText(value: unknown): string {
       : "Payment endpoint ready (Ctrl+C to stop)",
     fields,
   );
-}
-
-export function operatorCheckText(value: unknown): string {
-  const data = asObj(value);
-  return query([
-    ["Owner", text(data.owner)],
-    ["Operator", text(data.operator)],
-    ["Approved for all Agents", data.approved === true ? "Yes" : "No"],
-    ["Registry", text(data.registry)],
-  ]);
 }
 
 export function catalogUpdateText(value: unknown): string {

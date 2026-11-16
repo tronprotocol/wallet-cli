@@ -141,7 +141,6 @@ export class HelpService {
       ["block", "Get a block (latest if omitted)", ""],
       ["x402", "Pay and inspect x402 service providers", ""],
       ["bai", "Query and recharge a B.AI account", ""],
-      ["8004", "Read and manage ERC-8004 Agent identities", ""],
     ];
     const commands = [
       ["use", "Set the active account", ""],
@@ -613,7 +612,6 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   contact: "Manage the recipient address book.",
   plugin: `Install, list, update and remove plugins.\n${PLUGIN_TRUST_NOTICE}`,
   bai: "Query B.AI account credits, usage records, and recharge orders.",
-  "8004": "Read and manage ERC-8004 Agent identities on supported networks.",
   x402: "Pay x402 endpoints and inspect the provider catalog.",
 };
 

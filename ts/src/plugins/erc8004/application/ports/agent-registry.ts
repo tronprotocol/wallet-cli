@@ -1,13 +1,13 @@
-import type { NetworkDescriptor, TxReceiptView } from "../../domain/types/index.js";
-import type { ExecutionDeadline } from "../contracts/deadline.js";
-import type { TransactionScope } from "../contracts/execution-scope.js";
+import type { NetworkDescriptor, TxReceiptView } from "../../../../plugin-api/domain.js";
+import type { ExecutionDeadline } from "../../../../plugin-api/application.js";
+import type { TransactionScope } from "../../../../plugin-api/application.js";
 import type {
   EvmContractWriteInput,
   ApprovalKind,
   GovernanceTransactionInput,
-} from "../contracts/transaction-input.js";
-import type { TronContractParameter } from "./chain/tron/tron-gateway.js";
-import type { Sun } from "../../domain/amounts/index.js";
+} from "../../../../plugin-api/application.js";
+import type { TronContractParameter } from "../../../../plugin-api/application.js";
+import type { Sun } from "../../../../plugin-api/domain.js";
 
 export interface EvmContractPort {
   call(

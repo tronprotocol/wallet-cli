@@ -1,11 +1,11 @@
-import { CommandDeadline } from "../../../application/services/command-deadline.js";
+import { CommandDeadline } from "../../../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { Interface } from "ethers";
 import { registryContracts } from "./registry-contracts.js";
-import { ChainError } from "../../../domain/errors/index.js";
+import { ChainError } from "../../../../../domain/errors/index.js";
 import type { AgentContractPorts } from "../../../application/ports/agent-registry.js";
-import type { NetworkDescriptor, TxReceiptView } from "../../../domain/types/index.js";
-import type { TransactionScope } from "../../../application/contracts/execution-scope.js";
+import type { NetworkDescriptor, TxReceiptView } from "../../../../../domain/types/index.js";
+import type { TransactionScope } from "../../../../../application/contracts/execution-scope.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
 

@@ -1,18 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { CommandRegistry } from "../registry/index.js";
-import {
-  registerEvmChainCommands,
-  type EvmChainCommandDependencies,
-} from "../../../../bootstrap/families/evm.js";
-import {
-  registerTronChainCommands,
-  type TronChainCommandDependencies,
-} from "../../../../bootstrap/families/tron.js";
+import { CommandRegistry } from "../../../../adapters/inbound/cli/registry/index.js";
+import type { FamilyBinding } from "../../../../adapters/inbound/cli/contracts/index.js";
+import type { AgentService } from "../../application/use-cases/agent-service.js";
+import { ERC8004_COMMANDS } from "./commands.js";
+
 function registerAgentCommands(registry: CommandRegistry, agents: AgentService) {
-  registerEvmChainCommands(registry, { agents } as EvmChainCommandDependencies);
-  registerTronChainCommands(registry, { agents } as TronChainCommandDependencies);
+  for (const { spec, tron, evm } of ERC8004_COMMANDS) {
+    registry.addChain(spec, "tron", tron(agents) as unknown as FamilyBinding);
+    registry.addChain(spec, "evm", evm(agents) as unknown as FamilyBinding);
+  }
 }
-import type { AgentService } from "../../../../application/use-cases/agent-service.js";
 
 describe("ERC-8004 command surface", () => {
   it("registers exactly eight commands for EVM and TRON", () => {

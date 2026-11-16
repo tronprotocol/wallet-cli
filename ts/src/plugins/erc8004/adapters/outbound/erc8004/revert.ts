@@ -1,5 +1,5 @@
 import { Interface } from "ethers";
-import { ExecutionError } from "../../../domain/errors/index.js";
+import { ExecutionError } from "../../../../../plugin-api/domain.js";
 const errors = new Interface([
   "error Error(string)",
   "error ERC721NonexistentToken(uint256 tokenId)",

@@ -6,3 +6,4 @@ export {
   type JsonServiceErrors,
 } from "../adapters/outbound/http/json-service.js";
 export { createTimedFetch } from "../adapters/outbound/http/timed-fetch.js";
+export { abortReason } from "../adapters/outbound/http/dispatch-context.js";

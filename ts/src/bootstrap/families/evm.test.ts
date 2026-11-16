@@ -1,4 +1,3 @@
-import type { AgentService } from "../../application/use-cases/agent-service.js";
 import { describe, it, expect, vi } from "vitest";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
@@ -19,7 +18,6 @@ import type { SigningService } from "../../application/services/signing/signing-
 function registry(): CommandRegistry {
   const reg = new CommandRegistry();
   registerEvmChainCommands(reg, {
-    agents: {} as AgentService,
     signers: {} as SignerResolver,
     signing: {} as SigningService,
     gateways: {} as ChainGatewayProvider,
@@ -34,11 +32,11 @@ function registry(): CommandRegistry {
 }
 
 describe("registerEvmChainCommands", () => {
-  it("owns all 29 EVM bindings including identity commands", () => {
+  it("owns the 21 EVM bindings of the core commands", () => {
     const commands = registry().all();
     expect(
       commands.filter((command) => "families" in command && command.families.evm),
-    ).toHaveLength(29);
+    ).toHaveLength(21);
   });
   it("binds message sign and typed-data sign to the evm family", () => {
     const reg = registry();

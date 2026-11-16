@@ -16,7 +16,6 @@ import {
 } from "./errors.js";
 import { GASFREE_FOLLOW_UPS } from "../../../../plugins/gasfree/adapters/inbound/follow-ups.js";
 import { assertPositiveAmount } from "../../../../domain/amounts/index.js";
-import { resolveAgentId } from "../../../../domain/erc8004/index.js";
 import {
   normalizeTokenId,
   slippageFloor,
@@ -24,7 +23,6 @@ import {
 } from "../../../../domain/tron/exchange/index.js";
 import { planEvmFee } from "../../../../domain/evm/evm-gas.js";
 import { parseChainParameterAssignments } from "../../../../domain/tron/governance/chain-parameters.js";
-import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 describe("CLI error projection", () => {
   it("spells input references as flags, including globals with their own names", () => {
@@ -92,8 +90,6 @@ describe("CLI wording of inner-layer messages", () => {
     throw new Error("expected a CLI error");
   }
 
-  const TRON = { id: "tron:728126428" } as NetworkDescriptor;
-
   it.each<[string, () => unknown, string]>([
     [
       "exchange slippage",
@@ -110,11 +106,6 @@ describe("CLI wording of inner-layer messages", () => {
       "parameter assignment",
       () => parseChainParameterAssignments(["x"], []),
       "invalid --set 'x'; expected <name|id>=<value>",
-    ],
-    [
-      "agent id",
-      () => resolveAgentId("tron:abc:1", TRON),
-      "Agent ID prefixes require a numeric chain ID (for example tron:3448148188:170); use --network for aliases",
     ],
     [
       "legacy fee overrides",

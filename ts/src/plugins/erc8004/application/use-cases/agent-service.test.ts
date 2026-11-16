@@ -1,5 +1,5 @@
-import type { ExecutionDeadline } from "../contracts/deadline.js";
-import { CommandDeadline } from "../services/command-deadline.js";
+import type { ExecutionDeadline } from "../../../../application/contracts/deadline.js";
+import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 import { describe, expect, it, vi } from "vitest";
 import { AgentService } from "./agent-service.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
@@ -9,9 +9,9 @@ import type {
   AgentRegistrationLoader,
   AgentRegistryValue,
 } from "../ports/agent-sdk.js";
-import type { NetworkDescriptor } from "../../domain/types/index.js";
-import { tronAddressFromEvmHex } from "../../domain/family/index.js";
-import type { TransactionScope } from "../contracts/execution-scope.js";
+import type { NetworkDescriptor } from "../../../../domain/types/index.js";
+import { tronAddressFromEvmHex } from "../../../../domain/family/index.js";
+import type { TransactionScope } from "../../../../application/contracts/execution-scope.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
 

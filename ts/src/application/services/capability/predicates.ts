@@ -19,17 +19,6 @@ type Predicate = (network: NetworkDescriptor, facts: CapabilityFacts) => Capabil
 // A capability predicate a plugin registers; it decides from the network alone.
 export type CapabilityPredicate = (network: NetworkDescriptor) => CapabilitySupport;
 
-// Networks with an ERC-8004 Identity Registry deployment.
-const ERC8004_NETWORKS: ReadonlySet<string> = new Set([
-  "eip155:56",
-  "eip155:97",
-  "eip155:8453",
-  "eip155:84532",
-  "tron:728126428",
-  "tron:3448148188",
-  "tron:2494104990",
-]);
-
 const when = (supported: boolean): CapabilitySupport => (supported ? "supported" : "unsupported");
 
 const tron =
@@ -44,13 +33,9 @@ export function baiChain(network: NetworkDescriptor): string | undefined {
   if (network.family === "tron" && network.chainId === "728126428") return "tron";
 }
 
-const erc8004: Predicate = (network) => when(ERC8004_NETWORKS.has(network.id));
-
 // Capabilities absent here depend only on the family, which the command's bindings decide.
 const PREDICATES: Readonly<Record<string, Predicate>> = {
   "tx.multisig.tronlink": tron((n) => Boolean(n.tronlinkHttpEndpoint)),
-  "erc8004.identity.read": erc8004,
-  "erc8004.identity.write": erc8004,
   "bai.recharge": (network) => when(baiChain(network) !== undefined),
   // Without a default token the server needs an explicit token, or an asset with its decimals.
   "x402.serve": (network, facts) =>

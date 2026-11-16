@@ -39,15 +39,6 @@ describe("capabilitySupport", () => {
     ).toBe("supported");
   });
 
-  it("enables ERC-8004 only where an Identity Registry is deployed", () => {
-    expect(capabilitySupport("erc8004.identity.read", evm("eip155:97"), facts(true))).toBe(
-      "supported",
-    );
-    expect(capabilitySupport("erc8004.identity.write", evm("eip155:1"), facts(true))).toBe(
-      "unsupported",
-    );
-  });
-
   it("marks x402 serve as needing inputs where no default token is registered", () => {
     expect(capabilitySupport("x402.serve", evm("eip155:1"), facts(false))).toBe("needs-inputs");
     expect(capabilitySupport("x402.serve", evm("eip155:56"), facts(true))).toBe("supported");

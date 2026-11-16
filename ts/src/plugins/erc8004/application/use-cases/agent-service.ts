@@ -1,23 +1,23 @@
-import type { ExecutionDeadline } from "../contracts/deadline.js";
-import { requestDispatchCheck } from "../services/command-deadline.js";
-import { UsageError } from "../../domain/errors/index.js";
-import type { NetworkDescriptor, TxReceiptView } from "../../domain/types/index.js";
-import type { TransactionScope } from "../contracts/execution-scope.js";
+import type { ExecutionDeadline } from "../../../../plugin-api/application.js";
+import { requestDispatchCheck } from "../../../../plugin-api/application.js";
+import { UsageError } from "../../../../plugin-api/domain.js";
+import type { NetworkDescriptor, TxReceiptView } from "../../../../plugin-api/domain.js";
+import type { TransactionScope } from "../../../../plugin-api/application.js";
 import type { AgentContractPorts } from "../ports/agent-registry.js";
 import type {
   AgentRegistryReader,
   AgentRegistrationLoader,
   AgentRegistryValue,
 } from "../ports/agent-sdk.js";
-import { resolveAgentId } from "../../domain/erc8004/index.js";
+import { resolveAgentId } from "../../domain/agent.js";
 import {
   FAMILIES,
   sameAddress,
   tronAddressFromEvmHex,
   type ChainFamily,
-} from "../../domain/family/index.js";
-import { type Sun, sunAmount } from "../../domain/amounts/index.js";
-import { DEFAULT_FEE_LIMIT_SUN } from "../../domain/fees/tron.js";
+} from "../../../../plugin-api/domain.js";
+import { type Sun, sunAmount } from "../../../../plugin-api/domain.js";
+import { DEFAULT_FEE_LIMIT_SUN } from "../../../../plugin-api/domain.js";
 
 interface TransactionOptions {
   dryRun?: boolean;

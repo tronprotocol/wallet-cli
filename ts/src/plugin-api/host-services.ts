@@ -9,6 +9,7 @@ import type { DispatchCheck } from "../application/contracts/deadline.js";
 import type { TransactionScope } from "../application/contracts/execution-scope.js";
 import type { BroadcastGuard } from "../application/contracts/broadcast-guard.js";
 import type { TronGateway } from "../application/ports/chain/tron/tron-gateway.js";
+import type { EvmGateway } from "../application/ports/chain/evm/evm-gateway.js";
 import type { TokenRepository } from "../application/ports/token-repository.js";
 import type { TronContractCalls } from "../application/services/plugins/tron-contract-calls.js";
 import type {
@@ -50,6 +51,8 @@ export type PluginTronGateway = Pick<
   | "triggerConstantContract"
 >;
 
+export type PluginEvmGateway = Pick<EvmGateway, "getTransactionReceipt">;
+
 // One TRON contract call through the transaction lifecycle; the core builds, signs and sends it.
 export type PluginTronCalls = Pick<TronContractCalls, "run">;
 
@@ -64,6 +67,7 @@ export interface PluginNetworks {
 // Every call on a returned gateway runs under `check`.
 export interface PluginGateways {
   get(network: NetworkDescriptor, family: "tron", check: DispatchCheck): PluginTronGateway;
+  get(network: NetworkDescriptor, family: "evm", check: DispatchCheck): PluginEvmGateway;
 }
 
 export type PluginRecipients = Pick<RecipientResolver, "resolve">;
