@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { ChainError } from "../../domain/errors/index.js";
 import { CommandDeadline } from "./command-deadline.js";
-import { pollUntilDeadline } from "./deadline-poll.js";
+import { pollUntilDeadline, sleepWithin } from "./deadline-poll.js";
+import type { ExecutionDeadline } from "../contracts/deadline.js";
 
 describe("pollUntilDeadline", () => {
   it("passes the deadline signal to each attempt and returns the first value", async () => {
@@ -77,5 +78,90 @@ describe("pollUntilDeadline", () => {
     const attempt = vi.fn(async () => "never");
     await expect(pollUntilDeadline(deadline, attempt)).resolves.toBeUndefined();
     expect(attempt).not.toHaveBeenCalled();
+  });
+});
+
+describe("sleepWithin", () => {
+  // A deadline whose remaining time and expiry come from the test.
+  function deadlineOf(remainingMs: () => number, expired: () => boolean): ExecutionDeadline {
+    return {
+      signal: new AbortController().signal,
+      remainingMs,
+      expired,
+      assertActive: () => {},
+    } as unknown as ExecutionDeadline;
+  }
+
+  async function settled(promise: Promise<boolean>) {
+    let value: boolean | undefined;
+    void promise.then((v) => (value = v));
+    await Promise.resolve();
+    return value;
+  }
+
+  it("gives false when the shortened timer fires before the deadline's clock says it expired", async () => {
+    vi.useFakeTimers();
+    try {
+      const start = Date.now();
+      let first = true;
+      // The first timer is armed 5 ms short of the deadline's clock.
+      const deadline = deadlineOf(
+        () => (first ? ((first = false), 100) : Math.max(0, 105 - (Date.now() - start))),
+        () => Date.now() - start >= 105,
+      );
+      const slept = sleepWithin(deadline, 1500);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await settled(slept)).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1500);
+      await expect(slept).resolves.toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives true once the whole interval passed within the deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const start = Date.now();
+      const slept = sleepWithin(
+        deadlineOf(
+          () => 10_000 - (Date.now() - start),
+          () => false,
+        ),
+        1500,
+      );
+      await vi.advanceTimersByTimeAsync(1499);
+      expect(await settled(slept)).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(slept).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends after the interval while the deadline is paused", async () => {
+    vi.useFakeTimers();
+    try {
+      const slept = sleepWithin(
+        deadlineOf(
+          () => 200,
+          () => false,
+        ),
+        1500,
+      );
+      await vi.advanceTimersByTimeAsync(1400);
+      expect(await settled(slept)).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(100);
+      await expect(slept).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives false at once when the deadline expires during the sleep", async () => {
+    const deadline = new CommandDeadline(30);
+    const started = performance.now();
+    await expect(sleepWithin(deadline, 5_000)).resolves.toBe(false);
+    expect(performance.now() - started).toBeLessThan(2_000);
   });
 });

@@ -327,6 +327,32 @@ describe("PluginService.update and remove", () => {
     });
   });
 
+  it("refuses an update whose plugin was removed while it was being fetched", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let slow = false;
+    const { service } = setup({
+      "registry:@tron-walletcli/plugin-demo": async () => {
+        if (slow) await gate;
+        return pkg(
+          { version: slow ? "2.0.0" : "1.0.0" },
+          { type: "registry", spec: "@tron-walletcli/plugin-demo", registry: "https://r" },
+        );
+      },
+    });
+    await service.install({ type: "registry", spec: "demo" }, "https://r", DEADLINE);
+    slow = true;
+    const update = service.update("demo", DEADLINE);
+    service.remove("demo");
+    release();
+    await expect(update).rejects.toMatchObject({
+      code: "plugin_conflict",
+      message:
+        "plugin demo was removed while it was being updated; run plugin install to install it again",
+    });
+    expect(service.list().map((e) => e.name)).not.toContain("demo");
+  });
+
   it("reports an update whose durability step failed after the rename as updated and incomplete", async () => {
     let version = "1.0.0";
     const injected = failAfter("rename");

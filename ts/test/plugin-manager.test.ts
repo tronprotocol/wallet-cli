@@ -161,7 +161,7 @@ describe("plugin install from a registry", () => {
     expect((await cli(["plugin", "update", "qaprobe"])).json.data).toEqual([
       { name: "qaprobe", status: "updated", from: "1.0.0", to: "1.1.0" },
     ]);
-    expect((await cli(["qaprobe", "read"])).json.meta.plugin).toEqual({
+    expect((await cli(["qaprobe", "read", "--value", "ok"])).json.meta.plugin).toEqual({
       name: "qaprobe",
       version: "1.1.0",
     });
@@ -188,7 +188,7 @@ describe("plugin install from local sources", () => {
       version: "1.0.0",
       removed: true,
     });
-    const gone = await cli(["qaprobe", "read"]);
+    const gone = await cli(["qaprobe", "read", "--value", "ok"]);
     expect(gone.status).toBe(2);
     expect(gone.json.error.code).toBe("unknown_command");
   });

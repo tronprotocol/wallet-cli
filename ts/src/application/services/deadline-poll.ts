@@ -28,22 +28,31 @@ function retriesUnchanged(error: unknown): boolean {
   return retry === "same" || retry === "later";
 }
 
-// False when the deadline expired before the interval ended; expiry ends the sleep at once.
+// True only after the whole interval passed within the deadline; false as soon as the deadline expires.
 export function sleepWithin(deadline: ExecutionDeadline, ms: number): Promise<boolean> {
   if (deadline.expired()) return Promise.resolve(false);
   return new Promise((resolve) => {
     const signal = deadline.signal;
+    let left = ms;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const onAbort = () => {
       clearTimeout(timer);
       resolve(false);
     };
-    const timer = setTimeout(
-      () => {
-        signal.removeEventListener("abort", onAbort);
-        resolve(!deadline.expired());
-      },
-      Math.min(ms, deadline.remainingMs()),
-    );
+    // A step is cut to the deadline's remaining time, so its end alone does not mean the interval passed.
+    const arm = () => {
+      const step = Math.min(left, deadline.remainingMs());
+      timer = setTimeout(() => {
+        left -= step;
+        if (deadline.expired() || left <= 0) {
+          signal.removeEventListener("abort", onAbort);
+          resolve(!deadline.expired());
+          return;
+        }
+        arm();
+      }, step);
+    };
     signal.addEventListener("abort", onAbort, { once: true });
+    arm();
   });
 }

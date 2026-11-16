@@ -291,7 +291,11 @@ export class PluginService {
     try {
       return this.store.update<PluginUpdateResult>(current.name, (installed) => {
         const stored = installed.find((s) => nameOf(s) === current.name);
-        if (stored === undefined) throw notInstalled(current.name);
+        if (stored === undefined) {
+          throw pluginConflict(
+            `plugin ${current.name} was removed while it was being updated; run plugin install to install it again`,
+          );
+        }
         // The fetch was based on `current`; a plugin replaced meanwhile is not overwritten.
         if (stored.state !== "installed" || !sameInstallation(stored.plugin, current)) {
           throw pluginConflict(

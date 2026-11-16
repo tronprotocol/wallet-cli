@@ -48,15 +48,21 @@ function formatInstall(result: PluginInstallResult): string {
     .join("\n");
 }
 
+function listSource(source: PluginSourceRecord | undefined): string {
+  if (source === undefined) return "-";
+  return `${source.type} ${source.type === "registry" ? source.spec : source.path}`;
+}
+
 function formatList(entries: PluginListEntry[]): string {
   const rows = entries.map((e) => [
     e.name,
     e.version ?? "-",
     e.kind,
+    listSource(e.source),
     e.state,
     e.groups.join(", ") || "-",
   ]);
-  const head = ["NAME", "VERSION", "KIND", "STATE", "COMMANDS"];
+  const head = ["NAME", "VERSION", "KIND", "SOURCE", "STATE", "COMMANDS"];
   const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i]!.length)));
   const line = (cells: string[]) =>
     cells.map((c, i) => (i === cells.length - 1 ? c : c.padEnd(widths[i]!))).join("  ");

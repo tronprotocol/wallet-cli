@@ -53,8 +53,11 @@ describe("an installed plugin", () => {
       meta: { plugin: { name: "qaprobe", version: "1.0.0" } },
     });
     expect(JSON.stringify(ok.json)).not.toContain('"view"');
+    const missing = json(["qaprobe", "read"]);
+    expect(missing.status).toBe(2);
+    expect(missing.json.error.code).toBe("missing_option");
     const failed = json(["qaprobe", "read", "--value", "failure"]);
-    expect(failed.status).toBe(2);
+    expect(failed.status).toBe(1);
     expect(failed.json).toMatchObject({
       success: false,
       error: {
@@ -81,7 +84,7 @@ describe("an installed plugin", () => {
       ]),
     );
     expect(catalog.errorCodes.qaprobe_refused).toEqual({
-      exit: 2,
+      exit: 1,
       retry: "never",
       meaning: "the QA probe refused the value",
     });
@@ -345,7 +348,7 @@ describe("a plugin that cannot be loaded", () => {
     ["register-failure", "registration failed"],
   ] as const)("is reported as broken after %s, and core commands still work", (variant, reason) => {
     install(variant);
-    const r = json(["qaprobe", "read"]);
+    const r = json(["qaprobe", "read", "--value", "ok"]);
     expect(r.status).toBe(1);
     expect(r.json).toMatchObject({
       error: { code: "plugin_load_failed", message: expect.stringContaining(reason) },
@@ -371,7 +374,7 @@ describe("a plugin that cannot be loaded", () => {
     const path = join(testHome, "plugins/qaprobe/active.json");
     const active = JSON.parse(readFileSync(path, "utf8"));
     writeFileSync(path, JSON.stringify({ ...active, apiRevision: active.apiRevision + 1 }));
-    const r = json(["qaprobe", "read"]);
+    const r = json(["qaprobe", "read", "--value", "ok"]);
     expect(r.status).toBe(1);
     expect(r.json.error).toMatchObject({
       code: "plugin_incompatible",

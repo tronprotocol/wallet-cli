@@ -129,10 +129,7 @@ function recordResult(result) {
 }
 
 const readFields = z.object({
-  value: z
-    .string()
-    .optional()
-    .describe("value to echo; failure fails, slow waits for the deadline"),
+  value: z.string().describe("value to echo; failure fails, slow waits for the deadline"),
   contract: z.string().optional().describe("TRC20 contract whose name() the probe reads"),
 });
 
@@ -170,7 +167,7 @@ const plugin = {
   register(host) {
     const services = host.services;
     host.errorCodes({
-      qaprobe_refused: { exit: 2, retry: "never", meaning: "the QA probe refused the value" },
+      qaprobe_refused: { exit: 1, retry: "never", meaning: "the QA probe refused the value" },
     });
     host.followUps({ "qaprobe-read": (subject) => `qaprobe read --value ${subject ?? "ok"}` });
     host.capabilities({ "qaprobe.read": () => "supported" });
@@ -205,7 +202,7 @@ const plugin = {
             : undefined;
           const address = accountAddress(ctx, family);
           return {
-            value: input.value ?? "ok",
+            value: input.value,
             network: net.id,
             ...(address === undefined ? {} : { address }),
             ...(token ? { token: token.result } : {}),

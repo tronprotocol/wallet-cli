@@ -151,6 +151,6 @@ export function unknownCommand(registry: CommandRegistry, path: readonly string[
     "unknown_command",
     known
       ? `unknown command: ${path.join(" ")}`
-      : `unknown command: ${path.join(" ")}; run 'wallet-cli plugin list' to see the installed plugins, or 'wallet-cli plugin install <name>' to add one`,
+      : `unknown command: ${path.join(" ")}; run 'wallet-cli plugin list' to see the installed plugins; if a plugin provides it, add it with 'wallet-cli plugin install ${path[0]!}'`,
   );
 }
