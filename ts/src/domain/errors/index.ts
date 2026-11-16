@@ -8,7 +8,6 @@ export type FollowUp =
   | "account-list"
   | "account-rename"
   | "asset-info"
-  | "bai-report-recharge"
   | "keystore-backup"
   | "ledger-import"
   | "proposal-list"

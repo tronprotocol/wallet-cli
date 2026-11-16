@@ -18,7 +18,6 @@ const FOLLOW_UP_COMMANDS: Record<FollowUp, (subject: string | undefined) => stri
   "account-list": () => "list",
   "account-rename": (account) => `rename ${account ?? "<account>"} --label <new>`,
   "asset-info": (name) => `asset info ${name ?? "<name>"}`,
-  "bai-report-recharge": () => "bai report-recharge",
   "keystore-backup": (account) =>
     `wallet-cli backup ${account ?? "<account>"} --keystore --network tron:728126428 --password-stdin`,
   "ledger-import": () => "import ledger",

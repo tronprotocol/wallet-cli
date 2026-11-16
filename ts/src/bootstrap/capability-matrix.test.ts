@@ -5,9 +5,9 @@ import { tmpdir } from "node:os";
 import { composeCliRuntime } from "./composition.js";
 import type { NetworkDescriptor } from "../domain/types/index.js";
 import { SdkAgentRegistry } from "../plugins/erc8004/adapters/outbound/erc8004/sdk-registry.js";
-import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
-import { paywallTerms } from "../application/use-cases/x402-paywall.js";
-import { requireBaiChain } from "../application/use-cases/bai-wallet-binding.js";
+import { X402FacilitatorClient } from "../plugins/x402/adapters/outbound/x402/facilitator-client.js";
+import { paywallTerms } from "../plugins/x402/application/use-cases/x402-paywall.js";
+import { requireBaiChain } from "../plugins/bai/application/use-cases/bai-wallet-binding.js";
 
 // Every builtin network × capability: the shell gate follows the predicate, and an adapter gate never refuses
 // a network the predicate supports.

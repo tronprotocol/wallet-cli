@@ -1,3 +1,6 @@
+import { errorEnvelope } from "../../../../adapters/inbound/cli/output/errors.js";
+import type { UsageError } from "../../../../domain/errors/index.js";
+import { resolveAgentId } from "../../domain/agent.js";
 import { describe, expect, it } from "vitest";
 import { CommandRegistry } from "../../../../adapters/inbound/cli/registry/index.js";
 import type { FamilyBinding } from "../../../../adapters/inbound/cli/contracts/index.js";
@@ -54,5 +57,17 @@ it("accepts a data JSON registration URI and rejects local file schemes", () => 
   expect(schema.safeParse({ uri: "file:///etc/passwd" }).success).toBe(false);
   expect(schema.safeParse({ uri: "https://user:password@example.com/agent.json" }).success).toBe(
     false,
+  );
+});
+
+it("names the network flag when an agent ID prefix is not numeric", () => {
+  let error: unknown;
+  try {
+    resolveAgentId("tron:abc:1", { id: "tron:728126428" } as never);
+  } catch (caught) {
+    error = caught;
+  }
+  expect(errorEnvelope(error as UsageError).message).toBe(
+    "Agent ID prefixes require a numeric chain ID (for example tron:3448148188:170); use --network for aliases",
   );
 });

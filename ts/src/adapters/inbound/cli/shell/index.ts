@@ -465,6 +465,7 @@ function assertKnownFlags(
     | "positionals"
     | "broadcasts"
     | "rejectsAccount"
+    | "rejectsGlobals"
     | "rejectsWait"
     | "rejectsWaitWith"
   >,
@@ -478,16 +479,9 @@ function assertKnownFlags(
     );
   }
   if (argv.wait !== undefined) assertWaitIntentApplies(cmd, argv);
-  if (cmd.path[0] === "x402" && cmd.path[1]?.startsWith("provider-")) {
-    if (
-      argv.account !== undefined ||
-      (cmd.path[1] !== "provider-list" && argv.network !== undefined)
-    ) {
-      throw new UsageError(
-        "invalid_option",
-        "provider commands do not accept --account; --network is only a provider-list filter",
-      );
-    }
+  const refused = cmd.rejectsGlobals;
+  if (refused?.options.some((option) => argv[option] !== undefined)) {
+    throw new UsageError("invalid_option", refused.message);
   }
   const allowed = new Set<string>(["_", "$0", ...YARGS_TAIL_KEYS]);
   const add = (name: string) => {

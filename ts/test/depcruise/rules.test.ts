@@ -491,14 +491,14 @@ describe("dependency-cruiser layer and cycle rules", () => {
       "src/adapters/outbound/ledger/hid.ts": `import Hid from "@ledgerhq/hw-transport-node-hid-noevents";\nexport const hid = Hid;\n`,
       "src/adapters/outbound/ledger/hid.test.ts": `import Hid from "@ledgerhq/hw-transport-node-hid-noevents";\nexport const probe = Hid;\n`,
       "src/adapters/outbound/ledger/path.ts": `import { splitPath } from "@ledgerhq/hw-app-trx/utils";\nimport { splitPath as libSplitPath } from "@ledgerhq/hw-app-trx/lib/utils.js";\nimport { EIP712_TYPE_PROPERTIES } from "@ledgerhq/hw-app-eth/modules/EIP712/utils";\nimport type { LedgerEthTransactionResolution } from "@ledgerhq/hw-app-eth/services/types";\nexport const path = [splitPath, libSplitPath, EIP712_TYPE_PROPERTIES];\nexport type Resolution = LedgerEthTransactionResolution;\n`,
-      "src/adapters/outbound/erc8004/sdk-registry.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`,
-      "src/adapters/outbound/erc8004/types.ts": `import type { SDK } from "@bankofai/8004-sdk";\nexport type Sdk = SDK;\n`,
-      "src/adapters/outbound/erc8004/sdk-registry.test.ts": `export type Probe = typeof import("@bankofai/8004-sdk");\n`,
-      "src/adapters/outbound/x402/payment-client.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nimport { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";\nimport { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";\nimport { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";\nimport { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";\nimport { x402Client } from "@bankofai/x402-core/client";\nimport { createClientEvmSigner } from "@bankofai/x402-evm/adapters/agent-wallet";\nimport { UptoTronScheme } from "@bankofai/x402-tron/upto";\nexport const client = [wrapFetchWithPayment, registerExactTronScheme, registerExactGasFreeTronScheme, ExactTronScheme, registerExactEvmScheme, x402Client, createClientEvmSigner, UptoTronScheme];\n`,
-      "src/adapters/outbound/x402/gasfree-relay.ts": `import { GasFreeAPIClient } from "@bankofai/x402-tron/gasfree";\nexport const relay = GasFreeAPIClient;\n`,
-      "src/adapters/outbound/x402/server.ts": `import { encodePaymentRequiredHeader } from "@bankofai/x402-core/http";\nimport { scheme } from "@bankofai/x402-tron/exact/server";\nimport type { Network } from "@bankofai/x402-core/types";\nexport const server = [encodePaymentRequiredHeader, scheme];\nexport type Net = Network;\n`,
-      "src/adapters/outbound/x402/tokens.ts": `import { registerToken } from "@bankofai/x402-tron";\nimport { fetcher } from "@bankofai/x402-fetcher";\nimport { clients } from "@bankofai/x402-tron/clients";\nimport { exactly } from "@bankofai/x402-tron/exactly";\nexport const tokens = [registerToken, fetcher, clients, exactly];\n`,
-      "src/adapters/outbound/x402/storage.ts": `import { FileClientChannelStorage } from "@bankofai/x402-evm/batch-settlement/client/file-storage";\nimport { FileClientChannelStorage as DistStorage } from "@bankofai/x402-evm/dist/esm/batch-settlement/client/file-storage.mjs";\nimport { RedisChannelStorage } from "@bankofai/x402-evm/batch-settlement/server/redis-storage";\nimport type { ClientWallet } from "@bankofai/x402-core/wallets";\nexport const storage = [FileClientChannelStorage, DistStorage, RedisChannelStorage];\nexport type Wallet = ClientWallet;\n`,
+      "src/plugins/erc8004/adapters/outbound/erc8004/sdk-registry.ts": `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`,
+      "src/plugins/erc8004/adapters/outbound/erc8004/types.ts": `import type { SDK } from "@bankofai/8004-sdk";\nexport type Sdk = SDK;\n`,
+      "src/plugins/erc8004/adapters/outbound/erc8004/sdk-registry.test.ts": `export type Probe = typeof import("@bankofai/8004-sdk");\n`,
+      "src/plugins/x402/adapters/outbound/x402/payment-client.ts": `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nimport { registerExactTronScheme } from "@bankofai/x402-tron/exact/client";\nimport { registerExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";\nimport { ExactTronScheme } from "@bankofai/x402-tron/exact/facilitator";\nimport { registerExactEvmScheme } from "@bankofai/x402-evm/exact/client";\nimport { x402Client } from "@bankofai/x402-core/client";\nimport { createClientEvmSigner } from "@bankofai/x402-evm/adapters/agent-wallet";\nimport { UptoTronScheme } from "@bankofai/x402-tron/upto";\nexport const client = [wrapFetchWithPayment, registerExactTronScheme, registerExactGasFreeTronScheme, ExactTronScheme, registerExactEvmScheme, x402Client, createClientEvmSigner, UptoTronScheme];\n`,
+      "src/plugins/x402/adapters/outbound/x402/gasfree-relay.ts": `import { GasFreeAPIClient } from "@bankofai/x402-tron/gasfree";\nexport const relay = GasFreeAPIClient;\n`,
+      "src/plugins/x402/adapters/outbound/x402/server.ts": `import { encodePaymentRequiredHeader } from "@bankofai/x402-core/http";\nimport { scheme } from "@bankofai/x402-tron/exact/server";\nimport type { Network } from "@bankofai/x402-core/types";\nexport const server = [encodePaymentRequiredHeader, scheme];\nexport type Net = Network;\n`,
+      "src/plugins/x402/adapters/outbound/x402/tokens.ts": `import { registerToken } from "@bankofai/x402-tron";\nimport { fetcher } from "@bankofai/x402-fetcher";\nimport { clients } from "@bankofai/x402-tron/clients";\nimport { exactly } from "@bankofai/x402-tron/exactly";\nexport const tokens = [registerToken, fetcher, clients, exactly];\n`,
+      "src/plugins/x402/adapters/outbound/x402/storage.ts": `import { FileClientChannelStorage } from "@bankofai/x402-evm/batch-settlement/client/file-storage";\nimport { FileClientChannelStorage as DistStorage } from "@bankofai/x402-evm/dist/esm/batch-settlement/client/file-storage.mjs";\nimport { RedisChannelStorage } from "@bankofai/x402-evm/batch-settlement/server/redis-storage";\nimport type { ClientWallet } from "@bankofai/x402-core/wallets";\nexport const storage = [FileClientChannelStorage, DistStorage, RedisChannelStorage];\nexport type Wallet = ClientWallet;\n`,
     });
     try {
       expect(cruise(dir)).toContain("no dependency violations found");
@@ -635,6 +635,14 @@ describe("dependency-cruiser plugin rules", () => {
       files: { "src/plugins/demo/application/leak.ts": exported("../adapters/inbound/marker.js") },
     },
     {
+      rule: "application-owns-ports",
+      files: { "src/plugins/demo/application/leak.ts": exported("../../other/index.js") },
+    },
+    {
+      rule: "inbound-does-not-know-outbound",
+      files: { "src/plugins/demo/adapters/inbound/leak.ts": exported("../../../other/index.js") },
+    },
+    {
       rule: "inbound-does-not-know-outbound",
       files: {
         "src/plugins/demo/adapters/inbound/leak.ts": exported("../outbound/service/marker.js"),
@@ -690,8 +698,8 @@ describe("dependency-cruiser plugin rules", () => {
       ...PLUGIN_BASE,
       "src/plugins/demo/index.ts": `import { marker as a } from "../../plugin-api/index.js";\nimport { marker as b } from "../../plugin-api/cli.js";\nimport { marker as c } from "./adapters/inbound/marker.js";\nimport { marker as d } from "./adapters/outbound/service/marker.js";\nimport { marker as e } from "../other/api.js";\nexport const probe = a + b + c + d + e;\n`,
       "src/plugins/demo/domain/marker.ts": `import { marker as a } from "../../../plugin-api/domain.js";\nimport { sha256 } from "@noble/hashes/sha2.js";\nexport const marker = a;\nexport const hash = sha256;\n`,
-      "src/plugins/demo/application/marker.ts": `import { marker as a } from "../../../plugin-api/application.js";\nimport { marker as b } from "../domain/marker.js";\nexport const marker = a + b;\n`,
-      "src/plugins/demo/adapters/inbound/marker.ts": `import { marker as a } from "../../../../plugin-api/cli.js";\nimport { marker as b } from "../../application/use-cases/demo-service.js";\nexport const marker = a + b;\n`,
+      "src/plugins/demo/application/marker.ts": `import { marker as a } from "../../../plugin-api/application.js";\nimport { marker as b } from "../domain/marker.js";\nimport { marker as c } from "../../other/api.js";\nexport const marker = a + b + c;\n`,
+      "src/plugins/demo/adapters/inbound/marker.ts": `import { marker as a } from "../../../../plugin-api/cli.js";\nimport { marker as b } from "../../application/use-cases/demo-service.js";\nimport { marker as c } from "../../../other/api.js";\nexport const marker = a + b + c;\n`,
       "src/plugins/demo/adapters/outbound/service/marker.ts": `import { marker as a } from "../../../../../plugin-api/http.js";\nimport { marker as b } from "../../../application/ports/marker.js";\nimport { marker as c } from "./other.js";\nexport const marker = a + b + c;\n`,
       "src/plugins/demo/adapters/outbound/service/other.ts": marker,
       "src/plugins/demo/domain/marker.test.ts": `import { marker as a } from "../../../domain/marker.js";\nimport { marker as b } from "../../../plugin-api/command.js";\nexport const probe = a + b;\n`,

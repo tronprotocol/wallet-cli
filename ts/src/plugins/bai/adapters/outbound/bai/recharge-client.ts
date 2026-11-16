@@ -1,0 +1,273 @@
+import type { DispatchCheck } from "../../../../../plugin-api/application.js";
+import { baiApiError, baiBusinessMessage, credentialRefusal } from "./api-error.js";
+import { requestJson } from "../../../../../plugin-api/http.js";
+import { z } from "../../../../../plugin-api/http.js";
+import { TransportError, UsageError } from "../../../../../plugin-api/domain.js";
+import type {
+  BaiRechargeApi,
+  BaiBindWalletInput,
+  BaiWalletBindingInput,
+  BaiCreateOrderInput,
+  BaiReportTransactionInput,
+  BaiReportResult,
+  BaiCreatedOrder,
+} from "../../../application/ports/bai-recharge.js";
+import { DEFAULT_BAI_BASE_URL, type BaiCredentials } from "./client.js";
+import { sameAddress } from "../../../../../plugin-api/domain.js";
+
+const text = z.string().trim().min(1);
+const wallet = z.object({ address: text, chain: text });
+const target = z.object({
+  input: z.object({ type: z.literal("personal"), identifier: text }),
+  confirmedTarget: z.object({ type: z.literal("personal"), targetId: text }),
+});
+// Convert decimal strings only at the numeric API boundary.
+const amount = z
+  .string()
+  .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/)
+  .transform((value, ctx) => {
+    const normalized = value.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    const numeric = Number(normalized);
+    if (
+      !Number.isFinite(numeric) ||
+      numeric <= 0 ||
+      numeric > Number.MAX_SAFE_INTEGER ||
+      String(numeric) !== normalized
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Amount cannot round-trip through the B.AI numeric API",
+      });
+      return z.NEVER;
+    }
+    return numeric;
+  });
+const bindInput = wallet.extend({
+  // Trimming would change the signed bytes.
+  message: z.string().refine((value) => value.trim().length > 0),
+  signature: text,
+  version: z.number().int().positive().optional(),
+});
+// B.AI order ids are numbers; a string id is kept as given.
+const orderId = z.union([
+  z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).transform(String),
+  z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+]);
+const orderInput = z.object({
+  channel: z.literal("crypto"),
+  chain: text,
+  tokenName: text,
+  amount,
+  walletAddress: text,
+  deviceType: z.literal("web"),
+  rechargeTarget: target.optional(),
+});
+const reportInput = z.object({
+  chain: text,
+  txHash: text,
+  rechargeTarget: target.optional(),
+  amount: amount.optional(),
+});
+const object = z.record(z.string(), z.unknown());
+const binding = z.object({ success: z.literal(true), binding: wallet.extend({ userId: text }) });
+const report = z.discriminatedUnion("success", [
+  z.object({ success: z.literal(true), order: object }),
+  z.object({ success: z.literal(false), code: z.string().regex(/^[A-Z][A-Z0-9_]{0,80}$/) }),
+]);
+
+// Never retry mutations: their outcome may be unknown.
+export class BaiRechargeClient implements BaiRechargeApi {
+  constructor(
+    private readonly config: BaiCredentials,
+    private readonly fetcher: typeof fetch = globalThis.fetch,
+    private readonly baseUrl = DEFAULT_BAI_BASE_URL,
+  ) {}
+
+  async resolveTarget(identifier: string, check: DispatchCheck) {
+    return this.decode(
+      z.object({ type: z.literal("personal"), targetId: text, displayLabel: text }),
+      await this.call(
+        "order.resolveRechargeTarget",
+        {
+          type: "personal",
+          identifier: this.input(text, identifier),
+        },
+        check,
+      ),
+    );
+  }
+  async isBound(input: BaiWalletBindingInput, check: DispatchCheck): Promise<boolean> {
+    return this.decode(
+      z.boolean(),
+      await this.call("wallet.isRechargeBound", this.input(wallet, input), check, "GET"),
+    );
+  }
+  async bind(input: BaiBindWalletInput, check: DispatchCheck) {
+    const checked = this.input(bindInput, input);
+    const result = this.decode(
+      binding,
+      await this.call("wallet.bindRechargeWallet", checked, check),
+    ).binding;
+    const evm = ["bnb", "base", "eth"].includes(checked.chain);
+    const matchingAddress = evm
+      ? sameAddress("evm", result.address, checked.address)
+      : result.address === checked.address;
+    const matchingChain = result.chain === checked.chain || (evm && result.chain === "eth");
+    if (!matchingAddress)
+      throw new TransportError(
+        "provider_error",
+        "B.AI returned a binding for a different or invalid wallet address",
+        {
+          procedure: "wallet.bindRechargeWallet",
+          reason: "binding_address_mismatch",
+          retryPayment: false,
+        },
+      );
+    if (!matchingChain)
+      throw new TransportError("provider_error", "B.AI returned a binding for a different chain", {
+        procedure: "wallet.bindRechargeWallet",
+        reason: "binding_chain_mismatch",
+        retryPayment: false,
+      });
+    return result;
+  }
+  async createOrder(input: BaiCreateOrderInput, check: DispatchCheck): Promise<BaiCreatedOrder> {
+    const checked = this.input(orderInput, input);
+    try {
+      const result = this.decode(object, await this.call("order.createOrder", checked, check));
+      if (result.success === false || Object.keys(result).length === 0) throw this.invalid();
+      const id = orderId.safeParse(result.id ?? result.orderId);
+      return id.success ? { orderId: id.data } : {};
+    } catch (error) {
+      throw uncertainPreorder(error);
+    }
+  }
+  async reportTxHash(
+    input: BaiReportTransactionInput,
+    check: DispatchCheck,
+  ): Promise<BaiReportResult> {
+    const result = this.decode(
+      report,
+      await this.call("order.reportTxHash", this.input(reportInput, input), check),
+    );
+    return result.success
+      ? (result as unknown as BaiReportResult)
+      : {
+          ...result,
+          message:
+            baiBusinessMessage(result.code) ??
+            "B.AI has not confirmed credit; retain the hash and reconcile before retrying reporting. Do not pay again",
+        };
+  }
+  private input<T>(schema: z.ZodType<T>, value: unknown): T {
+    const result = schema.safeParse(value);
+    if (!result.success)
+      throw new UsageError("invalid_value", "Invalid B.AI request parameters", {
+        fields: [...new Set(result.error.issues.map((issue) => issue.path.join(".")))],
+      });
+    return result.data;
+  }
+  private invalid() {
+    return new TransportError("provider_error", "B.AI recharge API returned an invalid response");
+  }
+  private decode<T>(schema: z.ZodType<T>, value: unknown): T {
+    const result = schema.safeParse(value);
+    if (!result.success) throw this.invalid();
+    return result.data;
+  }
+  private async call(
+    procedure: string,
+    input: unknown,
+    check: DispatchCheck,
+    method: "GET" | "POST" = "POST",
+  ): Promise<unknown> {
+    const key = this.config.baiApiKey;
+    if (!key)
+      throw new UsageError(
+        "bai_credentials_missing",
+        "B.AI credential is required for recharge account operations",
+      );
+    const url = new URL(`/trpc/lambda/${procedure}`, this.baseUrl);
+    if (url.protocol !== "https:" || url.username || url.password)
+      throw new UsageError(
+        "invalid_value",
+        "B.AI recharge API requires an HTTPS origin without URL credentials",
+      );
+    const payload = JSON.stringify({ json: input });
+    if (method === "GET") url.searchParams.set("input", payload);
+    const {
+      status,
+      ok,
+      body: decoded,
+    } = await requestJson(
+      this.fetcher,
+      url.toString(),
+      {
+        method,
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        ...(method === "POST" ? { body: payload } : {}),
+      },
+      {
+        service: "B.AI",
+        context: { procedure, retryPayment: false },
+        check,
+        refuse: (response) => credentialRefusal(procedure, response.status),
+        errors: {
+          timeout: () =>
+            new TransportError(
+              "timeout",
+              "B.AI recharge API timed out; mutation outcome may be unknown",
+            ),
+          unreachable: () =>
+            new TransportError(
+              "provider_error",
+              "B.AI recharge API connection failed; check connectivity and reconcile any pending mutation before retrying",
+              { procedure, reason: "connection_failed", retryPayment: false },
+            ),
+          malformed: (status) =>
+            baiApiError(undefined, procedure, status) ??
+            new TransportError("provider_error", "B.AI returned malformed JSON", {
+              procedure,
+              reason: "malformed_json",
+              retryPayment: false,
+            }),
+        },
+      },
+    );
+    const apiError = baiApiError(decoded, procedure, status);
+    // A report rejection is a credit result, not a reason to pay again.
+    const parsedEnvelope = object.safeParse(decoded);
+    const data = parsedEnvelope.success ? parsedEnvelope.data : undefined;
+    const wrapped = data?.result as { data?: { json?: unknown } } | undefined;
+    const reported = report.safeParse(wrapped?.data?.json ?? data);
+    if (
+      apiError &&
+      !(ok && procedure === "order.reportTxHash" && reported.success && !reported.data.success)
+    )
+      throw apiError;
+    const envelope = this.decode(object, decoded);
+    if (envelope.error !== undefined) throw this.invalid();
+    if (envelope.result !== undefined) {
+      const result = this.decode(object, envelope.result);
+      const data = this.decode(object, result.data);
+      if (!("json" in data)) throw this.invalid();
+      return data.json;
+    }
+    return envelope;
+  }
+}
+
+const DEFINITE_REFUSALS = new Set(["bai_rejected", "bai_auth_failed", "provider_rate_limited"]);
+
+// A sent preorder may have been created unless B.AI refused it; no payment is implied.
+function uncertainPreorder(error: unknown): unknown {
+  if (!(error instanceof TransportError) || DEFINITE_REFUSALS.has(error.code)) return error;
+  const details = (error.details ?? {}) as { httpStatus?: number };
+  if (details.httpStatus !== undefined && details.httpStatus >= 400 && details.httpStatus < 500)
+    return error;
+  return new TransportError(error.code, error.userMessage, { ...details, outcome: "unknown" });
+}

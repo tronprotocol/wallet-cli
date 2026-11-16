@@ -139,8 +139,6 @@ export class HelpService {
       ["message", "Sign arbitrary messages", ""],
       ["typed-data", "Sign EIP-712 / TIP-712 structured data", ""],
       ["block", "Get a block (latest if omitted)", ""],
-      ["x402", "Pay and inspect x402 service providers", ""],
-      ["bai", "Query and recharge a B.AI account", ""],
     ];
     const commands = [
       ["use", "Set the active account", ""],
@@ -611,8 +609,6 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   address: "Generate a random secp256k1 keypair locally without storing it in the wallet.",
   contact: "Manage the recipient address book.",
   plugin: `Install, list, update and remove plugins.\n${PLUGIN_TRUST_NOTICE}`,
-  bai: "Query B.AI account credits, usage records, and recharge orders.",
-  x402: "Pay x402 endpoints and inspect the provider catalog.",
 };
 
 function globalFlagHead(g: GlobalFlag): string {

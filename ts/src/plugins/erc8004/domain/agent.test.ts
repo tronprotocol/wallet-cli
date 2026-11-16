@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseAgentId, resolveAgentId } from "./agent.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import type { UsageError } from "../../../domain/errors/index.js";
-import { errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
 
 const net = (id: string): NetworkDescriptor => ({ id }) as NetworkDescriptor;
 
@@ -26,16 +24,4 @@ it("rejects IDs that cannot be encoded as uint256", () => {
     expect.objectContaining({ code: "invalid_value" }),
   );
   expect(parseAgentId(((1n << 256n) - 1n).toString())).toBe((1n << 256n) - 1n);
-});
-
-it("names the network flag when an agent ID prefix is not numeric", () => {
-  let error: unknown;
-  try {
-    resolveAgentId("tron:abc:1", net("tron:728126428"));
-  } catch (caught) {
-    error = caught;
-  }
-  expect(errorEnvelope(error as UsageError).message).toBe(
-    "Agent ID prefixes require a numeric chain ID (for example tron:3448148188:170); use --network for aliases",
-  );
 });

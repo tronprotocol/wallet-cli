@@ -8,12 +8,15 @@ import type { BroadcastGuard } from "../../application/contracts/broadcast-guard
 import type { WallClock } from "../../application/contracts/wall-clock.js";
 import type { DispatchCheck, ExecutionDeadline } from "../../application/contracts/deadline.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
+import type { NetworkRegistry } from "../../application/ports/network-registry.js";
+import type { AccountStore } from "../../application/ports/account-store.js";
 import type {
   CapabilityRegistry,
   CapabilitySupport,
 } from "../../application/services/capability/index.js";
 import type { PluginSigning } from "../../application/services/plugins/plugin-signing.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
+import type { ProcessLifetime } from "../process-lifetime.js";
 import type {
   ChainSpec,
   CommandDefinition,
@@ -66,6 +69,9 @@ export interface HostServiceDependencies {
   readonly tronCalls: PluginTronCalls;
   readonly tokens: PluginTokens;
   readonly aliases: Readonly<Record<string, string>>;
+  readonly networks: Pick<NetworkRegistry, "resolve">;
+  readonly lifetime: Pick<ProcessLifetime, "keepAlive">;
+  readonly accounts: Pick<AccountStore, "resolveAccount">;
   readonly gateways: ChainGatewayProvider;
   readonly contracts: {
     readonly tron: Pick<TronContractService, "call" | "send">;
@@ -84,6 +90,7 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
   return facade<HostServices>({
     signing: facade({
       assertCanSign: (account, family) => signing.assertCanSign(account, family),
+      prepare: (account, family) => signing.prepare(account, family),
       signerAddress: (account, family) => signing.signerAddress(account, family),
       sign: ((scope: TransactionScope, request: PluginSignRequest<never>) =>
         signing.sign(scope, request)) as PluginSigningService["sign"],
@@ -94,6 +101,8 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
           const evm = gateways.get(network, "evm", check);
           return facade({
             getTransactionReceipt: (hash: string) => evm.getTransactionReceipt(hash),
+            getErc20Balance: (contract: string, owner: string) =>
+              evm.getErc20Balance(contract, owner),
           } satisfies PluginEvmGateway);
         }
         const gateway = gateways.get(network, "tron", check);
@@ -113,6 +122,10 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
           ) => gateway.triggerConstantContract(contract, method, parameters, owner),
         } satisfies PluginTronGateway);
       }) as PluginGateways["get"],
+      client: (network, check) => {
+        const client = gateways.client(network, check);
+        return facade({ getNativeBalance: (address: string) => client.getNativeBalance(address) });
+      },
     }),
     contracts: facade({
       tron: facade({
@@ -133,7 +146,10 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
       official: (networkId) => tokens.official(networkId),
       effective: (networkId, account) => tokens.effective(networkId, account),
     }),
-    networks: facade({ aliases: () => aliases }),
+    networks: facade({
+      aliases: () => aliases,
+      resolve: (id) => deps.networks.resolve(id),
+    }),
     recipients: facade({ resolve: (family, input) => recipients.resolve(family, input) }),
     config: facade({
       networkBlock: (network, name) => networkBlock(network, name),
@@ -141,6 +157,13 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
     }),
     broadcastGuard: facade({ assertAllowed: () => broadcastGuard.assertAllowed() }),
     clock: facade({ now: () => clock() }),
+    lifetime: facade({ keepAlive: () => deps.lifetime.keepAlive() }),
+    // Only whether the selector resolves; the wallet record stays in the core.
+    accounts: facade({
+      checkAccount: (account, family) => {
+        deps.accounts.resolveAccount(account, family);
+      },
+    }),
   });
 }
 
@@ -171,12 +194,15 @@ export function pluginCommandContext(
     output: ctx.output,
     timeoutMs,
     // Refused before reading, so a secret on stdin is never handed to the plugin.
-    readStdinBytes: async () => {
+    readStdinBytes: async (input?: string) => {
       const claimed = SECRET_KINDS.find((kind) => ctx.secrets.has(kind));
       if (claimed !== undefined) {
+        const flag = `--${camelToKebab(claimed)}-stdin`;
         throw new UsageError(
           "invalid_option",
-          `stdin is already used by --${camelToKebab(claimed)}-stdin`,
+          input === undefined
+            ? `stdin is already used by ${flag}`
+            : `${input} cannot share stdin with ${flag}`,
         );
       }
       return ctx.streams.readStdinBytesOnce(ctx.deadline.signal);

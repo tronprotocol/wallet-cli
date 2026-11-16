@@ -1,7 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { CommandRegistry } from "../registry/index.js";
-import { registerX402Commands } from "./x402.js";
+import { x402Commands } from "../../../../plugins/x402/adapters/inbound/commands.js";
+import { pluginCommandContext } from "../../../../bootstrap/plugins/host.js";
 import { neutralInputSchema, parseInputSchema } from "../shell/index.js";
+
+// Registers the plugin's commands as the host does: each run gets the plugin context.
+function registerX402Commands(registry: CommandRegistry, service: never): void {
+  for (const command of x402Commands(() => service))
+    registry.add({
+      ...command,
+      run: (ctx: never, net: never, input: never) =>
+        command.run(pluginCommandContext(ctx, 0), net, input),
+    } as never);
+}
 
 const registry = new CommandRegistry();
 registerX402Commands(registry, {} as never);

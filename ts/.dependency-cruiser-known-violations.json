@@ -1,7 +1,7 @@
 [
   {
     "type": "dependency",
-    "from": "src/adapters/outbound/x402/gasfree-errors.test.ts",
+    "from": "src/plugins/x402/adapters/outbound/x402/gasfree-errors.test.ts",
     "to": "@bankofai/x402-tron/gasfree/client",
     "unresolvedTo": "@bankofai/x402-tron/gasfree/client",
     "dependencyTypes": ["unknown"],
@@ -12,7 +12,7 @@
   },
   {
     "type": "dependency",
-    "from": "src/adapters/outbound/x402/gasfree-errors.test.ts",
+    "from": "src/plugins/x402/adapters/outbound/x402/gasfree-errors.test.ts",
     "to": "node_modules/@bankofai/x402-fetch/dist/cjs/index.js",
     "unresolvedTo": "@bankofai/x402-fetch",
     "dependencyTypes": ["npm-dev", "import"],
@@ -23,7 +23,7 @@
   },
   {
     "type": "dependency",
-    "from": "src/adapters/outbound/x402/nile-settlement.test.ts",
+    "from": "src/plugins/x402/adapters/outbound/x402/nile-settlement.test.ts",
     "to": "@bankofai/x402-tron/exact/facilitator",
     "unresolvedTo": "@bankofai/x402-tron/exact/facilitator",
     "dependencyTypes": ["unknown"],

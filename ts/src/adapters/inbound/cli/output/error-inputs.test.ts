@@ -1,4 +1,6 @@
-import { X402Service } from "../../../../application/use-cases/x402-service.js";
+import { processBroadcastGuard } from "../../../../application/services/broadcast-guard.js";
+import { PluginSigning } from "../../../../application/services/plugins/plugin-signing.js";
+import { X402Service } from "../../../../plugins/x402/application/use-cases/x402-service.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,14 +14,25 @@ import { readBoundedTextFile } from "../commands/artifact.js";
 import { StreamManager } from "../stream/index.js";
 import { createOutputFormatter } from "./index.js";
 import { contractCreate2TronBinding, contractDeployEvmBinding } from "../commands/contract.js";
-import { registerX402Commands } from "../commands/x402.js";
+import { x402Commands } from "../../../../plugins/x402/adapters/inbound/commands.js";
+import { pluginCommandContext } from "../../../../bootstrap/plugins/host.js";
 import { registerWalletCommands } from "../commands/wallet.js";
 import { CommandRegistry } from "../registry/index.js";
 import { SignerResolver } from "../../../../application/services/signer/index.js";
-import { X402PaymentClient } from "../../../outbound/x402/payment-client.js";
-import { unsentPaymentError } from "../../../outbound/x402/payment-error.js";
+import { X402PaymentClient } from "../../../../plugins/x402/adapters/outbound/x402/payment-client.js";
+import { unsentPaymentError } from "../../../../plugins/x402/adapters/outbound/x402/payment-error.js";
 import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 import { normalizeCliError } from "./errors.js";
+
+// Registers the plugin's commands as the host does: each run gets the plugin context.
+function registerX402Commands(registry: CommandRegistry, service: never): void {
+  for (const command of x402Commands(() => service))
+    registry.add({
+      ...command,
+      run: (ctx: never, net: never, input: never) =>
+        command.run(pluginCommandContext(ctx, 0), net, input),
+    } as never);
+}
 
 function thrown(action: () => unknown): CliError {
   try {
@@ -168,7 +181,13 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
   it("preserves a keystore error's safe text through payment preparation", () => {
     const keystore = new Keystore(root(), new AtomicFileStore(), () => "unused");
     const resolver = new SignerResolver(keystore, {} as never, {} as never);
-    const client = new X402Service(new X402PaymentClient(), resolver, {} as never, {} as never);
+    const client = new X402Service(
+      new X402PaymentClient(),
+      new PluginSigning(resolver as never, {} as never),
+      {} as never,
+      {} as never,
+      processBroadcastGuard,
+    );
     const error = thrown(() =>
       client.prepare({ activeAccount: "missing\nFAKE_LOG" } as never, { family: "tron" } as never),
     );
@@ -241,9 +260,13 @@ describe("x402 not-sent errors keep CLI input spelling", () => {
     );
     const client = new X402Service(
       new X402PaymentClient(fetcher),
-      { resolve: vi.fn(), assertCanSign: vi.fn() } as never,
+      new PluginSigning(
+        { resolve: vi.fn(), assertCanSign: vi.fn() } as never as never,
+        {} as never,
+      ),
       {} as never,
       {} as never,
+      processBroadcastGuard,
     );
     const error = await client
       .pay(scope, net, { url: "https://api.example/resource", method: "GET", headers: [] })

@@ -4,14 +4,11 @@ import { UsageError } from "../../../domain/errors/index.js";
 import {
   capabilitySupport,
   isCoreCapability,
-  type CapabilityFacts,
   type CapabilityPredicate,
   type CapabilitySupport,
 } from "./predicates.js";
 
-export type { CapabilityFacts, CapabilityPredicate, CapabilitySupport } from "./predicates.js";
-
-const NO_DEFAULT_TOKENS: CapabilityFacts = { x402TokenRegistered: () => false };
+export type { CapabilityPredicate, CapabilitySupport } from "./predicates.js";
 
 // Discovery and the execution gate both read the predicate results recorded here.
 export class CapabilityRegistry {
@@ -21,10 +18,7 @@ export class CapabilityRegistry {
   // Keys recorded on a network before any predicate for them was known.
   #undecided = new Map<NetworkId, Set<string>>();
 
-  constructor(
-    private readonly aliases: Record<string, NetworkId> = {},
-    private readonly facts: CapabilityFacts = NO_DEFAULT_TOKENS,
-  ) {}
+  constructor(private readonly aliases: Record<string, NetworkId> = {}) {}
 
   // A capability that already has a predicate keeps it.
   hasPredicate(capability: string): boolean {
@@ -45,7 +39,7 @@ export class CapabilityRegistry {
     const undecided = this.#undecided.get(network.id) ?? new Set<string>();
     for (const key of capabilities) {
       if (cur.has(key) && !(undecided.has(key) && this.hasPredicate(key))) continue;
-      cur.set(key, capabilitySupport(key, network, this.facts, this.#predicates));
+      cur.set(key, capabilitySupport(key, network, this.#predicates));
       if (this.hasPredicate(key)) undecided.delete(key);
       else undecided.add(key);
     }

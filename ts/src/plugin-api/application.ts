@@ -23,12 +23,14 @@ export type {
 export type { TronCallOptions } from "../application/services/plugins/tron-contract-calls.js";
 export {
   DeadlineExpiredError,
+  withErrorDetails,
   type DispatchCheck,
   type ExecutionDeadline,
 } from "../application/contracts/deadline.js";
 export type { BroadcastGuard } from "../application/contracts/broadcast-guard.js";
 export {
   assertSubmitAdmitted,
+  CommandDeadline,
   endedByDeadline,
   requestDispatchCheck,
   submitDispatchCheck,
@@ -53,13 +55,17 @@ export type {
 } from "../application/services/capability/predicates.js";
 export type {
   MessagePayload,
+  TransactionPayload,
   TypedDataSignPayload,
   HostServices,
+  PluginAccounts,
   PluginClock,
   PluginConfig,
   PluginContracts,
   PluginEvmGateway,
   PluginGateways,
+  PluginLifetime,
+  PluginNativeBalance,
   PluginNetworks,
   PluginRecipients,
   PluginSigningService,

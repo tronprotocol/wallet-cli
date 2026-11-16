@@ -17,7 +17,8 @@ import type { PluginChainSpec } from "../../plugin-api/cli.js";
 import { hostServices, pluginCommandContext, registerPlugin, type PluginTargets } from "./host.js";
 import { BUILTIN_PLUGINS } from "./builtin.js";
 
-const SERVICES = {} as HostServices;
+// Built-in plugins read their service credentials when they register.
+const SERVICES = { config: { credential: () => undefined } } as unknown as HostServices;
 
 const NETWORKS = [
   { id: "tron:1", family: "tron", chainId: "1", nativeSymbol: "TRX", capabilities: [] },
@@ -435,18 +436,37 @@ describe("objects handed to a plugin", () => {
 
   it("refuse stdin when a secret was given on it", async () => {
     const ctx = pluginCommandContext(executionContext(["password"]), 0);
-    await expect(ctx.readStdinBytes()).rejects.toMatchObject({ code: "invalid_option" });
+    await expect(ctx.readStdinBytes()).rejects.toMatchObject({
+      code: "invalid_option",
+      message: "stdin is already used by --password-stdin",
+    });
+    await expect(ctx.readStdinBytes("--body-file -")).rejects.toMatchObject({
+      code: "invalid_option",
+      message: "--body-file - cannot share stdin with --password-stdin",
+    });
   });
 
   it("give each host service exactly its documented members", () => {
     const gateway = { getTrc20Balance: vi.fn(), getTokenInfo: vi.fn(), sendRaw: vi.fn() };
     const aliases = { nile: "tron:3448148188" };
     const services = hostServices({
-      signing: { assertCanSign: vi.fn(), signerAddress: vi.fn(), sign: vi.fn() } as never,
+      signing: {
+        assertCanSign: vi.fn(),
+        prepare: vi.fn(),
+        signerAddress: vi.fn(),
+        sign: vi.fn(),
+        resolve: vi.fn(),
+      } as never,
       tronCalls: { run: vi.fn(), gateways: {} } as never,
       tokens: { official: vi.fn(), effective: vi.fn(), add: vi.fn() } as never,
       aliases,
-      gateways: { get: () => gateway, client: vi.fn() } as never,
+      networks: { resolve: vi.fn(), resolveDefault: vi.fn() } as never,
+      lifetime: { keepAlive: vi.fn(), longLived: false } as never,
+      accounts: { resolveAccount: vi.fn(), unlock: vi.fn() } as never,
+      gateways: {
+        get: () => gateway,
+        client: () => ({ getNativeBalance: vi.fn(), x: 1 }),
+      } as never,
       contracts: {
         tron: { call: vi.fn(), send: vi.fn(), deploy: vi.fn() },
         evm: { call: vi.fn(), send: vi.fn(), deploy: vi.fn() },
@@ -467,9 +487,19 @@ describe("objects handed to a plugin", () => {
       "config",
       "broadcastGuard",
       "clock",
+      "lifetime",
+      "accounts",
     ]);
-    expect(reachable(services.signing)).toEqual(["assertCanSign", "signerAddress", "sign"]);
-    expect(reachable(services.gateways)).toEqual(["get"]);
+    expect(reachable(services.signing)).toEqual([
+      "assertCanSign",
+      "prepare",
+      "signerAddress",
+      "sign",
+    ]);
+    expect(reachable(services.gateways)).toEqual(["get", "client"]);
+    expect(reachable(services.gateways.client({} as never, {} as never))).toEqual([
+      "getNativeBalance",
+    ]);
     expect(reachable(services.gateways.get({} as never, "tron", {} as never))).toEqual([
       "getTrc20Balance",
       "getTokenInfo",
@@ -480,13 +510,14 @@ describe("objects handed to a plugin", () => {
     ]);
     expect(reachable(services.gateways.get({} as never, "evm", {} as never))).toEqual([
       "getTransactionReceipt",
+      "getErc20Balance",
     ]);
     expect(reachable(services.contracts)).toEqual(["tron", "evm"]);
     expect(reachable(services.contracts.tron)).toEqual(["call", "send"]);
     expect(reachable(services.contracts.evm)).toEqual(["call", "send"]);
     expect(reachable(services.tronCalls)).toEqual(["run"]);
     expect(reachable(services.tokens)).toEqual(["official", "effective"]);
-    expect(reachable(services.networks)).toEqual(["aliases"]);
+    expect(reachable(services.networks)).toEqual(["aliases", "resolve"]);
     aliases.nile = "changed";
     expect(services.networks.aliases()).toEqual({ nile: "tron:3448148188" });
     expect(Object.isFrozen(services.networks.aliases())).toBe(true);
@@ -495,6 +526,9 @@ describe("objects handed to a plugin", () => {
     expect(reachable(services.broadcastGuard)).toEqual(["assertAllowed"]);
     expect(reachable(services.clock)).toEqual(["now"]);
     expect(services.clock.now()).toBe(7);
+    expect(reachable(services.lifetime)).toEqual(["keepAlive"]);
+    expect(reachable(services.accounts)).toEqual(["checkAccount"]);
+    expect(services.accounts.checkAccount("main", "tron")).toBeUndefined();
     expect(services.config.credential("tronlinkSecretKey" as never)).toBeUndefined();
     expect(services.config.credential("gasfreeApiKey")).toBe("k");
   });

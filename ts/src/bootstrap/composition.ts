@@ -1,19 +1,10 @@
 import { processBroadcastGuard } from "../application/services/broadcast-guard.js";
 import { CommandDeadline } from "../application/services/command-deadline.js";
 import { systemWallClock } from "../application/contracts/wall-clock.js";
-import { MessageSigner } from "../application/services/signing/message-signer.js";
-import { ManagedX402Server } from "./x402-server-lifecycle.js";
-import { daemonChildTimeoutMs } from "./x402-daemon.js";
 import { ProcessLifetime } from "./process-lifetime.js";
-import { setTimeout as delay } from "node:timers/promises";
-import { DEFAULT_X402_FACILITATOR_URL } from "../application/services/x402/facilitator.js";
-import { BaiWalletBinding } from "../application/use-cases/bai-wallet-binding.js";
-import { baiReportDelayMs } from "../application/use-cases/bai-report-delay.js";
 import { MigrationService } from "../application/use-cases/migration-service.js";
 import { FileDataMigrations } from "../adapters/outbound/persistence/migration.js";
 import { migrationSteps } from "./migration-steps.js";
-import { BaiRechargeClient } from "../adapters/outbound/bai/recharge-client.js";
-import { BAI_RECHARGE_ADDRESSES } from "../adapters/outbound/config/bai-builtins.js";
 import type { OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
 import { ConfigLoader, NetworkRegistry } from "../adapters/outbound/config/index.js";
@@ -42,7 +33,6 @@ import { SignerResolver } from "../application/services/signer/index.js";
 import { TargetResolver } from "../application/services/target/index.js";
 import { TxPipeline } from "../application/services/pipeline/index.js";
 import { SigningService } from "../application/services/signing/signing-service.js";
-import { X402Permit2Approvals } from "../application/use-cases/x402-permit2-approval.js";
 import { ConfigService, configuredCredentials } from "../application/use-cases/config-service.js";
 import { WalletService } from "../application/use-cases/wallet-service.js";
 import { familyMap } from "./family-registry.js";
@@ -61,21 +51,11 @@ import { SecureKeypairWriter } from "../adapters/outbound/persistence/keypair-wr
 import { registerEncodingCommands } from "../adapters/inbound/cli/commands/encoding.js";
 import { registerAddressCommands } from "../adapters/inbound/cli/commands/address.js";
 import { TerminalQrEncoder } from "../adapters/outbound/qr/index.js";
-import { BaiClient } from "../adapters/outbound/bai/client.js";
-import { BaiService } from "../application/use-cases/bai-service.js";
-import { registerBaiCommands } from "../adapters/inbound/cli/commands/bai.js";
 import { EvmContractService } from "../application/use-cases/evm/contract-service.js";
 import { TronContractService } from "../application/use-cases/tron/contract-service.js";
-import { X402PaymentClient } from "../adapters/outbound/x402/payment-client.js";
-import { X402ProviderCatalog } from "../adapters/outbound/x402/provider-catalog.js";
-import { X402Service } from "../application/use-cases/x402-service.js";
-import { registerX402Commands } from "../adapters/inbound/cli/commands/x402.js";
-import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
-import { createX402DaemonLog } from "../adapters/outbound/x402/daemon-log.js";
-import { X402PaywallHttpServer } from "../adapters/inbound/http/x402/paywall-server.js";
 import { PluginSigning } from "../application/services/plugins/plugin-signing.js";
 import { TronContractCalls } from "../application/services/plugins/tron-contract-calls.js";
-import { BUILTIN_PLUGINS, gasfreeOpenApi } from "./plugins/builtin.js";
+import { BUILTIN_PLUGINS } from "./plugins/builtin.js";
 import { hostServices, registerPlugin, RESERVED_WORDS } from "./plugins/host.js";
 import { PluginLoader } from "./plugins/loader.js";
 import { FilePluginStore } from "../adapters/outbound/plugins/store.js";
@@ -94,7 +74,7 @@ export interface BootstrapOptions {
 
 export function composeCliRuntime(options: BootstrapOptions) {
   const config = ConfigLoader.load();
-  const timeoutMs = daemonChildTimeoutMs() ?? options.globals.timeoutMs ?? config.timeoutMs;
+  const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
   const deadline = new CommandDeadline(timeoutMs, options.monotonicStart);
   const lifetime = new ProcessLifetime(deadline);
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
@@ -138,11 +118,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     ),
   );
   const gatewayProvider = new ChainGatewayRegistry(familyMap((plugin) => plugin.createGateway));
-  const x402Facilitator = new X402FacilitatorClient();
-  const capabilityRegistry = new CapabilityRegistry(config.aliases, {
-    x402TokenRegistered: (network, symbol) =>
-      x402Facilitator.assetBySymbol(network, "exact", symbol) !== undefined,
-  });
+  const capabilityRegistry = new CapabilityRegistry(config.aliases);
   const signerResolver = new SignerResolver(
     keystore,
     ledger,
@@ -161,54 +137,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
   registerContactCommands(registry, new ContactService(contactBook));
   registerEncodingCommands(registry, new EncodingService());
   registerAddressCommands(registry, new AddressService(new SecureKeypairWriter(root)));
-  const x402Payments = new X402PaymentClient(undefined, undefined, {
-    gasfreeApiKey: config.gasfreeApiKey,
-    gasfreeApiSecret: config.gasfreeApiSecret,
-    gasfreeOpenApi,
-  });
-  const x402Service = new X402Service(
-    x402Payments,
-    signerResolver,
-    new X402ProviderCatalog(),
-    networkRegistry,
-    {
-      facilitator: x402Facilitator,
-      host: new ManagedX402Server(
-        new X402PaywallHttpServer(
-          (line) => streams.errorLine(line),
-          (line) => streams.diagnostic("debug", line),
-        ),
-        createX402DaemonLog,
-        lifetime,
-        timeoutMs,
-      ),
-      requestTimeoutMs: timeoutMs,
-    },
-    new X402Permit2Approvals(gatewayProvider, txPipeline, systemWallClock),
-    signing,
-  );
-  registerBaiCommands(
-    registry,
-    new BaiService(
-      new BaiClient(config),
-      () => new Date(),
-      x402Service,
-      new BaiWalletBinding(new MessageSigner(signerResolver, signing)),
-      new BaiRechargeClient(config),
-      { facilitatorUrl: DEFAULT_X402_FACILITATOR_URL, payTo: BAI_RECHARGE_ADDRESSES },
-      {
-        initialDelayMs: baiReportDelayMs(process.env.WALLET_CLI_BAI_REPORT_DELAY_MS),
-        wait: (ms, signal) => delay(ms, undefined, { signal }),
-      },
-      gatewayProvider,
-      keystore,
-    ),
-  );
   const contracts = {
     evm: new EvmContractService(gatewayProvider, txPipeline),
     tron: new TronContractService(gatewayProvider, txPipeline, systemWallClock),
   };
-  registerX402Commands(registry, x402Service);
   const accountBalances = new AccountBalanceService(gatewayProvider);
   const tokenBookService = new TokenBookService(tokenBook);
   registerTronChainCommands(registry, {
@@ -242,6 +174,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
     tronCalls: new TronContractCalls(gatewayProvider, txPipeline, systemWallClock),
     tokens: tokenBook,
     aliases: config.aliases,
+    networks: networkRegistry,
+    lifetime,
+    accounts: keystore,
     gateways: gatewayProvider,
     contracts,
     recipients: recipientResolver,

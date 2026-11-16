@@ -7,6 +7,7 @@ export type {
   PluginFamilyBinding,
 } from "./command.js";
 export type {
+  ExclusiveGroup,
   TextFormatter,
   TextRenderContext,
 } from "../adapters/inbound/cli/contracts/command.js";
@@ -19,6 +20,7 @@ export {
   receipt,
   table,
   warn,
+  type Pair,
 } from "../adapters/inbound/cli/render/layout.js";
 export {
   formatAmount,
@@ -40,8 +42,9 @@ export {
   TOKEN_BOOK_MARK,
   withTokenBookNotes,
 } from "../adapters/inbound/cli/render/token-book.js";
+export { structuredText } from "../adapters/inbound/cli/render/structured.js";
 export { formatFee, TxFormatters } from "../adapters/inbound/cli/render/tx.js";
-export { cliMessage, exitCodeOf } from "../adapters/inbound/cli/output/errors.js";
+export { cliMessage, exitCodeOf, FollowUpTable } from "../adapters/inbound/cli/output/errors.js";
 export {
   addressFamilyFieldsFor,
   addressFieldsFor,

@@ -5,17 +5,22 @@ export type {
   Bytes,
   ChainFamily,
   EffectiveTokenEntry,
+  EvmSignedTx,
+  EvmUnsignedTx,
   FeeReport,
   JsonValue,
   NetworkBlock,
   NetworkDescriptor,
   NetworkId,
+  SignedTxOf,
   TokenEntry,
   TronFeeReport,
+  TronTransactionArtifact,
   TxReceiptView,
   TxOutcome,
   TypedDataPayload,
   TypedDataSignature,
+  UnsignedTx,
   WarningView,
 } from "../domain/types/index.js";
 export { isTronNetwork, networkBlock } from "../domain/types/index.js";
@@ -28,6 +33,8 @@ export {
   ExecutionError,
   followUpStep as followUp,
   inputRef,
+  isUserMessage,
+  replaceMessageLayout,
   TransportError,
   UsageError,
   WalletError,
@@ -49,18 +56,23 @@ export {
   type Wei,
 } from "../domain/amounts/index.js";
 export {
+  EvmAddress,
   publicKeyHash20,
   TronAddress,
   tronAddressBytes,
   tronAddressFromHash20,
   tronAddressToEvmHex,
   tronHash20Hex,
+  tronHexFromHash20,
   tronHexAddress,
   tronHexToBase58,
 } from "../domain/address/index.js";
 export {
+  addressCodec,
+  addressShape,
   CHAIN_FAMILIES,
   FAMILIES,
+  isTxHash,
   normalizeTxHash,
   sameAddress,
   tronAddressFromEvmHex,
@@ -68,4 +80,4 @@ export {
 export { matchTokenSymbol } from "../domain/token/symbol.js";
 export { isUnlimitedAllowance, UNLIMITED_ALLOWANCE } from "../domain/token/allowance.js";
 export { DEFAULT_FEE_LIMIT_SUN } from "../domain/fees/tron.js";
-export { normalizeTypedData } from "../domain/typed-data/index.js";
+export { normalizeTypedData, resolvePrimaryType } from "../domain/typed-data/index.js";

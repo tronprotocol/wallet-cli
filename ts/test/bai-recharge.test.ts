@@ -34,7 +34,7 @@ it.each([
       const log = join(home, "calls.jsonl");
       const loader = join(home, "backend.mjs");
       const paymentModule = pathToFileURL(
-        join(process.cwd(), "src/adapters/outbound/x402/payment-client.ts"),
+        join(process.cwd(), "src/plugins/x402/adapters/outbound/x402/payment-client.ts"),
       ).href;
       writeFileSync(
         loader,
@@ -42,7 +42,7 @@ it.each([
       import {verifyMessage} from ${JSON.stringify(import.meta.resolve("ethers"))};
       import {utils as tronUtils} from ${JSON.stringify(import.meta.resolve("tronweb"))};
       import {X402PaymentClient} from ${JSON.stringify(paymentModule)};
-      import {X402Service} from ${JSON.stringify(pathToFileURL(join(process.cwd(), "src/application/use-cases/x402-service.ts")).href)};
+      import {X402Service} from ${JSON.stringify(pathToFileURL(join(process.cwd(), "src/plugins/x402/application/use-cases/x402-service.ts")).href)};
       const log = (value) => appendFileSync(${JSON.stringify(log)}, JSON.stringify(value)+'\\n');
       globalThis.fetch = async (url, init) => {
         if (init.headers.Authorization !== 'Bearer test-key') throw new Error('missing credential');

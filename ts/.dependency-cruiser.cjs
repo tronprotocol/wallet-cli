@@ -45,6 +45,8 @@ const PLUGIN_INTEGRATIONS = PLUGINS.flatMap((plugin) =>
 const layer = (directory) => `^src/(${directory}|plugins/[^/]+/${directory})`;
 // A plugin's index.ts and api.ts play the role of bootstrap.
 const PLUGIN_ROOT = "^src/plugins/[^/]+/[^/]+$";
+// What a built-in plugin offers the plugins that depend on it (rule 9.1).
+const PLUGIN_API = "^src/plugins/[^/]+/api\\.ts$";
 // The plugin-api entries each plugin layer may import (rule 9.2).
 const PLUGIN_LAYER_ENTRIES = {
   domain: ["domain"],
@@ -138,15 +140,19 @@ module.exports = {
     {
       name: "application-owns-ports",
       severity: "error",
-      comment: "production application code depends on domain and its own ports, never adapters",
+      comment:
+        "production application code depends on domain and its own ports, never adapters; a plugin's may use the api.ts of a plugin it depends on",
       from: { path: `${layer("application")}/`, pathNot: "\\.test\\.ts$" },
-      to: { path: ["^src/(adapters|bootstrap)/", "^src/plugins/[^/]+/adapters/", PLUGIN_ROOT] },
+      to: {
+        path: ["^src/(adapters|bootstrap)/", "^src/plugins/[^/]+/adapters/", PLUGIN_ROOT],
+        pathNot: PLUGIN_API,
+      },
     },
     {
       name: "inbound-does-not-know-outbound",
       severity: "error",
       comment:
-        "CLI adapters call application ports/use-cases; bootstrap/composition supplies outbound implementations",
+        "CLI adapters call application ports/use-cases; bootstrap/composition supplies outbound implementations; a plugin's may use the api.ts of a plugin it depends on",
       from: { path: `${layer("adapters")}/inbound/`, pathNot: "\\.test\\.ts$" },
       to: {
         path: [
@@ -154,6 +160,7 @@ module.exports = {
           "^src/plugins/[^/]+/adapters/outbound/",
           PLUGIN_ROOT,
         ],
+        pathNot: PLUGIN_API,
       },
     },
     {
@@ -311,10 +318,7 @@ module.exports = {
       comment: "the ERC-8004 SDK client can send; only the registry wrapper imports it at runtime",
       from: {
         path: "^src/",
-        pathNot: [
-          "^src/adapters/outbound/erc8004/sdk-registry\\.ts$",
-          "^src/plugins/erc8004/adapters/outbound/erc8004/sdk-registry\\.ts$",
-        ],
+        pathNot: "^src/plugins/erc8004/adapters/outbound/erc8004/sdk-registry\\.ts$",
       },
       to: {
         path: "(^|node_modules/)@bankofai/8004-sdk(/|$)",
@@ -328,10 +332,7 @@ module.exports = {
         "the x402 modules that sign, send, or settle payments; only the payment client imports them",
       from: {
         path: "^src/",
-        pathNot: [
-          "^src/adapters/outbound/x402/payment-client\\.ts$",
-          "^src/plugins/x402/adapters/outbound/x402/payment-client\\.ts$",
-        ],
+        pathNot: "^src/plugins/x402/adapters/outbound/x402/payment-client\\.ts$",
       },
       to: { path: `(^|node_modules/)@bankofai/(${X402_PAYMENT_PATTERN})` },
     },

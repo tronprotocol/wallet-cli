@@ -85,6 +85,8 @@ export default tseslint.config(
       "src/adapters/inbound/cli/help/index.ts",
       "src/adapters/outbound/config/index.ts",
       "src/adapters/outbound/ledger/index.ts",
+      "src/plugins/x402/index.ts",
+      "src/plugins/bai/index.ts",
     ],
     rules: { "wallet-cli/environment-reads": "off" },
   },

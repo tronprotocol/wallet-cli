@@ -36,9 +36,16 @@ export interface TextRenderContext {
 
 export type TextFormatter<O = unknown> = (data: O, ctx: TextRenderContext) => string | null;
 
+export interface RejectedGlobals {
+  readonly options: readonly ("account" | "network")[];
+  readonly message: string;
+}
+
 interface CommandDefinitionBase<I, O> {
   // The path supplies the default envelope command ID.
   path: string[];
+  // Global options the command refuses, and the message of that refusal.
+  rejectsGlobals?: RejectedGlobals;
   // Documents the matching --*-stdin flag.
   stdin?: StdinChannel;
   wallet: WalletRequirement;
@@ -106,6 +113,8 @@ export interface ChainSpec<_I = any, O = any> {
   capability?: string;
   // Reason to reject --account; wallet: "none" alone does not reject it.
   rejectsAccount?: string;
+  // Global options the command refuses, and the message of that refusal.
+  rejectsGlobals?: RejectedGlobals;
   // Reason to reject --wait and --no-wait on a command that otherwise broadcasts.
   rejectsWait?: string;
   // Boolean mode field, besides dryRun, buildOnly and signOnly, that submits nothing; schema
@@ -144,6 +153,7 @@ export type CommandExecutionSpec = Pick<
   | "broadcasts"
   | "capability"
   | "rejectsAccount"
+  | "rejectsGlobals"
   | "rejectsWait"
   | "rejectsWaitWith"
   | "interactive"
