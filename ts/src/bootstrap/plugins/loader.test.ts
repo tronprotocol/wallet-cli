@@ -128,6 +128,30 @@ describe("PluginLoader", () => {
       "registration failed",
     ],
     ["a missing entry file", { file: null }, "entry file is missing"],
+    [
+      "a definition getter that throws",
+      {
+        source: moduleSource("broken", ["broken"])
+          .replace(
+            "export default {",
+            'export default { get groups() { throw new Error("getter boom"); },',
+          )
+          .replace(/groups: \[\{.*\}\],\n/, ""),
+      },
+      "definition could not be read (getter boom)",
+    ],
+    [
+      "a group summary that differs from its manifest",
+      { source: moduleSource("broken", ["broken"]).replace("broken cmds", "other text") },
+      "does not match its manifest (groups)",
+    ],
+    [
+      "group families that differ from its manifest",
+      {
+        source: moduleSource("broken", ["broken"]).replace('"families":[]', '"families":["tron"]'),
+      },
+      "does not match its manifest (groups)",
+    ],
   ])("marks a plugin broken on %s and publishes none of it", async (_label, opts, reason) => {
     const t = setup([plugin("broken", opts as never), plugin("healthy")]);
     await t.loader.load({ all: true }, t.warn);

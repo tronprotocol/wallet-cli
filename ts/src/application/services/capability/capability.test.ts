@@ -123,4 +123,31 @@ describe("CapabilityRegistry.addPredicates", () => {
     expect(caps.hasPredicate("demo.read")).toBe(true);
     expect(caps.hasPredicate("other.read")).toBe(false);
   });
+
+  it("decides a key registered before its predicate existed by the predicate, in gate and discovery", () => {
+    const caps = new CapabilityRegistry(ALIASES);
+    const nile = { ...network(NILE), capabilities: ["demo.trade"] } as NetworkDescriptor;
+    // The first pass: the network configuration lists the key, and no plugin predicate is loaded.
+    caps.register(nile, nile.capabilities);
+    expect(caps.support(NILE, "demo.trade")).toBe("supported");
+    caps.addPredicates({ "demo.trade": () => "unsupported" });
+    caps.register(nile, nile.capabilities);
+    expect(caps.support(NILE, "demo.trade")).toBe("unsupported");
+    expect(caps.supportByNetwork("demo.trade")).toEqual([
+      { network: NILE, family: "tron", support: "unsupported" },
+    ]);
+    expect(() => caps.check({ capability: "demo.trade", path: ["demo", "trade"] }, nile)).toThrow(
+      expect.objectContaining({ code: "unsupported_network_capability" }),
+    );
+  });
+
+  it("keeps the first result of a key whose predicate was known when it was recorded", () => {
+    const caps = new CapabilityRegistry(ALIASES);
+    let answer: "supported" | "unsupported" = "supported";
+    caps.addPredicates({ "demo.trade": () => answer });
+    caps.register(network(NILE), ["demo.trade"]);
+    answer = "unsupported";
+    caps.register(network(NILE), ["demo.trade"]);
+    expect(caps.support(NILE, "demo.trade")).toBe("supported");
+  });
 });

@@ -5,7 +5,7 @@ import type { InstalledPlugin, PluginStore } from "../../application/ports/plugi
 import type { PluginLoadState } from "../../application/use-cases/plugin-service.js";
 import { ExecutionError, type CliError } from "../../domain/errors/index.js";
 import { incompatiblePlugin, pluginCompatibility } from "../../domain/plugins/index.js";
-import type { PluginDefinition } from "../../plugin-api/index.js";
+import type { PluginDefinition, PluginGroup } from "../../plugin-api/index.js";
 import { publishPluginApi } from "./api-object.js";
 import { registerPlugin, type PluginTargets } from "./host.js";
 
@@ -116,14 +116,20 @@ export class PluginLoader {
       this.#fail(entry, `its entry file failed to load (${messageOf(error)})`);
       return;
     }
-    const mismatch = definitionMismatch(definition, plugin);
-    if (mismatch) {
-      this.#fail(entry, mismatch);
-      return;
-    }
-    const registration = registerPlugin(definition as PluginDefinition, this.targets);
-    if (!registration.ok) {
-      this.#fail(entry, `its registration failed (${registration.reason})`);
+    // The definition is plugin code too: its getters may throw.
+    try {
+      const mismatch = definitionMismatch(definition, plugin);
+      if (mismatch) {
+        this.#fail(entry, mismatch);
+        return;
+      }
+      const registration = registerPlugin(definition as PluginDefinition, this.targets);
+      if (!registration.ok) {
+        this.#fail(entry, `its registration failed (${registration.reason})`);
+        return;
+      }
+    } catch (error) {
+      this.#fail(entry, `its definition could not be read (${messageOf(error)})`);
       return;
     }
     this.#imported.add(entry.name);
@@ -158,14 +164,24 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+// The group fields that discovery reads, from the manifest or from the definition.
+function groupKey(group: Partial<PluginGroup> | undefined): string {
+  return JSON.stringify([
+    group?.name,
+    group?.summary,
+    group?.description,
+    Array.isArray(group?.families) ? [...group.families] : group?.families,
+  ]);
+}
+
 // The module must be the plugin its manifest describes.
 function definitionMismatch(definition: unknown, plugin: InstalledPlugin): string | undefined {
   if (typeof definition !== "object" || definition === null) {
     return "its entry file has no plugin definition as its default export";
   }
   const d = definition as Partial<PluginDefinition>;
-  const groups = Array.isArray(d.groups) ? d.groups.map((g) => g?.name) : [];
-  const expected = plugin.groups.map((g) => g.name);
+  const groups = Array.isArray(d.groups) ? d.groups.map(groupKey) : [];
+  const expected = plugin.groups.map(groupKey);
   const differs: string[] = [];
   if (d.name !== plugin.name) differs.push("name");
   if (d.version !== plugin.version) differs.push("version");

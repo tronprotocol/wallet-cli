@@ -18,6 +18,8 @@ export class CapabilityRegistry {
   #byNetwork = new Map<NetworkId, Map<string, CapabilitySupport>>();
   #families = new Map<NetworkId, ChainFamily>();
   #predicates = new Map<string, CapabilityPredicate>();
+  // Keys recorded on a network before any predicate for them was known.
+  #undecided = new Map<NetworkId, Set<string>>();
 
   constructor(
     private readonly aliases: Record<string, NetworkId> = {},
@@ -29,20 +31,26 @@ export class CapabilityRegistry {
     return isCoreCapability(capability) || this.#predicates.has(capability);
   }
 
-  // Must run before register(), which records the results.
+  // A key already registered without a predicate takes this one's result at the next register().
   addPredicates(predicates: Readonly<Record<string, CapabilityPredicate>>): void {
     for (const [key, predicate] of Object.entries(predicates)) {
       if (!this.hasPredicate(key)) this.#predicates.set(key, predicate);
     }
   }
 
-  // Records each capability's predicate result on the network; repeated keys keep the first result.
+  // Records each capability's predicate result on the network; repeated keys keep the first
+  // result, except a key recorded before its predicate was added, which takes the predicate's.
   register(network: NetworkDescriptor, capabilities: readonly string[]): void {
     const cur = this.#byNetwork.get(network.id) ?? new Map<string, CapabilitySupport>();
-    for (const key of capabilities)
-      if (!cur.has(key))
-        cur.set(key, capabilitySupport(key, network, this.facts, this.#predicates));
+    const undecided = this.#undecided.get(network.id) ?? new Set<string>();
+    for (const key of capabilities) {
+      if (cur.has(key) && !(undecided.has(key) && this.hasPredicate(key))) continue;
+      cur.set(key, capabilitySupport(key, network, this.facts, this.#predicates));
+      if (this.hasPredicate(key)) undecided.delete(key);
+      else undecided.add(key);
+    }
     this.#byNetwork.set(network.id, cur);
+    this.#undecided.set(network.id, undecided);
     this.#families.set(network.id, network.family);
   }
 
