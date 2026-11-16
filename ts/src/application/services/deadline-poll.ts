@@ -4,8 +4,8 @@ import type { ExecutionDeadline } from "../contracts/deadline.js";
 import { endedByDeadline, untilDeadline, type MonotonicClock } from "./command-deadline.js";
 
 const POLL_INTERVAL_MS = 1500;
-// Shortest step after one that was cut to the deadline's remaining time and found it not expired, so a
-// remaining time that does not shrink (a paused deadline) cannot cause a run of sub-millisecond wakeups.
+// Shortest step after a step cut to the deadline's remaining time when that time did not shrink (a paused
+// deadline), so it cannot cause a run of sub-millisecond wakeups.
 const MIN_STEP_AFTER_CUT_MS = 25;
 const MONOTONIC_CLOCK: MonotonicClock = { now: () => performance.now() };
 
@@ -33,13 +33,10 @@ function retriesUnchanged(error: unknown): boolean {
 }
 
 // True only after the whole interval passed within the deadline; false as soon as the deadline expires.
-// The interval is measured on `clock`, not by adding up timer delays.
-export function sleepWithin(
-  deadline: ExecutionDeadline,
-  ms: number,
-  clock: MonotonicClock = MONOTONIC_CLOCK,
-): Promise<boolean> {
+// The interval is measured on a monotonic clock, not by adding up timer delays.
+export function sleepWithin(deadline: ExecutionDeadline, ms: number): Promise<boolean> {
   if (deadline.expired()) return Promise.resolve(false);
+  const clock = MONOTONIC_CLOCK;
   const end = clock.now() + ms;
   return new Promise((resolve) => {
     const signal = deadline.signal;
@@ -52,18 +49,21 @@ export function sleepWithin(
       signal.removeEventListener("abort", onAbort);
       resolve(value);
     };
-    const arm = (afterCut: boolean) => {
+    // `cutAt` is the remaining time the previous step was cut to, if it was cut.
+    const arm = (cutAt?: number) => {
       const left = end - clock.now();
       const remaining = deadline.remainingMs();
       let step = Math.min(left, remaining);
-      if (afterCut) step = Math.max(step, Math.min(left, MIN_STEP_AFTER_CUT_MS));
+      if (cutAt !== undefined && remaining >= cutAt) {
+        step = Math.max(step, Math.min(left, MIN_STEP_AFTER_CUT_MS));
+      }
       timer = setTimeout(() => {
         if (deadline.expired()) return settle(false);
         if (end - clock.now() <= 0) return settle(true);
-        arm(remaining < left);
+        arm(remaining < left ? remaining : undefined);
       }, step);
     };
     signal.addEventListener("abort", onAbort, { once: true });
-    arm(false);
+    arm();
   });
 }

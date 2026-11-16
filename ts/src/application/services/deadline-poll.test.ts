@@ -92,8 +92,9 @@ describe("sleepWithin", () => {
     } as unknown as ExecutionDeadline;
   }
 
-  // Fake timers move Date.now(); the sleep measures its interval on this clock.
-  const CLOCK = { now: () => Date.now() };
+  // The sleep measures its interval on performance.now(), so the fake timers move it too.
+  const useFakeTime = () =>
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date", "performance"] });
 
   async function settled(promise: Promise<boolean>) {
     let value: boolean | undefined;
@@ -103,7 +104,7 @@ describe("sleepWithin", () => {
   }
 
   it("gives false when the shortened timer fires before the deadline's clock says it expired", async () => {
-    vi.useFakeTimers();
+    useFakeTime();
     try {
       const start = Date.now();
       let first = true;
@@ -112,10 +113,10 @@ describe("sleepWithin", () => {
         () => (first ? ((first = false), 100) : Math.max(0, 105 - (Date.now() - start))),
         () => Date.now() - start >= 105,
       );
-      const slept = sleepWithin(deadline, 1500, CLOCK);
-      await vi.advanceTimersByTimeAsync(100);
+      const slept = sleepWithin(deadline, 1500);
+      await vi.advanceTimersByTimeAsync(104);
       expect(await settled(slept)).toBeUndefined();
-      await vi.advanceTimersByTimeAsync(1500);
+      await vi.advanceTimersByTimeAsync(1);
       await expect(slept).resolves.toBe(false);
     } finally {
       vi.useRealTimers();
@@ -123,7 +124,7 @@ describe("sleepWithin", () => {
   });
 
   it("gives true once the whole interval passed within the deadline", async () => {
-    vi.useFakeTimers();
+    useFakeTime();
     try {
       const start = Date.now();
       const slept = sleepWithin(
@@ -132,7 +133,6 @@ describe("sleepWithin", () => {
           () => false,
         ),
         1500,
-        CLOCK,
       );
       await vi.advanceTimersByTimeAsync(1499);
       expect(await settled(slept)).toBeUndefined();
@@ -144,7 +144,7 @@ describe("sleepWithin", () => {
   });
 
   it("ends after the interval while the deadline is paused", async () => {
-    vi.useFakeTimers();
+    useFakeTime();
     try {
       const slept = sleepWithin(
         deadlineOf(
@@ -152,7 +152,6 @@ describe("sleepWithin", () => {
           () => false,
         ),
         1500,
-        CLOCK,
       );
       await vi.advanceTimersByTimeAsync(1400);
       expect(await settled(slept)).toBeUndefined();
@@ -171,7 +170,7 @@ describe("sleepWithin", () => {
   });
 
   it("needs a bounded number of timers for a paused deadline with 0.1 ms left", async () => {
-    vi.useFakeTimers();
+    useFakeTime();
     try {
       const timers = vi.spyOn(globalThis, "setTimeout");
       const slept = sleepWithin(
@@ -180,7 +179,6 @@ describe("sleepWithin", () => {
           () => false,
         ),
         1500,
-        CLOCK,
       );
       await vi.advanceTimersByTimeAsync(1499);
       expect(await settled(slept)).toBeUndefined();
@@ -195,7 +193,7 @@ describe("sleepWithin", () => {
   });
 
   it("does not end early for a paused deadline with 1.9 ms left", async () => {
-    vi.useFakeTimers();
+    useFakeTime();
     try {
       const slept = sleepWithin(
         deadlineOf(
@@ -203,12 +201,31 @@ describe("sleepWithin", () => {
           () => false,
         ),
         1500,
-        CLOCK,
       );
       await vi.advanceTimersByTimeAsync(1499);
       expect(await settled(slept)).toBeUndefined();
       await vi.advanceTimersByTimeAsync(1);
       await expect(slept).resolves.toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("settles false at expiry for a disposed deadline with a fractional remainder", async () => {
+    useFakeTime();
+    try {
+      const deadline = new CommandDeadline(100.5);
+      // Its own timer no longer fires, so only the sleep's checks can find it expired.
+      deadline.dispose();
+      const start = performance.now();
+      const slept = sleepWithin(deadline, 1500);
+      let result: boolean | undefined;
+      while (result === undefined && performance.now() - start < 200) {
+        await vi.advanceTimersByTimeAsync(1);
+        result = await settled(slept);
+      }
+      expect(result).toBe(false);
+      expect(performance.now() - start).toBeLessThanOrEqual(102);
     } finally {
       vi.useRealTimers();
     }
