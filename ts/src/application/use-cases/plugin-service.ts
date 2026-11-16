@@ -39,6 +39,8 @@ export interface BuiltinPluginInfo {
   readonly apiVersion: number;
   readonly apiRevision: number;
   readonly groups: readonly string[];
+  // Why the plugin could not be registered in this process; absent when it was.
+  readonly failure?: string;
 }
 
 export type PluginLoadState =
@@ -84,6 +86,8 @@ export type PluginUpdateResult =
       readonly status: "updated";
       readonly from: string;
       readonly to: string;
+      // The update is installed, but this part of it could not be completed.
+      readonly incomplete?: string;
     }
   | { readonly name: string; readonly status: "unchanged"; readonly version: string }
   | {
@@ -123,7 +127,9 @@ export class PluginService {
       apiRevision: b.apiRevision,
       groups: b.groups,
       kind: "builtin",
-      state: "ok",
+      ...(b.failure === undefined
+        ? { state: "ok" as const }
+        : { state: "broken" as const, reason: b.failure }),
     }));
     const installed = this.store
       .list()
@@ -194,7 +200,13 @@ export class PluginService {
     deadline: ExecutionDeadline,
   ): Promise<PluginUpdateResult[]> {
     const check = requestDispatchCheck(deadline);
-    if (name !== undefined) return [await this.#updateOne(this.#installed(name), check)];
+    if (name !== undefined) {
+      try {
+        return [await this.#updateOne(this.#installed(name), check)];
+      } catch (error) {
+        throw error instanceof CommittedUpdate ? error.error : error;
+      }
+    }
     const results: PluginUpdateResult[] = [];
     let firstFailure: CliError | undefined;
     for (const stored of this.store.list().sort((a, b) => nameOf(a).localeCompare(nameOf(b)))) {
@@ -207,6 +219,11 @@ export class PluginService {
         }
         results.push(await this.#updateOne(stored.plugin, check));
       } catch (error) {
+        if (error instanceof CommittedUpdate) {
+          firstFailure ??= error.error;
+          results.push({ ...error.result, incomplete: error.error.message });
+          continue;
+        }
         const failure = classifyError(error);
         firstFailure ??= failure;
         results.push({
@@ -265,31 +282,39 @@ export class PluginService {
       );
     }
     const record = this.#record(valid);
-    return this.store.update<PluginUpdateResult>(current.name, (installed) => {
-      const stored = installed.find((s) => nameOf(s) === current.name);
-      if (stored === undefined) throw notInstalled(current.name);
-      const before = stored.state === "installed" ? stored.plugin : undefined;
-      if (
-        before !== undefined &&
-        before.version === record.version &&
-        before.entrySha256 === record.entrySha256
-      ) {
-        return {
-          change: { kind: "none" },
-          result: { name: current.name, status: "unchanged" as const, version: before.version },
-        };
-      }
-      assertGroupsFree(valid.manifest, installed);
-      return {
-        change: { kind: "publish", plugin: record, entry: valid.entry },
-        result: {
-          name: current.name,
-          status: "updated" as const,
-          from: before?.version ?? current.version,
-          to: record.version,
-        },
-      };
-    });
+    const updated: UpdatedResult = {
+      name: current.name,
+      status: "updated",
+      from: current.version,
+      to: record.version,
+    };
+    try {
+      return this.store.update<PluginUpdateResult>(current.name, (installed) => {
+        const stored = installed.find((s) => nameOf(s) === current.name);
+        if (stored === undefined) throw notInstalled(current.name);
+        // The fetch was based on `current`; a plugin replaced meanwhile is not overwritten.
+        if (stored.state !== "installed" || !sameInstallation(stored.plugin, current)) {
+          throw pluginConflict(
+            `plugin ${current.name} changed while it was being updated; run plugin update ${current.name} again`,
+          );
+        }
+        if (
+          stored.plugin.version === record.version &&
+          stored.plugin.entrySha256 === record.entrySha256
+        ) {
+          return {
+            change: { kind: "none" },
+            result: { name: current.name, status: "unchanged", version: current.version },
+          };
+        }
+        assertGroupsFree(valid.manifest, installed);
+        return { change: { kind: "publish", plugin: record, entry: valid.entry }, result: updated };
+      });
+    } catch (error) {
+      const failure = classifyError(error);
+      if (isCommitted(failure)) throw new CommittedUpdate(updated, failure);
+      throw error;
+    }
   }
 
   async #fetch(
@@ -356,6 +381,30 @@ export class PluginService {
       );
     }
   }
+}
+
+// An update that was published although a later step failed.
+type UpdatedResult = Extract<PluginUpdateResult, { status: "updated" }>;
+
+class CommittedUpdate {
+  constructor(
+    readonly result: UpdatedResult,
+    readonly error: CliError,
+  ) {}
+}
+
+// The store marks a failure after its commit point with `committed: true`.
+function isCommitted(error: CliError): boolean {
+  const details = error.details as { committed?: boolean } | undefined;
+  return details?.committed === true;
+}
+
+function sameInstallation(a: InstalledPlugin, b: InstalledPlugin): boolean {
+  return (
+    a.version === b.version &&
+    a.entrySha256 === b.entrySha256 &&
+    JSON.stringify(a.source) === JSON.stringify(b.source)
+  );
 }
 
 function nameOf(stored: StoredPlugin): string {

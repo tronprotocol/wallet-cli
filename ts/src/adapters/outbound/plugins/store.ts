@@ -1,20 +1,21 @@
 // Installed plugins under <home>/plugins/<name>/: active.json and immutable versions/<id>/ directories.
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   fsyncSync,
-  lstatSync,
   mkdirSync,
   openSync,
   readdirSync,
-  readFileSync,
+  readSync,
   renameSync,
   rmSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type {
   InstalledPlugin,
   PluginPublication,
@@ -49,12 +50,55 @@ function isSource(value: unknown): value is PluginSourceRecord {
   return (v.type === "directory" || v.type === "archive") && typeof v.path === "string";
 }
 
+// The file-system calls whose order the store's guarantees depend on; tests observe or fail them.
+export interface StoreFileOps {
+  open(path: string, flags: number): number;
+  fsync(path: string): void;
+  rename(from: string, to: string): void;
+  unlink(path: string): void;
+}
+
+const NODE_FILE_OPS: StoreFileOps = {
+  open: (path, flags) => openSync(path, flags),
+  fsync: (path) => {
+    if (process.platform === "win32") return;
+    const fd = openSync(path, "r");
+    try {
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+  },
+  rename: renameSync,
+  unlink: unlinkSync,
+};
+
+// One snapshot of the active manifest, read through a single handle so a concurrent replacement or
+// removal is seen either wholly or not at all. Undefined when there is no manifest to open.
+function readActiveText(path: string, ops: StoreFileOps): string | undefined {
+  let fd: number;
+  try {
+    fd = ops.open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile() || stat.size > MAX_ACTIVE_BYTES) throw new Error(`${ACTIVE} is not a file`);
+    const buffer = Buffer.alloc(MAX_ACTIVE_BYTES + 1);
+    let length = 0;
+    for (let n; (n = readSync(fd, buffer, length, buffer.length - length, null)) > 0;) length += n;
+    if (length > MAX_ACTIVE_BYTES) throw new Error(`${ACTIVE} is not a file`);
+    return buffer.toString("utf8", 0, length);
+  } finally {
+    closeSync(fd);
+  }
+}
+
 // The active manifest as the store wrote it; anything else is reported, never loaded.
-function readActive(dir: string, name: string): InstalledPlugin {
-  const path = join(dir, ACTIVE);
-  const stat = lstatSync(path);
-  if (!stat.isFile() || stat.size > MAX_ACTIVE_BYTES) throw new Error(`${ACTIVE} is not a file`);
-  const raw = JSON.parse(readFileSync(path, "utf8")) as Record<string, JsonValue>;
+function parseActive(text: string, dir: string, name: string): InstalledPlugin {
+  const raw = JSON.parse(text) as Record<string, JsonValue>;
   if (raw.schema !== 1) throw new Error(`${ACTIVE} has an unknown schema`);
   const manifest = parsePluginManifest({
     version: raw.version ?? null,
@@ -89,22 +133,13 @@ function readActive(dir: string, name: string): InstalledPlugin {
   };
 }
 
-function fsyncPath(path: string): void {
-  if (process.platform === "win32") return;
-  const fd = openSync(path, "r");
-  try {
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
-}
-
 export class FilePluginStore implements PluginStore {
   readonly #root: string;
 
   constructor(
     home: string,
     private readonly files: Pick<AtomicFileStore, "withLock">,
+    private readonly ops: StoreFileOps = NODE_FILE_OPS,
   ) {
     this.#root = join(home, "plugins");
   }
@@ -115,9 +150,10 @@ export class FilePluginStore implements PluginStore {
     for (const entry of readdirSync(this.#root, { withFileTypes: true })) {
       if (!entry.isDirectory() || !PLUGIN_WORD.test(entry.name)) continue;
       const dir = join(this.#root, entry.name);
-      if (!existsSync(join(dir, ACTIVE))) continue;
       try {
-        stored.push({ state: "installed", plugin: readActive(dir, entry.name) });
+        const text = readActiveText(join(dir, ACTIVE), this.ops);
+        if (text === undefined) continue;
+        stored.push({ state: "installed", plugin: parseActive(text, dir, entry.name) });
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         stored.push({ state: "unreadable", name: entry.name, reason });
@@ -131,7 +167,7 @@ export class FilePluginStore implements PluginStore {
     decide: (installed: readonly StoredPlugin[]) => { change: PluginStoreChange; result: R },
   ): R {
     if (!PLUGIN_WORD.test(name)) throw new Error(`invalid plugin name ${name}`);
-    mkdirSync(this.#root, { recursive: true, mode: 0o700 });
+    this.#makeDirs(this.#root);
     // `<home>/plugins.lock`.
     return this.files.withLock(this.#root, () => {
       const { change, result } = decide(this.list());
@@ -141,11 +177,23 @@ export class FilePluginStore implements PluginStore {
     });
   }
 
-  // Commit point: the rename of the new active manifest over the old one.
+  // Creates the directory and its missing ancestors, and makes each new directory's entry in its
+  // parent durable: an fsync of a directory does not persist its own entry in the parent.
+  #makeDirs(path: string): void {
+    const first = mkdirSync(path, { recursive: true, mode: 0o700 });
+    if (first === undefined) return;
+    const created = [path];
+    while (created[0] !== first) created.unshift(dirname(created[0]!));
+    for (const dir of created) this.ops.fsync(dirname(dir));
+  }
+
+  // Commit point: the rename of the new active manifest over the old one. Everything it references
+  // is durable before it.
   #publish(name: string, change: PluginPublication): void {
     const dir = join(this.#root, name);
+    const versions = join(dir, "versions");
     const id = `${change.plugin.version}-${randomBytes(6).toString("hex")}`;
-    const versionDir = join(dir, "versions", id);
+    const versionDir = join(versions, id);
     const manifest: ActiveManifest = {
       schema: 1,
       ...change.plugin,
@@ -156,29 +204,34 @@ export class FilePluginStore implements PluginStore {
     let created = false;
     let published = false;
     try {
-      mkdirSync(join(dir, "versions"), { recursive: true, mode: 0o700 });
+      this.#makeDirs(versions);
       mkdirSync(versionDir, { mode: 0o700 });
       created = true;
       const entry = join(versionDir, ENTRY_FILE);
       writeFileSync(entry, change.entry, { mode: 0o600, flag: "wx" });
-      fsyncPath(entry);
-      fsyncPath(versionDir);
+      this.ops.fsync(entry);
+      this.ops.fsync(versionDir);
+      this.ops.fsync(versions);
       writeFileSync(staged, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600, flag: "wx" });
-      fsyncPath(staged);
-      renameSync(staged, active);
+      this.ops.fsync(staged);
+      this.ops.rename(staged, active);
       published = true;
-      fsyncPath(dir);
+      this.ops.fsync(dir);
     } catch (error) {
       rmSync(staged, { force: true });
       // Only the directory this call created; a complete one may be in use by another process.
       if (created && !published) rmSync(versionDir, { recursive: true, force: true });
-      throw new ExecutionError(
-        "io_error",
-        published
-          ? `plugin ${name} ${change.plugin.version} is installed, but writing it to disk could not be confirmed`
-          : `could not install plugin ${name}; the previous state is unchanged`,
-        { error: String(error) },
-      );
+      throw published
+        ? new ExecutionError(
+            "io_error",
+            `plugin ${name} ${change.plugin.version} is installed, but the change could not be confirmed on disk`,
+            { committed: true, error: String(error) },
+          )
+        : new ExecutionError(
+            "io_error",
+            `could not install plugin ${name}; the previous state is unchanged`,
+            { committed: false, error: String(error) },
+          );
     }
   }
 
@@ -186,13 +239,19 @@ export class FilePluginStore implements PluginStore {
   // may be about to import one).
   #remove(name: string): void {
     const dir = join(this.#root, name);
+    let removed = false;
     try {
-      unlinkSync(join(dir, ACTIVE));
-      fsyncPath(dir);
+      this.ops.unlink(join(dir, ACTIVE));
+      removed = true;
+      this.ops.fsync(dir);
     } catch (error) {
-      throw new ExecutionError("io_error", `could not remove plugin ${name}`, {
-        error: String(error),
-      });
+      throw new ExecutionError(
+        "io_error",
+        removed
+          ? `plugin ${name} is removed, but the removal could not be confirmed on disk`
+          : `could not remove plugin ${name}; it is still installed`,
+        { committed: removed, error: String(error) },
+      );
     }
   }
 }

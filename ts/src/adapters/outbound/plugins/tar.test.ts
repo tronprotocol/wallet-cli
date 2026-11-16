@@ -29,8 +29,21 @@ describe("readPackageTarball", () => {
     ["a nested parent path", { name: "package/dist/../../evil.js", body: "x" }],
     ["an absolute path", { name: "/etc/passwd", body: "x" }],
     ["a path through a pax header", { name: "pax", type: "x", body: paxPath("package/../x") }],
+    ["a parent top-level directory", { name: "../package.json", body: "{}" }],
+    ["a drive path", { name: "C:/package.json", body: "{}" }],
+    [
+      "a parent top-level directory in a pax header",
+      { name: "pax", type: "x", body: paxPath("../package.json") },
+    ],
+    [
+      "a parent top-level directory in a GNU long name",
+      { name: "././@LongLink", type: "L", body: "../package.json" },
+    ],
   ])("refuses %s", (_label, entry: TarEntry) => {
-    const entries = entry.type === "x" ? [entry, { name: "package/ok", body: "x" }] : [entry];
+    const entries =
+      entry.type === "x" || entry.type === "L"
+        ? [entry, { name: "package/ok", body: "x" }]
+        : [entry];
     expect(() => readPackageTarball(tarball(entries))).toThrow(
       expect.objectContaining({
         code: "plugin_invalid",
@@ -75,5 +88,21 @@ describe("readPackageTarball", () => {
     const bomb = tarball([{ name: "package/zeros", body: new Uint8Array(65 * 1024 * 1024) }]);
     expect(bomb.length).toBeLessThan(MAX_ARCHIVE_BYTES);
     expect(() => readPackageTarball(bomb)).toThrow(/unpacked archive is too large/);
+  });
+
+  it("refuses entries under different top-level directories", () => {
+    expect(() =>
+      readPackageTarball(
+        tarball([
+          { name: "package/package.json", body: "{}" },
+          { name: "other/dist/index.mjs", body: "export default 1;" },
+        ]),
+      ),
+    ).toThrow(
+      expect.objectContaining({
+        code: "plugin_invalid",
+        message: expect.stringContaining("different top-level directories"),
+      }),
+    );
   });
 });

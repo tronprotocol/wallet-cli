@@ -298,6 +298,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
           apiVersion: p.apiVersion,
           apiRevision: p.apiRevision,
           groups: p.groups.map((g) => g.name),
+          ...(failedPlugins.has(p.name) ? { failure: failedPlugins.get(p.name)! } : {}),
         })),
         reservedWords,
         loadState: (name) => plugins.state(name),

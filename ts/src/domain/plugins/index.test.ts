@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isPackagePath,
+  formatRegistrySpec,
   isPinned,
   parsePluginManifest,
   parseRegistrySpec,
@@ -90,6 +91,19 @@ describe("parseRegistrySpec", () => {
     expect(isPinned(parseRegistrySpec("demo@1.0.0"))).toBe(true);
     expect(isPinned(parseRegistrySpec("demo@latest"))).toBe(false);
     expect(isPinned(parseRegistrySpec("demo"))).toBe(false);
+  });
+
+  it("takes an npm: spec as the exact package name, and formats a spec so it parses back", () => {
+    expect(parseRegistrySpec("npm:custom-plugin@1.0.0")).toEqual({
+      name: "custom-plugin",
+      version: "1.0.0",
+    });
+    expect(parseRegistrySpec("npm:@acme/thing")).toEqual({ name: "@acme/thing" });
+    for (const text of ["demo@1.0.0", "npm:custom-plugin", "@acme/thing@beta", "npm:x.y@2.0.0"]) {
+      const spec = parseRegistrySpec(text);
+      expect(parseRegistrySpec(formatRegistrySpec(spec))).toEqual(spec);
+    }
+    expect(formatRegistrySpec(parseRegistrySpec("npm:custom-plugin"))).toBe("npm:custom-plugin");
   });
 });
 

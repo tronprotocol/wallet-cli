@@ -114,4 +114,23 @@ describe("RegistryClient", () => {
     ).rejects.toThrow();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+
+  it("reports HTTP 429 on the tarball download as provider_rate_limited, as on the metadata", async () => {
+    const limited = (url: string | URL | Request) =>
+      String(url).endsWith(".tgz") ? "tarball" : "metadata";
+    for (const stage of ["metadata", "tarball"]) {
+      const base = registry();
+      const fetchImpl = vi.fn(async (url: string | URL | Request) =>
+        limited(url) === stage
+          ? new Response("slow down", { status: 429, headers: { "Retry-After": "9" } })
+          : base(url),
+      );
+      await expect(
+        new RegistryClient(fetchImpl as never).fetch(REGISTRY, parseRegistrySpec("demo"), check()),
+      ).rejects.toMatchObject({
+        code: "provider_rate_limited",
+        details: { httpStatus: 429, retryAfterSeconds: 9 },
+      });
+    }
+  });
 });

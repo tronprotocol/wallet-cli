@@ -53,14 +53,18 @@ function paxPath(body: Uint8Array): string | undefined {
   return path;
 }
 
-// npm packs every file under one top-level directory, normally `package/`; it is removed here.
-function packagePath(raw: string): string {
-  const slash = raw.indexOf("/");
-  const inside = slash === -1 ? "" : raw.slice(slash + 1).replace(/\/+$/, "");
-  if (raw.startsWith("/") || !isPackagePath(inside)) {
-    throw unsafe(`archive entry "${raw}" leaves the package root`);
-  }
-  return inside;
+// npm packs every file under one top-level directory, normally `package/`. The whole path is
+// validated first; then that directory, which every entry must share, is removed.
+function packagePath(raw: string, root: { name?: string }, directory: boolean): string {
+  const path = directory ? raw.replace(/\/+$/, "") : raw;
+  if (!isPackagePath(path)) throw unsafe(`archive entry "${raw}" leaves the package root`);
+  const slash = path.indexOf("/");
+  const top = slash === -1 ? path : path.slice(0, slash);
+  root.name ??= top;
+  if (top !== root.name) throw unsafe(`archive entries lie under different top-level directories`);
+  if (slash === -1 && !directory)
+    throw unsafe(`archive entry "${raw}" is outside the package directory`);
+  return slash === -1 ? "" : path.slice(slash + 1);
 }
 
 // Regular files by their path inside the package. Links, devices, absolute paths and paths that
@@ -75,6 +79,7 @@ export function readPackageTarball(archive: Uint8Array): Map<string, Uint8Array>
     throw unsafe(tooLarge ? "the unpacked archive is too large" : "the archive is not gzip data");
   }
   const files = new Map<string, Uint8Array>();
+  const root: { name?: string } = {};
   let longName: string | undefined;
   let entries = 0;
   for (let offset = 0; offset + BLOCK <= tar.length;) {
@@ -103,13 +108,13 @@ export function readPackageTarball(archive: Uint8Array): Map<string, Uint8Array>
       longName ?? (prefix ? `${prefix}/${field(header, 0, 100)}` : field(header, 0, 100));
     longName = undefined;
     if (type === "5") {
-      packagePath(`${name.replace(/\/+$/, "")}/x`);
+      packagePath(name, root, true);
       continue;
     }
     if (type !== "0" && type !== "\0" && type !== "7") {
       throw unsafe(`archive entry "${name}" is a link or special file`);
     }
-    const path = packagePath(name);
+    const path = packagePath(name, root, false);
     if (files.has(path)) throw unsafe(`archive entry "${path}" appears twice`);
     files.set(path, new Uint8Array(body));
   }

@@ -5252,7 +5252,7 @@
           "spec": {
             "type": "string",
             "minLength": 1,
-            "description": "plugin to install: short name, npm package, directory or .tgz"
+            "description": "plugin to install: directory, .tgz archive, short name, @scope/name or npm:name"
           }
         },
         "required": [

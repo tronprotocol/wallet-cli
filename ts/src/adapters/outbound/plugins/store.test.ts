@@ -5,14 +5,19 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  fsyncSync,
+  openSync,
+  closeSync,
+  renameSync,
   rmSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PluginPublication, StoredPlugin } from "../../../application/ports/plugin-store.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
-import { FilePluginStore } from "./store.js";
+import { FilePluginStore, type StoreFileOps } from "./store.js";
 
 let home: string;
 beforeEach(() => {
@@ -21,6 +26,48 @@ beforeEach(() => {
 afterEach(() => rmSync(home, { recursive: true, force: true }));
 
 const store = () => new FilePluginStore(home, new AtomicFileStore());
+
+const realOps: StoreFileOps = {
+  open: (path, flags) => openSync(path, flags),
+  fsync: (path) => {
+    const fd = openSync(path, "r");
+    fsyncSync(fd);
+    closeSync(fd);
+  },
+  rename: renameSync,
+  unlink: unlinkSync,
+};
+
+// Records every ordered call, relative to the home, and lets a test fail or interleave one.
+function observed(hook: (op: string, path: string) => void = () => {}) {
+  const calls: string[] = [];
+  const rel = (path: string) => path.slice(home.length + 1).replace(/[0-9a-f]{12}/, "<id>");
+  const log = (op: string, path: string) => {
+    calls.push(
+      `${op} ${rel(path).replace(/active\.json\.\d+\.[0-9a-f]+\.tmp$/, "active.json.tmp")}`,
+    );
+    hook(op, path);
+  };
+  const ops: StoreFileOps = {
+    open: (path, flags) => {
+      hook("open", path);
+      return realOps.open(path, flags);
+    },
+    fsync: (path) => {
+      log("fsync", path);
+      realOps.fsync(path);
+    },
+    rename: (from, to) => {
+      log("rename", from);
+      realOps.rename(from, to);
+    },
+    unlink: (path) => {
+      log("unlink", path);
+      realOps.unlink(path);
+    },
+  };
+  return { calls, store: new FilePluginStore(home, new AtomicFileStore(), ops) };
+}
 
 function publication(version: string, entry = `export default "${version}";`): PluginPublication {
   return {
@@ -119,5 +166,127 @@ describe("FilePluginStore", () => {
     });
     expect(installed(seen).map((p) => p.name)).toEqual(["demo"]);
     expect(existsSync(join(home, "plugins.lock"))).toBe(false);
+  });
+
+  it("makes the version directory and every directory it created durable before the commit point", () => {
+    const first = observed();
+    first.store.update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    expect(first.calls).toEqual([
+      "fsync ", // <home>: holds the new plugins/ directory
+      "fsync plugins", // holds the new demo/ directory
+      "fsync plugins/demo", // holds the new versions/ directory
+      "fsync plugins/demo/versions/1.0.0-<id>/index.mjs",
+      "fsync plugins/demo/versions/1.0.0-<id>",
+      "fsync plugins/demo/versions",
+      "fsync plugins/demo/active.json.tmp",
+      "rename plugins/demo/active.json.tmp",
+      "fsync plugins/demo",
+    ]);
+    const second = observed();
+    second.store.update("demo", () => ({ change: publication("2.0.0"), result: undefined }));
+    expect(second.calls).toEqual([
+      "fsync plugins/demo/versions/2.0.0-<id>/index.mjs",
+      "fsync plugins/demo/versions/2.0.0-<id>",
+      "fsync plugins/demo/versions",
+      "fsync plugins/demo/active.json.tmp",
+      "rename plugins/demo/active.json.tmp",
+      "fsync plugins/demo",
+    ]);
+  });
+
+  it("treats an active manifest removed before it is opened as not installed", () => {
+    store().update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    const active = join(home, "plugins/demo/active.json");
+    const racing = observed((op, path) => {
+      if (op === "open" && path === active) rmSync(active);
+    });
+    expect(racing.store.list()).toEqual([]);
+  });
+
+  it("reads the manifest it opened even when it is removed during the read", () => {
+    store().update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    const active = join(home, "plugins/demo/active.json");
+    let opened = false;
+    const ops: StoreFileOps = {
+      ...realOps,
+      open: (path, flags) => {
+        const fd = realOps.open(path, flags);
+        if (path === active && !opened) {
+          opened = true;
+          rmSync(active);
+        }
+        return fd;
+      },
+    };
+    const listed = new FilePluginStore(home, new AtomicFileStore(), ops).list();
+    expect(installed(listed).map((p) => p.version)).toEqual(["1.0.0"]);
+    expect(store().list()).toEqual([]);
+  });
+
+  it("reports an active manifest that cannot be opened for another reason as unreadable", () => {
+    mkdirSync(join(home, "plugins/demo"), { recursive: true });
+    const failing = new FilePluginStore(home, new AtomicFileStore(), {
+      ...realOps,
+      open: () => {
+        throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+      },
+    });
+    expect(failing.list()).toEqual([
+      { state: "unreadable", name: "demo", reason: expect.stringContaining("EACCES") },
+    ]);
+  });
+
+  it("reports a failure after the manifest rename as installed, and the next read sees it", () => {
+    store().update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    let renamed = false;
+    const failing = observed((op) => {
+      if (op === "rename") renamed = true;
+      else if (renamed && op === "fsync") throw new Error("EIO");
+    });
+    expect(() =>
+      failing.store.update("demo", () => ({ change: publication("2.0.0"), result: undefined })),
+    ).toThrow(
+      expect.objectContaining({
+        code: "io_error",
+        message: expect.stringContaining("demo 2.0.0 is installed"),
+        details: expect.objectContaining({ committed: true }),
+      }),
+    );
+    expect(installed(store().list())[0]?.version).toBe("2.0.0");
+  });
+
+  it("reports a failure after the unlink as removed, and the next read sees no plugin", () => {
+    store().update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    let unlinked = false;
+    const failing = observed((op) => {
+      if (op === "unlink") unlinked = true;
+      else if (unlinked && op === "fsync") throw new Error("EIO");
+    });
+    expect(() =>
+      failing.store.update("demo", () => ({ change: { kind: "remove" }, result: undefined })),
+    ).toThrow(
+      expect.objectContaining({
+        code: "io_error",
+        message: expect.stringContaining("demo is removed"),
+        details: expect.objectContaining({ committed: true }),
+      }),
+    );
+    expect(store().list()).toEqual([]);
+  });
+
+  it("reports a failure before the unlink as still installed", () => {
+    store().update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    const failing = observed((op) => {
+      if (op === "unlink") throw new Error("EBUSY");
+    });
+    expect(() =>
+      failing.store.update("demo", () => ({ change: { kind: "remove" }, result: undefined })),
+    ).toThrow(
+      expect.objectContaining({
+        message: expect.stringContaining("still installed"),
+        details: expect.objectContaining({ committed: false }),
+      }),
+    );
+    expect(installed(store().list())).toHaveLength(1);
   });
 });

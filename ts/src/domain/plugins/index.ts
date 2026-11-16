@@ -183,8 +183,14 @@ const DIST_TAG = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/;
 // Short names resolve under this scope and prefix.
 const SHORT_NAME_PACKAGE = (name: string) => `@tron-walletcli/plugin-${name}`;
 
-// `qaprobe`, `@scope/pkg`, `pkg@1.2.3`, `@scope/pkg@latest`; version ranges are refused.
-export function parseRegistrySpec(spec: string): RegistrySpec {
+// Selects the npm package by its exact name, without the short-name expansion.
+const NPM_PREFIX = "npm:";
+
+// `qaprobe`, `@scope/pkg`, `pkg@1.2.3`, `@scope/pkg@latest`, `npm:pkg@1.2.3`; version ranges are
+// refused.
+export function parseRegistrySpec(text: string): RegistrySpec {
+  const exact = text.startsWith(NPM_PREFIX);
+  const spec = exact ? text.slice(NPM_PREFIX.length) : text;
   const at = spec.lastIndexOf("@");
   const hasVersion = at > 0;
   const name = hasVersion ? spec.slice(0, at) : spec;
@@ -201,12 +207,18 @@ export function parseRegistrySpec(spec: string): RegistrySpec {
       `"${version}" is not an exact version or a dist-tag; version ranges are not supported`,
     );
   }
-  const resolved = !name.includes("/") && PLUGIN_WORD.test(name) ? SHORT_NAME_PACKAGE(name) : name;
+  const resolved = !exact && isShortName(name) ? SHORT_NAME_PACKAGE(name) : name;
   return { name: resolved, ...(version === undefined ? {} : { version }) };
 }
 
+function isShortName(name: string): boolean {
+  return !name.includes("/") && PLUGIN_WORD.test(name);
+}
+
+// Parses back to the same spec: a full name that reads as a short name keeps its `npm:` prefix.
 export function formatRegistrySpec(spec: RegistrySpec): string {
-  return spec.version === undefined ? spec.name : `${spec.name}@${spec.version}`;
+  const name = isShortName(spec.name) ? `${NPM_PREFIX}${spec.name}` : spec.name;
+  return spec.version === undefined ? name : `${name}@${spec.version}`;
 }
 
 // An exact version stays where it is on update; no version or a dist-tag moves.

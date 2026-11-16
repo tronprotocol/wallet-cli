@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import {
+  closeSync,
+  fsyncSync,
+  mkdtempSync,
+  openSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FilePluginStore } from "../../adapters/outbound/plugins/store.js";
+import { FilePluginStore, type StoreFileOps } from "../../adapters/outbound/plugins/store.js";
 import { AtomicFileStore } from "../../adapters/outbound/persistence/fs/index.js";
 import type { PluginPackage, PluginSource } from "../ports/plugin-source.js";
 import type { ExecutionDeadline } from "../contracts/deadline.js";
@@ -58,7 +66,49 @@ function pkg(
   };
 }
 
-function setup(packages: Record<string, () => PluginPackage | Promise<PluginPackage>>) {
+// The store's real file calls; a call for which `fail` returns true throws instead.
+function storeOps(fail: (op: string) => boolean): StoreFileOps {
+  const guard = (op: string) => {
+    if (fail(op)) throw new Error(`injected ${op} failure`);
+  };
+  return {
+    open: (path, flags) => openSync(path, flags),
+    fsync: (path) => {
+      guard("fsync");
+      const fd = openSync(path, "r");
+      fsyncSync(fd);
+      closeSync(fd);
+    },
+    rename: (from, to) => {
+      guard("rename");
+      renameSync(from, to);
+    },
+    unlink: (path) => {
+      guard("unlink");
+      unlinkSync(path);
+    },
+  };
+}
+
+// Fails the first fsync after the named call, once `armed` is set.
+function failAfter(call: string) {
+  const state = { armed: false, passed: false };
+  const fail = (op: string) => {
+    if (!state.armed) return false;
+    if (op === call) state.passed = true;
+    else if (state.passed && op === "fsync") {
+      state.armed = false;
+      return true;
+    }
+    return false;
+  };
+  return { state, ops: storeOps(fail) };
+}
+
+function setup(
+  packages: Record<string, () => PluginPackage | Promise<PluginPackage>>,
+  options: { ops?: StoreFileOps; builtinFailure?: string } = {},
+) {
   const source: PluginSource = {
     fromRegistry: vi.fn(async (_registry, spec) => packages[`registry:${spec.name}`]!()),
     fromDirectory: vi.fn((path: string) => ({
@@ -67,13 +117,20 @@ function setup(packages: Record<string, () => PluginPackage | Promise<PluginPack
     })),
     fromArchive: vi.fn((path: string) => packages[path]!() as PluginPackage),
   };
-  const store = new FilePluginStore(home, new AtomicFileStore());
+  const store = new FilePluginStore(home, new AtomicFileStore(), options.ops);
   const service = new PluginService(
     store,
     source,
     {
       builtins: [
-        { name: "gasfree", version: "1.0.0", apiVersion: 1, apiRevision: 1, groups: ["gasfree"] },
+        {
+          name: "gasfree",
+          version: "1.0.0",
+          apiVersion: 1,
+          apiRevision: 1,
+          groups: ["gasfree"],
+          ...(options.builtinFailure === undefined ? {} : { failure: options.builtinFailure }),
+        },
       ],
       reservedWords: new Set(["tx", "plugin", "tron"]),
       loadState: () => undefined,
@@ -238,5 +295,94 @@ describe("PluginService.update and remove", () => {
     await service.install(dir("/p"), "", DEADLINE);
     expect(service.remove("demo")).toEqual({ name: "demo", version: "1.0.0", removed: true });
     expect(service.list().map((e) => e.name)).toEqual(["gasfree"]);
+  });
+
+  it("refuses an update whose plugin was removed and reinstalled from another source meanwhile", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let slow = false;
+    const { service } = setup({
+      "registry:@tron-walletcli/plugin-demo": async () => {
+        if (slow) await gate;
+        return pkg(
+          { version: slow ? "2.0.0" : "1.0.0" },
+          { type: "registry", spec: "@tron-walletcli/plugin-demo", registry: "https://r" },
+        );
+      },
+      "/b": () => pkg({ version: "1.5.0" }),
+    });
+    await service.install({ type: "registry", spec: "demo" }, "https://r", DEADLINE);
+    slow = true;
+    const update = service.update("demo", DEADLINE);
+    service.remove("demo");
+    await service.install(dir("/b"), "", DEADLINE);
+    release();
+    await expect(update).rejects.toMatchObject({
+      code: "plugin_conflict",
+      message: expect.stringContaining("changed while it was being updated"),
+    });
+    expect(service.list().find((e) => e.name === "demo")).toMatchObject({
+      version: "1.5.0",
+      source: { type: "directory", path: "/b" },
+    });
+  });
+
+  it("reports an update whose durability step failed after the rename as updated and incomplete", async () => {
+    let version = "1.0.0";
+    const injected = failAfter("rename");
+    const { service } = setup({ "/p": () => pkg({ version }) }, { ops: injected.ops });
+    await service.install(dir("/p"), "", DEADLINE);
+    version = "1.1.0";
+    injected.state.armed = true;
+    const error = await service.update(undefined, DEADLINE).catch((e: unknown) => e);
+    expect(error).toMatchObject({
+      code: "io_error",
+      details: {
+        results: [
+          {
+            name: "demo",
+            status: "updated",
+            from: "1.0.0",
+            to: "1.1.0",
+            incomplete: expect.stringContaining("demo 1.1.0 is installed"),
+          },
+        ],
+      },
+    });
+    expect(service.list().find((e) => e.name === "demo")?.version).toBe("1.1.0");
+    expect(await service.update("demo", DEADLINE)).toEqual([
+      { name: "demo", status: "unchanged", version: "1.1.0" },
+    ]);
+  });
+
+  it("reports a removal whose durability step failed after the unlink as removed", async () => {
+    const injected = failAfter("unlink");
+    const { service } = setup({ "/p": () => pkg() }, { ops: injected.ops });
+    await service.install(dir("/p"), "", DEADLINE);
+    injected.state.armed = true;
+    expect(() => service.remove("demo")).toThrow(
+      expect.objectContaining({
+        code: "io_error",
+        message: expect.stringContaining("demo is removed"),
+        details: expect.objectContaining({ committed: true }),
+      }),
+    );
+    expect(() => service.remove("demo")).toThrow(
+      expect.objectContaining({ code: "plugin_not_installed" }),
+    );
+  });
+});
+
+describe("PluginService.list", () => {
+  it("reports a built-in plugin that failed to register as broken, with its reason", () => {
+    const { service } = setup({}, { builtinFailure: "its registration threw" });
+    expect(service.list()).toEqual([
+      expect.objectContaining({
+        name: "gasfree",
+        kind: "builtin",
+        state: "broken",
+        reason: "its registration threw",
+      }),
+    ]);
   });
 });

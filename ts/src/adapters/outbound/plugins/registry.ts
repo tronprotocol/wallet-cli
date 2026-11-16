@@ -5,7 +5,7 @@ import type { PluginPackage } from "../../../application/ports/plugin-source.js"
 import { ChainError, ExecutionError, TransportError } from "../../../domain/errors/index.js";
 import { formatRegistrySpec, type RegistrySpec } from "../../../domain/plugins/index.js";
 import { fetchBounded } from "../http/http-response.js";
-import { requestJson } from "../http/json-service.js";
+import { rateLimitedError, requestJson } from "../http/json-service.js";
 import { MAX_ARCHIVE_BYTES } from "./tar.js";
 import { archivePackage } from "./package.js";
 
@@ -120,6 +120,10 @@ export class RegistryClient {
       }
       if (error instanceof TransportError || error instanceof ExecutionError) throw error;
       throw errors(`the package ${label}`).unreachable();
+    }
+    if (response.status === 429) {
+      await response.body?.cancel().catch(() => {});
+      throw rateLimitedError(SERVICE, response.headers);
     }
     if (response.status === 404) throw notFound(`the package file of ${label} was not found`);
     if (!response.ok) {

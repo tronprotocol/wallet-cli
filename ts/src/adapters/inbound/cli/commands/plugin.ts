@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { isAbsolute, resolve } from "node:path";
+import path from "node:path";
 import { z } from "zod";
 import type { CommandDefinition } from "../contracts/index.js";
 import type { CommandRegistry } from "../registry/index.js";
@@ -15,14 +15,20 @@ import {
 import type { PluginSourceRecord } from "../../../../domain/plugins/index.js";
 import { sanitizeText } from "../render/scalars.js";
 
-// A path starts with ".", "/" or "~"; a path ending in .tgz or .tar.gz is a packed archive. Anything
-// else names a registry package.
-export function parsePluginSource(text: string, cwd = process.cwd()): PluginInstallSource {
-  const isPath = text.startsWith(".") || text.startsWith("/") || text.startsWith("~");
-  if (!isPath) return { type: "registry", spec: text };
-  const expanded = text === "~" || text.startsWith("~/") ? `${homedir()}${text.slice(1)}` : text;
-  const path = isAbsolute(expanded) ? resolve(expanded) : resolve(cwd, expanded);
-  return /\.(tgz|tar\.gz)$/i.test(path) ? { type: "archive", path } : { type: "directory", path };
+// A native absolute path, or text starting with "." or "~", is a local path; anything ending in .tgz
+// or .tar.gz is a packed archive. Anything else names a registry package (see parseRegistrySpec).
+export function parsePluginSource(
+  text: string,
+  cwd = process.cwd(),
+  paths: typeof path = path,
+): PluginInstallSource {
+  const isPath = text.startsWith(".") || text.startsWith("~") || paths.isAbsolute(text);
+  const isArchive = /\.(tgz|tar\.gz)$/i.test(text);
+  if (!isPath && !isArchive) return { type: "registry", spec: text };
+  const home = text === "~" || text.startsWith("~/") || text.startsWith(`~${paths.sep}`);
+  const expanded = home ? `${homedir()}${text.slice(1)}` : text;
+  const resolved = paths.resolve(cwd, expanded);
+  return isArchive ? { type: "archive", path: resolved } : { type: "directory", path: resolved };
 }
 
 function sourceText(source: PluginSourceRecord): string {
@@ -66,7 +72,7 @@ function formatUpdate(results: PluginUpdateResult[]): string {
     .map((r) => {
       switch (r.status) {
         case "updated":
-          return `${r.name}: updated ${r.from} -> ${r.to}`;
+          return `${r.name}: updated ${r.from} -> ${r.to}${r.incomplete ? `; ${r.incomplete}` : ""}`;
         case "unchanged":
           return `${r.name}: unchanged at ${r.version}`;
         case "failed":
@@ -82,7 +88,7 @@ function formatRemove(result: PluginRemoveResult): string {
 }
 
 const SOURCES =
-  "<source> is a short name (sunswap means @tron-walletcli/plugin-sunswap), an npm package with an optional exact version or dist-tag (@scope/name@1.2.0), a local package directory (./my-plugin), or a packed archive (./my-plugin-1.0.0.tgz). Registry packages come from the pluginRegistry config key and must match the registry's SHA-512 integrity value; npm is never run.";
+  "<source> is one of: a local package directory, given as an absolute path or a path starting with . or ~ (./my-plugin); a packed archive, any path ending in .tgz or .tar.gz (my-plugin-1.0.0.tgz); a short name (sunswap means @tron-walletcli/plugin-sunswap); a scoped npm package (@scope/name); or npm: followed by an exact npm package name (npm:my-plugin). A registry package takes an optional exact version or dist-tag (@scope/name@1.2.0, npm:my-plugin@latest). Registry packages come from the pluginRegistry config key and must match the registry's SHA-512 integrity value; npm is never run.";
 
 export function registerPluginCommands(registry: CommandRegistry, service: PluginService): void {
   // `source` is a yargs tail key, so the field has another name.
@@ -90,7 +96,7 @@ export function registerPluginCommands(registry: CommandRegistry, service: Plugi
     spec: z
       .string()
       .min(1)
-      .describe("plugin to install: short name, npm package, directory or .tgz"),
+      .describe("plugin to install: directory, .tgz archive, short name, @scope/name or npm:name"),
   });
   registry.add({
     path: ["plugin", "install"],
