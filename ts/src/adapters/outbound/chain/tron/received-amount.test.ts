@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { decodeReceivedAmount } from "./received-amount.js";
 import { parseTronTxInfo } from "./tron-responses.js";
 import { tronHexAddress } from "../../../../domain/address/index.js";
-import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
+
+const NATIVE_TRX_ADDRESS = FAMILIES.tron.zeroAddress;
 
 const OWNER = "TDbWLnRxt8f7e81BBccGEKoSoDGR4pmnuJ";
 const TOKEN = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";

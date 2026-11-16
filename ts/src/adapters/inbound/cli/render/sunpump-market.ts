@@ -33,12 +33,12 @@ interface TokenRow {
   };
 }
 
-interface TokenListView {
+export interface TokenListView {
   readonly tokens: readonly TokenRow[];
   readonly pagination: { offset: number; limit: number; total: number | null };
 }
 
-interface TokenInfoView {
+export interface TokenInfoView {
   readonly token: TokenRow;
 }
 

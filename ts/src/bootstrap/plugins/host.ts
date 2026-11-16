@@ -36,6 +36,9 @@ import { WALLET_MANAGEMENT_FIELDS, type PluginCommandContext } from "../../plugi
 import type {
   PluginSigningService,
   PluginSignRequest,
+  PluginTokens,
+  PluginTronCalls,
+  PluginTronGateway,
   ServiceCredentialKey,
 } from "../../plugin-api/host-services.js";
 import type { TransactionScope } from "../../application/contracts/execution-scope.js";
@@ -58,6 +61,9 @@ export function facade<T extends object>(members: T): T {
 
 export interface HostServiceDependencies {
   readonly signing: PluginSigning;
+  readonly tronCalls: PluginTronCalls;
+  readonly tokens: PluginTokens;
+  readonly aliases: Readonly<Record<string, string>>;
   readonly gateways: ChainGatewayProvider;
   readonly contracts: {
     readonly tron: Pick<TronContractService, "call" | "send">;
@@ -71,6 +77,8 @@ export interface HostServiceDependencies {
 
 export function hostServices(deps: HostServiceDependencies): HostServices {
   const { signing, gateways, contracts, recipients, config, broadcastGuard, clock } = deps;
+  const { tronCalls, tokens } = deps;
+  const aliases = Object.freeze({ ...deps.aliases });
   return facade<HostServices>({
     signing: facade({
       assertCanSign: (account, family) => signing.assertCanSign(account, family),
@@ -85,7 +93,17 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
           getTrc20Balance: (contract: string, address: string) =>
             gateway.getTrc20Balance(contract, address),
           getTokenInfo: (contract: string) => gateway.getTokenInfo(contract),
-        });
+          getAccount: (address: string) => gateway.getAccount(address),
+          getTransactionInfoById: (txid: string) => gateway.getTransactionInfoById(txid),
+          receivedAmount: (txid: string, token: string, recipient: string) =>
+            gateway.receivedAmount(txid, token, recipient),
+          triggerConstantContract: (
+            contract: string,
+            method: string,
+            parameters: Parameters<PluginTronGateway["triggerConstantContract"]>[2],
+            owner?: string,
+          ) => gateway.triggerConstantContract(contract, method, parameters, owner),
+        } satisfies PluginTronGateway);
       },
     }),
     contracts: facade({
@@ -100,6 +118,14 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
         send: (scope, network, input) => contracts.evm.send(scope, network, input),
       }),
     }),
+    tronCalls: facade({
+      run: (scope, network, payload, options) => tronCalls.run(scope, network, payload, options),
+    }),
+    tokens: facade({
+      official: (networkId) => tokens.official(networkId),
+      effective: (networkId, account) => tokens.effective(networkId, account),
+    }),
+    networks: facade({ aliases: () => aliases }),
     recipients: facade({ resolve: (family, input) => recipients.resolve(family, input) }),
     config: facade({
       networkBlock: (network, name) => networkBlock(network, name),

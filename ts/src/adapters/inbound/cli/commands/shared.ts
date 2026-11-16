@@ -1,20 +1,23 @@
 import { z } from "zod";
-import type { ChainSpec, ExclusiveGroup, FamilyBinding } from "../contracts/index.js";
+import type { ChainSpec, FamilyBinding } from "../contracts/index.js";
 import { Schemas } from "../schemas/index.js";
 import { TextFormatters } from "../render/index.js";
 import type { MessageService } from "../../../../application/use-cases/message-service.js";
 import { isZeroAmount } from "../../../../domain/amounts/index.js";
-import { tronTxModeFields, txModeExclusive, txModeFields } from "./tx-mode-fields.js";
+import {
+  LEDGER_TRON_SETTINGS_NOTE,
+  tronTxModeFields,
+  txModeExclusive,
+  txModeFields,
+  unsignedTxModeExclusive,
+} from "./tx-mode-fields.js";
 
-export { tronTxModeFields, txModeExclusive, txModeFields };
-
-export const LEDGER_TRON_SETTINGS_NOTE =
-  'Ledger: enable "Custom contracts" and "Sign by Hash" in the TRON app settings.\n';
-
-// For commands without --sign-only.
-export const unsignedTxModeExclusive: ExclusiveGroup = {
-  ...txModeExclusive,
-  flags: ["dry-run", "build-only"],
+export {
+  LEDGER_TRON_SETTINGS_NOTE,
+  tronTxModeFields,
+  txModeExclusive,
+  txModeFields,
+  unsignedTxModeExclusive,
 };
 
 export const governanceTxModeFields = {

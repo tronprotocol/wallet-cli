@@ -10,7 +10,7 @@ interface ApprovalRow {
   readonly amount: string;
 }
 
-interface TradeView {
+export interface TradeView {
   readonly kind: string;
   readonly mode?: string;
   readonly stage?: string;

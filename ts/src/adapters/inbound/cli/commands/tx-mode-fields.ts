@@ -47,3 +47,12 @@ export const txModeExclusive: ExclusiveGroup = {
   flags: ["dry-run", "sign-only", "build-only"],
   select: "at-most-one",
 };
+
+export const LEDGER_TRON_SETTINGS_NOTE =
+  'Ledger: enable "Custom contracts" and "Sign by Hash" in the TRON app settings.\n';
+
+// For commands without --sign-only.
+export const unsignedTxModeExclusive: ExclusiveGroup = {
+  ...txModeExclusive,
+  flags: ["dry-run", "build-only"],
+};

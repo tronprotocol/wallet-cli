@@ -440,8 +440,12 @@ describe("objects handed to a plugin", () => {
 
   it("give each host service exactly its documented members", () => {
     const gateway = { getTrc20Balance: vi.fn(), getTokenInfo: vi.fn(), sendRaw: vi.fn() };
+    const aliases = { nile: "tron:3448148188" };
     const services = hostServices({
       signing: { assertCanSign: vi.fn(), signerAddress: vi.fn(), sign: vi.fn() } as never,
+      tronCalls: { run: vi.fn(), gateways: {} } as never,
+      tokens: { official: vi.fn(), effective: vi.fn(), add: vi.fn() } as never,
+      aliases,
       gateways: { get: () => gateway, client: vi.fn() } as never,
       contracts: {
         tron: { call: vi.fn(), send: vi.fn(), deploy: vi.fn() },
@@ -456,6 +460,9 @@ describe("objects handed to a plugin", () => {
       "signing",
       "gateways",
       "contracts",
+      "tronCalls",
+      "tokens",
+      "networks",
       "recipients",
       "config",
       "broadcastGuard",
@@ -466,10 +473,20 @@ describe("objects handed to a plugin", () => {
     expect(reachable(services.gateways.get({} as never, "tron", {} as never))).toEqual([
       "getTrc20Balance",
       "getTokenInfo",
+      "getAccount",
+      "getTransactionInfoById",
+      "receivedAmount",
+      "triggerConstantContract",
     ]);
     expect(reachable(services.contracts)).toEqual(["tron", "evm"]);
     expect(reachable(services.contracts.tron)).toEqual(["call", "send"]);
     expect(reachable(services.contracts.evm)).toEqual(["call", "send"]);
+    expect(reachable(services.tronCalls)).toEqual(["run"]);
+    expect(reachable(services.tokens)).toEqual(["official", "effective"]);
+    expect(reachable(services.networks)).toEqual(["aliases"]);
+    aliases.nile = "changed";
+    expect(services.networks.aliases()).toEqual({ nile: "tron:3448148188" });
+    expect(Object.isFrozen(services.networks.aliases())).toBe(true);
     expect(reachable(services.recipients)).toEqual(["resolve"]);
     expect(reachable(services.config)).toEqual(["networkBlock", "credential"]);
     expect(reachable(services.broadcastGuard)).toEqual(["assertAllowed"]);

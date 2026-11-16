@@ -1,8 +1,8 @@
 import { requestDispatchCheck } from "../command-deadline.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { AccountScope } from "../../contracts/execution-scope.js";
-import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
-import type { TronAccount } from "../../ports/chain/tron/tron-gateway.js";
+import type { DispatchCheck } from "../../contracts/deadline.js";
+import type { TronAccount, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
 
@@ -20,10 +20,19 @@ export function resolveTronAccount(scope: AccountScope): string {
   }
 }
 
+// Any gateway source that can read a TRON account, including the one a plugin receives.
+export interface TronAccountReader {
+  get(
+    network: NetworkDescriptor,
+    family: "tron",
+    check: DispatchCheck,
+  ): Pick<TronGateway, "getAccount">;
+}
+
 // Nodes return an empty record for an inactive account.
 export async function activeTronAccount(
   deadline: ExecutionDeadline,
-  gateways: ChainGatewayProvider,
+  gateways: TronAccountReader,
   network: NetworkDescriptor,
   owner: string,
 ): Promise<TronAccount> {

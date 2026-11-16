@@ -11,7 +11,7 @@ interface Side {
   readonly decimals?: number;
 }
 
-interface CollectView {
+export interface CollectView {
   readonly mode?: string;
   readonly stage?: string;
   readonly amountsEstimated?: boolean;

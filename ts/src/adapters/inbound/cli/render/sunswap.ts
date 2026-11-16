@@ -9,7 +9,7 @@ interface PriceRow {
   readonly quotedAt: string;
 }
 
-interface PriceView {
+export interface PriceView {
   readonly prices: readonly PriceRow[];
   // Display metadata; omitted from JSON output.
   readonly view?: { readonly symbols?: Readonly<Record<string, string>> };
@@ -26,7 +26,7 @@ interface TokenRow {
   readonly priceUsd1dRate: string;
 }
 
-interface TokenListView {
+export interface TokenListView {
   readonly tokens: readonly TokenRow[];
   readonly pagination: { offset: number; limit: number; total: number | null };
 }
@@ -56,7 +56,7 @@ interface PoolRow {
   readonly pairPrices?: readonly { base: string; quote: string; price: string }[];
 }
 
-interface PoolListView {
+export interface PoolListView {
   readonly pools: readonly PoolRow[];
   readonly pagination: { offset: number; limit: number; total: number | null };
   // Display metadata; omitted from JSON output.
@@ -105,7 +105,7 @@ interface PositionRow {
   readonly extra: Readonly<Record<string, unknown>>;
 }
 
-interface PositionListView {
+export interface PositionListView {
   readonly positions: readonly PositionRow[];
   readonly pagination: { offset: number; limit: number; total: number | null };
 }
@@ -132,7 +132,7 @@ interface PositionTokenDetail {
   readonly rewardAmount?: string;
 }
 
-interface PositionInfoView {
+export interface PositionInfoView {
   readonly position: {
     readonly nftTokenId: string;
     readonly owner: string;

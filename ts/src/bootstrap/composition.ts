@@ -85,6 +85,7 @@ import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-cli
 import { createX402DaemonLog } from "../adapters/outbound/x402/daemon-log.js";
 import { X402PaywallHttpServer } from "../adapters/inbound/http/x402/paywall-server.js";
 import { PluginSigning } from "../application/services/plugins/plugin-signing.js";
+import { TronContractCalls } from "../application/services/plugins/tron-contract-calls.js";
 import { BUILTIN_PLUGINS, gasfreeOpenApi } from "./plugins/builtin.js";
 import { hostServices, registerPlugin, RESERVED_WORDS } from "./plugins/host.js";
 import { PluginLoader } from "./plugins/loader.js";
@@ -267,6 +268,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
 
   const services = hostServices({
     signing: new PluginSigning(signerResolver, signing),
+    tronCalls: new TronContractCalls(gatewayProvider, txPipeline, systemWallClock),
+    tokens: tokenBook,
+    aliases: config.aliases,
     gateways: gatewayProvider,
     contracts: agentContracts,
     recipients: recipientResolver,

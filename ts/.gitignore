@@ -11,3 +11,4 @@ CONTEXT.md
 .boundary
 audit-claude/
 .codegraph/
+plugin-sdk/.testing/

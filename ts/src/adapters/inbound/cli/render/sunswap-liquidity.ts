@@ -23,7 +23,7 @@ interface ApprovalRow {
   readonly decimals: number;
 }
 
-interface LiquidityView {
+export interface LiquidityView {
   readonly mode?: string;
   readonly stage?: string;
   readonly amountsEstimated?: boolean;

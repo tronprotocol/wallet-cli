@@ -20,11 +20,11 @@ interface LaunchedToken {
   };
 }
 
-interface LaunchResult {
+export interface LaunchResult {
   readonly token: LaunchedToken;
 }
 
-interface LaunchPreview {
+export interface LaunchPreview {
   readonly mode: "dry-run";
   readonly name: string;
   readonly symbol: string;

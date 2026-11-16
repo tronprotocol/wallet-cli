@@ -25,6 +25,10 @@
     "./http": {
       "types": "./dist/http.d.ts",
       "import": "./dist/http.mjs"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.mjs"
     }
   },
   "bin": {

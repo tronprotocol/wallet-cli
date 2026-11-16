@@ -38,7 +38,7 @@ interface QuotedRoute {
   readonly containsUnverifiedHook?: boolean;
 }
 
-interface SwapView {
+export interface SwapView {
   readonly mode?: string;
   readonly stage?: string;
   readonly account?: string;

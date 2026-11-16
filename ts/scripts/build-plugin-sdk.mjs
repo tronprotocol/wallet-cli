@@ -1,6 +1,7 @@
-// Builds plugin-sdk/dist: type declarations of the five plugin-api entries, and one runtime module per
-// entry that binds each export to the API object the host publishes. Run with `node --import tsx`.
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+// Builds plugin-sdk/dist: type declarations of the five plugin-api entries, one runtime module per
+// entry that binds each export to the API object the host publishes, and the self-contained `testing`
+// entry that publishes the real API for plugin tests. Run with `node --import tsx`.
+import { mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { build } from "tsup";
 import { PLUGIN_API_GLOBAL, PLUGIN_API_OBJECT } from "../src/bootstrap/plugins/api-object.ts";
 import { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "../src/plugin-api/index.ts";
@@ -10,6 +11,22 @@ const ENTRIES = ["index", "domain", "application", "cli", "http"];
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 rmSync(OUT, { recursive: true, force: true });
+// Everything inlined, so the API object, its Zod and the test seams are one copy. Built in its own
+// directory: tsup builds of one directory remove each other's output.
+const TESTING_OUT = "plugin-sdk/.testing";
+rmSync(TESTING_OUT, { recursive: true, force: true });
+await build({
+  entry: { testing: "plugin-sdk/src/testing.ts" },
+  outDir: TESTING_OUT,
+  format: ["esm"],
+  platform: "node",
+  target: "node22",
+  outExtension: () => ({ js: ".mjs" }),
+  noExternal: [/.*/],
+  dts: { compilerOptions: { ignoreDeprecations: "6.0" } },
+  tsconfig: "tsconfig.json",
+  silent: true,
+});
 await build({
   entry: Object.fromEntries(ENTRIES.map((e) => [e, `src/plugin-api/${e}.ts`])),
   outDir: OUT,
@@ -50,6 +67,8 @@ for (const entry of ENTRIES) {
   writeFileSync(`${OUT}/${entry}.mjs`, `${lines.join("\n")}\n`);
 }
 mkdirSync(OUT, { recursive: true });
+for (const file of readdirSync(TESTING_OUT)) renameSync(`${TESTING_OUT}/${file}`, `${OUT}/${file}`);
+rmSync(TESTING_OUT, { recursive: true, force: true });
 writeFileSync(
   `${OUT}/version.json`,
   `${JSON.stringify({ apiVersion: PLUGIN_API_VERSION, apiRevision: PLUGIN_API_REVISION })}\n`,

@@ -1,6 +1,9 @@
 import type { TronTxInfo } from "../../../../application/ports/chain/tron/tron-gateway.js";
 import { tronHash20Hex } from "../../../../domain/address/index.js";
-import { NATIVE_TRX_ADDRESS } from "../../../../domain/sunswap/tokens.js";
+import { FAMILIES } from "../../../../domain/family/index.js";
+
+// Native TRX is named by the zero address, not a TRC20 contract.
+const NATIVE_TRX_ADDRESS = FAMILIES.tron.zeroAddress;
 
 const TRANSFER = "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const hex = (s: string) => s.replace(/^0x/, "").toLowerCase();

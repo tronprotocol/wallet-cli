@@ -8,7 +8,9 @@ import type {
 import type { DispatchCheck } from "../application/contracts/deadline.js";
 import type { TransactionScope } from "../application/contracts/execution-scope.js";
 import type { BroadcastGuard } from "../application/contracts/broadcast-guard.js";
-import type { TronTokenInfo } from "../application/ports/chain/tron/tron-gateway.js";
+import type { TronGateway } from "../application/ports/chain/tron/tron-gateway.js";
+import type { TokenRepository } from "../application/ports/token-repository.js";
+import type { TronContractCalls } from "../application/services/plugins/tron-contract-calls.js";
 import type {
   MessagePayload,
   TypedDataSignPayload,
@@ -38,9 +40,25 @@ export interface PluginContracts {
   readonly evm: Pick<EvmContractService, "call" | "send">;
 }
 
-export interface PluginTronGateway {
-  getTrc20Balance(contract: string, address: string): Promise<string>;
-  getTokenInfo(contract: string): Promise<TronTokenInfo>;
+export type PluginTronGateway = Pick<
+  TronGateway,
+  | "getTrc20Balance"
+  | "getTokenInfo"
+  | "getAccount"
+  | "getTransactionInfoById"
+  | "receivedAmount"
+  | "triggerConstantContract"
+>;
+
+// One TRON contract call through the transaction lifecycle; the core builds, signs and sends it.
+export type PluginTronCalls = Pick<TronContractCalls, "run">;
+
+// The token book: curated tokens, and the tokens an account added.
+export type PluginTokens = Pick<TokenRepository, "official" | "effective">;
+
+export interface PluginNetworks {
+  // Network aliases from the configuration, alias to canonical id.
+  aliases(): Readonly<Record<string, string>>;
 }
 
 // Every call on a returned gateway runs under `check`.
@@ -68,6 +86,9 @@ export interface HostServices {
   readonly signing: PluginSigningService;
   readonly gateways: PluginGateways;
   readonly contracts: PluginContracts;
+  readonly tronCalls: PluginTronCalls;
+  readonly tokens: PluginTokens;
+  readonly networks: PluginNetworks;
   readonly recipients: PluginRecipients;
   readonly config: PluginConfig;
   // Checked before every submit to the plugin's own service.

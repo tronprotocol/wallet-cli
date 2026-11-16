@@ -21,7 +21,7 @@ interface ApprovalRow {
   readonly decimals: number;
 }
 
-interface RemovalView {
+export interface RemovalView {
   readonly mode?: string;
   readonly stage?: string;
   readonly amountsEstimated?: boolean;

@@ -6,7 +6,7 @@ import { formatScalar, formatInt, formatGwei, formatSun, formatUtc, formatWei } 
 import { asObj, type Obj, type Pair } from "./layout.js";
 
 // Native symbols belong to networks, not families (e.g. ETH and BNB share EVM).
-interface FamilyRenderHooks {
+export interface FamilyRenderHooks {
   txInfoRows(r: TxInfoView, symbol: string): Pair[];
   // Raw native amounts are SUN for TRON and wei for EVM.
   nativeAmount(raw: string, symbol: string): string;
