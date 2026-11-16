@@ -329,7 +329,13 @@ module.exports = {
       name: "erc8004-sdk-only-in-registry-wrapper",
       severity: "error",
       comment: "the ERC-8004 SDK client can send; only the registry wrapper imports it at runtime",
-      from: { path: "^src/", pathNot: "^src/adapters/outbound/erc8004/sdk-registry\\.ts$" },
+      from: {
+        path: "^src/",
+        pathNot: [
+          "^src/adapters/outbound/erc8004/sdk-registry\\.ts$",
+          "^src/plugins/erc8004/adapters/outbound/erc8004/sdk-registry\\.ts$",
+        ],
+      },
       to: {
         path: "(^|node_modules/)@bankofai/8004-sdk(/|$)",
         dependencyTypesNot: ["type-only", "type-import"],
@@ -340,7 +346,13 @@ module.exports = {
       severity: "error",
       comment:
         "the x402 modules that sign, send, or settle payments; only the payment client imports them",
-      from: { path: "^src/", pathNot: "^src/adapters/outbound/x402/payment-client\\.ts$" },
+      from: {
+        path: "^src/",
+        pathNot: [
+          "^src/adapters/outbound/x402/payment-client\\.ts$",
+          "^src/plugins/x402/adapters/outbound/x402/payment-client\\.ts$",
+        ],
+      },
       to: { path: `(^|node_modules/)@bankofai/(${X402_PAYMENT_PATTERN})` },
     },
   ],

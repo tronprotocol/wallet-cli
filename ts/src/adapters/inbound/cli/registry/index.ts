@@ -62,6 +62,44 @@ export class CommandRegistry {
     existing.families[family] = binding;
   }
 
+  // Checks every declaration against this registry and the others in the batch, then adds them all;
+  // a refused batch leaves the registry unchanged.
+  addAll(batch: {
+    groups: readonly HelpGroup[];
+    commands: readonly CommandDefinition[];
+    chains: readonly { spec: ChainSpec; family: ChainFamily; binding: FamilyBinding }[];
+  }): void {
+    const words = this.topLevelWords();
+    const groups = new Set<string>();
+    for (const group of batch.groups) {
+      if (words.has(group.name) || groups.has(group.name)) {
+        throw new Error(`duplicate group ${group.name}`);
+      }
+      groups.add(group.name);
+    }
+    const commands = new Set<string>();
+    for (const cmd of batch.commands) {
+      const key = cmd.path.join(".");
+      if (this.#byPath.has(key) || commands.has(key)) throw new Error(`duplicate command ${key}`);
+      commands.add(key);
+    }
+    const chains = new Map<string, { spec: ChainSpec; families: Set<ChainFamily> }>();
+    for (const { spec, family } of batch.chains) {
+      const key = spec.path.join(".");
+      if (this.#chainByPath.has(key)) throw new Error(`duplicate command ${key}`);
+      const seen = chains.get(key) ?? { spec, families: new Set<ChainFamily>() };
+      if (seen.spec !== spec) {
+        throw new Error(`chain command ${key} registered with two different specs`);
+      }
+      if (seen.families.has(family)) throw new Error(`duplicate command ${family}:${key}`);
+      seen.families.add(family);
+      chains.set(key, seen);
+    }
+    for (const group of batch.groups) this.#groups.set(group.name, group);
+    for (const cmd of batch.commands) this.#byPath.set(cmd.path.join("."), cmd);
+    for (const { spec, family, binding } of batch.chains) this.addChain(spec, family, binding);
+  }
+
   resolveChain(path: string[]): ChainCommandDefinition | null {
     return this.#chainByPath.get(path.join(".")) ?? null;
   }

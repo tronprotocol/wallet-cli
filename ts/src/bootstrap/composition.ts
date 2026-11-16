@@ -32,6 +32,8 @@ import { SecretResolver, type SecretPaths } from "../adapters/inbound/cli/input/
 import { createPrompter } from "../adapters/inbound/cli/input/prompt/index.js";
 import { CommandRegistry } from "../adapters/inbound/cli/registry/index.js";
 import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js";
+import { FollowUpTable } from "../adapters/inbound/cli/output/errors.js";
+import { ErrorCodeTable } from "../domain/errors/codes.js";
 import { registerWalletCommands } from "../adapters/inbound/cli/commands/wallet.js";
 import { registerConfigCommands } from "../adapters/inbound/cli/commands/config.js";
 import { registerNetworkCommands } from "../adapters/inbound/cli/commands/network.js";
@@ -102,7 +104,16 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
   const streams = new StreamManager(output, options.globals.verbose);
   const credentials = configuredCredentials(config);
-  const formatter = createOutputFormatter(output, streams, options.startedAt, credentials);
+  // What plugins add to these tables belongs to this runtime only.
+  const errorCodes = new ErrorCodeTable();
+  const followUps = new FollowUpTable();
+  const formatter = createOutputFormatter(
+    output,
+    streams,
+    options.startedAt,
+    credentials,
+    followUps,
+  );
 
   const root = ConfigLoader.resolveRoot();
   const store = new AtomicFileStore(deadline);
@@ -256,14 +267,19 @@ export function composeCliRuntime(options: BootstrapOptions) {
     broadcastGuard: processBroadcastGuard,
     clock: systemWallClock,
   });
+  const failedPlugins = new Map<string, string>();
   for (const plugin of BUILTIN_PLUGINS) {
     const registration = registerPlugin(plugin, {
       commands: registry,
       capabilities: capabilityRegistry,
+      errorCodes,
+      followUps,
+      networks: Object.values(config.networks),
       services,
       timeoutMs,
     });
     if (!registration.ok) {
+      failedPlugins.set(plugin.name, registration.reason);
       streams.diagnostic("debug", `plugin ${plugin.name} was not loaded: ${registration.reason}`);
     }
   }
@@ -287,6 +303,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     accounts: walletService,
     prompter,
     formatter,
+    followUps,
   };
   const session: SessionRef = {};
 
@@ -303,6 +320,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
     deps,
     session,
     capabilities: capabilityRegistry,
+    errorCodes,
+    followUps,
+    failedPlugins,
     targetResolver: new TargetResolver({ networkRegistry, keystore }),
   };
 }

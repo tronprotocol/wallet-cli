@@ -10,22 +10,24 @@ import type { SignedGasFreeAuthorization } from "../../domain/types.js";
 import { GasFreeService } from "./gasfree-service.js";
 import { SigningService } from "../../../../application/services/signing/signing-service.js";
 import { PluginSigning } from "../../../../application/services/plugins/plugin-signing.js";
-import { cliMessage } from "../../../../adapters/inbound/cli/output/errors.js";
+import { cliMessage, FollowUpTable } from "../../../../adapters/inbound/cli/output/errors.js";
 import {
   CommandDeadline,
   type MonotonicClock,
 } from "../../../../application/services/command-deadline.js";
 import { DeadlineExpiredError } from "../../../../application/contracts/deadline.js";
-import { registerFollowUps } from "../../../../adapters/inbound/cli/output/errors.js";
 import { GASFREE_FOLLOW_UPS } from "../../adapters/inbound/follow-ups.js";
 
-registerFollowUps(GASFREE_FOLLOW_UPS);
+const followUps = new FollowUpTable();
+followUps.register(GASFREE_FOLLOW_UPS);
 
 const cliWarnings = (ctx: TransactionScope) =>
   vi
     .mocked(ctx.warn)
     .mock.calls.map(([message]) =>
-      typeof message === "string" || "code" in message ? message : cliMessage(message).message,
+      typeof message === "string" || "code" in message
+        ? message
+        : cliMessage(message, followUps).message,
     );
 
 const OWNER = "TMVQGm1qAQYVdetCeGRRkTWYYrLXuHK2HC";

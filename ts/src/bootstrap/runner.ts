@@ -120,6 +120,7 @@ async function runCommand(argv: string[]): Promise<CommandEnd> {
         runtime.streams,
         VERSION,
         runtime.capabilities,
+        runtime.errorCodes,
       );
       return end(help.handleMeta(hasMeta(tokens) ? tokens : ["--help"]));
     }
@@ -172,7 +173,7 @@ async function runCommand(argv: string[]): Promise<CommandEnd> {
       commandId: runtime.session.current?.commandId,
       net: runtime.session.current?.net,
     });
-    return end(exitCodeOf(normalized));
+    return end(exitCodeOf(normalized, runtime.errorCodes));
   } finally {
     runtime.deps.secrets.clearPrimed();
     runtime.prompter.close();

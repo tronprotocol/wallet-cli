@@ -7,7 +7,7 @@ import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
 import { maskCredentials } from "./mask.js";
-import { cliMessage, errorEnvelope } from "./errors.js";
+import { cliMessage, errorEnvelope, type FollowUpTable } from "./errors.js";
 
 export interface OutputFormatter {
   // Return the result frame for streams.result.
@@ -30,6 +30,7 @@ abstract class BaseOutputFormatter {
     protected readonly startedAt: number,
     // External error text can echo the credentials a request used.
     protected readonly credentials: readonly string[],
+    protected readonly followUps?: FollowUpTable,
   ) {}
 
   protected meta() {
@@ -54,7 +55,7 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
     const env = OutputEnvelope.error(
       ctx?.commandId ?? "",
       ctx?.net,
-      errorEnvelope(err),
+      errorEnvelope(err, this.followUps),
       this.meta(),
     );
     this.streams.result(maskCredentials(toJson(env), this.credentials));
@@ -127,7 +128,7 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   }
 
   error(err: CliError): void {
-    const line = `error [${err.code}]: ${cliMessage(err.userMessage).textMessage}`;
+    const line = `error [${err.code}]: ${cliMessage(err.userMessage, this.followUps).textMessage}`;
     const candidates = renderErrorDetails(err.details);
     const text = candidates ? `${line}\n${candidates}` : line;
     this.streams.errorLine(sanitizeText(maskCredentials(text, this.credentials)));
@@ -143,10 +144,11 @@ export function createOutputFormatter(
   streams: StreamManager,
   startedAt: number,
   credentials: readonly string[] = [],
+  followUps?: FollowUpTable,
 ): OutputFormatter {
   return output === "json"
-    ? new JsonOutputFormatter(streams, startedAt, credentials)
-    : new HumanOutputFormatter(streams, startedAt, credentials);
+    ? new JsonOutputFormatter(streams, startedAt, credentials, followUps)
+    : new HumanOutputFormatter(streams, startedAt, credentials, followUps);
 }
 
 function renderEvent(e: ProgressEvent): string {

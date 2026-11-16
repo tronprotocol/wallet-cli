@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { CommandRegistry } from "../../adapters/inbound/cli/registry/index.js";
 import { CapabilityRegistry } from "../../application/services/capability/index.js";
-import { errorCodeEntry, errorCodeTable } from "../../domain/errors/codes.js";
-import { followUpSpelling } from "../../adapters/inbound/cli/output/errors.js";
+import { errorCodeEntry, ErrorCodeTable } from "../../domain/errors/codes.js";
+import { FollowUpTable } from "../../adapters/inbound/cli/output/errors.js";
 import type { ExecutionContext } from "../../adapters/inbound/cli/contracts/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import {
@@ -19,13 +19,37 @@ import { BUILTIN_PLUGINS } from "./builtin.js";
 
 const SERVICES = {} as HostServices;
 
+const NETWORKS = [
+  { id: "tron:1", family: "tron", chainId: "1", nativeSymbol: "TRX", capabilities: [] },
+  { id: "tron:2", family: "tron", chainId: "2", nativeSymbol: "TRX", capabilities: [] },
+] as NetworkDescriptor[];
+
 function targets(): PluginTargets & {
   commands: CommandRegistry;
   capabilities: CapabilityRegistry;
 } {
   const commands = new CommandRegistry();
   commands.addChain(spec(["tx", "send"]), "tron", { run: async () => ({}) });
-  return { commands, capabilities: new CapabilityRegistry(), services: SERVICES, timeoutMs: 0 };
+  return {
+    commands,
+    capabilities: new CapabilityRegistry(),
+    errorCodes: new ErrorCodeTable(),
+    followUps: new FollowUpTable(),
+    networks: NETWORKS,
+    services: SERVICES,
+    timeoutMs: 0,
+  };
+}
+
+// Everything a registration can change, for comparing before and after.
+function contents(t: PluginTargets & { capabilities: CapabilityRegistry }) {
+  return {
+    commands: t.commands.all().map((c) => ("spec" in c ? c.spec.path : c.path).join(" ")),
+    groups: t.commands.groups().map((g) => g.name),
+    codes: Object.keys(t.errorCodes.table()).length,
+    predicate: t.capabilities.hasPredicate("demo.read"),
+    followUp: t.followUps.spelling("demo-show"),
+  };
 }
 
 function spec(path: string[]): PluginChainSpec {
@@ -69,10 +93,11 @@ describe("registerPlugin", () => {
     expect(result).toEqual({ ok: true });
     expect(t.commands.resolveChain(["demo", "show"])).not.toBeNull();
     expect(t.commands.group("demo")?.summary).toBe("Demo commands");
-    expect(errorCodeEntry("demo_publish_failed")).toEqual(ENTRY);
-    expect(Object.keys(errorCodeTable()).at(-1)).toBe("demo_publish_failed");
+    expect(t.errorCodes.entry("demo_publish_failed")).toEqual(ENTRY);
+    expect(Object.keys(t.errorCodes.table()).at(-1)).toBe("demo_publish_failed");
+    expect(errorCodeEntry("demo_publish_failed")).toBeUndefined();
     expect(t.capabilities.hasPredicate("demo.read")).toBe(true);
-    expect(followUpSpelling("demo-show")?.(undefined)).toBe("demo show");
+    expect(t.followUps.spelling("demo-show")?.(undefined)).toBe("demo show");
   });
 
   it("refuses a command outside the plugin's groups", () => {
@@ -163,9 +188,136 @@ describe("registerPlugin", () => {
     expect(result).toEqual({ ok: false, reason: "register failed" });
     expect(t.commands.resolveChain(["demo", "show"])).toBeNull();
     expect(t.commands.groups()).toEqual([]);
-    expect(errorCodeEntry("demo_partial_failed")).toBeUndefined();
+    expect(t.errorCodes.entry("demo_partial_failed")).toBeUndefined();
     expect(t.capabilities.hasPredicate("demo.partial")).toBe(false);
-    expect(followUpSpelling("demo-partial")).toBeUndefined();
+    expect(t.followUps.spelling("demo-partial")).toBeUndefined();
+  });
+
+  it("fails a plugin that catches a refused declaration, and stages no part of a refused batch", () => {
+    const t = targets();
+    const before = contents(t);
+    const result = registerPlugin(
+      plugin((host) => {
+        host.chainCommand(spec(["demo", "show"]), "tron", { run });
+        host.followUps({ "demo-show": () => "demo show" });
+        try {
+          host.errorCodes({ demo_caught: ENTRY, timeout: { ...ENTRY } });
+        } catch {
+          // the plugin ignores the refusal
+        }
+      }),
+      t,
+    );
+    expect(result).toMatchObject({ ok: false, reason: expect.stringContaining("timeout") });
+    expect(contents(t)).toEqual(before);
+    expect(t.errorCodes.entry("demo_caught")).toBeUndefined();
+  });
+
+  it("publishes what the plugin declared, not what it changed afterwards", () => {
+    const t = targets();
+    const path = ["demo", "first"];
+    const shared = spec(["demo", "chain"]);
+    const result = registerPlugin(
+      plugin((host) => {
+        host.command({ path, network: "none", schema: z.object({}), examples: [], run } as never);
+        path[1] = "second";
+        host.command({ path, network: "none", schema: z.object({}), examples: [], run } as never);
+        host.chainCommand(shared, "tron", { run });
+        host.chainCommand(shared, "evm", { run });
+        shared.path[1] = "moved";
+        (shared as { passwordMode?: string }).passwordMode = "verify";
+      }),
+      t,
+    );
+    expect(result).toEqual({ ok: true });
+    expect(t.commands.resolveNeutral(["demo", "first"])).not.toBeNull();
+    expect(t.commands.resolveNeutral(["demo", "second"])).not.toBeNull();
+    const chain = t.commands.resolveChain(["demo", "chain"])!;
+    expect(Object.keys(chain.families)).toEqual(["tron", "evm"]);
+    expect(chain.spec.path).toEqual(["demo", "chain"]);
+    expect("passwordMode" in chain.spec).toBe(false);
+  });
+
+  it("refuses a wallet-management field the declaration inherits", () => {
+    const inherited = Object.assign(Object.create({ passwordMode: "verify" }), spec(["demo", "x"]));
+    expect(
+      registerPlugin(
+        plugin((host) => host.chainCommand(inherited, "tron", { run })),
+        targets(),
+      ),
+    ).toMatchObject({ ok: false, reason: expect.stringContaining("passwordMode") });
+  });
+
+  it("publishes nothing when the target registry refuses the batch", () => {
+    const t = targets();
+    t.commands.add({ path: ["demo", "show"], run } as never);
+    const before = contents(t);
+    const result = registerPlugin(
+      plugin((host) => {
+        host.followUps({ "demo-show": () => "demo show" });
+        host.command({ path: ["demo", "show"], examples: [], run } as never);
+      }),
+      // Taken words are checked against the group; the command path is only found by the target.
+      { ...t, commands: Object.assign(t.commands, { topLevelWords: () => new Set<string>() }) },
+    );
+    expect(result).toMatchObject({ ok: false, reason: expect.stringContaining("demo.show") });
+    expect(contents(t)).toEqual(before);
+  });
+
+  it("fails a plugin whose predicate throws on a configured network, and keeps the others", () => {
+    const t = targets();
+    const result = registerPlugin(
+      plugin((host) => {
+        host.chainCommand(spec(["demo", "show"]), "tron", { run });
+        host.capabilities({
+          "demo.read": (network) => {
+            if (network.id === "tron:2") throw new Error("bad demo block");
+            return "supported";
+          },
+        });
+      }),
+      t,
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      reason: expect.stringMatching(/demo\.read failed on tron:2: bad demo block/),
+    });
+    expect(t.commands.groups()).toEqual([]);
+    expect(t.capabilities.hasPredicate("demo.read")).toBe(false);
+    expect(t.commands.resolveChain(["tx", "send"])).not.toBeNull();
+    expect(
+      registerPlugin(
+        plugin(() => {}, { name: "other" }),
+        t,
+      ),
+    ).toEqual({ ok: true });
+  });
+
+  it("evaluates a plugin predicate once per network and records its result", () => {
+    const t = targets();
+    const predicate = vi.fn(() => "needs-inputs" as const);
+    registerPlugin(
+      plugin((host) => host.capabilities({ "demo.read": predicate })),
+      t,
+    );
+    for (const network of NETWORKS) t.capabilities.register(network, ["demo.read"]);
+    expect(predicate).toHaveBeenCalledTimes(NETWORKS.length);
+    expect(t.capabilities.support("tron:1", "demo.read")).toBe("needs-inputs");
+  });
+
+  it("keeps each runtime's codes and follow-ups to itself", () => {
+    const declare = () =>
+      plugin((host) => {
+        host.errorCodes({ demo_runtime: ENTRY });
+        host.followUps({ "demo-show": () => "demo show" });
+      });
+    const a = targets();
+    const b = targets();
+    expect(registerPlugin(declare(), a)).toEqual({ ok: true });
+    expect(b.errorCodes.entry("demo_runtime")).toBeUndefined();
+    expect(b.followUps.spelling("demo-show")).toBeUndefined();
+    expect(registerPlugin(declare(), b)).toEqual({ ok: true });
+    expect(b.followUps.spelling("demo-show")?.(undefined)).toBe("demo show");
   });
 
   it("refuses wallet-management fields, unsupported API numbers and late declarations", () => {

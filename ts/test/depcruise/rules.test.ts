@@ -520,6 +520,41 @@ describe("dependency-cruiser layer and cycle rules", () => {
   });
 });
 
+describe("SDK wrapper exceptions in the plugin layout", () => {
+  const erc8004 = `import { SDK } from "@bankofai/8004-sdk";\nexport const sdk = SDK;\n`;
+  const x402 = `import { wrapFetchWithPayment } from "@bankofai/x402-fetch";\nexport const pay = wrapFetchWithPayment;\n`;
+
+  it("allows the wrapper each plugin owns", () => {
+    const dir = buildTree({
+      "src/plugins/erc8004/adapters/outbound/erc8004/sdk-registry.ts": erc8004,
+      "src/plugins/x402/adapters/outbound/x402/payment-client.ts": x402,
+    });
+    try {
+      expect(cruise(dir)).toContain("no dependency violations found");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports a sibling of the plugin wrapper", () => {
+    const dir = buildTree({
+      "src/plugins/erc8004/adapters/outbound/erc8004/other.ts": erc8004,
+      "src/plugins/x402/adapters/outbound/x402/other.ts": x402,
+    });
+    try {
+      const output = cruise(dir);
+      expect(output).toContain(
+        "erc8004-sdk-only-in-registry-wrapper: src/plugins/erc8004/adapters/outbound/erc8004/other.ts → ",
+      );
+      expect(output).toContain(
+        "x402-payment-modules-only-in-payment-client: src/plugins/x402/adapters/outbound/x402/other.ts → ",
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 const exported = (from: string) =>
   `import { marker } from "${from}";\nexport const probe = marker;\n`;
 const marker = `export const marker = 1;\n`;

@@ -1,18 +1,17 @@
 // Builds what a plugin registers against, checks everything it declares, and publishes it in one step.
 import type { ChainFamily, Config, NetworkDescriptor } from "../../domain/types/index.js";
 import { networkBlock } from "../../domain/types/index.js";
-import {
-  errorCodeEntry,
-  declareErrorCodes,
-  type ErrorCodeEntry,
-} from "../../domain/errors/codes.js";
+import type { ErrorCodeEntry, ErrorCodeTable } from "../../domain/errors/codes.js";
 import { UsageError } from "../../domain/errors/index.js";
 import { FAMILIES } from "../../domain/family/index.js";
 import type { BroadcastGuard } from "../../application/contracts/broadcast-guard.js";
 import type { WallClock } from "../../application/contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../application/contracts/deadline.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
-import type { CapabilityRegistry } from "../../application/services/capability/index.js";
+import type {
+  CapabilityRegistry,
+  CapabilitySupport,
+} from "../../application/services/capability/index.js";
 import type { PluginSigning } from "../../application/services/plugins/plugin-signing.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
 import type {
@@ -23,7 +22,7 @@ import type {
 } from "../../adapters/inbound/cli/contracts/index.js";
 import { SECRET_KINDS } from "../../adapters/inbound/cli/contracts/index.js";
 import { CommandRegistry, type HelpGroup } from "../../adapters/inbound/cli/registry/index.js";
-import { followUpSpelling, registerFollowUps } from "../../adapters/inbound/cli/output/errors.js";
+import type { FollowUpTable } from "../../adapters/inbound/cli/output/errors.js";
 import { camelToKebab } from "../../adapters/inbound/cli/arity/index.js";
 import {
   PLUGIN_API_REVISION,
@@ -135,6 +134,10 @@ export function pluginCommandContext(
 export interface PluginTargets {
   readonly commands: CommandRegistry;
   readonly capabilities: Pick<CapabilityRegistry, "hasPredicate" | "addPredicates">;
+  readonly errorCodes: ErrorCodeTable;
+  readonly followUps: FollowUpTable;
+  // Every configured network; a plugin's predicates are evaluated on each before it is published.
+  readonly networks: readonly NetworkDescriptor[];
   readonly services: HostServices;
   // The command's resolved time limit, handed to plugin commands; 0 means none.
   readonly timeoutMs: number;
@@ -157,21 +160,54 @@ export function registerPlugin(
   plugin: PluginDefinition,
   targets: PluginTargets,
 ): PluginRegistration {
-  let staged: StagedPlugin;
   try {
-    staged = stage(plugin, targets);
+    const staged = stage(plugin, targets);
+    const predicates = evaluatePredicates(staged.predicates, targets.networks);
+    // The only step that can refuse; it checks the whole batch before it changes anything.
+    targets.commands.addAll(staged);
+    targets.errorCodes.declare(Object.fromEntries(staged.codes));
+    targets.capabilities.addPredicates(predicates);
+    targets.followUps.register(Object.fromEntries(staged.followUps));
+    return { ok: true };
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) };
   }
-  for (const group of staged.groups) targets.commands.addGroup(group);
-  for (const command of staged.commands) targets.commands.add(command);
-  for (const { spec, family, binding } of staged.chains) {
-    targets.commands.addChain(spec, family, binding);
+}
+
+// Runs each predicate on every configured network now, so a throwing predicate fails its plugin
+// instead of composition; the registry then reads the recorded results.
+function evaluatePredicates(
+  predicates: ReadonlyMap<string, CapabilityPredicate>,
+  networks: readonly NetworkDescriptor[],
+): Record<string, CapabilityPredicate> {
+  const out: Record<string, CapabilityPredicate> = {};
+  for (const [key, predicate] of predicates) {
+    const results = new Map<string, CapabilitySupport>();
+    for (const network of networks) {
+      try {
+        results.set(network.id, predicate(network));
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`capability ${key} failed on ${network.id}: ${reason}`, { cause: error });
+      }
+    }
+    out[key] = (network) =>
+      results.has(network.id) ? results.get(network.id)! : predicate(network);
   }
-  declareErrorCodes(Object.fromEntries(staged.codes));
-  targets.capabilities.addPredicates(Object.fromEntries(staged.predicates));
-  registerFollowUps(Object.fromEntries(staged.followUps));
-  return { ok: true };
+  return out;
+}
+
+// A copy of a declaration's plain data (arrays and plain objects, recursively), frozen, so the
+// plugin cannot change what the host checked. Schemas, functions and other objects are kept as is.
+function snapshot<T>(value: T): T {
+  if (Array.isArray(value)) return Object.freeze(value.map((item) => snapshot(item))) as T;
+  if (typeof value !== "object" || value === null) return value;
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return value;
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(value))
+    copy[key] = snapshot((value as Record<string, unknown>)[key]);
+  return Object.freeze(copy) as T;
 }
 
 function stage(plugin: PluginDefinition, targets: PluginTargets): StagedPlugin {
@@ -185,31 +221,33 @@ function stage(plugin: PluginDefinition, targets: PluginTargets): StagedPlugin {
   }
   const taken = targets.commands.topLevelWords();
   const groups: HelpGroup[] = [];
-  for (const group of plugin.groups) {
-    const word = group.name;
+  for (const declared of snapshot([...plugin.groups])) {
+    const word = declared.name;
     if (
+      typeof word !== "string" ||
       !PLUGIN_NAME.test(word) ||
       taken.has(word) ||
       RESERVED_WORDS.has(word) ||
       Object.hasOwn(FAMILIES, word) ||
       groups.some((g) => g.name === word)
     ) {
-      throw new Error(`plugin ${name} cannot use the command group "${word}"`);
+      throw new Error(`plugin ${name} cannot use the command group "${String(word)}"`);
     }
     groups.push({
       name: word,
-      summary: group.summary,
-      ...(group.description === undefined ? {} : { description: group.description }),
-      families: [...group.families],
+      summary: declared.summary,
+      ...(declared.description === undefined ? {} : { description: declared.description }),
+      families: declared.families,
     });
   }
   const ownsPath = (path: readonly string[]) => {
-    if (!groups.some((g) => g.name === path[0])) {
-      throw new Error(`plugin ${name} declares ${path.join(" ")} outside its groups`);
+    if (!Array.isArray(path) || !groups.some((g) => g.name === path[0])) {
+      throw new Error(`plugin ${name} declares ${String(path)} outside its groups`);
     }
   };
+  // `in` also finds a field the declaration inherits.
   const noWalletFields = (definition: object, path: readonly string[]) => {
-    const field = WALLET_MANAGEMENT_FIELDS.find((f) => Object.hasOwn(definition, f));
+    const field = WALLET_MANAGEMENT_FIELDS.find((f) => f in definition);
     if (field) throw new Error(`plugin command ${path.join(" ")} sets ${field}`);
   };
   const capabilityPrefixes = [name, ...groups.map((g) => g.name)].map((p) => `${p}.`);
@@ -228,68 +266,94 @@ function stage(plugin: PluginDefinition, targets: PluginTargets): StagedPlugin {
     predicates: new Map(),
     followUps: new Map(),
   };
+  // One snapshot per declared spec, so families bound to one spec share it.
+  const specs = new Map<object, ChainSpec>();
   let open = true;
-  const declaring = () => {
-    if (!open) throw new Error(`plugin ${name} declared after its registration ended`);
-  };
+  let refused: unknown;
+  // Every declaration checks its whole input before it stages any of it. A refusal fails the
+  // registration even when the plugin catches the exception.
+  const declare =
+    <A extends unknown[]>(fn: (...args: A) => void) =>
+    (...args: A): void => {
+      if (!open) throw new Error(`plugin ${name} declared after its registration ended`);
+      try {
+        fn(...args);
+      } catch (error) {
+        refused ??= error;
+        throw error;
+      }
+    };
   const host: PluginHost = facade<PluginHost>({
     apiVersion: PLUGIN_API_VERSION,
     services: targets.services,
-    command(definition) {
-      declaring();
-      ownsPath(definition.path);
+    command: declare((definition) => {
       noWalletFields(definition, definition.path);
-      const command: CommandDefinition = { ...definition, run: run(definition.run) };
+      const command: CommandDefinition = snapshot({ ...definition, run: run(definition.run) });
+      ownsPath(command.path);
       scratch.add(command);
       staged.commands.push(command);
-    },
-    chainCommand(spec, family, binding) {
-      declaring();
-      ownsPath(spec.path);
-      noWalletFields(spec, spec.path);
+    }),
+    chainCommand: declare((declared, family, binding) => {
       if (!Object.hasOwn(FAMILIES, family)) throw new Error(`unknown family ${family}`);
-      const coreBinding: FamilyBinding = { ...binding, run: run(binding.run) };
+      let spec = specs.get(declared);
+      if (spec === undefined) {
+        noWalletFields(declared, declared.path);
+        spec = snapshot({ ...declared }) as ChainSpec;
+        ownsPath(spec.path);
+      }
+      const coreBinding: FamilyBinding = snapshot({ ...binding, run: run(binding.run) });
       scratch.addChain(spec, family, coreBinding);
+      specs.set(declared, spec);
       staged.chains.push({ spec, family, binding: coreBinding });
-    },
-    errorCodes(codes) {
-      declaring();
-      for (const [code, entry] of Object.entries(codes)) {
-        const existing = staged.codes.get(code) ?? errorCodeEntry(code);
+    }),
+    errorCodes: declare((codes) => {
+      const accepted = new Map<string, ErrorCodeEntry>();
+      for (const [code, declared] of Object.entries(codes)) {
+        const entry = { exit: declared.exit, retry: declared.retry, meaning: declared.meaning };
+        const existing =
+          accepted.get(code) ?? staged.codes.get(code) ?? targets.errorCodes.entry(code);
         if (existing !== undefined && !sameEntry(existing, entry)) {
           throw new Error(`plugin ${name} redefines the error code ${code}`);
         }
-        staged.codes.set(code, { exit: entry.exit, retry: entry.retry, meaning: entry.meaning });
+        accepted.set(code, entry);
       }
-    },
-    capabilities(predicates) {
-      declaring();
+      for (const [code, entry] of accepted) staged.codes.set(code, entry);
+    }),
+    capabilities: declare((predicates) => {
+      const accepted = new Map<string, CapabilityPredicate>();
       for (const [key, predicate] of Object.entries(predicates)) {
         if (!capabilityPrefixes.some((prefix) => key.startsWith(prefix))) {
           throw new Error(`plugin ${name} cannot declare the capability ${key}`);
         }
+        if (typeof predicate !== "function") {
+          throw new Error(`plugin ${name} declares the capability ${key} without a predicate`);
+        }
         if (staged.predicates.has(key) || targets.capabilities.hasPredicate(key)) {
           throw new Error(`plugin ${name} redefines the capability ${key}`);
         }
-        staged.predicates.set(key, predicate);
+        accepted.set(key, predicate);
       }
-    },
-    followUps(steps) {
-      declaring();
+      for (const [key, predicate] of accepted) staged.predicates.set(key, predicate);
+    }),
+    followUps: declare((steps) => {
+      const accepted = new Map<string, (subject?: string) => string>();
       for (const [step, spell] of Object.entries(steps)) {
-        const existing = staged.followUps.get(step) ?? followUpSpelling(step);
+        const existing =
+          accepted.get(step) ?? staged.followUps.get(step) ?? targets.followUps.spelling(step);
         if (existing !== undefined && existing !== spell) {
           throw new Error(`plugin ${name} redefines the follow-up ${step}`);
         }
-        staged.followUps.set(step, spell);
+        accepted.set(step, spell);
       }
-    },
+      for (const [step, spell] of accepted) staged.followUps.set(step, spell);
+    }),
   });
   try {
     plugin.register(host);
   } finally {
     open = false;
   }
+  if (refused !== undefined) throw refused;
   return staged;
 }
 

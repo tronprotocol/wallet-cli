@@ -11,7 +11,7 @@ import { CommandRegistry } from "../registry/index.js";
 import type { CapabilityRegistry } from "../../../../application/services/capability/index.js";
 import { commandId } from "../command-id.js";
 import { GLOBAL_FLAG_SPECS, type GlobalFlagSpec } from "../globals/index.js";
-import { errorCodeTable } from "../../../../domain/errors/codes.js";
+import { errorCodeTable, type ErrorCodeTable } from "../../../../domain/errors/codes.js";
 import { exclusiveGroupsFor, exclusiveRefine } from "../schemas/exclusive.js";
 
 export interface GlobalFlag {
@@ -78,6 +78,7 @@ export function buildCatalog(
   version: string,
   familyFilter?: ChainFamily,
   capabilities?: CapabilitySupportSource,
+  errorCodes: Pick<ErrorCodeTable, "table"> = { table: errorCodeTable },
 ): string {
   const support = (capability: string | undefined, families: readonly string[]) =>
     capability && capabilities
@@ -139,7 +140,7 @@ export function buildCatalog(
     tool: "wallet-cli",
     version,
     globalFlags: GLOBAL_FLAGS,
-    errorCodes: errorCodeTable(),
+    errorCodes: errorCodes.table(),
     commands,
   });
 }

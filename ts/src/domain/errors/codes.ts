@@ -198,22 +198,33 @@ export const ERROR_CODES = {
 
 export type ErrorCode = keyof typeof ERROR_CODES;
 
-// Codes that plugins declare; the plugin host checks each against the table before adding it.
-const declaredCodes = new Map<string, ErrorCodeEntry>();
-
 export function errorCodeEntry(code: string): ErrorCodeEntry | undefined {
   return Object.hasOwn(ERROR_CODES, code)
     ? (ERROR_CODES as Record<string, ErrorCodeEntry>)[code]
-    : declaredCodes.get(code);
+    : undefined;
 }
 
-export function declareErrorCodes(codes: Readonly<Record<string, ErrorCodeEntry>>): void {
-  for (const [code, entry] of Object.entries(codes)) {
-    if (errorCodeEntry(code) === undefined) declaredCodes.set(code, entry);
-  }
-}
-
-// Core codes in their published order, then declared codes in declaration order.
 export function errorCodeTable(): Readonly<Record<string, ErrorCodeEntry>> {
-  return { ...ERROR_CODES, ...Object.fromEntries(declaredCodes) };
+  return { ...ERROR_CODES };
+}
+
+// The core codes plus the codes the plugins of one runtime declared.
+export class ErrorCodeTable {
+  readonly #declared = new Map<string, ErrorCodeEntry>();
+
+  entry(code: string): ErrorCodeEntry | undefined {
+    return errorCodeEntry(code) ?? this.#declared.get(code);
+  }
+
+  // A code that already has an entry keeps it.
+  declare(codes: Readonly<Record<string, ErrorCodeEntry>>): void {
+    for (const [code, entry] of Object.entries(codes)) {
+      if (this.entry(code) === undefined) this.#declared.set(code, entry);
+    }
+  }
+
+  // Core codes in their published order, then declared codes in declaration order.
+  table(): Readonly<Record<string, ErrorCodeEntry>> {
+    return { ...ERROR_CODES, ...Object.fromEntries(this.#declared) };
+  }
 }

@@ -12,6 +12,7 @@ import { CommandRegistry, unknownCommand } from "../registry/index.js";
 import { CONFIG_DEFAULTS } from "../../../../application/contracts/config-defaults.js";
 import { MAX_TIMEOUT_MS } from "../../../../domain/config/index.js";
 import { UsageError } from "../../../../domain/errors/index.js";
+import type { ErrorCodeTable } from "../../../../domain/errors/codes.js";
 import { introspectFields, type FieldInfo } from "../arity/index.js";
 import {
   GLOBAL_FLAGS,
@@ -34,6 +35,7 @@ export class HelpService {
     private readonly streams: StreamManager,
     private readonly version: string,
     private readonly capabilities?: CapabilitySupportSource,
+    private readonly errorCodes?: Pick<ErrorCodeTable, "table">,
   ) {}
 
   handleMeta(tokens: string[]): ExitCode {
@@ -489,7 +491,13 @@ export class HelpService {
   }
 
   #catalog(familyFilter?: ChainFamily): string {
-    return buildCatalog(this.registry, this.version, familyFilter, this.capabilities);
+    return buildCatalog(
+      this.registry,
+      this.version,
+      familyFilter,
+      this.capabilities,
+      this.errorCodes,
+    );
   }
 }
 
