@@ -90,7 +90,6 @@ export interface Config {
   baiApiKey?: string;
 }
 
-// Optional service fields enable capabilities; contract addresses come from SDK chain config.
 // Valuation failures must not fail balance reads.
 export interface PriceConfig {
   provider: "coingecko" | "none";

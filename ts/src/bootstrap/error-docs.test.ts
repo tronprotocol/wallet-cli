@@ -32,9 +32,10 @@ describe("the exit-code tables in machine-interface.md", () => {
       ...[...at2].map((c) => [c, 2] as const),
       ...[...at1].map((c) => [c, 1] as const),
     ]) {
-      // The tables also list the codes of installed plugins, which this index does not hold.
       const entry = (CODES as Record<string, ErrorCodeEntry | undefined>)[code];
-      if (entry !== undefined && entry.exit !== "either" && entry.exit !== expected) {
+      if (entry === undefined) {
+        wrong.push(`${code} is in the exit ${expected} table but not in the index`);
+      } else if (entry.exit !== "either" && entry.exit !== expected) {
         wrong.push(`${code} is documented at exit ${expected} but declared exit ${entry.exit}`);
       }
     }
