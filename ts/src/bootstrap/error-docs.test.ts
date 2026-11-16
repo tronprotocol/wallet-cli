@@ -2,6 +2,13 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ERROR_CODES, type ErrorCodeEntry } from "../domain/errors/codes.js";
+import { builtinPluginErrorCodes } from "./plugins/__test-support__/error-codes.js";
+
+const CODES: Readonly<Record<string, ErrorCodeEntry>> = Object.assign(
+  {},
+  ERROR_CODES,
+  ...Object.values(builtinPluginErrorCodes()),
+);
 
 const DOC = fileURLToPath(new URL("../../docs/machine-interface.md", import.meta.url));
 
@@ -25,8 +32,8 @@ describe("the exit-code tables in machine-interface.md", () => {
       ...[...at2].map((c) => [c, 2] as const),
       ...[...at1].map((c) => [c, 1] as const),
     ]) {
-      // The tables also list the codes of installed plugins, which the core index does not hold.
-      const entry = (ERROR_CODES as Record<string, ErrorCodeEntry | undefined>)[code];
+      // The tables also list the codes of installed plugins, which this index does not hold.
+      const entry = (CODES as Record<string, ErrorCodeEntry | undefined>)[code];
       if (entry !== undefined && entry.exit !== "either" && entry.exit !== expected) {
         wrong.push(`${code} is documented at exit ${expected} but declared exit ${entry.exit}`);
       }

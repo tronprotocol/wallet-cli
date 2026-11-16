@@ -15,6 +15,7 @@ import { baiReportDelayMs } from "./application/use-cases/bai-report-delay.js";
 import { BAI_CAPABILITIES } from "./application/capabilities.js";
 import { BAI_FOLLOW_UPS } from "./adapters/inbound/follow-ups.js";
 import { baiCommands, baiRechargeBinding, baiRechargeSpec } from "./adapters/inbound/commands.js";
+import { BAI_ERROR_CODES } from "./domain/errors.js";
 
 const bai: PluginDefinition = {
   name: "bai",
@@ -49,6 +50,7 @@ const bai: PluginDefinition = {
         services.gateways,
         services.accounts,
       );
+    host.errorCodes(BAI_ERROR_CODES);
     host.capabilities(BAI_CAPABILITIES);
     host.followUps(BAI_FOLLOW_UPS);
     host.chainCommand(

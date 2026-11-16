@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { ERROR_CODES, type ErrorCodeEntry } from "../domain/errors/codes.js";
 import { EVM_REJECTION_CODES } from "../adapters/outbound/chain/evm/node-errors.js";
 import { TRON_REJECTION_CODES } from "../adapters/outbound/chain/tron/node-errors.js";
+import { builtinPluginErrorCodes } from "./plugins/__test-support__/error-codes.js";
 
 const SRC = fileURLToPath(new URL("..", import.meta.url));
 
@@ -56,22 +57,41 @@ function producedCodes(): Set<string> {
   return codes;
 }
 
+const PLUGIN_CODES = builtinPluginErrorCodes();
+// The codes a runtime with the built-in plugins publishes.
+const CODES: Readonly<Record<string, ErrorCodeEntry>> = Object.assign(
+  {},
+  ERROR_CODES,
+  ...Object.values(PLUGIN_CODES),
+);
+
 describe("the error-code index", () => {
   it("has an entry for every code the source can throw", () => {
-    const undocumented = [...producedCodes()].filter((code) => !(code in ERROR_CODES)).sort();
+    const undocumented = [...producedCodes()].filter((code) => !(code in CODES)).sort();
     expect(undocumented).toEqual([]);
   });
 
   it("has no entry for a code nothing throws", () => {
     const produced = producedCodes();
-    const stale = Object.keys(ERROR_CODES)
+    const stale = Object.keys(CODES)
       .filter((code) => !produced.has(code))
       .sort();
     expect(stale).toEqual([]);
   });
 
+  it("keeps a code in the core table when the core or another plugin also uses it", () => {
+    const seen = new Set(Object.keys(ERROR_CODES));
+    const shared: string[] = [];
+    for (const [plugin, codes] of Object.entries(PLUGIN_CODES))
+      for (const code of Object.keys(codes)) {
+        if (seen.has(code)) shared.push(`${plugin}: ${code}`);
+        seen.add(code);
+      }
+    expect(shared).toEqual([]);
+  });
+
   it("gives every code an exit class, a retry answer, and a one-line meaning", () => {
-    for (const [code, entry] of Object.entries(ERROR_CODES)) {
+    for (const [code, entry] of Object.entries(CODES)) {
       expect([1, 2, "either"], code).toContain(entry.exit);
       expect(["same", "changed", "later", "never"], code).toContain(entry.retry);
       expect(entry.meaning, code).toMatch(/^[a-z(]/);
@@ -80,7 +100,7 @@ describe("the error-code index", () => {
   });
 
   it("never claims a usage error is retryable", () => {
-    const contradictory = Object.entries(ERROR_CODES)
+    const contradictory = Object.entries(CODES)
       .filter(([, e]) => e.exit === 2 && e.retry !== "never")
       .map(([code]) => code)
       .sort();
@@ -90,7 +110,7 @@ describe("the error-code index", () => {
   it("throws every code at the exit class its entry declares", () => {
     const wrong = thrownSites()
       .filter(({ code, exit }) => {
-        const entry = (ERROR_CODES as Record<string, ErrorCodeEntry | undefined>)[code];
+        const entry = (CODES as Record<string, ErrorCodeEntry | undefined>)[code];
         return entry !== undefined && entry.exit !== "either" && entry.exit !== exit;
       })
       .map(({ code, exit, where }) => `${code} thrown at exit ${exit} in ${where}`)
@@ -101,9 +121,7 @@ describe("the error-code index", () => {
   it("declares every node-rejection code at exit 1, since they are always thrown via ChainError", () => {
     const rejectionCodes = new Set([...EVM_REJECTION_CODES, ...TRON_REJECTION_CODES]);
     const wrong = [...rejectionCodes]
-      .filter(
-        (code) => (ERROR_CODES as Record<string, ErrorCodeEntry | undefined>)[code]?.exit !== 1,
-      )
+      .filter((code) => (CODES as Record<string, ErrorCodeEntry | undefined>)[code]?.exit !== 1)
       .sort();
     expect(wrong).toEqual([]);
   });
