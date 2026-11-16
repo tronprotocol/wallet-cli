@@ -6,7 +6,7 @@ A plugin adds command groups to wallet-cli. This guide shows how to install one,
 
 | Kind | Examples | How you get it |
 |---|---|---|
-| Built-in | `gasfree`, `x402`, `bai`, `8004` | Ships inside wallet-cli; always present; changes only with wallet-cli itself |
+| Built-in | `gasfree`, `erc8004` (command group `8004`), `x402`, `bai` | Ships inside wallet-cli; always present; changes only with wallet-cli itself |
 | Installed | `sunswap`, `sunpump` | Added with `wallet-cli plugin install`; updated and removed by you |
 
 Both kinds behave like any other command group: the same global options, the same JSON envelope, the same exit codes. wallet-cli keeps your wallets, accounts, configuration and signing; a plugin supplies the commands of one protocol.
@@ -66,10 +66,13 @@ wallet-cli plugin list
 ```
 
 ```console
-NAME     VERSION  KIND       STATE  COMMANDS
-gasfree  1.0.0    builtin    ok     gasfree
-sunpump  1.0.0    installed  ok     sunpump
-sunswap  1.0.0    installed  ok     sunswap
+NAME     VERSION  KIND       SOURCE                                                      STATE  COMMANDS
+gasfree  1.0.0    builtin    -                                                           ok     gasfree
+erc8004  1.0.0    builtin    -                                                           ok     8004
+x402     1.0.0    builtin    -                                                           ok     x402
+bai      1.0.0    builtin    -                                                           ok     bai
+sunpump  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunpump  ok     sunpump
+sunswap  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunswap  ok     sunswap
 ```
 
 `STATE` is `ok`, `incompatible` (the plugin and wallet-cli need different plugin API versions; the reason names the side to update) or `broken` (the reason says why). A plugin that is not `ok` affects only its own commands.
@@ -96,7 +99,7 @@ The group is gone from the next command on. Settings the plugin read from `confi
 ## When a command is not found
 
 ```console
-error [unknown_command]: unknown command: sunswap price; run 'wallet-cli plugin list' to see the installed plugins, or 'wallet-cli plugin install <name>' to add one
+error [unknown_command]: unknown command: sunswap price; run 'wallet-cli plugin list' to see the installed plugins; if a plugin provides it, add it with 'wallet-cli plugin install sunswap'
 ```
 
 The first word is not a wallet-cli command and not the group of an installed plugin. Install the plugin that provides it. If you did install it, run `wallet-cli plugin list`: a plugin shown as `broken` because its installation record cannot be read no longer provides its commands; remove it and install it again.

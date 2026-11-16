@@ -15,7 +15,7 @@ Fetches each installed plugin again from the source it was installed from: the r
 - A registry package installed with an exact version is pinned and stays unchanged. To move it, remove it and install the version you want.
 - A plugin whose source yields the same build is reported as `unchanged`.
 - An update replaces the plugin in one step. A failure before that step leaves the installed version in place.
-- If the installed plugin changed while its update was being fetched (removed, or reinstalled from another source), the update is refused with `plugin_conflict`. Run it again.
+- If the installed plugin changed while its update was being fetched (removed, or reinstalled from another source), the update is refused with `plugin_conflict`. If it was removed, install it again; otherwise run the update again.
 
 Without a name every installed plugin is updated. One failure does not stop the others; the command then fails with the first failure's code and reports every plugin in `error.details.results`.
 

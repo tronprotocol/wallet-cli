@@ -10,7 +10,7 @@ wallet-cli plugin list [options]
 
 ## Description
 
-Shows every plugin with its version, the plugin API it was built for, its command groups and its state:
+Shows every plugin with its version, where it was installed from, the plugin API it was built for, its command groups and its state:
 
 | State | Meaning |
 |---|---|
@@ -19,6 +19,8 @@ Shows every plugin with its version, the plugin API it was built for, its comman
 | `broken` | The plugin could not be read, loaded or registered; `reason` says why |
 
 A plugin that is not `ok` affects only its own command groups. This command loads every installed plugin to report its state.
+
+In text output, `SOURCE` is `registry <spec>`, `directory <path>` or `archive <path>`, and `-` for a built-in plugin. The SHA-512 integrity value of a registry install is in the JSON output only (`integrity`).
 
 ## Options
 
@@ -31,10 +33,13 @@ wallet-cli plugin list
 ```
 
 ```console
-NAME     VERSION  KIND       STATE  COMMANDS
-gasfree  1.0.0    builtin    ok     gasfree
-sunpump  1.0.0    installed  ok     sunpump
-sunswap  1.0.0    installed  ok     sunswap
+NAME     VERSION  KIND       SOURCE                                                      STATE  COMMANDS
+gasfree  1.0.0    builtin    -                                                           ok     gasfree
+erc8004  1.0.0    builtin    -                                                           ok     8004
+x402     1.0.0    builtin    -                                                           ok     x402
+bai      1.0.0    builtin    -                                                           ok     bai
+sunpump  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunpump  ok     sunpump
+sunswap  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunswap  ok     sunswap
 ```
 
 ```bash
@@ -42,7 +47,7 @@ wallet-cli plugin list -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"plugin.list","data":[{"name":"gasfree","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["gasfree"],"kind":"builtin","state":"ok"},{"name":"sunswap","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["sunswap"],"kind":"installed","state":"ok","source":{"type":"directory","path":"/home/me/wallet-cli-sun-plugins/packages/sunswap"},"installedAt":"2026-11-16T20:18:41.713Z"}],"meta":{"durationMs":145,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"plugin.list","data":[{"name":"gasfree","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["gasfree"],"kind":"builtin","state":"ok"},{"name":"erc8004","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["8004"],"kind":"builtin","state":"ok"},{"name":"x402","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["x402"],"kind":"builtin","state":"ok"},{"name":"bai","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["bai"],"kind":"builtin","state":"ok"},{"name":"sunpump","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["sunpump"],"kind":"installed","state":"ok","source":{"type":"directory","path":"/home/me/wallet-cli-sun-plugins/packages/sunpump"},"installedAt":"2026-11-16T21:32:45.930Z"},{"name":"sunswap","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["sunswap"],"kind":"installed","state":"ok","source":{"type":"directory","path":"/home/me/wallet-cli-sun-plugins/packages/sunswap"},"installedAt":"2026-11-16T21:32:46.345Z"}],"meta":{"durationMs":146,"warnings":[]}}
 ```
 
 ## Output
@@ -59,6 +64,7 @@ wallet-cli plugin list -o json
 | `state` | string | `ok`, `incompatible` or `broken` |
 | `reason` | string | Present when `state` is not `ok` |
 | `source` | object | Installed plugins only: where it was installed from |
+| `integrity` | string | Registry installs only: the SHA-512 integrity value of the installed package |
 | `installedAt` | string | Installed plugins only: ISO 8601 time of the install or last update |
 
 ## Exit status
