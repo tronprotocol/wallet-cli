@@ -75,16 +75,16 @@ Ledger already isolates keys, but you can still split build, sign and broadcast.
 
 Two settings under **TRON app → Settings** gate contract signing, and both default to *Not allowed*:
 
-- **Custom contracts** — every smart-contract call, including TRC20 approvals and the SunSwap and SunPump trades.
+- **Custom contracts** — every smart-contract call, including TRC20 approvals and the trades of plugins such as SunSwap and SunPump.
 - **Sign by Hash** — TIP-712 typed data such as Permit2 grants, and transactions too large for the device to display.
 
-The [`sunswap`](../commands/sunswap/index.md) and [`sunpump`](../commands/sunpump/index.md) write commands need both. A missing setting fails with `ledger_setting_required`, naming the setting to enable. In a command that sends several transactions, any approval sent before the failure stays on chain; its ID is in `error.details.approvalTxIds`.
+The write commands of the SunSwap and SunPump plugins need both. A missing setting fails with `ledger_setting_required`, naming the setting to enable. In a plugin command that sends several transactions, any approval sent before the failure stays on chain; the plugin's documentation says where its ID is reported.
 
 <a id="hash-signing-and-recovery"></a>
 
 ## Hash signing
 
-Permit2 grants (a router `sunswap swap` that spends a token, a V4 `sunswap add-liquidity`) are signed by hash, and so are contract transactions too large for the device to decode. The device then shows a **hash**, not the token, amount and spender — so check those in the CLI's preview (`--dry-run` shows them) before you approve. When a transaction falls back to hash signing, the CLI warns. Not every swap is signed by hash: a swap that spends TRX is an ordinary contract call the device can display.
+Permit2 grants (for example a SunSwap router swap that spends a token) are signed by hash, and so are contract transactions too large for the device to decode. The device then shows a **hash**, not the token, amount and spender — so check those in the CLI's preview (`--dry-run` shows them) before you approve. When a transaction falls back to hash signing, the CLI warns. Not every swap is signed by hash: a swap that spends TRX is an ordinary contract call the device can display.
 
 ## See also
 

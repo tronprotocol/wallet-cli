@@ -175,14 +175,13 @@ Chain governance, super-representative operation, and TRON's protocol-level TRC1
 | [`asset`](docs/commands/asset/index.md) | Issue and manage TRC10 tokens ([issue](docs/commands/asset/issue.md) · [update](docs/commands/asset/update.md) · [participate](docs/commands/asset/participate.md) · [unfreeze](docs/commands/asset/unfreeze.md) · [info](docs/commands/asset/info.md) · [list](docs/commands/asset/list.md)); TRC10 transfers go through [`tx send`](docs/commands/tx/send.md) |
 | [`exchange`](docs/commands/exchange/index.md) | The protocol-level Bancor exchange between TRX and TRC10 ([create](docs/commands/exchange/create.md) · [inject](docs/commands/exchange/inject.md) · [withdraw](docs/commands/exchange/withdraw.md) · [trade](docs/commands/exchange/trade.md) · [show](docs/commands/exchange/show.md) · [list](docs/commands/exchange/list.md)) |
 
-### SunSwap and SunPump
+### Plugins
 
-Trade and provide liquidity on SunSwap, and trade or launch tokens on the SunPump bonding curve (TRON mainnet; the SunSwap liquidity commands also run on Nile).
+More command groups are added by plugins. SunSwap (swaps and V2/V3/V4 liquidity) and SunPump (bonding-curve trades and token launches) are plugins with their own repository and documentation; install them with `wallet-cli plugin install sunswap` and `wallet-cli plugin install sunpump`. Plugins run with the wallet's privileges, so install them only from sources you trust. See the [plugin guide](docs/guide/plugins.md).
 
 | Command | Description |
 |---|---|
-| [`sunswap`](docs/commands/sunswap/index.md) | Swap tokens and manage V2/V3/V4 liquidity ([swap](docs/commands/sunswap/swap.md) · [add-liquidity](docs/commands/sunswap/add-liquidity.md) · [remove-liquidity](docs/commands/sunswap/remove-liquidity.md) · [collect-fees](docs/commands/sunswap/collect-fees.md)), and look up pools, positions, tokens and prices ([pool-list](docs/commands/sunswap/pool-list.md) · [position-list](docs/commands/sunswap/position-list.md) · [price](docs/commands/sunswap/price.md), …) |
-| [`sunpump`](docs/commands/sunpump/index.md) | Buy and sell tokens on their bonding curve, launch a token, and look tokens up ([buy](docs/commands/sunpump/buy.md) · [sell](docs/commands/sunpump/sell.md) · [launch](docs/commands/sunpump/launch.md) · [token-list](docs/commands/sunpump/token-list.md) · [token-info](docs/commands/sunpump/token-info.md) · [token-search](docs/commands/sunpump/token-search.md)) |
+| [`plugin`](docs/commands/plugin/index.md) | Install, list, update and remove plugins ([install](docs/commands/plugin/install.md) · [list](docs/commands/plugin/list.md) · [update](docs/commands/plugin/update.md) · [remove](docs/commands/plugin/remove.md)) |
 
 ### Payments and Agent identity
 

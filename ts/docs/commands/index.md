@@ -9,7 +9,7 @@ wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` se
 - **Portable** — the same command on either family, with the family-specific parts named per family: `account balance` / `info` / `portfolio`, `block`, `tx send` / `broadcast` / `status` / `info` / `sign`, `token` (all five), `contract call` / `send` / `deploy`, `chain node` / `prices`, `message sign`, `typed-data sign`.
 - **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange` and `gasfree` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
 - **Service commands** — `x402` and `bai` talk to HTTP services rather than to a chain node. The ones that pay (`x402 pay` / `roundtrip`, `bai recharge`) use the selected network's family; the catalog, usage, and report commands take no network. `8004` runs on both families, but only on networks with an ERC-8004 registry — not `ethereum` or `sepolia`.
-- **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
+- **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`, `plugin`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
 
 Individual flags are family-scoped the same way. `--help` tags them `(TRON only)` / `(EVM only)`, and using one on the other family is a usage error — `invalid_option`, exit `2`.
 
@@ -192,6 +192,18 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 | `8004 approve` | [8004/approve.md](8004/approve.md) |
 | `8004 add-operator` | [8004/add-operator.md](8004/add-operator.md) |
 | `8004 remove-operator` | [8004/remove-operator.md](8004/remove-operator.md) |
+
+## Plugins
+
+| Command | Page |
+|---|---|
+| `plugin` (group) | [plugin/index.md](plugin/index.md) |
+| `plugin install` | [plugin/install.md](plugin/install.md) |
+| `plugin list` | [plugin/list.md](plugin/list.md) |
+| `plugin update` | [plugin/update.md](plugin/update.md) |
+| `plugin remove` | [plugin/remove.md](plugin/remove.md) |
+
+The command groups of an installed plugin, such as `sunswap` and `sunpump`, are documented by the plugin. Their `--help` and their entries in `wallet-cli --json-schema` are available once the plugin is installed. See the [plugin guide](../guide/plugins.md).
 
 ## Local
 

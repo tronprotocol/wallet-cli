@@ -101,8 +101,7 @@ The node accepted the connection but rejected the request — a TRON API call, o
 
 The command exists but the selected network does not support it. The message names the network that does.
 
-- `sunpump`, `sunswap swap` and the `sunswap` market queries (`pool-list`, `pool-search`, `position-list`, `token-list`, `token-search`, `price`) are **mainnet only**: run them with `--network tron`.
-- `sunswap position-info`, `add-liquidity`, `remove-liquidity` and `collect-fees` run on `tron` and `nile`, not Shasta.
+- A command of an installed plugin runs on the networks its plugin supports; `wallet-cli --json-schema` lists them under the command's `support`.
 - `8004` does not run on `ethereum` or `sepolia`.
 
 ## `ledger_setting_required` / `device_*` (exit 1)

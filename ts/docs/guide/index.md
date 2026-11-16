@@ -9,5 +9,6 @@ Task-oriented walkthroughs. New here? Start with **Getting started**, then reach
 | [Staking and resources](stake-and-resources.md) | Stake, delegate, and unstake TRX to earn energy / bandwidth (TRON) |
 | [Using a Ledger](ledger.md) | Register and sign with a Ledger hardware wallet |
 | [Scripting](scripting.md) | Call wallet-cli from shell scripts and CI, safely |
+| [Plugins](plugins.md) | Add command groups such as SunSwap and SunPump, and keep them up to date |
 
 For per-command detail see the [command reference](../commands/index.md); for the JSON contract see [machine-interface](../machine-interface.md).
