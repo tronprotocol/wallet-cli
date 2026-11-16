@@ -17,7 +17,7 @@ const network = (id: string): NetworkDescriptor =>
 
 // A capability without a predicate is supported wherever it is registered.
 const market = ["demo.market"];
-const poolList = { capability: "demo.market", path: ["sunswap", "pool-list"] };
+const poolList = { capability: "demo.market", path: ["demo", "pool-list"] };
 
 describe("CapabilityRegistry.check", () => {
   it("passes when the network supports the capability", () => {
@@ -37,7 +37,7 @@ describe("CapabilityRegistry.check", () => {
     caps.register(network(MAINNET), market);
     caps.register(network(NILE), []);
     expect(() => caps.check(poolList, network(NILE))).toThrow(
-      "sunswap pool-list is available on tron only",
+      "demo pool-list is available on tron only",
     );
   });
 
@@ -47,7 +47,7 @@ describe("CapabilityRegistry.check", () => {
     caps.register(network(NILE), market);
     caps.register(network("tron:2494104990"), []);
     expect(() => caps.check(poolList, network("tron:2494104990"))).toThrow(
-      "sunswap pool-list is available on tron and nile only",
+      "demo pool-list is available on tron and nile only",
     );
   });
 
@@ -58,7 +58,7 @@ describe("CapabilityRegistry.check", () => {
     caps.register(network("tron:2494104990"), market);
     caps.register(network("eip155:1"), []);
     expect(() => caps.check(poolList, network("eip155:1"))).toThrow(
-      "sunswap pool-list is available on tron, nile and shasta only",
+      "demo pool-list is available on tron, nile and shasta only",
     );
   });
 
@@ -66,7 +66,7 @@ describe("CapabilityRegistry.check", () => {
     const caps = new CapabilityRegistry({});
     caps.register(network(MAINNET), market);
     expect(() => caps.check(poolList, network(NILE))).toThrow(
-      `sunswap pool-list is available on ${MAINNET} only`,
+      `demo pool-list is available on ${MAINNET} only`,
     );
   });
 
@@ -90,11 +90,11 @@ describe("CapabilityRegistry.check", () => {
 describe("CapabilityRegistry.register", () => {
   it("records the predicate result once per key", () => {
     const caps = new CapabilityRegistry(ALIASES);
-    caps.register(network(MAINNET), ["demo.market", "sunswap.market"]);
+    caps.register(network(MAINNET), ["demo.market", "tx.multisig.tronlink"]);
     caps.register(network(MAINNET), ["demo.market"]);
     expect(caps.support(MAINNET, "demo.market")).toBe("supported");
-    // The bare descriptor has no SunSwap market configured.
-    expect(caps.support(MAINNET, "sunswap.market")).toBe("unsupported");
+    // The bare descriptor has no TronLink service configured.
+    expect(caps.support(MAINNET, "tx.multisig.tronlink")).toBe("unsupported");
     expect(caps.support(NILE, "demo.market")).toBe("unsupported");
   });
 
@@ -113,10 +113,13 @@ describe("CapabilityRegistry.addPredicates", () => {
   it("records a registered predicate's result and keeps the first predicate of a key", () => {
     const caps = new CapabilityRegistry(ALIASES);
     caps.addPredicates({ "demo.read": () => "unsupported" });
-    caps.addPredicates({ "demo.read": () => "supported", "sunswap.market": () => "supported" });
-    caps.register(network(MAINNET), ["demo.read", "sunswap.market"]);
+    caps.addPredicates({
+      "demo.read": () => "supported",
+      "tx.multisig.tronlink": () => "supported",
+    });
+    caps.register(network(MAINNET), ["demo.read", "tx.multisig.tronlink"]);
     expect(caps.support(MAINNET, "demo.read")).toBe("unsupported");
-    expect(caps.support(MAINNET, "sunswap.market")).toBe("unsupported");
+    expect(caps.support(MAINNET, "tx.multisig.tronlink")).toBe("unsupported");
     expect(caps.hasPredicate("demo.read")).toBe(true);
     expect(caps.hasPredicate("other.read")).toBe(false);
   });

@@ -7,8 +7,6 @@ import type { NetworkDescriptor } from "../domain/types/index.js";
 import { SdkAgentRegistry } from "../adapters/outbound/erc8004/sdk-registry.js";
 import { X402FacilitatorClient } from "../adapters/outbound/x402/facilitator-client.js";
 import { paywallTerms } from "../application/use-cases/x402-paywall.js";
-import { sunpumpApiBaseUrl } from "../adapters/outbound/sunpump/api-transport.js";
-import { SunPumpLaunchpadContracts } from "../adapters/outbound/sunpump/launchpad-contracts.js";
 import { requireBaiChain } from "../application/use-cases/bai-wallet-binding.js";
 
 // Every builtin network × capability: the shell gate follows the predicate, and an adapter gate never refuses
@@ -24,9 +22,6 @@ const ADAPTER_GATES: Record<string, Probe> = {
   "erc8004.identity.read": (n) => new SdkAgentRegistry({} as never, {} as never).registry(n),
   "erc8004.identity.write": (n) => new SdkAgentRegistry({} as never, {} as never).registry(n),
   "bai.recharge": (n) => requireBaiChain(n),
-  "sunpump.market": (n) => sunpumpApiBaseUrl(n),
-  "sunpump.launch": (n) => sunpumpApiBaseUrl(n),
-  "sunpump.curve": (n) => new SunPumpLaunchpadContracts({} as never).launchpadAddress(n),
   "x402.serve": (n, explicit) => {
     paywallTerms(
       n,

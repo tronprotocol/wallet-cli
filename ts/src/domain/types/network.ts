@@ -29,8 +29,6 @@ export interface TronNetworkDescriptor extends NetworkBase {
   httpEndpoint?: string;
   // TronLink service URL; credentials are stored separately in Config.
   tronlinkHttpEndpoint?: string;
-  sunswap?: SunSwapNetworkConfig;
-  sunpump?: SunPumpNetworkConfig;
 }
 
 // JSON-RPC network; chainId is a decimal EIP-155 id.
@@ -93,21 +91,6 @@ export interface Config {
 }
 
 // Optional service fields enable capabilities; contract addresses come from SDK chain config.
-export interface SunSwapNetworkConfig {
-  // HTTPS origin only; the adapter appends paths.
-  marketApiBaseUrl?: string;
-  routerApiBaseUrl?: string;
-  // Enables liquidity commands and position-info.
-  liquidity?: boolean;
-}
-
-export interface SunPumpNetworkConfig {
-  // Enables sunpump buy/sell and the curve branch of sunswap swap.
-  curve?: boolean;
-  // Catalogue API URL; absent disables catalogue reads independently of curve trading.
-  apiBaseUrl?: string;
-}
-
 // Valuation failures must not fail balance reads.
 export interface PriceConfig {
   provider: "coingecko" | "none";

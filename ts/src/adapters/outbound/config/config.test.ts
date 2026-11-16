@@ -486,204 +486,39 @@ describe("alias targets are normalised to canonical ids", () => {
   });
 });
 
-describe("ConfigLoader sunswap network block", () => {
-  const tronNetwork = (config: ReturnType<typeof ConfigLoader.load>, id: string) =>
-    config.networks[id] as {
-      sunswap?: { marketApiBaseUrl?: string; routerApiBaseUrl?: string; liquidity?: boolean };
-      sunpump?: { curve?: boolean; apiBaseUrl?: string };
-    };
+describe("ConfigLoader plugin network blocks", () => {
+  const extensions = (config: ReturnType<typeof ConfigLoader.load>, id: string) =>
+    config.networks[id]?.extensions;
 
-  it("ships the market API on mainnet and nowhere else", () => {
+  it("ships no plugin block on a builtin network", () => {
     const config = ConfigLoader.load(envWithConfig(""));
-    expect(tronNetwork(config, "tron:728126428").sunswap?.marketApiBaseUrl).toBe(
-      "https://open.sun.io",
-    );
-    expect(tronNetwork(config, "tron:3448148188").sunswap?.marketApiBaseUrl).toBeUndefined();
-    expect(tronNetwork(config, "tron:2494104990").sunswap).toBeUndefined();
+    for (const network of Object.values(config.networks)) {
+      expect(network.extensions).toBeUndefined();
+    }
   });
 
-  it("lets config.yaml add the market API to another network", () => {
+  it("keeps each block as written for the plugin that owns it, without checking it", () => {
     const config = ConfigLoader.load(
       envWithConfig(
-        "networks:\n  nile:\n    sunswap:\n      marketApiBaseUrl: https://nile.example.test\n",
+        "networks:\n  tron:\n    demo:\n      endpoint: not-a-url\n      enabled: 'yes'\n  nile:\n    demo:\n    other: [1, 2]\n",
       ),
     );
-    expect(tronNetwork(config, "tron:3448148188").sunswap?.marketApiBaseUrl).toBe(
-      "https://nile.example.test",
-    );
+    expect(extensions(config, "tron:728126428")).toEqual({
+      demo: { endpoint: "not-a-url", enabled: "yes" },
+    });
+    expect(extensions(config, "tron:3448148188")).toEqual({ demo: null, other: [1, 2] });
   });
 
-  it("merges the user's sunswap and sunpump fields over the builtin blocks", () => {
+  it("keeps a block under a canonical id key the same as under an alias", () => {
     const config = ConfigLoader.load(
-      envWithConfig(
-        "networks:\n  tron:\n    sunswap:\n      routerApiBaseUrl: https://router.example.test\n    sunpump:\n      curve: false\n  nile:\n    sunswap:\n      routerApiBaseUrl: https://router.example.test\n",
-      ),
+      envWithConfig('networks:\n  "tron:3448148188":\n    demo:\n      enabled: false\n'),
     );
-    expect(tronNetwork(config, "tron:728126428").sunswap).toEqual({
-      marketApiBaseUrl: "https://open.sun.io",
-      routerApiBaseUrl: "https://router.example.test",
-      liquidity: true,
-    });
-    expect(tronNetwork(config, "tron:728126428").sunpump).toEqual({
-      curve: false,
-      apiBaseUrl: "https://api-v2.sunpump.meme/pump-api",
-    });
-    expect(tronNetwork(config, "tron:3448148188").sunswap).toEqual({
-      routerApiBaseUrl: "https://router.example.test",
-      liquidity: true,
-    });
+    expect(extensions(config, "tron:3448148188")).toEqual({ demo: { enabled: false } });
   });
 
-  it("rejects a base URL that is not http(s)", () => {
-    expect(() =>
-      ConfigLoader.load(
-        envWithConfig("networks:\n  tron:\n    sunswap:\n      marketApiBaseUrl: open.sun.io\n"),
-      ),
-    ).toThrow(/invalid sunswap\.marketApiBaseUrl/);
-    expect(() =>
-      ConfigLoader.load(
-        envWithConfig(
-          "networks:\n  tron:\n    sunswap:\n      routerApiBaseUrl: ftp://open.sun.io\n",
-        ),
-      ),
-    ).toThrow(/invalid sunswap\.routerApiBaseUrl/);
-  });
-
-  it("rejects a switch that is not true or false", () => {
-    expect(() =>
-      ConfigLoader.load(
-        envWithConfig("networks:\n  nile:\n    sunswap:\n      liquidity: 'yes'\n"),
-      ),
-    ).toThrow(/invalid sunswap\.liquidity: expected true or false/);
-    expect(() =>
-      ConfigLoader.load(envWithConfig("networks:\n  nile:\n    sunpump:\n      curve: 1\n")),
-    ).toThrow(/invalid sunpump\.curve: expected true or false/);
-  });
-
-  it("rejects a sunpump base URL that is not http(s)", () => {
-    expect(() =>
-      ConfigLoader.load(
-        envWithConfig("networks:\n  tron:\n    sunpump:\n      apiBaseUrl: htp://x\n"),
-      ),
-    ).toThrow(/invalid sunpump\.apiBaseUrl/);
-  });
-
-  it("rejects the retired address fields, naming the switch that replaces each", () => {
-    expect(() =>
-      ConfigLoader.load(
-        envWithConfig(
-          "networks:\n  nile:\n    sunswap:\n      contracts:\n        v2Router: TMn1qrmYUMSTXo9babrJLzepKZoPC7M6Sy\n",
-        ),
-      ),
-    ).toThrow(/sunswap\.contracts, which is no longer read: .*sunswap\.liquidity: true/);
-    expect(() =>
-      ConfigLoader.load(
-        envWithConfig(
-          "networks:\n  nile:\n    sunpump:\n      launchpad: TLtTyEwqacNKc5CHLunKvxmqLB336R4Lrm\n",
-        ),
-      ),
-    ).toThrow(/sunpump\.launchpad, which is no longer read: .*sunpump\.curve: true/);
-  });
-
-  it("accepts a well-formed block", () => {
-    const config = ConfigLoader.load(
-      envWithConfig(
-        "networks:\n  nile:\n    sunswap:\n      routerApiBaseUrl: https://router.example.test\n      liquidity: true\n    sunpump:\n      curve: true\n",
-      ),
-    );
-    expect(tronNetwork(config, "tron:3448148188").sunswap).toEqual({
-      routerApiBaseUrl: "https://router.example.test",
-      liquidity: true,
-    });
-    expect(tronNetwork(config, "tron:3448148188").sunpump).toEqual({ curve: true });
-  });
-
-  it("ships liquidity on both TRON networks, and the market API on mainnet only", () => {
-    const config = ConfigLoader.load(envWithConfig(""));
-    const mainnet = tronNetwork(config, "tron:728126428").sunswap;
-    const nile = tronNetwork(config, "tron:3448148188").sunswap;
-    expect(mainnet?.liquidity).toBe(true);
-    expect(nile).toEqual({ liquidity: true });
-  });
-
-  it("ships no SunPump block on Nile", () => {
-    const config = ConfigLoader.load(envWithConfig(""));
-    expect(tronNetwork(config, "tron:3448148188").sunpump).toBeUndefined();
-    expect(tronNetwork(config, "tron:728126428").sunpump?.curve).toBe(true);
-  });
-
-  it("rejects a sunswap block that is not a mapping", () => {
-    expect(() =>
-      ConfigLoader.load(envWithConfig("networks:\n  tron:\n    sunswap: https://open.sun.io\n")),
-    ).toThrow(/invalid sunswap/);
-  });
-
-  it("rejects an empty sunswap or sunpump key over a builtin block", () => {
-    expect(() => ConfigLoader.load(envWithConfig("networks:\n  nile:\n    sunswap:\n"))).toThrow(
-      /invalid sunswap/,
-    );
-    expect(() => ConfigLoader.load(envWithConfig("networks:\n  tron:\n    sunpump:\n"))).toThrow(
-      /invalid sunpump/,
-    );
-  });
-
-  it("turns a builtin feature off only with an explicit false", () => {
-    const config = ConfigLoader.load(
-      envWithConfig("networks:\n  nile:\n    sunswap:\n      liquidity: false\n"),
-    );
-    expect(tronNetwork(config, "tron:3448148188").sunswap).toEqual({ liquidity: false });
-  });
-
-  it("keeps the builtin block when the user's block is an empty mapping", () => {
-    const config = ConfigLoader.load(envWithConfig("networks:\n  tron:\n    sunswap: {}\n"));
-    expect(tronNetwork(config, "tron:728126428").sunswap).toEqual({
-      marketApiBaseUrl: "https://open.sun.io",
-      routerApiBaseUrl: "https://open.sun.io/apiv2/quote/swap",
-      liquidity: true,
-    });
-  });
-
-  it("takes the user's block as written on a network with no builtin one", () => {
-    const config = ConfigLoader.load(
-      envWithConfig(
-        "networks:\n  shasta:\n    sunswap:\n      liquidity: true\n    sunpump:\n      curve: true\n",
-      ),
-    );
-    expect(tronNetwork(config, "tron:2494104990").sunswap).toEqual({ liquidity: true });
-    expect(tronNetwork(config, "tron:2494104990").sunpump).toEqual({ curve: true });
-  });
-
-  it("merges under a canonical id key the same as under an alias", () => {
-    const config = ConfigLoader.load(
-      envWithConfig(
-        'networks:\n  "tron:3448148188":\n    sunswap:\n      routerApiBaseUrl: https://router.example.test\n',
-      ),
-    );
-    expect(tronNetwork(config, "tron:3448148188").sunswap).toEqual({
-      routerApiBaseUrl: "https://router.example.test",
-      liquidity: true,
-    });
-  });
-
-  it("still refuses a retired field merged over a builtin block", () => {
-    expect(() =>
-      ConfigLoader.load(
-        envWithConfig(
-          "networks:\n  tron:\n    sunpump:\n      launchpad: TTfvyrAz86hbZk5iDpKD78pqLGgi8C7AAw\n",
-        ),
-      ),
-    ).toThrow(/sunpump\.launchpad, which is no longer read/);
-  });
-
-  it("leaves the builtin blocks untouched for the next load", () => {
-    ConfigLoader.load(
-      envWithConfig(
-        "networks:\n  tron:\n    sunswap:\n      liquidity: false\n    sunpump:\n      curve: false\n",
-      ),
-    );
-    const config = ConfigLoader.load(envWithConfig(""));
-    expect(tronNetwork(config, "tron:728126428").sunswap?.liquidity).toBe(true);
-    expect(tronNetwork(config, "tron:728126428").sunpump?.curve).toBe(true);
+  it("does not leak a block into the next load", () => {
+    ConfigLoader.load(envWithConfig("networks:\n  tron:\n    demo:\n      enabled: false\n"));
+    expect(extensions(ConfigLoader.load(envWithConfig("")), "tron:728126428")).toBeUndefined();
   });
 });
 

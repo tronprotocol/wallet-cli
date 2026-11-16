@@ -12,7 +12,6 @@ import { readBoundedTextFile } from "../commands/artifact.js";
 import { StreamManager } from "../stream/index.js";
 import { createOutputFormatter } from "./index.js";
 import { contractCreate2TronBinding, contractDeployEvmBinding } from "../commands/contract.js";
-import { sunpumpLaunchTronBinding } from "../commands/sunpump/launch.js";
 import { registerX402Commands } from "../commands/x402.js";
 import { registerWalletCommands } from "../commands/wallet.js";
 import { CommandRegistry } from "../registry/index.js";
@@ -56,10 +55,9 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
     for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
   });
 
-  const service = { deploy: vi.fn(), create2: vi.fn(), pay: vi.fn(), launch: vi.fn() };
+  const service = { deploy: vi.fn(), create2: vi.fn(), pay: vi.fn() };
   const deploy = contractDeployEvmBinding(service as never);
   const create2 = contractCreate2TronBinding(service as never);
-  const launch = sunpumpLaunchTronBinding(service as never);
   const registry = new CommandRegistry();
   registerX402Commands(registry, service as never);
   registerWalletCommands(registry, { walletService: {} as never });
@@ -81,10 +79,6 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
     {
       name: "x402 request body",
       run: (path: string) => pay.run({} as never, {} as never, { bodyFile: path }),
-    },
-    {
-      name: "sunpump image",
-      run: (path: string) => launch.run({} as never, {} as never, { image: path }),
     },
   ];
 

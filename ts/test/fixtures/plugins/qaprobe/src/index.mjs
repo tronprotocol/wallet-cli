@@ -106,6 +106,8 @@ const plugin = {
             value: input.value ?? "ok",
             network: net.id,
             ...(token ? { token: token.result } : {}),
+            // Text-only data under the reserved key, which the envelope never publishes.
+            view: { echoed: true },
           };
         },
       },

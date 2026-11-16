@@ -129,7 +129,7 @@ describe("every registered exclusive group", () => {
         name,
       ).toBe(true);
     }
-    expect(checked).toBeGreaterThanOrEqual(40);
+    expect(checked).toBeGreaterThanOrEqual(35);
   });
 
   it("names only flags that some family accepts", () => {

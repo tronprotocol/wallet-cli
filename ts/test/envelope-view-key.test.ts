@@ -46,9 +46,4 @@ describe("the reserved view key is never published", () => {
     if (!envelope?.success) return;
     expect(JSON.stringify(envelope)).not.toContain('"view"');
   });
-
-  it("holds for the command that uses it", () => {
-    const envelope = run(["sunswap", "price", "TRX", "--network", "nile"]);
-    expect(JSON.stringify(envelope)).not.toContain('"view"');
-  });
 });

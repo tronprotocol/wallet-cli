@@ -26,21 +26,17 @@ const evm = (id: string): NetworkDescriptor => ({
 
 describe("capabilitySupport", () => {
   it("enables service capabilities only on a TRON network with that service configured", () => {
-    expect(capabilitySupport("sunswap.market", evm("eip155:1"), facts(true))).toBe("unsupported");
-  });
-
-  it("allows a swap through either the curve or the router", () => {
-    expect(
-      capabilitySupport("sunswap.swap", tron({ sunpump: { curve: true } } as never), facts(true)),
-    ).toBe("supported");
+    expect(capabilitySupport("tx.multisig.tronlink", evm("eip155:1"), facts(true))).toBe(
+      "unsupported",
+    );
+    expect(capabilitySupport("tx.multisig.tronlink", tron(), facts(true))).toBe("unsupported");
     expect(
       capabilitySupport(
-        "sunswap.swap",
-        tron({ sunswap: { routerApiBaseUrl: "https://r" } } as never),
+        "tx.multisig.tronlink",
+        tron({ tronlinkHttpEndpoint: "https://t" } as never),
         facts(true),
       ),
     ).toBe("supported");
-    expect(capabilitySupport("sunswap.swap", tron(), facts(true))).toBe("unsupported");
   });
 
   it("enables ERC-8004 only where an Identity Registry is deployed", () => {

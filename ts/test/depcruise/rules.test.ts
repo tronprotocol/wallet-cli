@@ -1,5 +1,5 @@
 // Run the real dependency rules and baseline gates against isolated fixture trees.
-import { describe, expect, it, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
 import {
   mkdtempSync,
@@ -20,16 +20,6 @@ import { dirname, join } from "node:path";
 const repo = fileURLToPath(new URL("../..", import.meta.url));
 const configPath = join(repo, ".dependency-cruiser.cjs");
 const depcruiseBin = join(repo, "node_modules", ".bin", "depcruise");
-
-const VIOLATIONS: Record<string, string> = {
-  "src/application/ports/sdk-leak.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Leak = SunApiClient;\n`,
-  "src/adapters/outbound/sunswap/runtime-leak.ts": `import { createRuntime } from "@sun-protocol/sun-sdk-runtime";\nexport const leak = createRuntime;\n`,
-};
-
-const ALLOWED: Record<string, string> = {
-  "src/adapters/outbound/sunswap/market-api.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Client = SunApiClient;\n`,
-  "src/adapters/outbound/sunswap/sdk-runtime.ts": `import { createRuntime } from "@sun-protocol/sun-sdk-runtime";\nexport const build = createRuntime;\n`,
-};
 
 function buildTree(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), "wallet-cli-depcruise-"));
@@ -135,7 +125,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/adapters/inbound/ky-leak.ts",
         "src/bootstrap/x402-leak.ts",
         "src/bootstrap/ledger-leak.ts",
-        "src/domain/sun-leak.ts",
+        "src/domain/ledger-type-leak.ts",
         "src/application/services/axios-leak.ts",
       ],
       files: {
@@ -147,7 +137,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/adapters/inbound/ky-leak.ts": `import ky from "ky";\nexport const leak = ky;\n`,
         "src/bootstrap/x402-leak.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const leak = setLogger;\n`,
         "src/bootstrap/ledger-leak.ts": `import Trx from "@ledgerhq/hw-app-trx";\nexport const leak = Trx;\n`,
-        "src/domain/sun-leak.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Leak = SunApiClient;\n`,
+        "src/domain/ledger-type-leak.ts": `import type Trx from "@ledgerhq/hw-app-trx";\nexport type Leak = Trx;\n`,
         "src/application/services/axios-leak.ts": `import axios from "axios";\nexport const leak = axios;\n`,
       },
     },
@@ -157,7 +147,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/adapters/outbound/ledger/index.ts",
         "src/adapters/outbound/chain/tron/family-leak.ts",
         "src/adapters/outbound/chain/evm/nested/family-leak.ts",
-        "src/adapters/outbound/sunswap/nested/leak.ts",
+        "src/adapters/outbound/tronlink/nested/leak.ts",
         "src/adapters/outbound/x402/loose-leak.ts",
         "src/adapters/outbound/http/leak.ts",
         "src/adapters/outbound/persistence/fs/leak.ts",
@@ -175,7 +165,7 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/adapters/outbound/ledger/index.ts": `import { marker } from "../chain/tron/marker.js";\nexport const leak = marker;\n`,
         "src/adapters/outbound/chain/tron/family-leak.ts": `import { marker } from "../evm/marker.js";\nexport const leak = marker;\n`,
         "src/adapters/outbound/chain/evm/nested/family-leak.ts": `import type { marker } from "../../tron/marker.js";\nexport type Leak = typeof marker;\n`,
-        "src/adapters/outbound/sunswap/nested/leak.ts": `import { marker } from "../../x402/marker.js";\nexport const leak = marker;\n`,
+        "src/adapters/outbound/tronlink/nested/leak.ts": `import { marker } from "../../x402/marker.js";\nexport const leak = marker;\n`,
         "src/adapters/outbound/x402/loose-leak.ts": `import { loose } from "../loose.js";\nimport { loose as chainLoose } from "../chain/loose.js";\nexport const leak = loose + chainLoose;\n`,
         "src/adapters/outbound/http/leak.ts": `import { marker } from "../ledger/marker.js";\nexport const leak = marker;\n`,
         "src/adapters/outbound/persistence/fs/leak.ts": `import { marker } from "../../chain/evm/marker.js";\nexport const leak = marker;\n`,
@@ -203,14 +193,12 @@ describe("dependency-cruiser layer and cycle rules", () => {
         "src/adapters/outbound/chain/shared.ts",
         "src/adapters/outbound/http/client.ts",
         "src/adapters/outbound/persistence/fs/store.ts",
-        "src/adapters/outbound/persistence/sun.ts",
       ],
       files: {
         "src/adapters/outbound/shared.ts": `import { Wallet } from "ethers";\nexport const shared = Wallet;\n`,
         "src/adapters/outbound/chain/shared.ts": `import { TronWeb } from "tronweb";\nexport const shared = TronWeb;\n`,
         "src/adapters/outbound/http/client.ts": `import { setLogger } from "@bankofai/x402-core";\nexport const client = setLogger;\n`,
         "src/adapters/outbound/persistence/fs/store.ts": `import type Trx from "@ledgerhq/hw-app-trx";\nexport type Store = Trx;\n`,
-        "src/adapters/outbound/persistence/sun.ts": `import type { SunApiClient } from "@sun-protocol/sun-sdk-api";\nexport type Sun = SunApiClient;\n`,
       },
     },
     {
@@ -773,34 +761,6 @@ describe("dependency-cruiser integration discovery", () => {
       }
     },
   );
-});
-
-describe("dependency-cruiser SunSwap boundary rules", () => {
-  let violatingOutput = "";
-  let allowedOutput = "";
-  const dirs: string[] = [];
-
-  beforeAll(() => {
-    const bad = buildTree(VIOLATIONS);
-    const good = buildTree(ALLOWED);
-    dirs.push(bad, good);
-    violatingOutput = cruise(bad);
-    allowedOutput = cruise(good);
-  });
-
-  afterAll(() => {
-    for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
-  });
-
-  it.each(["sdk-adapters-only", "no-runtime-import"])("reports %s", (rule) => {
-    expect(violatingOutput).toContain(rule);
-  });
-
-  it("allows the SDK inside the adapters that own it", () => {
-    expect(allowedOutput).not.toContain("sdk-adapters-only");
-    expect(allowedOutput).not.toContain("no-runtime-import");
-    expect(allowedOutput).toContain("no dependency violations found");
-  });
 });
 
 describe("dependency-cruiser baseline gate", () => {

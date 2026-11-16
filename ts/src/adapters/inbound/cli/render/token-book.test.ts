@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TextFormatters } from "./index.js";
-import { tokenBookNotes } from "./token-book.js";
+import { tokenBookNotes, withTokenBookNotes } from "./token-book.js";
 
 const USDT = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
 const WTRX = "TYsbWxNnyTgsZaTFaue9hqpxkU3Fkco94a";
@@ -20,19 +19,17 @@ describe("token-book notes", () => {
     expect(notes[0]).toContain(`MYUSD is ${USDT} (from your token book).`);
   });
 
-  it("is appended under a liquidity receipt", () => {
-    const out = TextFormatters.sunswapRemoveLiquidity(
+  it("is appended under the formatted receipt", () => {
+    const format = withTokenBookNotes((_value: unknown) => "receipt");
+    const out = format(
       {
-        protocol: "V2",
-        mode: "dry-run",
-        token0: { address: USDT, symbol: "MYUSD", decimals: 6, amount: "1", amountMinimum: "1" },
-        token1: { address: WTRX, symbol: "WTRX", decimals: 6, amount: "1", amountMinimum: "1" },
-        recipient: USDT,
-        deadline: 1790234906,
+        token0: { address: USDT, symbol: "MYUSD" },
+        token1: { address: WTRX, symbol: "WTRX" },
         fromTokenBook: [USDT],
-      } as never,
-      { net: { family: "tron", nativeSymbol: "TRX", id: "tron:3448148188" } } as never,
+      },
+      {} as never,
     );
+    expect(out.startsWith("receipt\n\n")).toBe(true);
     expect(out).toContain(`MYUSD is ${USDT} (from your token book).`);
   });
 });

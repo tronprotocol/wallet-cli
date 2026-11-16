@@ -23,11 +23,6 @@ const FOLLOW_UP_COMMANDS: Record<FollowUp, (subject: string | undefined) => stri
     `wallet-cli backup ${account ?? "<account>"} --keystore --network tron:728126428 --password-stdin`,
   "ledger-import": () => "import ledger",
   "proposal-list": () => "proposal list",
-  "sunpump-token-search": (symbol) =>
-    `sunpump token-search ${JSON.stringify(symbol ?? "<symbol>")}`,
-  "sunswap-pool-list-v4": () => "sunswap pool-list --protocol V4",
-  "sunswap-position-list": () => "sunswap position-list",
-  "sunswap-swap": () => "sunswap swap",
   "token-add": (contract) =>
     contract === undefined ? "wallet-cli token add" : `wallet-cli token add --contract ${contract}`,
 };

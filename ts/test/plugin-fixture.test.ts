@@ -49,6 +49,7 @@ describe("an installed plugin", () => {
       data: { value: "hello" },
       meta: { plugin: { name: "qaprobe", version: "1.0.0" } },
     });
+    expect(JSON.stringify(ok.json)).not.toContain('"view"');
     const failed = json(["qaprobe", "read", "--value", "failure"]);
     expect(failed.status).toBe(2);
     expect(failed.json).toMatchObject({
@@ -132,8 +133,11 @@ describe("an installed plugin", () => {
         "config",
         "contracts",
         "gateways",
+        "networks",
         "recipients",
         "signing",
+        "tokens",
+        "tronCalls",
       ],
       signing: ["assertCanSign", "sign", "signerAddress"],
       host: [

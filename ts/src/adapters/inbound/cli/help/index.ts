@@ -127,12 +127,6 @@ export class HelpService {
       ["token", "Manage the token address book and query tokens", ""],
       ["tx", "Build, send, broadcast, and inspect transactions", ""],
       ...pluginGroups,
-      [
-        "sunswap",
-        "Swap, manage liquidity, and look up pools, positions and prices on SunSwap",
-        "tron",
-      ],
-      ["sunpump", "Create and trade tokens on the SunPump bonding curve", "tron"],
       ["contract", "Call, deploy, govern, and inspect smart contracts", ""],
       ["proposal", "Create / vote on governance proposals", "tron"],
       ["witness", "Register / operate a super representative", "tron"],
@@ -602,9 +596,6 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   contract: "Call, deploy, govern, and inspect smart contracts.",
   proposal: "Create, approve, delete, and query on-chain governance proposals.",
   witness: "Register and operate a super representative candidacy.",
-  sunswap:
-    "Add, remove and collect fees on SunSwap liquidity, and look up pools, positions and prices.",
-  sunpump: "Buy and sell SunPump tokens on their bonding curve, before they launch onto SunSwap.",
   stake: "Stake / delegate resources & query state (TRON Stake 2.0).",
   vote: "Vote for super representatives (SR).\nVoting accrues rewards — query and claim them with 'wallet-cli reward'.",
   reward: "Query and withdraw voting/block rewards.",

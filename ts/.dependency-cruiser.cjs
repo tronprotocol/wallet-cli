@@ -9,7 +9,7 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { readdirSync } = require("node:fs");
 
-const SDK_PACKAGES = "(tronweb|ethers)(/|$)|@(sun-protocol|bankofai|ledgerhq)/";
+const SDK_PACKAGES = "(tronweb|ethers)(/|$)|@(bankofai|ledgerhq)/";
 const HTTP_CLIENT_PACKAGES = "(axios|undici|node-fetch|got|ky)(/|$)";
 
 // Only a missing directory means "no integrations"; any other error would silently drop rules.
@@ -297,26 +297,6 @@ module.exports = {
         path: "^src/plugin-api/",
         pathNot: "^src/plugin-api/(index|domain|application|cli|http)\\.ts$",
       },
-    },
-    {
-      name: "sdk-adapters-only",
-      severity: "error",
-      comment:
-        "@sun-sdk is a vendor SDK, so it belongs behind the outbound adapter that owns it; anywhere else it would put a vendor's types in a port or a use case",
-      from: { path: "^src/", pathNot: "^src/adapters/outbound/(sunswap|sunpump)/" },
-      // Unanchored: an installed dependency resolves to `node_modules/@sun-protocol/sun-sdk-...`, an
-      // unresolvable one keeps its bare specifier, and both have to be caught.
-      // `import type` counts too — tsPreCompilationDeps is on, and a type-only edge still names
-      // the vendor where a port belongs and is what a later refactor turns into a runtime edge.
-      to: { path: "@sun-protocol/sun-sdk-" },
-    },
-    {
-      name: "no-runtime-import",
-      severity: "error",
-      comment:
-        "@sun-protocol/sun-sdk-runtime can broadcast (sendAction) and build a wallet from a private key; exactly one file builds a read-only runtime over a TronClient that throws on both, and nothing else may reach for it",
-      from: { path: "^src/", pathNot: "^src/adapters/outbound/sunswap/sdk-runtime\\.ts$" },
-      to: { path: "@sun-protocol/sun-sdk-runtime" },
     },
     {
       name: "ledger-apps-only-in-ledger-wrapper",

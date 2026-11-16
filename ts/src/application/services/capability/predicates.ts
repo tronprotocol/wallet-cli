@@ -37,11 +37,6 @@ const tron =
   (network) =>
     when(isTronNetwork(network) && enabled(network));
 
-// Whether the network has the SunSwap market API, which is also its price source.
-export function hasSunSwapMarket(network: NetworkDescriptor): boolean {
-  return isTronNetwork(network) && Boolean(network.sunswap?.marketApiBaseUrl);
-}
-
 // The B.AI chain name of the network, when B.AI accepts recharges on it.
 export function baiChain(network: NetworkDescriptor): string | undefined {
   if (network.family === "evm" && network.chainId === "56") return "bnb";
@@ -54,14 +49,6 @@ const erc8004: Predicate = (network) => when(ERC8004_NETWORKS.has(network.id));
 // Capabilities absent here depend only on the family, which the command's bindings decide.
 const PREDICATES: Readonly<Record<string, Predicate>> = {
   "tx.multisig.tronlink": tron((n) => Boolean(n.tronlinkHttpEndpoint)),
-  "sunswap.market": (network) => when(hasSunSwapMarket(network)),
-  // Contract liquidity can be available without a market API.
-  "sunswap.liquidity": tron((n) => n.sunswap?.liquidity === true),
-  // Curve access requires explicit configuration, even when SDK addresses exist.
-  "sunpump.curve": tron((n) => n.sunpump?.curve === true),
-  "sunpump.market": tron((n) => Boolean(n.sunpump?.apiBaseUrl)),
-  "sunpump.launch": tron((n) => Boolean(n.sunpump?.apiBaseUrl)),
-  "sunswap.swap": tron((n) => n.sunpump?.curve === true || Boolean(n.sunswap?.routerApiBaseUrl)),
   "erc8004.identity.read": erc8004,
   "erc8004.identity.write": erc8004,
   "bai.recharge": (network) => when(baiChain(network) !== undefined),

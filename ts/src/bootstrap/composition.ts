@@ -51,13 +51,6 @@ import { registerEvmChainCommands } from "./families/evm.js";
 import { AccountBalanceService } from "../application/use-cases/account-balance-service.js";
 import { TokenBookService } from "../application/use-cases/token-book-service.js";
 import { TronLinkClient } from "../adapters/outbound/tronlink/client.js";
-import { SunSwapMarketApi } from "../adapters/outbound/sunswap/market-api.js";
-import { SunSwapLiquidityContracts } from "../adapters/outbound/sunswap/liquidity-contracts.js";
-import { SunPumpLaunchpadContracts } from "../adapters/outbound/sunpump/launchpad-contracts.js";
-import { SunPumpMarketApi } from "../adapters/outbound/sunpump/market-api.js";
-import { SunPumpLaunchApi } from "../adapters/outbound/sunpump/launch-api.js";
-import { SunSwapRouterApi } from "../adapters/outbound/sunswap/router-api.js";
-import { SunSwapRouterPlanner } from "../adapters/outbound/sunswap/router-plan.js";
 import { ContactBook } from "../adapters/outbound/contactbook/index.js";
 import { ContactService } from "../application/use-cases/contact-service.js";
 import { RecipientResolver } from "../application/services/recipient-resolver.js";
@@ -149,7 +142,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     ),
   );
   const gatewayProvider = new ChainGatewayRegistry(familyMap((plugin) => plugin.createGateway));
-  const routerPlanner = new SunSwapRouterPlanner(gatewayProvider);
   const x402Facilitator = new X402FacilitatorClient();
   const capabilityRegistry = new CapabilityRegistry(config.aliases, {
     x402TokenRegistered: (network, symbol) =>
@@ -238,16 +230,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     transactions: txPipeline,
     accounts: keystore,
     tronlink: new TronLinkClient(config, processBroadcastGuard),
-    sunswapMarket: new SunSwapMarketApi(),
-    sunswapLiquidity: new SunSwapLiquidityContracts(gatewayProvider),
-    sunpumpLaunchpad: new SunPumpLaunchpadContracts(gatewayProvider),
-    sunpumpMarket: new SunPumpMarketApi(),
-    sunpumpLaunch: new SunPumpLaunchApi(processBroadcastGuard),
-    sunswapRouter: new SunSwapRouterApi(),
-    sunswapRouterPlanner: routerPlanner,
-    // Share the cached chain clock so router and permit deadlines agree.
-    sunswapPermits: routerPlanner,
-    aliases: config.aliases,
     recipients: recipientResolver,
     balances: accountBalances,
     tokenBook: tokenBookService,

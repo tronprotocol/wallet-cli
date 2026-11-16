@@ -24,15 +24,6 @@ import {
 } from "../../../../domain/tron/exchange/index.js";
 import { planEvmFee } from "../../../../domain/evm/evm-gas.js";
 import { parseChainParameterAssignments } from "../../../../domain/tron/governance/chain-parameters.js";
-import { selectFloor, slippageToBips } from "../../../../domain/sunpump/curve.js";
-import { sunpumpSortParam } from "../../../../domain/sunpump/market.js";
-import { parseMinTvl } from "../../../../domain/sunswap/min-tvl.js";
-import {
-  offsetWindowToPage,
-  refuseBeyondMarketWindow,
-} from "../../../../domain/sunswap/pagination.js";
-import { normaliseProtocol } from "../../../../domain/sunswap/protocol.js";
-import { poolSortField } from "../../../../domain/sunswap/sort.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 describe("CLI error projection", () => {
@@ -104,34 +95,6 @@ describe("CLI wording of inner-layer messages", () => {
   const TRON = { id: "tron:728126428" } as NetworkDescriptor;
 
   it.each<[string, () => unknown, string]>([
-    [
-      "page alignment",
-      () => offsetWindowToPage({ offset: 5, limit: 4 }),
-      "--offset must be a multiple of --limit (4); this service pages by whole pages",
-    ],
-    [
-      "market window",
-      () => refuseBeyondMarketWindow({ offset: 1000, limit: 20 }),
-      "--offset + --limit may not exceed 1000; the data service exposes only the first 1000 rows of each ordering",
-    ],
-    ["protocol", () => normaliseProtocol("v9", ["V3", "V4"]), "--protocol must be one of V3, V4"],
-    [
-      "min TVL",
-      () => parseMinTvl("abc"),
-      '--min-tvl must be a non-negative decimal amount in USD, such as 100000 (got: "abc")',
-    ],
-    [
-      "pool order",
-      () => poolSortField("nope"),
-      "--order-by must be one of tvl, volume-24h, fees-24h, apr",
-    ],
-    ["sort", () => sunpumpSortParam("created", "up"), "--sort must be one of asc, desc"],
-    [
-      "competing floors",
-      () => selectFloor("0.05", "1"),
-      "choose at most one of --slippage and --min-out",
-    ],
-    ["slippage range", () => slippageToBips("0.9"), "--slippage must be between 0.0001 and 0.5"],
     [
       "exchange slippage",
       () => slippageFloor(1n, 0),

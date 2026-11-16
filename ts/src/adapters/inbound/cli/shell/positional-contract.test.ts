@@ -12,6 +12,8 @@ import {
 import { composeCliRuntime } from "../../../../bootstrap/composition.js";
 import { Prompter } from "../input/prompt/index.js";
 import { SecretResolver } from "../input/secret/index.js";
+import { z } from "zod";
+import type { ChainSpec } from "../contracts/index.js";
 
 describe("every registered positional command rejects its --<field> spelling", () => {
   let previousHome: string | undefined;
@@ -51,8 +53,38 @@ describe("every registered positional command rejects its --<field> spelling", (
     return runtime;
   }
 
-  function shellOpts(): ShellOptions {
+  // Plugin-style commands that declare the shell's per-command refusals; no core command does.
+  const DEMO_COMMANDS: ChainSpec[] = [
+    {
+      path: ["demo", "lookup"],
+      network: "optional",
+      wallet: "none",
+      auth: "none",
+      rejectsAccount: "the lookup reads no account",
+      examples: [],
+      baseFields: z.object({}),
+    },
+    {
+      path: ["demo", "trade"],
+      network: "optional",
+      wallet: "optional",
+      auth: "required",
+      broadcasts: true,
+      rejectsWaitWith: "quote",
+      examples: [],
+      baseFields: z.object({ quote: z.boolean().optional() }),
+    },
+  ];
+
+  function demoRuntime() {
     const runtime = newRuntime();
+    for (const spec of DEMO_COMMANDS) {
+      runtime.registry.addChain(spec, "tron", { run: async () => ({}) });
+    }
+    return runtime;
+  }
+
+  function shellOpts(runtime = newRuntime()): ShellOptions {
     return {
       registry: runtime.registry,
       globals: { output: "json", verbose: false },
@@ -116,14 +148,6 @@ describe("every registered positional command rejects its --<field> spelling", (
       "proposal delete",
       "proposal show",
       "rename",
-      "sunpump buy",
-      "sunpump sell",
-      "sunpump token-info",
-      "sunpump token-search",
-      "sunswap pool-search",
-      "sunswap price",
-      "sunswap swap",
-      "sunswap token-search",
       "use",
       "witness set-brokerage",
       "x402 endpoint-list",
@@ -174,7 +198,7 @@ describe("every registered positional command rejects its --<field> spelling", (
   });
 
   function accountRefusingCommands() {
-    return newRuntime()
+    return demoRuntime()
       .registry.all()
       .flatMap((c) =>
         isChainCommand(c) && c.spec.rejectsAccount !== undefined ? [c.spec.path] : [],
@@ -183,21 +207,10 @@ describe("every registered positional command rejects its --<field> spelling", (
 
   it("refuses --account on every command that declares it does not take one", async () => {
     const paths = accountRefusingCommands();
-    expect(paths.map((path) => path.join(" ")).sort()).toEqual([
-      "sunpump launch",
-      "sunpump token-info",
-      "sunpump token-list",
-      "sunpump token-search",
-      "sunswap pool-list",
-      "sunswap pool-search",
-      "sunswap position-info",
-      "sunswap price",
-      "sunswap token-list",
-      "sunswap token-search",
-    ]);
+    expect(paths.map((path) => path.join(" ")).sort()).toEqual(["demo lookup"]);
     for (const path of paths) {
       await expect(
-        buildCli(shellOpts()).parseAsync([...path, "--account", "main"]),
+        buildCli(shellOpts(demoRuntime())).parseAsync([...path, "--account", "main"]),
       ).rejects.toMatchObject({
         code: "invalid_option",
         message: new RegExp(`^${path.join(" ")} does not accept --account: `),
@@ -240,7 +253,7 @@ describe("every registered positional command rejects its --<field> spelling", (
   it.each(["--wait", "--no-wait"])(
     "refuses %s with every mode that submits nothing",
     async (flag) => {
-      const commands = newRuntime()
+      const commands = demoRuntime()
         .registry.all()
         .filter((c) => acceptsWaitFlags(isChainCommand(c) ? c.spec : c));
       const checked: string[] = [];
@@ -253,7 +266,7 @@ describe("every registered positional command rejects its --<field> spelling", (
           const modeFlag = `--${mode.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}`;
           checked.push(`${path.join(" ")} ${modeFlag}`);
           await expect(
-            buildCli(shellOpts()).parseAsync([...path, modeFlag, flag]),
+            buildCli(shellOpts(demoRuntime())).parseAsync([...path, modeFlag, flag]),
           ).rejects.toMatchObject({
             code: "invalid_option",
             message: `${flag} cannot be used with ${modeFlag}, which submits no transaction`,
@@ -267,9 +280,7 @@ describe("every registered positional command rejects its --<field> spelling", (
           "tx send --sign-only",
           "tx broadcast --dry-run",
           "gasfree transfer --dry-run",
-          "sunpump buy --quote",
-          "sunpump sell --quote",
-          "sunswap swap --quote",
+          "demo trade --quote",
         ]),
       );
     },
