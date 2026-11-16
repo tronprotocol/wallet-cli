@@ -27,8 +27,11 @@
       "import": "./dist/http.mjs"
     },
     "./testing": {
-      "types": "./dist/testing.d.ts",
-      "import": "./dist/testing.mjs"
+      "wallet-cli-testing": {
+        "types": "./dist/testing.d.ts",
+        "import": "./dist/testing.mjs"
+      },
+      "types": "./dist/testing.d.ts"
     }
   },
   "bin": {
