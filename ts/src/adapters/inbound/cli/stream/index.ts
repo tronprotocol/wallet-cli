@@ -3,19 +3,20 @@
 import type { OutputMode } from "../../../../domain/types/index.js";
 import type {
   DiagnosticLevel,
+  FrameFormat,
   StreamManager as IStreamManager,
   WarningItem,
 } from "../contracts/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
 import { escapeControls } from "../render/scalars.js";
-import { credentialForms, maskForms } from "../output/mask.js";
+import { CredentialMask } from "../output/mask.js";
 
 export class StreamManager implements IStreamManager {
   #resultWritten = false;
   #stdinRead = false;
   #warnings: WarningItem[] = [];
-  readonly #out: (s: string) => void;
-  readonly #err: (s: string) => void;
+  readonly #out: (s: string, format?: FrameFormat) => void;
+  readonly #err: (s: string, format?: FrameFormat) => void;
 
   constructor(
     private readonly output: OutputMode,
@@ -25,17 +26,17 @@ export class StreamManager implements IStreamManager {
     private readonly stdin: () => NodeJS.ReadableStream = () => process.stdin,
     credentials: readonly string[] = [],
   ) {
-    const forms = credentialForms(credentials);
-    this.#out = (s) => out(maskForms(s, forms));
-    this.#err = (s) => err(maskForms(s, forms));
+    const mask = new CredentialMask(credentials);
+    this.#out = (s, format = "text") => out(format === "json" ? mask.json(s) : mask.text(s));
+    this.#err = (s, format = "text") => err(format === "json" ? mask.json(s) : mask.text(s));
   }
 
-  result(text: string): void {
+  result(text: string, format: FrameFormat = "text"): void {
     if (this.#resultWritten) {
       throw new ExecutionError("internal_error", "result emitted more than once");
     }
     this.#resultWritten = true;
-    this.#out(text.endsWith("\n") ? text : text + "\n");
+    this.#out(text.endsWith("\n") ? text : text + "\n", format);
   }
 
   diagnostic(level: DiagnosticLevel, msg: WarningItem): void {
@@ -55,9 +56,9 @@ export class StreamManager implements IStreamManager {
   }
 
   // Progress must reach stderr even when verbose output is disabled.
-  event(frame: string | null): void {
+  event(frame: string | null, format: FrameFormat = "text"): void {
     if (frame === null) return;
-    this.#err(frame.endsWith("\n") ? frame : frame + "\n");
+    this.#err(frame.endsWith("\n") ? frame : frame + "\n", format);
   }
 
   warnings(): WarningItem[] {

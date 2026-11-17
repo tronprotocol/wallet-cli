@@ -51,11 +51,11 @@ export class HelpService {
     if (tokens.includes("--json-schema")) {
       if (concrete) {
         const input = isChainCommand(concrete) ? mergedFields(concrete, family) : concrete.input;
-        this.streams.result(JSON.stringify(z.toJSONSchema(input)));
+        this.streams.result(JSON.stringify(z.toJSONSchema(input)), "json");
         return 0;
       }
       this.#assertResolvable(family, path);
-      this.streams.result(this.#catalog(family));
+      this.streams.result(this.#catalog(family), "json");
       return 0;
     }
 

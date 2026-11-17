@@ -2,6 +2,7 @@
 import type { NetworkDescriptor, OutputMode } from "../../../../domain/types/index.js";
 import type { ProgressEvent } from "../../../../application/contracts/index.js";
 import type {
+  FrameFormat,
   Pagination,
   PluginAttribution,
   QueryEcho,
@@ -15,6 +16,8 @@ import { sanitizeText } from "../render/scalars.js";
 import { cliMessage, errorEnvelope, type FollowUpTable } from "./errors.js";
 
 export interface OutputFormatter {
+  // The format of the frames `success` and `event` return.
+  readonly format: FrameFormat;
   // Return the result frame for streams.result.
   success(
     command: string,
@@ -54,6 +57,8 @@ abstract class BaseOutputFormatter {
 }
 
 class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
+  readonly format = "json";
+
   success(command: string, net: NetworkDescriptor | undefined, data: unknown): string {
     const paged = extractPagination(stripView(data));
     const ordered = extractQuery(paged.data);
@@ -73,7 +78,7 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
       errorEnvelope(err, this.followUps),
       this.meta(),
     );
-    this.streams.result(toJson(env));
+    this.streams.result(toJson(env), "json");
   }
 
   event(e: ProgressEvent): string {
@@ -129,6 +134,8 @@ function extractPagination(data: unknown): { data: unknown; pagination?: Paginat
 }
 
 class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatter {
+  readonly format = "text";
+
   // Sanitize text frames against terminal injection; JSON retains raw values.
   success(
     command: string,

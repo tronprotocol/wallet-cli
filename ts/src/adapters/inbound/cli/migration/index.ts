@@ -60,6 +60,7 @@ export function renderMigrationOutcome(
       formatter.success("migration", undefined, data, () =>
         upgradeCancelledNotice(migration.files).join("\n"),
       ),
+      formatter.format,
     );
     return true;
   }
@@ -80,6 +81,7 @@ export function renderMigrationOutcome(
       formatter.success("migration", undefined, data, () =>
         upgradeCompleteNotice(migration.files).join("\n"),
       ),
+      formatter.format,
     );
     return true;
   }

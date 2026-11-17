@@ -3,13 +3,16 @@ import type { WarningItem } from "./envelope.js";
 
 export type DiagnosticLevel = "info" | "debug" | "warn";
 
+// How a frame is masked: a JSON frame by token, so it stays valid JSON.
+export type FrameFormat = "json" | "text";
+
 export interface StreamManager {
-  result(text: string): void;
+  result(text: string, format?: FrameFormat): void;
   diagnostic(level: DiagnosticLevel, msg: WarningItem): void;
   // Always writes to stderr.
   errorLine(msg: string): void;
   // Progress on stderr; null is skipped.
-  event(frame: string | null): void;
+  event(frame: string | null, format?: FrameFormat): void;
   // Reads stdin to its end; the signal stops the read and rejects with its reason.
   readStdinOnce(signal: AbortSignal): Promise<string>;
   // Shares the single-consumption guard with readStdinOnce.

@@ -4,15 +4,15 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { z } from "zod";
 import { createOutputFormatter } from "./index.js";
-import { credentialForms, maskForms } from "./mask.js";
+import { CredentialMask } from "./mask.js";
 import { EvmRpcClient } from "../../../outbound/chain/evm/evm.js";
 import { FetchHttpTransport, networkHttpConfig } from "../../../outbound/http/index.js";
-import { ExecutionError, type CliError } from "../../../../domain/errors/index.js";
+import { ExecutionError, errorMessage, type CliError } from "../../../../domain/errors/index.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import { StreamManager } from "../stream/index.js";
 import { HelpService } from "../help/index.js";
 import { CommandRegistry } from "../registry/index.js";
-import { main } from "../../../../bootstrap/runner.js";
+import { main, runProcess } from "../../../../bootstrap/runner.js";
 import { normalizeCliError } from "./errors.js";
 
 const API_KEY = "fictional-api-key-0001";
@@ -95,11 +95,12 @@ describe("error outputs mask the credentials a request used", () => {
   it("masks the JSON-escaped form of a credential", () => {
     const credential = 'key"with\\quote';
     const json = JSON.stringify({ message: `bad ${credential}`, n: 1 });
-    expect(maskForms(json, credentialForms([credential]))).toBe('{"message":"bad ********","n":1}');
+    expect(new CredentialMask([credential]).json(json)).toBe('{"message":"bad ********","n":1}');
+    expect(new CredentialMask([credential]).text(json)).toBe('{"message":"bad ********","n":1}');
   });
 
   it("masks the longer of two overlapping credentials whole", () => {
-    expect(maskForms("a-secret-longer", credentialForms(["secret", "a-secret-longer"]))).toBe(
+    expect(new CredentialMask(["secret", "a-secret-longer"]).text("a-secret-longer")).toBe(
       "********",
     );
   });
@@ -118,7 +119,7 @@ describe("the stream writer masks every output path", () => {
   it.each(["json", "text"] as const)("masks a success result in %s output", (mode) => {
     const { sm, out } = streams(mode);
     const formatter = createOutputFormatter(mode, sm, 0);
-    sm.result(formatter.success("probe", undefined, { echo: API_KEY }));
+    sm.result(formatter.success("probe", undefined, { echo: API_KEY }), formatter.format);
     expect(out.join("")).not.toContain(API_KEY);
     expect(out.join("")).toContain("********");
   });
@@ -140,9 +141,8 @@ describe("the stream writer masks every output path", () => {
 
   it.each(["json", "text"] as const)("masks a progress event in %s output", (mode) => {
     const { sm, err } = streams(mode);
-    sm.event(
-      createOutputFormatter(mode, sm, 0).event({ type: "activity", message: `using ${API_KEY}` }),
-    );
+    const formatter = createOutputFormatter(mode, sm, 0);
+    sm.event(formatter.event({ type: "activity", message: `using ${API_KEY}` }), formatter.format);
     expect(err.join("")).not.toContain(API_KEY);
     expect(err.join("")).toContain("using ********");
   });
@@ -203,6 +203,159 @@ describe("the internal-error path masks configured credentials", () => {
     } finally {
       helpSpy.mockRestore();
       outSpy.mockRestore();
+      errSpy.mockRestore();
+      if (previous === undefined) delete process.env.WALLET_CLI_HOME;
+      else process.env.WALLET_CLI_HOME = previous;
+    }
+  });
+});
+
+describe("a masked JSON frame stays valid JSON", () => {
+  const json = (credentials: string[], frame: string) =>
+    new CredentialMask(credentials).json(frame);
+
+  it("masks a credential inside a string value or key, and encodes the string again", () => {
+    const frame = JSON.stringify({ [`k-${API_KEY}`]: `v ${API_KEY} v`, other: "x" });
+    const masked = json([API_KEY], frame);
+    expect(JSON.parse(masked)).toEqual({ "k-********": "v ******** v", other: "x" });
+  });
+
+  it.each(["90000", "true", "false", "null", "-1.5e3"])(
+    "turns a %s token equal to a credential into the masked string",
+    (credential) => {
+      const frame = `{"a":${credential},"b":[${credential}, 7]}`;
+      const masked = json([credential], frame);
+      expect(JSON.parse(masked)).toEqual({ a: "********", b: ["********", 7] });
+    },
+  );
+
+  it("writes a frame without a credential byte for byte", () => {
+    const frame =
+      '{\n  "big": 123456789012345678901234567890,\n  "f": 1.50,\t"s": "a\\u00e9\\/b"\n}';
+    expect(json([API_KEY, "90000"], frame)).toBe(frame);
+  });
+
+  it.each([
+    ["n", { n: "network", list: [null, "none"] }],
+    ['"', { q: 'say "hi"', plain: "x" }],
+    ["\\", { path: "a\\b", plain: "x" }],
+    ["clé-é", { k: "the clé-é here", e: "é" }],
+  ])("keeps the frame valid with the credential %j", (credential, value) => {
+    const masked = json([credential], JSON.stringify(value, null, 2));
+    const strings = (v: unknown): string[] =>
+      typeof v === "string"
+        ? [v]
+        : Array.isArray(v)
+          ? v.flatMap(strings)
+          : typeof v === "object" && v !== null
+            ? Object.entries(v).flatMap(([k, x]) => [k, ...strings(x)])
+            : [];
+    const found = strings(JSON.parse(masked));
+    expect(found.length).toBeGreaterThan(0);
+    for (const text of found) expect(text).not.toContain(credential);
+  });
+
+  it("keeps an error envelope valid", () => {
+    const credential = "n";
+    const { sm, out } = streams("json", [credential]);
+    createOutputFormatter("json", sm, 0).error(
+      new ExecutionError("rpc_error", "node answered no", { txId: "n" } as never),
+    );
+    const envelope = JSON.parse(out.join("")) as { error: { message: string } };
+    expect(envelope.error.message).not.toContain("n");
+  });
+});
+
+describe("an error value written on one line", () => {
+  it.each([
+    ["U+0085", "pre\u0085post-cred"],
+    ["U+2028", "pre post-cred"],
+  ])("is masked with a credential holding %s", (_name, credential) => {
+    const error = () =>
+      new ExecutionError("provider_error", errorMessage`provider echoed ${credential}`, {
+        txId: credential,
+      });
+    for (const mode of ["json", "text"] as const) {
+      const { sm, all } = streams(mode, [credential]);
+      createOutputFormatter(mode, sm, 0).error(error());
+      const written = all();
+      expect(written).toContain("provider echoed ********");
+      expect(written).not.toContain("post-cred");
+      if (mode === "json") expect(() => JSON.parse(written) as unknown).not.toThrow();
+    }
+  });
+});
+
+describe("a numeric credential in real commands", () => {
+  async function run(args: string[]): Promise<{ code: number; out: string }> {
+    const home = mkdtempSync(join(tmpdir(), "wcli-numeric-"));
+    const configPath = join(home, "config.yaml");
+    writeFileSync(configPath, `tronlinkSecretId: "90000"\n`);
+    chmodSync(configPath, 0o600);
+    const previous = process.env.WALLET_CLI_HOME;
+    process.env.WALLET_CLI_HOME = home;
+    const out: string[] = [];
+    const outSpy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      out.push(String(chunk));
+      return true;
+    });
+    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    try {
+      const code = await main(["node", "wallet-cli", ...args]);
+      return { code, out: out.join("") };
+    } finally {
+      outSpy.mockRestore();
+      errSpy.mockRestore();
+      if (previous === undefined) delete process.env.WALLET_CLI_HOME;
+      else process.env.WALLET_CLI_HOME = previous;
+    }
+  }
+
+  it.each([[["config", "timeoutMs", "-o", "json"]], [["--json-schema"]]])(
+    "keeps %j output valid JSON without the value",
+    async (args) => {
+      const { code, out } = await run(args);
+      expect(code).toBe(0);
+      expect(() => JSON.parse(out) as unknown).not.toThrow();
+      expect(out).not.toContain("90000");
+    },
+  );
+});
+
+describe("the last-resort report after the runtime is composed", () => {
+  it("masks configured credentials", async () => {
+    const home = mkdtempSync(join(tmpdir(), "wcli-fatal-"));
+    const configPath = join(home, "config.yaml");
+    writeFileSync(configPath, `tronlinkSecretId: ${API_KEY}\n`);
+    chmodSync(configPath, 0o600);
+    const previous = process.env.WALLET_CLI_HOME;
+    process.env.WALLET_CLI_HOME = home;
+    const written: string[] = [];
+    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      written.push(String(chunk));
+      return true;
+    });
+    const helpSpy = vi.spyOn(HelpService.prototype, "handleMeta").mockImplementation(() => {
+      throw new Error("first");
+    });
+    // The runner's own error handling fails too, so the failure escapes to the last-resort report.
+    const diagnosticSpy = vi.spyOn(StreamManager.prototype, "diagnostic").mockImplementation(() => {
+      throw new Error(`fatal ${API_KEY}`);
+    });
+    const sink = { on: () => sink, write: (_s: string, done?: () => void) => done?.() };
+    let exitCode: number | undefined;
+    try {
+      await runProcess(["node", "wallet-cli", "--help"], {
+        stdout: sink as never,
+        stderr: sink as never,
+        exit: (code) => (exitCode = code),
+      });
+      expect(exitCode).toBe(1);
+      expect(written.join("")).toContain("fatal: fatal ********");
+      expect(written.join("")).not.toContain(API_KEY);
+    } finally {
+      diagnosticSpy.mockRestore();
+      helpSpy.mockRestore();
       errSpy.mockRestore();
       if (previous === undefined) delete process.env.WALLET_CLI_HOME;
       else process.env.WALLET_CLI_HOME = previous;

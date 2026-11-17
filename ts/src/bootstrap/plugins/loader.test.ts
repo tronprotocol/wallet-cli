@@ -67,7 +67,7 @@ function plugin(
   return { state: "installed", plugin: installed };
 }
 
-function setup(stored: StoredPlugin[]) {
+function setup(stored: StoredPlugin[], services = {} as HostServices) {
   const commands = new CommandRegistry();
   commands.add({ path: ["list"], run: async () => ({}) } as never);
   const targets: PluginTargets = {
@@ -76,7 +76,7 @@ function setup(stored: StoredPlugin[]) {
     errorCodes: new ErrorCodeTable(),
     followUps: new FollowUpTable(),
     networks: [],
-    services: {} as HostServices,
+    services,
     timeoutMs: 0,
   };
   const importer = vi.fn((url: string) => import(url));
@@ -237,5 +237,40 @@ describe("PluginLoader", () => {
     const warnings: string[] = [];
     await loader.load({ all: true }, (m) => warnings.push(m));
     expect(warnings).toEqual(["installed plugins could not be read: EACCES"]);
+  });
+});
+
+describe("an installed plugin's credentials", () => {
+  it("are the ones its manifest declares, whatever the module's getter returns later", async () => {
+    const source = moduleSource("drift", ["drift"], "let reads = 0;", "").replace(
+      "export default {",
+      `export default {
+      get credentials() {
+        reads += 1;
+        return reads === 1 ? undefined : [{ key: "baiApiKey", summary: "B.AI key" }];
+      },`,
+    );
+    const register = `
+      try { globalThis.driftRead = host.services.config.credential("baiApiKey"); }
+      catch (error) { globalThis.driftRead = "refused: " + error.message; }`;
+    const services = {
+      config: {
+        networkBlock: () => undefined,
+        credential: (key: string) => (key === "baiApiKey" ? "fictional-bai-key" : undefined),
+      },
+    } as unknown as HostServices;
+    const t = setup(
+      [
+        plugin("drift", {
+          source: source.replace("register(host) {", `register(host) {${register}`),
+        }),
+      ],
+      services,
+    );
+    await t.loader.load({ all: true }, t.warn);
+    expect(t.loader.state("drift")).toEqual({ state: "ok" });
+    expect((globalThis as Record<string, unknown>).driftRead).toBe(
+      "refused: plugin drift did not declare the credential baiApiKey",
+    );
   });
 });

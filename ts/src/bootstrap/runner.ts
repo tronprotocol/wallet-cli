@@ -92,10 +92,11 @@ export async function runProcess(
   io.stdout.on("error", () => {});
   io.stderr.on("error", () => {});
   let end: CommandEnd;
+  const reached: ReachedRuntime = {};
   try {
-    end = await runCommand(argv);
+    end = await runCommand(argv, reached);
   } catch (error) {
-    end = { code: reportFatal(error), longLived: false };
+    end = { code: reportFatal(error, reached.streams), longLived: false };
   }
   await Promise.all([written(io.stdout), written(io.stderr)]);
   if (end.longLived) process.exitCode = end.code;
@@ -113,7 +114,12 @@ function written(stream: NodeJS.WritableStream): Promise<void> {
   });
 }
 
-async function runCommand(argv: string[]): Promise<CommandEnd> {
+// The masked streams, once the runtime is composed; a failure before that has no credentials to mask.
+interface ReachedRuntime {
+  streams?: Pick<StreamManager, "errorLine">;
+}
+
+async function runCommand(argv: string[], reached: ReachedRuntime = {}): Promise<CommandEnd> {
   const monotonicStart = performance.now();
   const startedAt = Date.now();
   setRedactedHomeDirectory(homedir());
@@ -132,6 +138,7 @@ async function runCommand(argv: string[]): Promise<CommandEnd> {
   } catch (error) {
     return { code: reportBootstrapFailure(error, globals, startedAt), longLived: false };
   }
+  reached.streams = runtime.streams;
   const end = (code: ExitCode): CommandEnd => ({ code, longLived: runtime.lifetime.longLived });
 
   try {

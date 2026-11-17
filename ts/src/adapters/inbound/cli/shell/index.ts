@@ -258,6 +258,7 @@ async function executeChainCommand(
   const data = await barredDuringDryRun(spec, input, () => binding.run(ctx, net, input));
   streams.result(
     formatter.success(id, net, data, spec.formatText, activeAccountLabel(spec, ctx, deps)),
+    formatter.format,
   );
 }
 
@@ -317,6 +318,7 @@ async function executeCommand(
   session.current = { commandId: resultId, net };
   streams.result(
     formatter.success(resultId, net, data, cmd.formatText, activeAccountLabel(cmd, ctx, deps)),
+    formatter.format,
   );
 }
 

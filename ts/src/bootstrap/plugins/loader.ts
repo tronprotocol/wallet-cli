@@ -123,7 +123,11 @@ export class PluginLoader {
         this.#fail(entry, mismatch);
         return;
       }
-      const registration = registerPlugin(definition as PluginDefinition, this.targets);
+      const registration = registerPlugin(
+        definition as PluginDefinition,
+        this.targets,
+        plugin.credentials,
+      );
       if (!registration.ok) {
         this.#fail(entry, `its registration failed (${registration.reason})`);
         return;

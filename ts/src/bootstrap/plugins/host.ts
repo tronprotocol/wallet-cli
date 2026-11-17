@@ -45,7 +45,10 @@ import type {
   PluginTronCalls,
   PluginTronGateway,
 } from "../../plugin-api/host-services.js";
-import { parsePluginCredentials } from "../../domain/plugins/index.js";
+import {
+  parsePluginCredentials,
+  type PluginCredentialManifest,
+} from "../../domain/plugins/index.js";
 import type { JsonValue } from "../../domain/types/index.js";
 import type { TransactionScope } from "../../application/contracts/execution-scope.js";
 import type { TronContractService } from "../../application/use-cases/tron/contract-service.js";
@@ -236,13 +239,15 @@ interface StagedPlugin {
   readonly followUps: Map<string, (subject?: string) => string>;
 }
 
-// Publishes all of a plugin's declarations, or none of them.
+// Publishes all of a plugin's declarations, or none of them. `credentials` is the validated list of
+// an installed plugin's manifest; without it, the definition's own list is read once.
 export function registerPlugin(
   plugin: PluginDefinition,
   targets: PluginTargets,
+  credentials?: readonly PluginCredentialManifest[],
 ): PluginRegistration {
   try {
-    const staged = stage(plugin, targets);
+    const staged = stage(plugin, targets, credentials);
     const predicates = evaluatePredicates(staged.predicates, targets.networks);
     // The only step that can refuse; it checks the whole batch before it changes anything.
     targets.commands.addAll(staged);
@@ -291,7 +296,11 @@ function snapshot<T>(value: T): T {
   return Object.freeze(copy) as T;
 }
 
-function stage(plugin: PluginDefinition, targets: PluginTargets): StagedPlugin {
+function stage(
+  plugin: PluginDefinition,
+  targets: PluginTargets,
+  credentials: readonly PluginCredentialManifest[] | undefined,
+): StagedPlugin {
   const name = String(plugin.name);
   if (!PLUGIN_NAME.test(name)) throw new Error(`plugin name ${JSON.stringify(name)} is not valid`);
   if (plugin.apiVersion !== PLUGIN_API_VERSION) {
@@ -332,7 +341,9 @@ function stage(plugin: PluginDefinition, targets: PluginTargets): StagedPlugin {
     if (field) throw new Error(`plugin command ${path.join(" ")} sets ${field}`);
   };
   const declaredKeys = new Set(
-    parsePluginCredentials(snapshot(plugin.credentials) as JsonValue | undefined).map((c) => c.key),
+    (
+      credentials ?? parsePluginCredentials(snapshot(plugin.credentials) as JsonValue | undefined)
+    ).map((c) => c.key),
   );
   const services = facade<HostServices>({
     ...targets.services,

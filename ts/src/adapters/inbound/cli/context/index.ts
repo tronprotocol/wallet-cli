@@ -88,7 +88,7 @@ class ExecutionContextImpl implements ExecutionContext {
   }
 
   emit(e: ProgressEvent): void {
-    this.deps.streams.event(this.deps.formatter.event(e));
+    this.deps.streams.event(this.deps.formatter.event(e), this.deps.formatter.format);
   }
 
   warn(message: string | WarningView | UserMessage | CodedWarning): void {
