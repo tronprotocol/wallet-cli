@@ -41,7 +41,13 @@ function moduleSource(name: string, groups: string[], extra = "", register = "")
 
 function plugin(
   name: string,
-  opts: { groups?: string[]; source?: string; apiRevision?: number; file?: string | null } = {},
+  opts: {
+    groups?: string[];
+    source?: string;
+    apiRevision?: number;
+    file?: string | null;
+    credentials?: { key: string; summary: string }[];
+  } = {},
 ): StoredPlugin {
   const groups = opts.groups ?? [name];
   const entryPath = join(dir, `${name}-${Math.random().toString(36).slice(2)}.mjs`);
@@ -52,6 +58,7 @@ function plugin(
     apiVersion: PLUGIN_API_VERSION,
     apiRevision: opts.apiRevision ?? PLUGIN_API_REVISION,
     groups: groups.map((g) => ({ name: g, summary: `${g} cmds`, families: [] })),
+    credentials: opts.credentials ?? [],
     entryPath,
     source: { type: "directory", path: "/x" },
     entrySha256: "",
@@ -151,6 +158,32 @@ describe("PluginLoader", () => {
         source: moduleSource("broken", ["broken"]).replace('"families":[]', '"families":["tron"]'),
       },
       "does not match its manifest (groups)",
+    ],
+    [
+      "a credential its manifest does not declare",
+      {
+        source: moduleSource("broken", ["broken"]).replace(
+          "export default {",
+          'export default { credentials: [{ key: "brokenApiKey", summary: "Broken key" }],',
+        ),
+      },
+      "does not match its manifest (credentials)",
+    ],
+    [
+      "a manifest credential the definition does not declare",
+      { credentials: [{ key: "brokenApiKey", summary: "Broken key" }] },
+      "does not match its manifest (credentials)",
+    ],
+    [
+      "a credential summary that differs from its manifest",
+      {
+        credentials: [{ key: "brokenApiKey", summary: "Broken key" }],
+        source: moduleSource("broken", ["broken"]).replace(
+          "export default {",
+          'export default { credentials: [{ key: "brokenApiKey", summary: "Other text" }],',
+        ),
+      },
+      "does not match its manifest (credentials)",
     ],
   ])("marks a plugin broken on %s and publishes none of it", async (_label, opts, reason) => {
     const t = setup([plugin("broken", opts as never), plugin("healthy")]);

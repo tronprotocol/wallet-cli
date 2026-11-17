@@ -19,6 +19,13 @@ export interface PluginGroup {
   readonly families: readonly ChainFamily[];
 }
 
+export interface PluginCredential {
+  // Top-level config.yaml key; one word of letters and digits that starts with a lower-case letter.
+  readonly key: string;
+  // One line in the help of the config command.
+  readonly summary: string;
+}
+
 export interface PluginHost {
   readonly apiVersion: number;
   readonly services: HostServices;
@@ -38,6 +45,8 @@ export interface PluginDefinition {
   readonly apiVersion: number;
   readonly apiRevision: number;
   readonly groups: readonly PluginGroup[];
+  // The credential keys the plugin reads through `services.config.credential`.
+  readonly credentials?: readonly PluginCredential[];
   // Synchronous; declares only, performs no I/O.
   register(host: PluginHost): void;
 }

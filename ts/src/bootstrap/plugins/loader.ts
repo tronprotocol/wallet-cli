@@ -5,7 +5,7 @@ import type { InstalledPlugin, PluginStore } from "../../application/ports/plugi
 import type { PluginLoadState } from "../../application/use-cases/plugin-service.js";
 import { ExecutionError, type CliError } from "../../domain/errors/index.js";
 import { incompatiblePlugin, pluginCompatibility } from "../../domain/plugins/index.js";
-import type { PluginDefinition, PluginGroup } from "../../plugin-api/index.js";
+import type { PluginCredential, PluginDefinition, PluginGroup } from "../../plugin-api/index.js";
 import { publishPluginApi } from "./api-object.js";
 import { registerPlugin, type PluginTargets } from "./host.js";
 
@@ -174,6 +174,10 @@ function groupKey(group: Partial<PluginGroup> | undefined): string {
   ]);
 }
 
+function credentialKey(credential: Partial<PluginCredential> | undefined): string {
+  return JSON.stringify([credential?.key, credential?.summary]);
+}
+
 // The module must be the plugin its manifest describes.
 function definitionMismatch(definition: unknown, plugin: InstalledPlugin): string | undefined {
   if (typeof definition !== "object" || definition === null) {
@@ -189,6 +193,16 @@ function definitionMismatch(definition: unknown, plugin: InstalledPlugin): strin
   if (d.apiRevision !== plugin.apiRevision) differs.push("apiRevision");
   if (groups.length !== expected.length || groups.some((g, i) => g !== expected[i])) {
     differs.push("groups");
+  }
+  // A definition without credentials declares none, as a manifest without them does.
+  const credentials = d.credentials === undefined ? [] : d.credentials;
+  const expectedCredentials = plugin.credentials.map(credentialKey);
+  if (
+    !Array.isArray(credentials) ||
+    credentials.length !== expectedCredentials.length ||
+    credentials.some((c, i) => credentialKey(c) !== expectedCredentials[i])
+  ) {
+    differs.push("credentials");
   }
   if (typeof d.register !== "function") differs.push("register");
   return differs.length === 0

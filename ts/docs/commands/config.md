@@ -17,7 +17,7 @@ wallet-cli config [<key>] [<value>] [options]
 
 | Option | Description |
 |---|---|
-| `--api-key-stdin` | Read a credential value from stdin (fd 0). Accepted only with a credential key: `tronlinkSecretId`, `tronlinkSecretKey`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey`, `networks.<id>.apiKey` |
+| `--api-key-stdin` | Read a credential value from stdin (fd 0). Accepted only with a credential key: `tronlinkSecretId`, `tronlinkSecretKey`, a key a plugin declares (such as `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey`), `networks.<id>.apiKey` |
 
 Plus [global options](index.md).
 
@@ -31,12 +31,9 @@ Known keys:
 | `defaultOutput` | `text` \| `json` | `text` | Output format when `-o` is omitted |
 | `timeoutMs` | integer ms, 0–2147483647 | `90000` | Default deadline for the whole command; `0` = no limit (`--timeout` overrides). A value in `config.yaml` outside this range is ignored and the built-in default applies |
 | `pluginRegistry` | http(s) URL | `https://registry.npmjs.org` | The npm registry that [`plugin install`](plugin/install.md) and [`plugin update`](plugin/update.md) fetch packages from |
-| `gasfreeApiKey` | string | (unset) | GasFree API key ([`gasfree`](gasfree/index.md)). **Secret** — set only through `--api-key-stdin` |
-| `gasfreeApiSecret` | string | (unset) | GasFree API secret. **Secret** — set only through `--api-key-stdin` |
 | `tronlinkSecretId` | string | (unset) | TronLink multi-sig service secretId ([`tx multisig`](tx/multisig.md)). **Secret** — set only through `--api-key-stdin` |
 | `tronlinkSecretKey` | string | (unset) | TronLink multi-sig service secretKey. **Secret** — set only through `--api-key-stdin` |
 | `tronlinkChannel` | string | (unset) | TronLink multi-sig service channel |
-| `baiApiKey` | string | (unset) | B.AI personal API key, used by the `bai` commands. **Secret** — set only through `--api-key-stdin` |
 | `aliases` | — | — | Short name → canonical id map (read-only) |
 | `networks` | — | — | Known networks and their configurable fields (read-only as a whole) |
 | `networks.<id>` | — | — | One network's configurable fields; `<id>` may be a canonical id or an alias |
@@ -44,13 +41,23 @@ Known keys:
 | `networks.<id>.apiKeyHeader` | header name | (unset) | HTTP header name, 1–64 letters, digits or ``!#$%&'*+-.^_`\|~``; surrounding whitespace is trimmed, e.g. `TRON-PRO-API-KEY` |
 | `networks.<id>.apiKey` | string | (unset) | Credential sent in that header. **Secret** — always rendered masked, set only through `--api-key-stdin` |
 
+Plugin credentials — keys a plugin declares; the built-in plugins declare these three:
+
+| Key | Declared by | Meaning |
+|---|---|---|
+| `gasfreeApiKey` | `gasfree`, `x402`, `bai` | GasFree API key ([`gasfree`](gasfree/index.md); x402 relays through GasFree, and B.AI pays through x402) |
+| `gasfreeApiSecret` | `gasfree`, `x402`, `bai` | GasFree API secret |
+| `baiApiKey` | `bai` | B.AI personal API key, used by the `bai` commands |
+
+A plugin credential is a **secret** under the same rules as the core's (below): set only through `--api-key-stdin`, masked in every output, and a `config.yaml` that holds one must have mode `0600`. `config` lists, reads and writes a plugin credential while a plugin that declares it is built in or installed with a readable manifest, also when that plugin cannot be loaded. `config --help` and `--json-schema` name the declared keys with each plugin's summary; a key several plugins declare is listed once. With no declaring plugin, the key is unknown (`invalid_value`); a value already in `config.yaml` stays there untouched, is no longer checked or masked, and is used again when a plugin that declares it is installed. To discard it, delete the line from `config.yaml`.
+
 `networks` and `aliases` are read-only as a whole; the writable network settings are the three `networks.<id>.…` leaves. Any other sub-key is `invalid_value`, and the error names the ones that are supported.
 
 Precedence for a value that has both a flag and a config key (highest first): command-line flag > config value > built-in default — e.g. `--timeout` > config `timeoutMs` > built-in 90000.
 
-**Secrets are never rendered in clear text.** `tronlinkSecretId`, `tronlinkSecretKey`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` and `networks.<id>.apiKey` come back as `********` from every read, and setting one echoes `value` and `input` as `"********"` too. An error whose text from a node or service repeats one of them shows `********` in its place.
+**Secrets are never rendered in clear text.** `tronlinkSecretId`, `tronlinkSecretKey`, `networks.<id>.apiKey` and every declared plugin credential come back as `********` from every read, and setting one echoes `value` and `input` as `"********"` too. Any other output that repeats a configured value — a result, an error from a node or service, a warning, a progress line or a log line — shows `********` in its place.
 
-**Secrets are read only from stdin.** None of the six is accepted as a command-line value — `config gasfreeApiKey <key>` fails with `invalid_option` — so a credential never lands in shell history or a process listing. Pipe it in with `--api-key-stdin`, one key per run. A `config.yaml` that holds any of them must be a regular file with mode `0600`, or every command fails with `insecure_config`.
+**Secrets are read only from stdin.** None of them is accepted as a command-line value — `config gasfreeApiKey <key>` fails with `invalid_option` — so a credential never lands in shell history or a process listing. Pipe it in with `--api-key-stdin`, one key per run. A `config.yaml` that holds any of them must be a regular file with mode `0600`, or every command fails with `insecure_config`.
 
 **Endpoints are trimmed in listings, full in named reads.** `config` and `config networks` show `httpEndpoint` as a host only, because a commercial endpoint may carry its key in the URL path. Naming one network (`config networks.tron:3448148188`) or its leaf (`config networks.tron:3448148188.httpEndpoint`) is the deliberate act that reveals the whole URL.
 
@@ -195,13 +202,13 @@ wallet-cli config networks.tron:3448148188 -o json
 
 | Mode | `data` fields |
 |---|---|
-| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `pluginRegistry`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` — each only when set, secrets masked |
+| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `pluginRegistry`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, then each declared plugin credential (`gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` from the built-in plugins, then those of installed plugins) — each only when set, secrets masked |
 | read (`<key>`) | `key`, `value`; only `key` when the key is unset |
 | set (`<key> <value>`) | `key`, `value`, `input` (the raw string as typed); both `"********"` when the key is a secret |
 
 ## Exit status
 
-`0` success · `1` execution failure (`io_error` — an atomic config write failed) · `2` usage error (`invalid_config` — `config.yaml` is unreadable or not valid YAML; `insecure_config` — it holds service credentials but is a symlink or group/world-readable, so `chmod 600` it; `invalid_value` — unknown key, a read-only key given a value, or an unsupported `networks.<id>.<field>`; `invalid_option` — a credential key given a command-line value, or `--api-key-stdin` with a key that is not a credential). See [machine-interface](../machine-interface.md).
+`0` success · `1` execution failure (`io_error` — an atomic config write failed) · `2` usage error (`invalid_config` — `config.yaml` is unreadable or not valid YAML; `insecure_config` — it holds service credentials but is a symlink or group/world-readable, so `chmod 600` it; `invalid_value` — unknown key (including a plugin credential no present plugin declares), a read-only key given a value, or an unsupported `networks.<id>.<field>`; `invalid_option` — a credential key given a command-line value, or `--api-key-stdin` with a key that is not a credential). See [machine-interface](../machine-interface.md).
 
 ## See also
 

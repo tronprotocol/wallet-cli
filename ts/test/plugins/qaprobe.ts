@@ -6,7 +6,13 @@ import { build } from "esbuild";
 import { tarball, type TarEntry } from "./tarball.js";
 
 export type QaprobeVariant =
-  "ok" | "conflict" | "api-version" | "api-revision" | "import-failure" | "register-failure";
+  | "ok"
+  | "conflict"
+  | "api-version"
+  | "api-revision"
+  | "import-failure"
+  | "register-failure"
+  | "credential-core-key";
 
 const TS_ROOT = resolve(import.meta.dirname, "../..");
 const FIXTURE = join(TS_ROOT, "test/fixtures/plugins/qaprobe");
@@ -49,6 +55,7 @@ export async function buildQaprobe(
   const pkg = JSON.parse(readFileSync(join(FIXTURE, "package.json"), "utf8"));
   pkg.version = version;
   if (variant === "conflict") pkg.walletCli.plugin.name = "qaprobe-twin";
+  if (variant === "credential-core-key") pkg.walletCli.plugin.credentials[0].key = "timeoutMs";
   const manifest = join(outDir, "package.json");
   writeFileSync(manifest, JSON.stringify(pkg, null, 2));
   execFileSync(process.execPath, [join(SDK, "bin/stamp.mjs"), manifest], { stdio: "ignore" });

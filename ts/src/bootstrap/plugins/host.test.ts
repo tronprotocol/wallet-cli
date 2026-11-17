@@ -472,7 +472,13 @@ describe("objects handed to a plugin", () => {
         evm: { call: vi.fn(), send: vi.fn(), deploy: vi.fn() },
       } as never,
       recipients: { resolve: vi.fn() },
-      config: { gasfreeApiKey: "k", gasfreeApiSecret: "s", baiApiKey: "b" },
+      config: {
+        credentials: new Map([
+          ["gasfreeApiKey", "k"],
+          ["gasfreeApiSecret", "s"],
+          ["baiApiKey", "b"],
+        ]),
+      },
       broadcastGuard: { assertAllowed: vi.fn() },
       clock: () => 7,
     });
@@ -548,5 +554,142 @@ describe("objects handed to a plugin", () => {
       "capabilities",
       "followUps",
     ]);
+  });
+});
+
+describe("plugin credentials", () => {
+  const credentialTargets = () => ({
+    ...targets(),
+    services: {
+      config: { credential: (key: string) => `value of ${key}`, networkBlock: vi.fn() },
+    } as unknown as HostServices,
+  });
+
+  it("hands a plugin only the credential keys it declares", () => {
+    let config: HostServices["config"] | undefined;
+    const result = registerPlugin(
+      plugin((host) => (config = host.services.config), {
+        credentials: [{ key: "demoApiKey", summary: "Demo API key" }],
+      }),
+      credentialTargets(),
+    );
+    expect(result).toEqual({ ok: true });
+    expect(config!.credential("demoApiKey")).toBe("value of demoApiKey");
+    for (const key of ["otherApiKey", "gasfreeApiKey", "constructor", "toString", "__proto__"]) {
+      expect(() => config!.credential(key)).toThrow(/did not declare the credential/);
+    }
+  });
+
+  it("does not count a key another plugin declares", () => {
+    const t = credentialTargets();
+    registerPlugin(
+      plugin(() => {}, {
+        name: "owner",
+        groups: [{ name: "owner", summary: "Owner", families: [] }],
+        credentials: [{ key: "ownerApiKey", summary: "Owner key" }],
+      }),
+      t,
+    );
+    let config: HostServices["config"] | undefined;
+    registerPlugin(
+      plugin((host) => (config = host.services.config)),
+      t,
+    );
+    expect(() => config!.credential("ownerApiKey")).toThrow(/did not declare/);
+  });
+
+  it("lets two plugins declare the same key", () => {
+    const t = credentialTargets();
+    const shared = [{ key: "sharedApiKey", summary: "Shared key" }];
+    const read: (string | undefined)[] = [];
+    for (const name of ["first", "second"]) {
+      const result = registerPlugin(
+        plugin((host) => read.push(host.services.config.credential("sharedApiKey")), {
+          name,
+          groups: [{ name, summary: name, families: [] }],
+          credentials: shared,
+        }),
+        t,
+      );
+      expect(result).toEqual({ ok: true });
+    }
+    expect(read).toEqual(["value of sharedApiKey", "value of sharedApiKey"]);
+  });
+
+  it.each([
+    ["a core configuration key", [{ key: "timeoutMs", summary: "S" }]],
+    ["a malformed key", [{ key: "demo-key", summary: "S" }]],
+    [
+      "a repeated key",
+      [
+        { key: "demoKey", summary: "A" },
+        { key: "demoKey", summary: "B" },
+      ],
+    ],
+  ])("refuses a definition that declares %s", (_label, credentials) => {
+    const t = targets();
+    const before = contents(t);
+    const result = registerPlugin(
+      plugin((host) => host.chainCommand(spec(["demo", "show"]), "tron", { run }), {
+        credentials,
+      }),
+      t,
+    );
+    expect(result.ok).toBe(false);
+    expect(contents(t)).toEqual(before);
+  });
+});
+
+describe("an error code several plugins share", () => {
+  const twin = (name: string, register: (host: PluginHost) => void) =>
+    plugin(register, { name, groups: [{ name, summary: name, families: [] }] });
+
+  it.each([
+    ["first", "second"],
+    ["second", "first"],
+  ])("is published once when %s and then %s declare the same entry", (a, b) => {
+    const t = targets();
+    for (const name of [a, b]) {
+      const result = registerPlugin(
+        twin(name, (host) => host.errorCodes({ demo_shared: ENTRY })),
+        t,
+      );
+      expect(result).toEqual({ ok: true });
+    }
+    expect(t.errorCodes.entry("demo_shared")).toEqual(ENTRY);
+    expect(Object.keys(t.errorCodes.table()).filter((c) => c === "demo_shared")).toHaveLength(1);
+  });
+
+  it("refuses a second plugin that declares a different entry", () => {
+    const t = targets();
+    registerPlugin(
+      twin("first", (host) => host.errorCodes({ demo_shared: ENTRY })),
+      t,
+    );
+    const result = registerPlugin(
+      twin("second", (host) => host.errorCodes({ demo_shared: { ...ENTRY, retry: "same" } })),
+      t,
+    );
+    expect(result.ok).toBe(false);
+    expect(t.errorCodes.entry("demo_shared")).toEqual(ENTRY);
+  });
+
+  it("keeps the first entry when a second plugin stages it and then fails", () => {
+    const t = targets();
+    registerPlugin(
+      twin("first", (host) => host.errorCodes({ demo_shared: ENTRY })),
+      t,
+    );
+    const result = registerPlugin(
+      twin("second", (host) => {
+        host.errorCodes({ demo_shared: ENTRY, demo_second_only: ENTRY });
+        throw new Error("second failed");
+      }),
+      t,
+    );
+    expect(result).toEqual({ ok: false, reason: "second failed" });
+    expect(t.errorCodes.entry("demo_shared")).toEqual(ENTRY);
+    expect(t.errorCodes.entry("demo_second_only")).toBeUndefined();
+    expect(t.commands.groups().map((g) => g.name)).toEqual(["first"]);
   });
 });

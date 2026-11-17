@@ -99,13 +99,11 @@ export interface PluginGateways {
 
 export type PluginRecipients = Pick<RecipientResolver, "resolve">;
 
-// Service credentials the core configuration stores.
-export type ServiceCredentialKey = "gasfreeApiKey" | "gasfreeApiSecret" | "baiApiKey";
-
 export interface PluginConfig {
   // The user's block of that name on the network; the plugin applies its own defaults and checks.
   networkBlock(network: NetworkDescriptor, name: string): NetworkBlock;
-  credential(key: ServiceCredentialKey): string | undefined;
+  // The configured value of a credential key this plugin declares; throws for any other key.
+  credential(key: string): string | undefined;
 }
 
 export interface PluginClock {

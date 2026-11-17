@@ -22,6 +22,12 @@
             "evm"
           ]
         }
+      ],
+      "credentials": [
+        {
+          "key": "qaprobeApiKey",
+          "summary": "API key of the QA probe service"
+        }
       ]
     }
   }

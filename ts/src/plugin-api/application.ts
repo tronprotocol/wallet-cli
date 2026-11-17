@@ -73,5 +73,4 @@ export type {
   PluginTokens,
   PluginTronCalls,
   PluginTronGateway,
-  ServiceCredentialKey,
 } from "./host-services.js";

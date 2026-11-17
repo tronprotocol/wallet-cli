@@ -1,12 +1,14 @@
 import { expect, it, vi } from "vitest";
 import { registerConfigCommands } from "./config.js";
 import { CommandRegistry } from "../registry/index.js";
-import type { ConfigService } from "../../../../application/use-cases/config-service.js";
+import { ConfigService } from "../../../../application/use-cases/config-service.js";
+import { BUILTIN_CREDENTIALS } from "../../../../bootstrap/plugins/__test-support__/credentials.js";
 
 function fixture(hasKey: boolean) {
   const execute = vi.fn(() => ({ value: "********" }));
   const registry = new CommandRegistry();
-  registerConfigCommands(registry, { execute } as unknown as ConfigService);
+  const service = Object.assign(new ConfigService({} as never, BUILTIN_CREDENTIALS), { execute });
+  registerConfigCommands(registry, service);
   const ctx = {
     secrets: { has: () => hasKey, require: () => "fake-credential" },
     config: {},

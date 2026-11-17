@@ -44,8 +44,9 @@ import type {
   PluginTokens,
   PluginTronCalls,
   PluginTronGateway,
-  ServiceCredentialKey,
 } from "../../plugin-api/host-services.js";
+import { parsePluginCredentials } from "../../domain/plugins/index.js";
+import type { JsonValue } from "../../domain/types/index.js";
 import type { TransactionScope } from "../../application/contracts/execution-scope.js";
 import type { TronContractService } from "../../application/use-cases/tron/contract-service.js";
 import type { EvmContractService } from "../../application/use-cases/evm/contract-service.js";
@@ -53,11 +54,6 @@ import type { EvmContractService } from "../../application/use-cases/evm/contrac
 const PLUGIN_NAME = /^[a-z0-9][a-z0-9-]*$/;
 // Words the core keeps for itself even before it registers a command under them.
 export const RESERVED_WORDS: ReadonlySet<string> = new Set(["plugin", "help"]);
-const SERVICE_CREDENTIAL_KEYS: readonly ServiceCredentialKey[] = [
-  "gasfreeApiKey",
-  "gasfreeApiSecret",
-  "baiApiKey",
-];
 
 // An object with exactly these members: no prototype, frozen, every value a closure or plain data.
 export function facade<T extends object>(members: T): T {
@@ -78,7 +74,7 @@ export interface HostServiceDependencies {
     readonly evm: Pick<EvmContractService, "call" | "send">;
   };
   readonly recipients: Pick<RecipientResolver, "resolve">;
-  readonly config: Pick<Config, ServiceCredentialKey>;
+  readonly config: Pick<Config, "credentials">;
   readonly broadcastGuard: BroadcastGuard;
   readonly clock: WallClock;
 }
@@ -153,7 +149,8 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
     recipients: facade({ resolve: (family, input) => recipients.resolve(family, input) }),
     config: facade({
       networkBlock: (network, name) => networkBlock(network, name),
-      credential: (key) => (SERVICE_CREDENTIAL_KEYS.includes(key) ? config[key] : undefined),
+      // Each plugin receives this behind its own check of the keys it declared.
+      credential: (key) => config.credentials.get(key),
     }),
     broadcastGuard: facade({ assertAllowed: () => broadcastGuard.assertAllowed() }),
     clock: facade({ now: () => clock() }),
@@ -334,6 +331,22 @@ function stage(plugin: PluginDefinition, targets: PluginTargets): StagedPlugin {
     const field = WALLET_MANAGEMENT_FIELDS.find((f) => f in definition);
     if (field) throw new Error(`plugin command ${path.join(" ")} sets ${field}`);
   };
+  const declaredKeys = new Set(
+    parsePluginCredentials(snapshot(plugin.credentials) as JsonValue | undefined).map((c) => c.key),
+  );
+  const services = facade<HostServices>({
+    ...targets.services,
+    config: facade({
+      networkBlock: (network: NetworkDescriptor, block: string) =>
+        targets.services.config.networkBlock(network, block),
+      credential: (key: string) => {
+        if (!declaredKeys.has(key)) {
+          throw new Error(`plugin ${name} did not declare the credential ${String(key)}`);
+        }
+        return targets.services.config.credential(key);
+      },
+    }),
+  });
   const capabilityPrefixes = [name, ...groups.map((g) => g.name)].map((p) => `${p}.`);
   const run =
     <I, O>(handler: (ctx: PluginCommandContext, net: any, input: I) => Promise<O>) =>
@@ -369,7 +382,7 @@ function stage(plugin: PluginDefinition, targets: PluginTargets): StagedPlugin {
     };
   const host: PluginHost = facade<PluginHost>({
     apiVersion: PLUGIN_API_VERSION,
-    services: targets.services,
+    services,
     command: declare((definition) => {
       noWalletFields(definition, definition.path);
       const command: CommandDefinition = snapshot({ ...definition, run: run(definition.run) });

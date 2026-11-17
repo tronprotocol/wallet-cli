@@ -1,4 +1,8 @@
-import type { PluginGroupManifest, PluginSourceRecord } from "../../domain/plugins/index.js";
+import type {
+  PluginCredentialManifest,
+  PluginGroupManifest,
+  PluginSourceRecord,
+} from "../../domain/plugins/index.js";
 
 // The active manifest of one installed plugin, as the store last published it.
 export interface InstalledPlugin {
@@ -7,6 +11,7 @@ export interface InstalledPlugin {
   readonly apiVersion: number;
   readonly apiRevision: number;
   readonly groups: readonly PluginGroupManifest[];
+  readonly credentials: readonly PluginCredentialManifest[];
   // Absolute path of the entry file this manifest points to.
   readonly entryPath: string;
   readonly source: PluginSourceRecord;

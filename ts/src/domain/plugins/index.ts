@@ -2,6 +2,7 @@
 import { ExecutionError, UsageError } from "../errors/index.js";
 import type { ChainFamily } from "../family/chain-family.js";
 import type { JsonValue } from "../types/network.js";
+import { CORE_CONFIG_KEYS, PLUGIN_CREDENTIAL_KEY } from "../config/index.js";
 
 // The plugin API this wallet-cli provides; a plugin built for another version is not loaded.
 export const PLUGIN_API_VERSION = 1;
@@ -21,6 +22,13 @@ export interface PluginGroupManifest {
   readonly families: readonly ChainFamily[];
 }
 
+// A top-level config.yaml key the plugin reads as a credential.
+export interface PluginCredentialManifest {
+  readonly key: string;
+  // One line in the help of the config command.
+  readonly summary: string;
+}
+
 // `walletCli.plugin` of the package's package.json, with the package version.
 export interface PluginManifest {
   readonly name: string;
@@ -30,6 +38,8 @@ export interface PluginManifest {
   // Relative to the package root.
   readonly entry: string;
   readonly groups: readonly PluginGroupManifest[];
+  // Empty when the manifest lists none.
+  readonly credentials: readonly PluginCredentialManifest[];
 }
 
 export type PluginSourceRecord =
@@ -88,6 +98,42 @@ function group(value: JsonValue, index: number): PluginGroupManifest {
   };
 }
 
+function credential(value: JsonValue, index: number): PluginCredentialManifest {
+  if (!isRecord(value)) throw invalid(`credentials[${index}] must be an object`);
+  const key = value.key;
+  if (typeof key !== "string" || !PLUGIN_CREDENTIAL_KEY.test(key)) {
+    throw invalid(
+      `credentials[${index}].key must be one word of letters and digits that starts with a lower-case letter`,
+    );
+  }
+  if (CORE_CONFIG_KEYS.has(key))
+    throw invalid(`credential key "${key}" is a core configuration key`);
+  const summary = text(value.summary, `credentials[${index}].summary`)!;
+  if (/[\r\n]/.test(summary)) throw invalid(`credentials[${index}].summary must be one line`);
+  return { key, summary };
+}
+
+// The credential keys a plugin declares, in the manifest or in its definition; absent means none.
+export function parsePluginCredentials(value: JsonValue | undefined): PluginCredentialManifest[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw invalid("walletCli.plugin.credentials must be a list");
+  const parsed = value.map(credential);
+  const keys = parsed.map((c) => c.key);
+  if (new Set(keys).size !== keys.length) throw invalid("a credential key is listed twice");
+  return parsed;
+}
+
+// One entry per key: the first declaration in the given order keeps its summary.
+export function mergeCredentials(
+  declarations: readonly (readonly PluginCredentialManifest[])[],
+): PluginCredentialManifest[] {
+  const merged = new Map<string, PluginCredentialManifest>();
+  for (const list of declarations) {
+    for (const c of list) if (!merged.has(c.key)) merged.set(c.key, c);
+  }
+  return [...merged.values()];
+}
+
 // Reads the plugin manifest of a package.json; a package without one is not a plugin.
 export function parsePluginManifest(packageJson: JsonValue): PluginManifest {
   if (!isRecord(packageJson)) throw invalid("package.json is not an object");
@@ -116,6 +162,7 @@ export function parsePluginManifest(packageJson: JsonValue): PluginManifest {
     apiRevision: apiNumber(plugin.apiRevision, "walletCli.plugin.apiRevision"),
     entry,
     groups: parsed,
+    credentials: parsePluginCredentials(plugin.credentials),
   };
 }
 

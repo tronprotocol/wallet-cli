@@ -27,16 +27,28 @@ export function isOutputMode(value: unknown): value is OutputMode {
   return OUTPUT_MODES.includes(value as OutputMode);
 }
 
-// Service credentials, read only from stdin and stored with mode 0600; networks.<id>.apiKey is the sixth.
-export const CREDENTIAL_CONFIG_KEYS = [
-  "tronlinkSecretId",
-  "tronlinkSecretKey",
-  "gasfreeApiKey",
-  "gasfreeApiSecret",
-  "baiApiKey",
-] as const;
+// The core's service credentials, read only from stdin and stored with mode 0600; networks.<id>.apiKey
+// is the third. Plugins declare their own credential keys, which the core handles the same way.
+export const CREDENTIAL_CONFIG_KEYS = ["tronlinkSecretId", "tronlinkSecretKey"] as const;
 export type CredentialConfigKey = (typeof CREDENTIAL_CONFIG_KEYS)[number];
 export const NETWORK_CREDENTIAL_FIELD = "apiKey";
+
+// Every top-level key the core reads from config.yaml; a plugin may not declare one as a credential.
+export const CORE_CONFIG_KEYS: ReadonlySet<string> = new Set([
+  "defaultNetwork",
+  "defaultOutput",
+  "timeoutMs",
+  "pluginRegistry",
+  "networks",
+  "aliases",
+  "price",
+  "tronlinkSecretId",
+  "tronlinkSecretKey",
+  "tronlinkChannel",
+]);
+
+// A plugin credential key: one word of letters and digits that starts with a lower-case letter.
+export const PLUGIN_CREDENTIAL_KEY = /^[a-z][A-Za-z0-9]{0,63}$/;
 
 export function isCredentialConfigKey(key: string): key is CredentialConfigKey {
   return (CREDENTIAL_CONFIG_KEYS as readonly string[]).includes(key);

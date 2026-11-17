@@ -1,6 +1,7 @@
 import type { HostServices } from "../../plugin-api/application.js";
 import type { PluginCommandContext } from "../../plugin-api/cli.js";
-import { gasfreeOpenApi } from "../gasfree/api.js";
+import { GASFREE_CREDENTIALS, GASFREE_SHARED_ERROR_CODES, gasfreeOpenApi } from "../gasfree/api.js";
+import { X402_ERROR_CODES } from "./domain/errors.js";
 import { X402FacilitatorClient } from "./adapters/outbound/x402/facilitator-client.js";
 import { X402PaymentClient } from "./adapters/outbound/x402/payment-client.js";
 import { X402ProviderCatalog } from "./adapters/outbound/x402/provider-catalog.js";
@@ -13,6 +14,16 @@ import { X402Permit2Approvals } from "./application/use-cases/x402-permit2-appro
 
 export type { X402Service } from "./application/use-cases/x402-service.js";
 export type { DaemonRole } from "./adapters/inbound/http/daemon.js";
+
+// The GasFree keys, read for the GasFree relay.
+export const X402_CREDENTIALS = GASFREE_CREDENTIALS;
+
+// The codes a plugin that pays through x402 can raise from x402's own code.
+export const X402_SHARED_ERROR_CODES = {
+  ...GASFREE_SHARED_ERROR_CODES,
+  invalid_x402_response: X402_ERROR_CODES.invalid_x402_response,
+  payer_mismatch: X402_ERROR_CODES.payer_mismatch,
+};
 
 // A process that never runs a detached server.
 const NO_DAEMON: DaemonRole = { child: false, childEnv: () => ({}) };

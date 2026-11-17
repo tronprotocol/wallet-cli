@@ -1,6 +1,14 @@
 // The qaprobe fixture, installed into an empty home and run through the built CLI.
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +21,12 @@ import { buildQaprobe, packDirectory, type QaprobeVariant } from "./plugins/qapr
 const work = mkdtempSync(join(tmpdir(), "wcli-qaprobe-"));
 const archives = new Map<QaprobeVariant, string>();
 beforeAll(async () => {
-  for (const variant of ["ok", "import-failure", "register-failure"] as const) {
+  for (const variant of [
+    "ok",
+    "import-failure",
+    "register-failure",
+    "credential-core-key",
+  ] as const) {
     const dir = await buildQaprobe(join(work, variant), variant);
     archives.set(variant, packDirectory(dir, join(work, `${variant}.tgz`)));
   }
@@ -383,5 +396,99 @@ describe("a plugin that cannot be loaded", () => {
     expect(
       json(["plugin", "list"]).json.data.find((p: { name: string }) => p.name === "qaprobe"),
     ).toMatchObject({ state: "incompatible" });
+  });
+});
+
+describe("a plugin's credential", () => {
+  const KEY = "qaprobe-fixture-key-0001";
+  const config = () => join(testHome, "config.yaml");
+  const writeKey = () =>
+    run(["--output", "json", "config", "qaprobeApiKey", "--api-key-stdin"], {
+      input: `${KEY}\n`,
+      password: null,
+    });
+
+  it("is unknown to config while no plugin declares it", () => {
+    const listing = json(["config"]);
+    expect(listing.status).toBe(0);
+    expect(Object.keys(listing.json.data)).not.toContain("qaprobeApiKey");
+    const write = writeKey();
+    expect(write.status).toBe(2);
+    expect(write.json.error).toMatchObject({
+      code: "invalid_value",
+      message: "unknown config key: qaprobeApiKey",
+    });
+    expect(json(["config", "qaprobeApiKey"]).status).toBe(2);
+    expect(existsSync(config())).toBe(false);
+  });
+
+  it("is listed, written from stdin only, read and used masked once the plugin is installed", () => {
+    install();
+    const help = run(["config", "--help"], { password: null });
+    expect(help.stdout).toContain("qaprobeApiKey: API key of the QA probe service");
+
+    const written = writeKey();
+    expect(written.status, written.stdout + written.stderr).toBe(0);
+    expect(written.json.data).toEqual({
+      key: "qaprobeApiKey",
+      value: "********",
+      input: "********",
+    });
+    expect(readFileSync(config(), "utf8")).toContain(`qaprobeApiKey: ${KEY}`);
+    expect(statSync(config()).mode & 0o777).toBe(0o600);
+    expect(json(["config", "qaprobeApiKey"]).json.data).toEqual({
+      key: "qaprobeApiKey",
+      value: "********",
+    });
+    expect(json(["config"]).json.data.qaprobeApiKey).toBe("********");
+
+    const argv = json(["config", "qaprobeApiKey", "k1"]);
+    expect(argv.status).toBe(2);
+    expect(argv.json.error.code).toBe("invalid_option");
+
+    expect(json(["qaprobe", "credential"]).json.data).toEqual({
+      key: "qaprobeApiKey",
+      configured: true,
+    });
+    for (const output of ["json", "text"]) {
+      const echo = run(["--output", output, "qaprobe", "credential", "--echo"], {
+        password: null,
+      });
+      expect(echo.status, echo.stdout + echo.stderr).toBe(0);
+      expect(echo.stdout + echo.stderr).not.toContain(KEY);
+      expect(echo.stdout).toContain("********");
+      expect(echo.stderr).toContain("qaprobe received ********");
+    }
+  });
+
+  it("is subject to the mode check of a core credential", () => {
+    install();
+    expect(writeKey().status).toBe(0);
+    chmodSync(config(), 0o640);
+    const probe = json(["qaprobe", "credential"]);
+    expect(probe.status).toBe(2);
+    expect(probe.json.error.code).toBe("insecure_config");
+  });
+
+  it("stays in the file after the plugin is removed, and is found again on reinstall", () => {
+    install();
+    expect(writeKey().status).toBe(0);
+    expect(json(["plugin", "remove", "qaprobe"]).status).toBe(0);
+    expect(Object.keys(json(["config"]).json.data)).not.toContain("qaprobeApiKey");
+    expect(json(["config", "qaprobeApiKey"]).status).toBe(2);
+    expect(json(["list"]).status).toBe(0);
+    expect(readFileSync(config(), "utf8")).toContain(`qaprobeApiKey: ${KEY}`);
+    install();
+    expect(json(["qaprobe", "credential"]).json.data).toEqual({
+      key: "qaprobeApiKey",
+      configured: true,
+    });
+  });
+
+  it("refuses to install a plugin that declares a core configuration key", () => {
+    const r = json(["plugin", "install", archives.get("credential-core-key")!]);
+    expect(r.status).toBe(1);
+    expect(r.json.error.code).toBe("plugin_invalid");
+    expect(existsSync(join(testHome, "plugins/qaprobe/active.json"))).toBe(false);
   });
 });

@@ -117,7 +117,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     secretKey: "apiKey",
     commandScoped: true,
     description:
-      "read a credential value from stdin (fd 0); accepted only by config <credential key>, e.g. config baiApiKey --api-key-stdin",
+      "read a credential value from stdin (fd 0); accepted only by config <credential key>, e.g. config tronlinkSecretId --api-key-stdin",
   },
 ];
 

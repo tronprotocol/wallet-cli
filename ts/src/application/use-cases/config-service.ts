@@ -1,6 +1,7 @@
 import { endpointHost, type Config } from "../../domain/types/index.js";
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import { UsageError } from "../../domain/errors/index.js";
+import type { PluginCredentialManifest } from "../../domain/plugins/index.js";
 import type {
   ConfigDocument,
   ConfigDocumentRepository,
@@ -26,8 +27,6 @@ export const TRONLINK_CONFIG_KEYS = [
   "tronlinkSecretKey",
   "tronlinkChannel",
 ] as const;
-export const GASFREE_CONFIG_KEYS = ["gasfreeApiKey", "gasfreeApiSecret"] as const;
-export const BAI_CONFIG_KEYS = ["baiApiKey"] as const;
 export const CONFIG_KEYS = [
   "defaultNetwork",
   "defaultOutput",
@@ -36,8 +35,6 @@ export const CONFIG_KEYS = [
   "networks",
   "aliases",
   ...TRONLINK_CONFIG_KEYS,
-  ...GASFREE_CONFIG_KEYS,
-  ...BAI_CONFIG_KEYS,
 ] as const;
 export const WRITABLE_CONFIG_KEYS = [
   "defaultNetwork",
@@ -45,8 +42,6 @@ export const WRITABLE_CONFIG_KEYS = [
   "timeoutMs",
   "pluginRegistry",
   ...TRONLINK_CONFIG_KEYS,
-  ...GASFREE_CONFIG_KEYS,
-  ...BAI_CONFIG_KEYS,
 ] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 export type WritableConfigKey = (typeof WRITABLE_CONFIG_KEYS)[number];
@@ -68,19 +63,12 @@ interface NetworkKey {
   field?: string;
 }
 
-// True for the six credential keys, which are accepted only from the secret input channel.
-export function isCredentialKey(key: string): boolean {
-  return isCredentialConfigKey(key) || parseNetworkKey(key)?.field === NETWORK_CREDENTIAL_FIELD;
-}
-
 // Every credential value in effect; outputs mask them.
 export function configuredCredentials(config: Config): string[] {
   const values = [
     config.tronlinkSecretId,
     config.tronlinkSecretKey,
-    config.gasfreeApiKey,
-    config.gasfreeApiSecret,
-    config.baiApiKey,
+    ...config.credentials.values(),
     ...Object.values(config.networks).map((network) => network.apiKey),
   ];
   return values.filter((value): value is string => typeof value === "string" && value !== "");
@@ -100,7 +88,12 @@ export interface NetworkConfigView {
   apiKey?: string;
 }
 
-export interface ConfigView {
+// The core keys, then each declared plugin credential key, masked.
+export type ConfigView = CoreConfigView & {
+  readonly [credentialKey: string]: string | undefined;
+};
+
+interface CoreConfigView {
   defaultNetwork: Config["defaultNetwork"];
   defaultOutput: Config["defaultOutput"];
   timeoutMs: Config["timeoutMs"];
@@ -110,14 +103,11 @@ export interface ConfigView {
   tronlinkSecretId: string | undefined;
   tronlinkSecretKey: string | undefined;
   tronlinkChannel: Config["tronlinkChannel"];
-  gasfreeApiKey: string | undefined;
-  gasfreeApiSecret: string | undefined;
-  baiApiKey: string | undefined;
 }
 
 export type ConfigReadResult = {
   key: string;
-  value: ConfigView[keyof ConfigView] | NetworkConfigView;
+  value: CoreConfigView[keyof CoreConfigView] | NetworkConfigView;
 };
 
 export type ConfigWriteResult = { key: string; value: string | number | undefined; input: string };
@@ -125,10 +115,38 @@ export type ConfigWriteResult = { key: string; value: string | number | undefine
 export type ConfigResult = ConfigView | ConfigReadResult | ConfigWriteResult;
 
 export class ConfigService {
-  constructor(private readonly documents: ConfigDocumentRepository) {}
+  readonly #credentials: ReadonlyMap<string, PluginCredentialManifest>;
+
+  // `credentials`: the credential keys the plugins declare, in listing order, one entry per key.
+  constructor(
+    private readonly documents: ConfigDocumentRepository,
+    credentials: readonly PluginCredentialManifest[] = [],
+  ) {
+    this.#credentials = new Map(credentials.map((c) => [c.key, c]));
+  }
+
+  get credentials(): readonly PluginCredentialManifest[] {
+    return [...this.#credentials.values()];
+  }
+
+  // True for a key accepted only from the secret input channel.
+  isCredentialKey(key: string): boolean {
+    return (
+      isCredentialConfigKey(key) ||
+      this.#credentials.has(key) ||
+      parseNetworkKey(key)?.field === NETWORK_CREDENTIAL_FIELD
+    );
+  }
+
+  // Unknown keys fail before anything else is checked, also when a value comes from stdin.
+  assertKnownKey(key: string): void {
+    if (parseNetworkKey(key) || CONFIG_KEYS.includes(key as ConfigKey)) return;
+    if (this.#credentials.has(key)) return;
+    throw new UsageError("invalid_value", `unknown config key: ${key}`);
+  }
 
   execute(input: ConfigCommandInput, effective: Config, networks: NetworkRegistry): ConfigResult {
-    const view: ConfigView = {
+    const core: CoreConfigView = {
       defaultNetwork: effective.defaultNetwork,
       defaultOutput: effective.defaultOutput,
       timeoutMs: effective.timeoutMs,
@@ -141,11 +159,11 @@ export class ConfigService {
       tronlinkSecretId: maskSecret(effective.tronlinkSecretId),
       tronlinkSecretKey: maskSecret(effective.tronlinkSecretKey),
       tronlinkChannel: effective.tronlinkChannel,
-      gasfreeApiKey: maskSecret(effective.gasfreeApiKey),
-      gasfreeApiSecret: maskSecret(effective.gasfreeApiSecret),
-      baiApiKey: maskSecret(effective.baiApiKey),
     };
-    if (input.key === undefined) return view;
+    const declared = [...this.#credentials.keys()].map(
+      (key) => [key, maskSecret(effective.credentials.get(key))] as const,
+    );
+    if (input.key === undefined) return { ...core, ...Object.fromEntries(declared) } as ConfigView;
 
     const networkKey = parseNetworkKey(input.key);
     if (networkKey) {
@@ -154,10 +172,21 @@ export class ConfigService {
         : this.setNetworkField(networkKey, input.value, networks);
     }
 
-    if (!CONFIG_KEYS.includes(input.key as ConfigKey)) {
-      throw new UsageError("invalid_value", `unknown config key: ${input.key}`);
+    this.assertKnownKey(input.key);
+    if (this.#credentials.has(input.key)) {
+      const key = input.key;
+      if (input.value === undefined) {
+        return { key, value: maskSecret(effective.credentials.get(key)) };
+      }
+      const value = ruled(key, input.value, CREDENTIAL_VALUE_RULE);
+      return this.documents.update((current) => ({
+        document: { ...current, [key]: value },
+        result: { key, value: maskSecret(value), input: "********" },
+      }));
     }
-    if (input.value === undefined) return { key: input.key, value: view[input.key as ConfigKey] };
+    if (input.value === undefined) {
+      return { key: input.key, value: core[input.key as ConfigKey] };
+    }
     if (!WRITABLE_CONFIG_KEYS.includes(input.key as WritableConfigKey)) {
       throw new UsageError("invalid_value", `${input.key} is read-only`);
     }
@@ -232,11 +261,7 @@ export class ConfigService {
       }
       return raw;
     }
-    if (
-      (TRONLINK_CONFIG_KEYS as readonly string[]).includes(key) ||
-      (GASFREE_CONFIG_KEYS as readonly string[]).includes(key) ||
-      key === "baiApiKey"
-    ) {
+    if ((TRONLINK_CONFIG_KEYS as readonly string[]).includes(key)) {
       return ruled(key, raw, CREDENTIAL_VALUE_RULE);
     }
     return networks.resolve(raw).id;

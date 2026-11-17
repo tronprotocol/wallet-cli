@@ -304,7 +304,8 @@ imports only its entry of `plugin-api`:
 
 9.3 A plugin declares and the core acts. A plugin registers commands (one Zod schema each, rule 2.3), error
 codes, capability predicates and follow-up steps through `PluginHost`. Its commands return typed results and
-supply a text formatter; the core prints. A plugin does not write to stdout or stderr. **review**.
+supply a text formatter; the core prints. A plugin does not write to stdout or stderr. A plugin declares the
+credential keys it reads, and the core reads, stores and masks them under 6.6 as it does its own. **review**.
 
 9.4 A plugin never receives a signer, the keystore, the secret resolver or the master password. It signs
 through the `signing` host service, which resolves the signer in the core and passes through the signing entry

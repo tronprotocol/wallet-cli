@@ -83,11 +83,8 @@ export interface Config {
   tronlinkSecretId?: string;
   tronlinkSecretKey?: string;
   tronlinkChannel?: string;
-  // Mask GasFree credentials in output.
-  gasfreeApiKey?: string;
-  gasfreeApiSecret?: string;
-  // Mask the B.AI bearer key in output.
-  baiApiKey?: string;
+  // The values of the credential keys plugins declare, by key; a key without a value is absent.
+  credentials: ReadonlyMap<string, string>;
 }
 
 // Valuation failures must not fail balance reads.

@@ -77,6 +77,16 @@ sunswap  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/
 
 `STATE` is `ok`, `incompatible` (the plugin and wallet-cli need different plugin API versions; the reason names the side to update) or `broken` (the reason says why). A plugin that is not `ok` affects only its own commands.
 
+## Credentials
+
+A plugin that calls a service with an API key declares the key; built-in GasFree, x402 and B.AI declare `gasfreeApiKey`, `gasfreeApiSecret` and `baiApiKey`. Once the plugin is installed, `wallet-cli config --help` lists its keys, and you set one the same way as a core credential, from stdin:
+
+```bash
+printf '%s\n' "$EXAMPLE_KEY" | wallet-cli config exampleApiKey --api-key-stdin
+```
+
+The value is never accepted on the command line or from an environment variable, it is masked in every output, and `config.yaml` must keep mode `0600`. Plugins that use the same service may declare the same key; they share its value. See [`config`](../commands/config.md).
+
 ## Update
 
 ```bash
@@ -94,7 +104,7 @@ After you upgrade wallet-cli itself, run `wallet-cli plugin list`: a plugin buil
 wallet-cli plugin remove sunswap
 ```
 
-The group is gone from the next command on. Settings the plugin read from `config.yaml` stay as written.
+The group is gone from the next command on. Settings the plugin read from `config.yaml` stay as written, credentials included: they stay in the file until you delete their lines, and the plugin finds them again when you install it again. While no plugin declares a credential key, `config` does not know it, and wallet-cli no longer checks the file's mode for it or masks its value.
 
 ## When a command is not found
 

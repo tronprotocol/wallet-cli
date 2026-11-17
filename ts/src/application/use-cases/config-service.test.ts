@@ -3,8 +3,16 @@ import { ConfigService } from "./config-service.js";
 import type { ConfigDocumentRepository } from "../ports/config-document-repository.js";
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import type { Config } from "../../domain/types/index.js";
+import { BUILTIN_CREDENTIALS } from "../../bootstrap/plugins/__test-support__/credentials.js";
 
-const effective = { timeoutMs: 90_000, networks: {} } as unknown as Config;
+const effective = { timeoutMs: 90_000, networks: {}, credentials: new Map() } as unknown as Config;
+
+// A plugin credential lives in `credentials`; a core one is a field of its own.
+function configuredWith(key: string, value: string): Config {
+  return key.startsWith("tronlink")
+    ? ({ ...effective, [key]: value } as Config)
+    : { ...effective, credentials: new Map([[key, value]]) };
+}
 const networks = {} as NetworkRegistry;
 
 function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
@@ -12,7 +20,7 @@ function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
     (fn: (c: unknown) => { document: unknown; result: unknown }) => fn({}).result,
   );
   const docs = { update } as unknown as ConfigDocumentRepository;
-  return { svc: new ConfigService(docs), update };
+  return { svc: new ConfigService(docs, BUILTIN_CREDENTIALS), update };
 }
 
 describe("ConfigService timeoutMs validation", () => {
@@ -89,7 +97,7 @@ describe("ConfigService GasFree credentials", () => {
   });
 
   it("never returns an effective API secret in config views", () => {
-    const configured = { ...effective, gasfreeApiSecret: "secret" };
+    const configured = configuredWith("gasfreeApiSecret", "secret");
     const { svc } = service();
     expect(svc.execute({}, configured, networks)).toMatchObject({ gasfreeApiSecret: "********" });
     expect(svc.execute({ key: "gasfreeApiSecret" }, configured, networks)).toEqual({
@@ -106,7 +114,7 @@ describe("ConfigService B.AI configuration", () => {
       svc.execute({ key: "baiApiKey", value: "bai_test_secret" }, effective, networks),
     ).toMatchObject({ key: "baiApiKey", value: "********", input: "********" });
 
-    const configured = { ...effective, baiApiKey: "bai_test_secret" };
+    const configured = configuredWith("baiApiKey", "bai_test_secret");
     expect(svc.execute({}, configured, networks)).toMatchObject({ baiApiKey: "********" });
     expect(svc.execute({ key: "baiApiKey" }, configured, networks)).toEqual({
       key: "baiApiKey",
@@ -116,6 +124,7 @@ describe("ConfigService B.AI configuration", () => {
 });
 
 const twoNetworks = {
+  credentials: new Map(),
   timeoutMs: 60_000,
   waitTimeoutMs: 60_000,
   aliases: { nile: "tron:3448148188", sepolia: "eip155:11155111" },
@@ -279,6 +288,7 @@ describe("ConfigService reads a nested network key", () => {
 });
 
 const keyedNetworks = {
+  credentials: new Map(),
   timeoutMs: 60_000,
   waitTimeoutMs: 60_000,
   aliases: { nile: "tron:3448148188", sepolia: "eip155:11155111" },
@@ -457,7 +467,7 @@ it.each([
 ])("never echoes %s in config outputs", (key) => {
   const { svc } = service();
   const value = "sentinel-secret-123";
-  const configured = { ...effective, [key]: value };
+  const configured = configuredWith(key, value);
   for (const result of [
     svc.execute({}, configured, networks),
     svc.execute({ key }, configured, networks),

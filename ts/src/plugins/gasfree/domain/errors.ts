@@ -16,6 +16,11 @@ export const GASFREE_ERROR_CODES = {
     retry: "never",
     meaning: "the GasFree service's answer failed its integrity check",
   },
+  gasfree_credentials_missing: {
+    exit: 2,
+    retry: "never",
+    meaning: "no GasFree credentials are configured",
+  },
   gasfree_rejected: {
     exit: 1,
     retry: "never",

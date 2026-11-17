@@ -1,6 +1,16 @@
 import type { ErrorCodeEntry } from "../../../plugin-api/domain.js";
 
 export const X402_ERROR_CODES = {
+  invalid_x402_response: {
+    exit: 1,
+    retry: "same",
+    meaning: "an x402 response could not be decoded",
+  },
+  payer_mismatch: {
+    exit: 1,
+    retry: "never",
+    meaning: "the payload names a payer other than the signing account",
+  },
   fee_cap_exceeded: {
     exit: 1,
     retry: "never",

@@ -345,11 +345,6 @@
       "retry": "never",
       "meaning": "the signature was declined on the device"
     },
-    "payer_mismatch": {
-      "exit": 1,
-      "retry": "never",
-      "meaning": "the payload names a payer other than the signing account"
-    },
     "signed_payload_mismatch": {
       "exit": 1,
       "retry": "never",
@@ -470,11 +465,6 @@
       "retry": "later",
       "meaning": "an external service is rate-limiting this client"
     },
-    "invalid_x402_response": {
-      "exit": 1,
-      "retry": "same",
-      "meaning": "an x402 response could not be decoded"
-    },
     "response_too_large": {
       "exit": 1,
       "retry": "changed",
@@ -504,11 +494,6 @@
       "exit": 1,
       "retry": "never",
       "meaning": "the node does not report that chain parameter"
-    },
-    "gasfree_credentials_missing": {
-      "exit": 2,
-      "retry": "never",
-      "meaning": "no GasFree credentials are configured"
     },
     "tronlink_credentials_missing": {
       "exit": 2,
@@ -775,6 +760,11 @@
       "retry": "never",
       "meaning": "the GasFree service's answer failed its integrity check"
     },
+    "gasfree_credentials_missing": {
+      "exit": 2,
+      "retry": "never",
+      "meaning": "no GasFree credentials are configured"
+    },
     "gasfree_rejected": {
       "exit": 1,
       "retry": "never",
@@ -784,6 +774,16 @@
       "exit": 1,
       "retry": "never",
       "meaning": "the agent token does not exist"
+    },
+    "invalid_x402_response": {
+      "exit": 1,
+      "retry": "same",
+      "meaning": "an x402 response could not be decoded"
+    },
+    "payer_mismatch": {
+      "exit": 1,
+      "retry": "never",
+      "meaning": "the payload names a payer other than the signing account"
     },
     "fee_cap_exceeded": {
       "exit": 1,
@@ -3015,13 +3015,13 @@
         "wallet-cli config defaultNetwork tron:3448148188",
         "wallet-cli config networks.tron:728126428",
         "wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY",
-        "printf '%s\\n' \"$BAI_KEY\" | wallet-cli config baiApiKey --api-key-stdin"
+        "printf '%s\\n' \"$TRONLINK_SECRET_ID\" | wallet-cli config tronlinkSecretId --api-key-stdin"
       ],
       "inputFlags": [
         {
           "flag": "--api-key-stdin",
           "type": "boolean",
-          "description": "read a credential value from stdin (fd 0); accepted only by config <credential key>, e.g. config baiApiKey --api-key-stdin"
+          "description": "read a credential value from stdin (fd 0); accepted only by config <credential key>, e.g. config tronlinkSecretId --api-key-stdin"
         }
       ],
       "inputSchema": {

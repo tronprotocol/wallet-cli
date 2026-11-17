@@ -37,7 +37,11 @@ export class ConfigLoader {
   }
 
   // config.yaml overrides builtins; callers apply runtime environment and flag overrides.
-  static load(env: NodeJS.ProcessEnv = process.env): Config {
+  // `credentialKeys` are the plugin credential keys to read, with the same rules as the core's.
+  static load(
+    env: NodeJS.ProcessEnv = process.env,
+    credentialKeys: readonly string[] = [],
+  ): Config {
     const networks: Record<string, NetworkDescriptor> = {};
     for (const [id, d] of Object.entries(BUILTIN_NETWORKS)) networks[id] = { ...d };
     const aliases: Record<string, string> = { ...BUILTIN_ALIASES };
@@ -50,15 +54,15 @@ export class ConfigLoader {
     let tronlinkSecretId: string | undefined;
     let tronlinkSecretKey: string | undefined;
     let tronlinkChannel: string | undefined;
-    let gasfreeApiKey: string | undefined;
-    let gasfreeApiSecret: string | undefined;
-    let baiApiKey: string | undefined;
+    const credentials = new Map<string, string>();
 
     const path = ConfigLoader.configPath(env);
     if (existsSync(path)) {
       const raw = readConfigDocument(path);
       if (
-        CREDENTIAL_CONFIG_KEYS.some((key) => typeof raw[key] === "string" && raw[key] !== "") ||
+        [...CREDENTIAL_CONFIG_KEYS, ...credentialKeys].some(
+          (key) => Object.hasOwn(raw, key) && typeof raw[key] === "string" && raw[key] !== "",
+        ) ||
         holdsNetworkApiKey(raw.networks)
       ) {
         assertSecretConfigPermissions(path);
@@ -83,9 +87,10 @@ export class ConfigLoader {
       tronlinkSecretId = credential(raw.tronlinkSecretId);
       tronlinkSecretKey = credential(raw.tronlinkSecretKey);
       tronlinkChannel = credential(raw.tronlinkChannel);
-      gasfreeApiKey = credential(raw.gasfreeApiKey);
-      gasfreeApiSecret = credential(raw.gasfreeApiSecret);
-      baiApiKey = credential(raw.baiApiKey);
+      for (const key of credentialKeys) {
+        const value = Object.hasOwn(raw, key) ? credential(raw[key]) : undefined;
+        if (value !== undefined) credentials.set(key, value);
+      }
       // Load aliases before networks so alias-keyed network overrides resolve correctly.
       if (raw.aliases && typeof raw.aliases === "object" && !Array.isArray(raw.aliases)) {
         for (const [alias, target] of Object.entries(raw.aliases as Record<string, unknown>)) {
@@ -138,9 +143,7 @@ export class ConfigLoader {
       tronlinkSecretId,
       tronlinkSecretKey,
       tronlinkChannel,
-      gasfreeApiKey,
-      gasfreeApiSecret,
-      baiApiKey,
+      credentials,
     };
   }
 }

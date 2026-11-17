@@ -5,7 +5,12 @@ import {
   type PluginDefinition,
 } from "../../plugin-api/index.js";
 import type { PluginCommandContext } from "../../plugin-api/cli.js";
-import { DEFAULT_X402_FACILITATOR_URL, x402ServiceFactory } from "../x402/api.js";
+import {
+  DEFAULT_X402_FACILITATOR_URL,
+  X402_CREDENTIALS,
+  X402_SHARED_ERROR_CODES,
+  x402ServiceFactory,
+} from "../x402/api.js";
 import { BaiClient } from "./adapters/outbound/bai/client.js";
 import { BaiRechargeClient } from "./adapters/outbound/bai/recharge-client.js";
 import { BAI_RECHARGE_ADDRESSES } from "./domain/recharge-addresses.js";
@@ -30,6 +35,15 @@ const bai: PluginDefinition = {
       families: [],
     },
   ],
+  // B.AI pays through x402, which reads the GasFree keys.
+  credentials: [
+    ...X402_CREDENTIALS,
+    {
+      key: "baiApiKey",
+      summary:
+        "B.AI API key, saved locally with no network or wallet binding, which recharge checks when used",
+    },
+  ],
   register(host) {
     const { services } = host;
     const credentials = { baiApiKey: services.config.credential("baiApiKey") };
@@ -50,7 +64,7 @@ const bai: PluginDefinition = {
         services.gateways,
         services.accounts,
       );
-    host.errorCodes(BAI_ERROR_CODES);
+    host.errorCodes({ ...BAI_ERROR_CODES, ...X402_SHARED_ERROR_CODES });
     host.capabilities(BAI_CAPABILITIES);
     host.followUps(BAI_FOLLOW_UPS);
     host.chainCommand(

@@ -6,6 +6,7 @@ import { ConfigLoader, NetworkRegistry } from "./index.js";
 import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
 import { CliError, inputRef } from "../../../domain/errors/index.js";
 import { errorEnvelope } from "../../inbound/cli/output/errors.js";
+import { BUILTIN_CREDENTIAL_KEYS } from "../../../bootstrap/plugins/__test-support__/credentials.js";
 
 function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
@@ -118,7 +119,8 @@ describe("ConfigLoader GasFree credentials", () => {
   const credentials = ["gasfreeApiKey: TEST", "gasfreeApiSecret: TESTTESTTEST", ""].join("\n");
 
   it("loads credentials only from a private config file", () => {
-    expect(ConfigLoader.load(envWithConfig(credentials, 0o600))).toMatchObject({
+    const config = ConfigLoader.load(envWithConfig(credentials, 0o600), BUILTIN_CREDENTIAL_KEYS);
+    expect(Object.fromEntries(config.credentials)).toMatchObject({
       gasfreeApiKey: "TEST",
       gasfreeApiSecret: "TESTTESTTEST",
     });
@@ -127,7 +129,9 @@ describe("ConfigLoader GasFree credentials", () => {
   it.runIf(process.platform !== "win32")(
     "rejects credentials in a group/world-readable file",
     () => {
-      expect(() => ConfigLoader.load(envWithConfig(credentials, 0o644))).toThrow(/mode 0600/);
+      expect(() =>
+        ConfigLoader.load(envWithConfig(credentials, 0o644), BUILTIN_CREDENTIAL_KEYS),
+      ).toThrow(/mode 0600/);
     },
   );
 });
@@ -136,7 +140,8 @@ describe("ConfigLoader B.AI configuration", () => {
   const configured = ["baiApiKey: bai_test_secret", ""].join("\n");
 
   it("loads the B.AI key only from a private config file", () => {
-    expect(ConfigLoader.load(envWithConfig(configured, 0o600))).toMatchObject({
+    const config = ConfigLoader.load(envWithConfig(configured, 0o600), BUILTIN_CREDENTIAL_KEYS);
+    expect(Object.fromEntries(config.credentials)).toMatchObject({
       baiApiKey: "bai_test_secret",
     });
   });
@@ -144,7 +149,9 @@ describe("ConfigLoader B.AI configuration", () => {
   it.runIf(process.platform !== "win32")(
     "rejects a B.AI key in a group/world-readable file",
     () => {
-      expect(() => ConfigLoader.load(envWithConfig(configured, 0o644))).toThrow(/mode 0600/);
+      expect(() =>
+        ConfigLoader.load(envWithConfig(configured, 0o644), BUILTIN_CREDENTIAL_KEYS),
+      ).toThrow(/mode 0600/);
     },
   );
 });
@@ -530,9 +537,18 @@ describe("ConfigLoader permission check covers every credential key", () => {
     "gasfreeApiSecret",
     "baiApiKey",
   ])("refuses a group-readable file that holds only %s", (key) => {
-    expect(() => ConfigLoader.load(envWithConfig(`${key}: fake-credential\n`, 0o644))).toThrowError(
+    expect(() =>
+      ConfigLoader.load(envWithConfig(`${key}: fake-credential\n`, 0o644), BUILTIN_CREDENTIAL_KEYS),
+    ).toThrowError(expect.objectContaining({ code: "insecure_config" }));
+  });
+
+  it("checks a plugin credential key only while a plugin declares it", () => {
+    const env = envWithConfig("qaprobeApiKey: fake-credential\n", 0o644);
+    expect(() => ConfigLoader.load(env, ["qaprobeApiKey"])).toThrowError(
       expect.objectContaining({ code: "insecure_config" }),
     );
+    const config = ConfigLoader.load(env);
+    expect(config.credentials.size).toBe(0);
   });
 
   it("refuses a group-readable file that holds only a network apiKey", () => {

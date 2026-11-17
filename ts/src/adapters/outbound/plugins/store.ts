@@ -112,6 +112,7 @@ function parseActive(text: string, dir: string, name: string): InstalledPlugin {
         apiRevision: raw.apiRevision ?? null,
         entry: raw.entry ?? null,
         groups: raw.groups ?? null,
+        ...(raw.credentials === undefined ? {} : { credentials: raw.credentials }),
       },
     },
   });
@@ -128,6 +129,7 @@ function parseActive(text: string, dir: string, name: string): InstalledPlugin {
     apiVersion: manifest.apiVersion,
     apiRevision: manifest.apiRevision,
     groups: manifest.groups,
+    credentials: manifest.credentials,
     entryPath: join(dir, manifest.entry),
     source: raw.source,
     ...(typeof raw.integrity === "string" ? { integrity: raw.integrity } : {}),

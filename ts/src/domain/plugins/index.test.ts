@@ -3,6 +3,7 @@ import {
   isPackagePath,
   formatRegistrySpec,
   isPinned,
+  mergeCredentials,
   parsePluginManifest,
   parseRegistrySpec,
   pluginCompatibility,
@@ -34,6 +35,7 @@ describe("parsePluginManifest", () => {
       apiRevision: 1,
       entry: "dist/index.mjs",
       groups: [{ name: "demo", summary: "Demo", families: ["tron"] }],
+      credentials: [],
     });
   });
 
@@ -54,10 +56,63 @@ describe("parsePluginManifest", () => {
     ],
     ["an unknown family", manifest({ groups: [{ name: "a", summary: "A", families: ["btc"] }] })],
     ["a version that is not semver", manifest({}, "1.0")],
+    ["credentials that are not a list", manifest({ credentials: { key: "demoKey" } })],
+    ["a credential that is not an object", manifest({ credentials: ["demoKey"] })],
+    ["a credential key with a dot", manifest({ credentials: [{ key: "demo.key", summary: "S" }] })],
+    [
+      "a credential key in upper case",
+      manifest({ credentials: [{ key: "DemoKey", summary: "S" }] }),
+    ],
+    ["a credential without a summary", manifest({ credentials: [{ key: "demoKey" }] })],
+    ["a blank credential summary", manifest({ credentials: [{ key: "demoKey", summary: " " }] })],
+    [
+      "a credential summary of two lines",
+      manifest({ credentials: [{ key: "demoKey", summary: "one\ntwo" }] }),
+    ],
+    [
+      "a repeated credential key",
+      manifest({
+        credentials: [
+          { key: "demoKey", summary: "A" },
+          { key: "demoKey", summary: "B" },
+        ],
+      }),
+    ],
   ])("refuses %s", (_label, pkg) => {
     expect(() => parsePluginManifest(pkg as never)).toThrow(
       expect.objectContaining({ code: "plugin_invalid" }),
     );
+  });
+});
+
+describe("plugin credentials", () => {
+  it.each(["timeoutMs", "networks", "price", "tronlinkSecretId", "tronlinkChannel"])(
+    "refuses the core key %s as a credential",
+    (key) => {
+      expect(() =>
+        parsePluginManifest(manifest({ credentials: [{ key, summary: "S" }] }) as never),
+      ).toThrow(expect.objectContaining({ code: "plugin_invalid" }));
+    },
+  );
+
+  it("reads the declared keys and summaries", () => {
+    const credentials = [{ key: "demoApiKey", summary: "Demo API key" }];
+    expect(parsePluginManifest(manifest({ credentials }))).toMatchObject({ credentials });
+  });
+
+  it("lists a key several plugins declare once, with the first summary", () => {
+    expect(
+      mergeCredentials([
+        [{ key: "sharedKey", summary: "first" }],
+        [
+          { key: "sharedKey", summary: "second" },
+          { key: "ownKey", summary: "own" },
+        ],
+      ]),
+    ).toEqual([
+      { key: "sharedKey", summary: "first" },
+      { key: "ownKey", summary: "own" },
+    ]);
   });
 });
 

@@ -148,6 +148,13 @@ const inspectFields = z.object({
   sign: z.boolean().default(false).describe("request an authorized test signature first"),
 });
 
+const credentialFields = z.object({
+  echo: z.boolean().default(false).describe("return the value the probe received, and log it"),
+});
+
+// The fixture's credential key; the core-key variant declares one the core reads itself.
+const CREDENTIAL_KEY = VARIANT === "credential-core-key" ? "timeoutMs" : "qaprobeApiKey";
+
 /** @param {any} ctx @param {"tron" | "evm"} family */
 function accountAddress(ctx, family) {
   try {
@@ -164,6 +171,7 @@ const plugin = {
   apiVersion: PLUGIN_API_VERSION + (VARIANT === "api-version" ? 1 : 0),
   apiRevision: PLUGIN_API_REVISION + (VARIANT === "api-revision" ? 1 : 0),
   groups: [{ name: group, summary: "QA probe commands", families: [...FAMILIES] }],
+  credentials: [{ key: CREDENTIAL_KEY, summary: "API key of the QA probe service" }],
   register(host) {
     const services = host.services;
     host.errorCodes({
@@ -297,6 +305,25 @@ const plugin = {
         },
       });
     }
+    host.command({
+      path: [group, "credential"],
+      network: "none",
+      wallet: "none",
+      auth: "none",
+      summary: "Report whether the probe's credential is configured",
+      fields: credentialFields,
+      input: credentialFields,
+      examples: [{ cmd: "wallet-cli qaprobe credential --echo" }],
+      async run(ctx, _net, input) {
+        const value = services.config.credential(CREDENTIAL_KEY);
+        if (input.echo && value !== undefined) ctx.log.line(`qaprobe received ${value}`);
+        return {
+          key: CREDENTIAL_KEY,
+          configured: value !== undefined,
+          ...(input.echo ? { value: value ?? null } : {}),
+        };
+      },
+    });
     const inspectSpec = {
       path: [group, "inspect"],
       network: "optional",

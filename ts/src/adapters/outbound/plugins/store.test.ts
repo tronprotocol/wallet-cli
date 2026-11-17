@@ -81,6 +81,7 @@ function publication(version: string, entry = `export default "${version}";`): P
       apiVersion: 1,
       apiRevision: 1,
       groups: [{ name: "demo", summary: "Demo", families: [] }],
+      credentials: [{ key: "demoApiKey", summary: "Demo API key" }],
       source: { type: "directory", path: "/src/demo" },
       entrySha256: version,
       installedAt: "2026-11-17T00:00:00.000Z",
@@ -126,6 +127,34 @@ describe("FilePluginStore", () => {
     rmSync(join(home, "plugins/demo/active.json"), { recursive: true });
     writeFileSync(join(home, "plugins/demo/active.json"), before);
     expect(installed(s.list())[0]?.version).toBe("1.0.0");
+  });
+
+  it("stores the declared credentials in active.json and reads them back", () => {
+    const s = store();
+    s.update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    expect(installed(s.list())[0]?.credentials).toEqual([
+      { key: "demoApiKey", summary: "Demo API key" },
+    ]);
+  });
+
+  it("reads an active.json without credentials as declaring none", () => {
+    const s = store();
+    s.update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    const path = join(home, "plugins/demo/active.json");
+    const { credentials: _dropped, ...rest } = JSON.parse(readFileSync(path, "utf8"));
+    writeFileSync(path, JSON.stringify(rest));
+    expect(installed(s.list())[0]?.credentials).toEqual([]);
+  });
+
+  it.each([
+    ["a core configuration key", [{ key: "timeoutMs", summary: "S" }]],
+    ["a malformed list", { key: "demoApiKey" }],
+  ])("reports an active.json whose credentials hold %s as unreadable", (_label, credentials) => {
+    const s = store();
+    s.update("demo", () => ({ change: publication("1.0.0"), result: undefined }));
+    const path = join(home, "plugins/demo/active.json");
+    writeFileSync(path, JSON.stringify({ ...JSON.parse(readFileSync(path, "utf8")), credentials }));
+    expect(s.list()).toEqual([{ state: "unreadable", name: "demo", reason: expect.any(String) }]);
   });
 
   it("does not list a directory without active.json, and reports an unreadable one", () => {

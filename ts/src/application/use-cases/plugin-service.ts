@@ -371,6 +371,7 @@ export class PluginService {
       apiVersion: manifest.apiVersion,
       apiRevision: manifest.apiRevision,
       groups: manifest.groups,
+      credentials: manifest.credentials,
       source: pkg.source,
       ...(pkg.integrity === undefined ? {} : { integrity: pkg.integrity }),
       entrySha256: digest(entry),

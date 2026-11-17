@@ -7,6 +7,7 @@ import { GasFreeClient } from "./adapters/outbound/gasfree/client.js";
 import { GasFreeService } from "./application/use-cases/gasfree-service.js";
 import { GASFREE_CAPABILITIES } from "./application/capabilities.js";
 import { GASFREE_ERROR_CODES } from "./domain/errors.js";
+import { GASFREE_CREDENTIALS } from "./domain/credentials.js";
 import { GASFREE_FOLLOW_UPS } from "./adapters/inbound/follow-ups.js";
 import {
   gasFreeInfoSpec,
@@ -31,6 +32,7 @@ const gasfree: PluginDefinition = {
       families: ["tron"],
     },
   ],
+  credentials: GASFREE_CREDENTIALS,
   register(host) {
     const { services } = host;
     const service = new GasFreeService(

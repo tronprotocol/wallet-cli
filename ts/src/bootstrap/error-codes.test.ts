@@ -79,15 +79,28 @@ describe("the error-code index", () => {
     expect(stale).toEqual([]);
   });
 
-  it("keeps a code in the core table when the core or another plugin also uses it", () => {
-    const seen = new Set(Object.keys(ERROR_CODES));
-    const shared: string[] = [];
+  it("keeps the codes the core throws in the core table", () => {
+    const outside = thrownSites()
+      .filter(({ where }) => !where.startsWith("plugins/"))
+      .filter(({ code }) => !(code in ERROR_CODES))
+      .map(({ code, where }) => `${code} in ${where}`)
+      .sort();
+    expect(outside).toEqual([]);
+  });
+
+  it("lets plugins share a code only with the same entry, and never redefine a core code", () => {
+    const declared = new Map<string, ErrorCodeEntry>();
+    const wrong: string[] = [];
     for (const [plugin, codes] of Object.entries(PLUGIN_CODES))
-      for (const code of Object.keys(codes)) {
-        if (seen.has(code)) shared.push(`${plugin}: ${code}`);
-        seen.add(code);
+      for (const [code, entry] of Object.entries(codes)) {
+        if (code in ERROR_CODES) wrong.push(`${plugin}: ${code} is a core code`);
+        const first = declared.get(code);
+        if (first !== undefined && JSON.stringify(first) !== JSON.stringify(entry)) {
+          wrong.push(`${plugin}: ${code} differs from an earlier declaration`);
+        }
+        declared.set(code, first ?? entry);
       }
-    expect(shared).toEqual([]);
+    expect(wrong).toEqual([]);
   });
 
   it("gives every code an exit class, a retry answer, and a one-line meaning", () => {

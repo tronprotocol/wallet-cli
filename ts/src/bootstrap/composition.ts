@@ -5,7 +5,7 @@ import { ProcessLifetime } from "./process-lifetime.js";
 import { MigrationService } from "../application/use-cases/migration-service.js";
 import { FileDataMigrations } from "../adapters/outbound/persistence/migration.js";
 import { migrationSteps } from "./migration-steps.js";
-import type { OutputMode } from "../domain/types/index.js";
+import type { JsonValue, OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
 import { ConfigLoader, NetworkRegistry } from "../adapters/outbound/config/index.js";
 import { YamlConfigDocument } from "../adapters/outbound/config/yaml-config-document.js";
@@ -59,6 +59,12 @@ import { BUILTIN_PLUGINS } from "./plugins/builtin.js";
 import { hostServices, registerPlugin, RESERVED_WORDS } from "./plugins/host.js";
 import { PluginLoader } from "./plugins/loader.js";
 import { FilePluginStore } from "../adapters/outbound/plugins/store.js";
+import type { PluginStore, StoredPlugin } from "../application/ports/plugin-store.js";
+import {
+  mergeCredentials,
+  parsePluginCredentials,
+  type PluginCredentialManifest,
+} from "../domain/plugins/index.js";
 import { PackageSource } from "../adapters/outbound/plugins/source.js";
 import { PluginService } from "../application/use-cases/plugin-service.js";
 import { registerPluginCommands } from "../adapters/inbound/cli/commands/plugin.js";
@@ -72,8 +78,56 @@ export interface BootstrapOptions {
   readonly monotonicStart: number;
 }
 
+// One reading of the installed manifests: the credential keys and the loader both use it, so the
+// version a command reports is the version it runs. A failed reading is reported by the loader.
+function readManifests(store: Pick<PluginStore, "list">): Pick<PluginStore, "list"> {
+  try {
+    const stored = store.list();
+    return { list: () => [...stored] };
+  } catch (error) {
+    return {
+      list: () => {
+        throw error;
+      },
+    };
+  }
+}
+
+// Built-in plugins first, in their order, then installed plugins by name; a key once.
+function declaredCredentials(installed: Pick<PluginStore, "list">): PluginCredentialManifest[] {
+  const builtin = BUILTIN_PLUGINS.map((plugin) => {
+    try {
+      return parsePluginCredentials(plugin.credentials as JsonValue | undefined);
+    } catch {
+      // Its registration fails with the reason.
+      return [];
+    }
+  });
+  let stored: StoredPlugin[] = [];
+  try {
+    stored = installed.list();
+  } catch {
+    // The loader reports it once output is masked.
+  }
+  const manifests = stored
+    .flatMap((item) => (item.state === "installed" ? [item.plugin] : []))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((plugin) => plugin.credentials);
+  return mergeCredentials([...builtin, ...manifests]);
+}
+
 export function composeCliRuntime(options: BootstrapOptions) {
-  const config = ConfigLoader.load();
+  const root = ConfigLoader.resolveRoot();
+  // Read before the configuration, which needs the credential keys they declare; runs no plugin code.
+  const pluginStore = new FilePluginStore(root, {
+    withLock: (path, fn, opts) => store.withLock(path, fn, opts),
+  });
+  const manifests = readManifests(pluginStore);
+  const credentials = declaredCredentials(manifests);
+  const config = ConfigLoader.load(
+    process.env,
+    credentials.map((c) => c.key),
+  );
   const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
   const deadline = new CommandDeadline(timeoutMs, options.monotonicStart);
   const lifetime = new ProcessLifetime(deadline);
@@ -91,9 +145,11 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const followUps = new FollowUpTable();
   const formatter = createOutputFormatter(output, streams, options.startedAt, followUps);
 
-  const root = ConfigLoader.resolveRoot();
   const store = new AtomicFileStore(deadline);
-  const configService = new ConfigService(new YamlConfigDocument(ConfigLoader.configPath(), store));
+  const configService = new ConfigService(
+    new YamlConfigDocument(ConfigLoader.configPath(), store),
+    credentials,
+  );
   const networkRegistry = new NetworkRegistry(config);
   const prompter = createPrompter(deadline);
   const secrets = new SecretResolver(streams, options.secretPaths, prompter);
@@ -208,8 +264,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     ...Object.keys(FAMILIES),
     ...RESERVED_WORDS,
   ]);
-  const pluginStore = new FilePluginStore(root, store);
-  const plugins = new PluginLoader(pluginStore, pluginTargets);
+  const plugins = new PluginLoader(manifests, pluginTargets);
   registerPluginCommands(
     registry,
     new PluginService(
