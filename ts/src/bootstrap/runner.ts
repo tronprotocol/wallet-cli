@@ -6,7 +6,6 @@ import { HelpService, hasMeta } from "../adapters/inbound/cli/help/index.js";
 import { assertNoTailFlags, buildCli } from "../adapters/inbound/cli/shell/index.js";
 import { commandId } from "../adapters/inbound/cli/command-id.js";
 import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js";
-import { maskCredentials } from "../adapters/inbound/cli/output/mask.js";
 import { exitCodeOf, normalizeCliError } from "../adapters/inbound/cli/output/errors.js";
 import { StreamManager } from "../adapters/inbound/cli/stream/index.js";
 import {
@@ -187,10 +186,7 @@ async function runCommand(argv: string[]): Promise<CommandEnd> {
   } catch (error) {
     const normalized = normalizeCliError(error);
     if (normalized.code === "internal_error") {
-      runtime.streams.diagnostic(
-        "debug",
-        maskCredentials(`internal error: ${String(error)}`, runtime.credentials),
-      );
+      runtime.streams.diagnostic("debug", `internal error: ${String(error)}`);
     }
     runtime.formatter.error(normalized, {
       commandId: runtime.session.current?.commandId,

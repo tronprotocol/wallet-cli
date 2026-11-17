@@ -12,7 +12,6 @@ import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
-import { maskCredentials } from "./mask.js";
 import { cliMessage, errorEnvelope, type FollowUpTable } from "./errors.js";
 
 export interface OutputFormatter {
@@ -36,8 +35,6 @@ abstract class BaseOutputFormatter {
   constructor(
     protected readonly streams: StreamManager,
     protected readonly startedAt: number,
-    // External error text can echo the credentials a request used.
-    protected readonly credentials: readonly string[],
     protected readonly followUps?: FollowUpTable,
   ) {}
 
@@ -76,7 +73,7 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
       errorEnvelope(err, this.followUps),
       this.meta(),
     );
-    this.streams.result(maskCredentials(toJson(env), this.credentials));
+    this.streams.result(toJson(env));
   }
 
   event(e: ProgressEvent): string {
@@ -149,7 +146,7 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
     const line = `error [${err.code}]: ${cliMessage(err.userMessage, this.followUps).textMessage}`;
     const candidates = renderErrorDetails(err.details);
     const text = candidates ? `${line}\n${candidates}` : line;
-    this.streams.errorLine(sanitizeText(maskCredentials(text, this.credentials)));
+    this.streams.errorLine(sanitizeText(text));
   }
 
   event(e: ProgressEvent): string {
@@ -161,12 +158,11 @@ export function createOutputFormatter(
   output: OutputMode,
   streams: StreamManager,
   startedAt: number,
-  credentials: readonly string[] = [],
   followUps?: FollowUpTable,
 ): OutputFormatter {
   return output === "json"
-    ? new JsonOutputFormatter(streams, startedAt, credentials, followUps)
-    : new HumanOutputFormatter(streams, startedAt, credentials, followUps);
+    ? new JsonOutputFormatter(streams, startedAt, followUps)
+    : new HumanOutputFormatter(streams, startedAt, followUps);
 }
 
 function renderEvent(e: ProgressEvent): string {

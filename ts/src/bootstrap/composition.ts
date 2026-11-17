@@ -78,18 +78,18 @@ export function composeCliRuntime(options: BootstrapOptions) {
   const deadline = new CommandDeadline(timeoutMs, options.monotonicStart);
   const lifetime = new ProcessLifetime(deadline);
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
-  const streams = new StreamManager(output, options.globals.verbose);
-  const credentials = configuredCredentials(config);
+  const streams = new StreamManager(
+    output,
+    options.globals.verbose,
+    undefined,
+    undefined,
+    undefined,
+    configuredCredentials(config),
+  );
   // What plugins add to these tables belongs to this runtime only.
   const errorCodes = new ErrorCodeTable();
   const followUps = new FollowUpTable();
-  const formatter = createOutputFormatter(
-    output,
-    streams,
-    options.startedAt,
-    credentials,
-    followUps,
-  );
+  const formatter = createOutputFormatter(output, streams, options.startedAt, followUps);
 
   const root = ConfigLoader.resolveRoot();
   const store = new AtomicFileStore(deadline);
@@ -263,7 +263,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     lifetime,
     migrations: new MigrationService(new FileDataMigrations(store, migrationSteps(root, store))),
     config,
-    credentials,
     streams,
     formatter,
     prompter,

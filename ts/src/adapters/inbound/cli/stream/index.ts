@@ -1,4 +1,5 @@
-// Reserve stdout for one result; diagnostics and progress use stderr.
+// Reserve stdout for one result; diagnostics and progress use stderr. Every write masks the
+// configured credentials, so no output path can print one.
 import type { OutputMode } from "../../../../domain/types/index.js";
 import type {
   DiagnosticLevel,
@@ -7,48 +8,56 @@ import type {
 } from "../contracts/index.js";
 import { ExecutionError } from "../../../../domain/errors/index.js";
 import { escapeControls } from "../render/scalars.js";
+import { credentialForms, maskForms } from "../output/mask.js";
 
 export class StreamManager implements IStreamManager {
   #resultWritten = false;
   #stdinRead = false;
   #warnings: WarningItem[] = [];
+  readonly #out: (s: string) => void;
+  readonly #err: (s: string) => void;
 
   constructor(
     private readonly output: OutputMode,
     private readonly verbose: boolean,
-    private readonly out: (s: string) => void = (s) => process.stdout.write(s),
-    private readonly err: (s: string) => void = (s) => process.stderr.write(s),
+    out: (s: string) => void = (s) => process.stdout.write(s),
+    err: (s: string) => void = (s) => process.stderr.write(s),
     private readonly stdin: () => NodeJS.ReadableStream = () => process.stdin,
-  ) {}
+    credentials: readonly string[] = [],
+  ) {
+    const forms = credentialForms(credentials);
+    this.#out = (s) => out(maskForms(s, forms));
+    this.#err = (s) => err(maskForms(s, forms));
+  }
 
   result(text: string): void {
     if (this.#resultWritten) {
       throw new ExecutionError("internal_error", "result emitted more than once");
     }
     this.#resultWritten = true;
-    this.out(text.endsWith("\n") ? text : text + "\n");
+    this.#out(text.endsWith("\n") ? text : text + "\n");
   }
 
   diagnostic(level: DiagnosticLevel, msg: WarningItem): void {
     if (level === "warn") {
       this.#warnings.push(msg);
       if (this.output === "text")
-        this.err(`warning: ${escapeControls(typeof msg === "string" ? msg : msg.message)}\n`);
+        this.#err(`warning: ${escapeControls(typeof msg === "string" ? msg : msg.message)}\n`);
       return;
     }
     if (level === "debug" && !this.verbose) return;
-    this.err(`${escapeControls(typeof msg === "string" ? msg : msg.message)}\n`);
+    this.#err(`${escapeControls(typeof msg === "string" ? msg : msg.message)}\n`);
   }
 
   errorLine(msg: string): void {
     const line = escapeControls(msg);
-    this.err(line.endsWith("\n") ? line : line + "\n");
+    this.#err(line.endsWith("\n") ? line : line + "\n");
   }
 
   // Progress must reach stderr even when verbose output is disabled.
   event(frame: string | null): void {
     if (frame === null) return;
-    this.err(frame.endsWith("\n") ? frame : frame + "\n");
+    this.#err(frame.endsWith("\n") ? frame : frame + "\n");
   }
 
   warnings(): WarningItem[] {
