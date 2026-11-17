@@ -214,6 +214,18 @@ describe("a masked JSON frame stays valid JSON", () => {
   const json = (credentials: string[], frame: string) =>
     new CredentialMask(credentials).json(frame);
 
+  it("masks a credential whose slash a carried JSON document writes as \\/", () => {
+    const body = '{"key":"service\\/key"}';
+    const frame = JSON.stringify({ body });
+    const masked = json(["service/key"], frame);
+    expect(JSON.parse(masked)).toEqual({ body: '{"key":"********"}' });
+    expect(new CredentialMask(["service/key"]).text(`provider said ${body}`)).toBe(
+      'provider said {"key":"********"}',
+    );
+    const clean = JSON.stringify({ body: '{"key":"other\\/value"}' });
+    expect(json(["service/key"], clean)).toBe(clean);
+  });
+
   it("masks a credential inside a string value or key, and encodes the string again", () => {
     const frame = JSON.stringify({ [`k-${API_KEY}`]: `v ${API_KEY} v`, other: "x" });
     const masked = json([API_KEY], frame);

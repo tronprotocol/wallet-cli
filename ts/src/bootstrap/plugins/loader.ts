@@ -199,7 +199,7 @@ function definitionMismatch(definition: unknown, plugin: InstalledPlugin): strin
     differs.push("groups");
   }
   // A definition without credentials declares none, as a manifest without them does.
-  const credentials = d.credentials === undefined ? [] : d.credentials;
+  const credentials = d.credentials ?? [];
   const expectedCredentials = plugin.credentials.map(credentialKey);
   if (
     !Array.isArray(credentials) ||

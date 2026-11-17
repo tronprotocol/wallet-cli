@@ -7,7 +7,8 @@ const MASK = "********";
 const PRIMITIVE = /-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null/y;
 
 // The forms a credential takes in written text: raw and as an error value is written on one line,
-// each also as the text renderers sanitize and escape it, and each also JSON-escaped.
+// each also as the text renderers sanitize and escape it, and each also JSON-escaped; plus the
+// JSON-escaped value with `/` written as `\/`, as some JSON encoders write it.
 function writtenForms(credential: string): string[] {
   return [credential, singleLineErrorValue(credential)]
     .flatMap((form) => [
@@ -16,7 +17,8 @@ function writtenForms(credential: string): string[] {
       escapeControls(form),
       escapeControls(sanitizeText(form)),
     ])
-    .flatMap((form) => [form, JSON.stringify(form).slice(1, -1)]);
+    .flatMap((form) => [form, JSON.stringify(form).slice(1, -1)])
+    .concat(JSON.stringify(credential).slice(1, -1).replaceAll("/", "\\/"));
 }
 
 // Longer first, so a credential containing another is masked whole.

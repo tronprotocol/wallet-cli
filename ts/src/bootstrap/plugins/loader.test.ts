@@ -273,4 +273,20 @@ describe("an installed plugin's credentials", () => {
       "refused: plugin drift did not declare the credential baiApiKey",
     );
   });
+
+  it("reads the module's list once for the comparison", async () => {
+    const credentials = [{ key: "onceApiKey", summary: "Once key" }];
+    const source = moduleSource("once", ["once"], "globalThis.onceReads = 0;").replace(
+      "export default {",
+      `export default {
+      get credentials() {
+        globalThis.onceReads += 1;
+        return globalThis.onceReads === 1 ? ${JSON.stringify(credentials)} : undefined;
+      },`,
+    );
+    const t = setup([plugin("once", { source, credentials })]);
+    await t.loader.load({ all: true }, t.warn);
+    expect(t.loader.state("once")).toEqual({ state: "ok" });
+    expect((globalThis as Record<string, unknown>).onceReads).toBe(1);
+  });
 });
