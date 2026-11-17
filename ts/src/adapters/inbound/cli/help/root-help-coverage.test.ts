@@ -3,7 +3,14 @@ import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { HelpService } from "./index.js";
-import { isChainCommand, type StreamManager } from "../contracts/index.js";
+import { z } from "zod";
+import {
+  isChainCommand,
+  type ChainSpec,
+  type CommandDefinition,
+  type StreamManager,
+} from "../contracts/index.js";
+import { CommandRegistry } from "../registry/index.js";
 import { composeCliRuntime } from "../../../../bootstrap/composition.js";
 
 describe("wallet-cli --help lists every registered top-level command", () => {
@@ -64,15 +71,48 @@ describe("wallet-cli --help lists every registered top-level command", () => {
       );
     }
   });
-  it("lists chain and neutral BAI commands together exactly once", () => {
-    const { text } = rootHelp(["bai", "--help"]);
-    for (const verb of [
-      "recharge",
-      "report-recharge",
-      "usage-summary",
-      "usage-records",
-      "recharge-orders",
-    ]) {
+  it("lists chain and neutral commands of one group together exactly once", () => {
+    const registry = new CommandRegistry();
+    registry.addGroup({
+      name: "demo",
+      summary: "Demo plugin commands",
+      description: "Demo plugin commands.",
+      families: [],
+    });
+    const chain = {
+      path: ["demo", "recharge"],
+      network: "optional",
+      wallet: "none",
+      auth: "none",
+      baseFields: z.object({}),
+      examples: [],
+    } as ChainSpec;
+    registry.addChain(chain, "tron", { run: async () => ({}) });
+    registry.addChain(chain, "evm", { run: async () => ({}) });
+    for (const verb of ["usage-summary", "usage-records", "recharge-orders"])
+      registry.add({
+        path: ["demo", verb],
+        network: "none",
+        wallet: "none",
+        auth: "none",
+        fields: z.object({}),
+        input: z.object({}),
+        examples: [],
+        run: async () => ({}),
+      } as unknown as CommandDefinition);
+    let text = "";
+    const stream = {
+      result(t: string) {
+        text = t;
+      },
+      diagnostic() {},
+      errorLine() {},
+      event() {},
+      readStdinOnce: () => "",
+      warnings: () => [],
+    } as unknown as StreamManager;
+    new HelpService(registry, stream, "0.0.0").handleMeta(["demo", "--help"]);
+    for (const verb of ["recharge", "usage-summary", "usage-records", "recharge-orders"]) {
       expect(text.match(new RegExp(`^ {2}${verb}\\s+`, "gm")), verb).toHaveLength(1);
     }
   });

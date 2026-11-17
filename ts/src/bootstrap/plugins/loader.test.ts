@@ -247,16 +247,16 @@ describe("an installed plugin's credentials", () => {
       `export default {
       get credentials() {
         reads += 1;
-        return reads === 1 ? undefined : [{ key: "baiApiKey", summary: "B.AI key" }];
+        return reads === 1 ? undefined : [{ key: "otherApiKey", summary: "API key of another service" }];
       },`,
     );
     const register = `
-      try { globalThis.driftRead = host.services.config.credential("baiApiKey"); }
+      try { globalThis.driftRead = host.services.config.credential("otherApiKey"); }
       catch (error) { globalThis.driftRead = "refused: " + error.message; }`;
     const services = {
       config: {
         networkBlock: () => undefined,
-        credential: (key: string) => (key === "baiApiKey" ? "fictional-bai-key" : undefined),
+        credential: (key: string) => (key === "otherApiKey" ? "fictional-other-key" : undefined),
       },
     } as unknown as HostServices;
     const t = setup(
@@ -270,7 +270,7 @@ describe("an installed plugin's credentials", () => {
     await t.loader.load({ all: true }, t.warn);
     expect(t.loader.state("drift")).toEqual({ state: "ok" });
     expect((globalThis as Record<string, unknown>).driftRead).toBe(
-      "refused: plugin drift did not declare the credential baiApiKey",
+      "refused: plugin drift did not declare the credential otherApiKey",
     );
   });
 

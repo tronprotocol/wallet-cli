@@ -1,14 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { coerceGlobalValue, GLOBAL_FLAG_SPECS } from "./index.js";
-import { gasFreeTransferSpec } from "../../../../plugins/gasfree/adapters/inbound/commands.js";
 
 const spec = (name: string) => GLOBAL_FLAG_SPECS.find((f) => f.name === name)!;
 
 describe("global --wait / --timeout wording holds for every command that shows them", () => {
-  it("offers --wait on gasfree transfer, which never broadcasts", () => {
-    expect(gasFreeTransferSpec.broadcasts).toBe(true);
-  });
-
   it("does not describe --wait as an on-chain broadcast returning a txid", () => {
     const text = spec("wait").description;
     expect(text).not.toMatch(/broadcast/i);

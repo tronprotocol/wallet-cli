@@ -74,6 +74,16 @@ describe("every registered positional command rejects its --<field> spelling", (
       examples: [],
       baseFields: z.object({ quote: z.boolean().optional() }),
     },
+    {
+      path: ["demo", "pay"],
+      network: "optional",
+      wallet: "optional",
+      auth: "required",
+      broadcasts: true,
+      rejectsWait: "the payment is settled by the service and follows its own workflow",
+      examples: [],
+      baseFields: z.object({}),
+    },
   ];
 
   function demoRuntime() {
@@ -113,19 +123,9 @@ describe("every registered positional command rejects its --<field> spelling", (
       .map((c) => c.path.join(" "))
       .sort();
     expect(found).toEqual([
-      "8004 add-operator",
-      "8004 approve",
-      "8004 operator-check",
-      "8004 register",
-      "8004 remove-operator",
-      "8004 show",
-      "8004 transfer",
-      "8004 update",
       "asset info",
       "asset participate",
       "backup",
-      "bai recharge",
-      "bai report-recharge",
       "block",
       "config",
       "contact add",
@@ -139,7 +139,6 @@ describe("every registered positional command rejects its --<field> spelling", (
       "exchange show",
       "exchange trade",
       "exchange withdraw",
-      "gasfree trace",
       "import keystore",
       "plugin install",
       "plugin remove",
@@ -150,9 +149,6 @@ describe("every registered positional command rejects its --<field> spelling", (
       "rename",
       "use",
       "witness set-brokerage",
-      "x402 endpoint-list",
-      "x402 pay",
-      "x402 provider-show",
     ]);
   });
 
@@ -230,19 +226,17 @@ describe("every registered positional command rejects its --<field> spelling", (
   it.each(["--wait", "--no-wait"])(
     "refuses %s on every command that submits no transaction to wait for",
     async (flag) => {
-      const all = newRuntime().registry.all();
+      const all = demoRuntime().registry.all();
       const declined = all.filter((c) => {
         const spec = isChainCommand(c) ? c.spec : c;
         return spec.broadcasts === true && spec.rejectsWait !== undefined;
       });
-      expect(declined.map((c) => commandPath(c).join(" ")).sort()).toEqual([
-        "bai recharge",
-        "x402 pay",
-        "x402 roundtrip",
-      ]);
+      expect(declined.map((c) => commandPath(c).join(" ")).sort()).toEqual(["demo pay"]);
       for (const c of all.filter((c) => !acceptsWaitFlags(isChainCommand(c) ? c.spec : c))) {
         const path = commandPath(c);
-        await expect(buildCli(shellOpts()).parseAsync([...path, flag])).rejects.toMatchObject({
+        await expect(
+          buildCli(shellOpts(demoRuntime())).parseAsync([...path, flag]),
+        ).rejects.toMatchObject({
           code: "invalid_option",
           message: new RegExp(`^${path.join(" ")} does not accept ${flag}: `),
         });
@@ -279,7 +273,6 @@ describe("every registered positional command rejects its --<field> spelling", (
           "tx send --build-only",
           "tx send --sign-only",
           "tx broadcast --dry-run",
-          "gasfree transfer --dry-run",
           "demo trade --quote",
         ]),
       );

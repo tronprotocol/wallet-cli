@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { HelpService } from "./index.js";
 import { CommandRegistry } from "../registry/index.js";
-import { BUILTIN_PLUGINS } from "../../../../bootstrap/plugins/builtin.js";
 import type { ChainSpec, FamilyBinding, StreamManager } from "../contracts/index.js";
 import {
   txBroadcastSpec,
@@ -186,17 +185,21 @@ describe("shipped exclusive groups actually render", () => {
 });
 
 // Help text of plugin groups comes from the built-in plugin definitions.
-function withBuiltinGroups(reg: CommandRegistry): CommandRegistry {
-  for (const plugin of BUILTIN_PLUGINS) for (const group of plugin.groups) reg.addGroup(group);
+// A plugin group whose commands serve TRON only, as an installed plugin declares it.
+function withPluginGroup(reg: CommandRegistry): CommandRegistry {
+  reg.addGroup({
+    name: "demo",
+    summary: "Demo plugin commands",
+    description: "Demo plugin commands.",
+    families: ["tron"],
+  });
   return reg;
 }
 
 describe("root help family tags", () => {
   function rootRow(name: string): string {
     const stream = makeStream();
-    new HelpService(withBuiltinGroups(new CommandRegistry()), stream, "0.0.0").handleMeta([
-      "--help",
-    ]);
+    new HelpService(withPluginGroup(new CommandRegistry()), stream, "0.0.0").handleMeta(["--help"]);
     return (stream.last ?? "").split("\n").find((l) => l.trimStart().startsWith(`${name} `)) ?? "";
   }
 
@@ -205,7 +208,7 @@ describe("root help family tags", () => {
   });
 
   it("still tags the groups that really are TRON-only", () => {
-    for (const group of ["permission", "gasfree", "stake", "vote", "reward"]) {
+    for (const group of ["permission", "demo", "stake", "vote", "reward"]) {
       expect(rootRow(group)).toMatch(/\(TRON only\)$/);
     }
   });
@@ -219,7 +222,7 @@ describe("root help family tags", () => {
 
 describe("group help states what a command costs", () => {
   function groupHelp(group: string): string {
-    const reg = withBuiltinGroups(new CommandRegistry());
+    const reg = withPluginGroup(new CommandRegistry());
     reg.addChain(chainSpec([group, "show"], {}), "tron", { run: async () => ({}) });
     const stream = makeStream();
     new HelpService(reg, stream, "0.0.0").handleMeta([group, "--help"]);
@@ -232,14 +235,6 @@ describe("group help states what a command costs", () => {
     expect(text).toMatch(/active/i);
     expect(text).toMatch(/witness/i);
     expect(text).toMatch(/100 TRX on mainnet/);
-  });
-
-  it("gasfree help says fees come out of the token, not TRX", () => {
-    const text = groupHelp("gasfree");
-    expect(text).toMatch(/no TRX/i);
-    expect(text).toMatch(/activation fee/i);
-    expect(text).toMatch(/first transfer/i);
-    expect(text).toMatch(/service fee/i);
   });
 });
 

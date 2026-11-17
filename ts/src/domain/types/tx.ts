@@ -211,7 +211,7 @@ export type TxReceiptKind =
   | "exchange-trade";
 
 export interface TxReceiptView {
-  // ERC-8004 write results.
+  // Agent identity fields of an Agent registry write.
   identity?: {
     agentId?: string;
     operator?: string;

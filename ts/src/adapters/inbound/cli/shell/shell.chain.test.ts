@@ -181,7 +181,7 @@ describe("grouped chain leaf positionals", () => {
 
     const registry = new CommandRegistry();
     const spec: ChainSpec = {
-      path: ["gasfree", "trace"],
+      path: ["demo", "trace"],
       network: "optional",
       wallet: "none",
       auth: "none",
@@ -193,7 +193,7 @@ describe("grouped chain leaf positionals", () => {
     registry.addChain(spec, "tron", { run });
     registry.addChain(
       {
-        path: ["gasfree", "info"],
+        path: ["demo", "info"],
         network: "optional",
         wallet: "none",
         auth: "none",
@@ -229,14 +229,14 @@ describe("grouped chain leaf positionals", () => {
   }
 
   it("passes a numeric-looking positional through verbatim as a string", async () => {
-    const tokens = ["gasfree", "trace", "12345"];
+    const tokens = ["demo", "trace", "12345"];
     const { shellOpts, run } = chainFixture(tokens);
     await buildCli(shellOpts).parseAsync(tokens);
     expect(run.mock.calls[0]![2]).toMatchObject({ traceId: "12345" });
   });
 
   it("rejects the --<field> spelling, matching the kebab form of a camelCase field", async () => {
-    const tokens = ["gasfree", "trace", "--trace-id", "12345"];
+    const tokens = ["demo", "trace", "--trace-id", "12345"];
     const { shellOpts, run } = chainFixture(tokens);
     // yargs emits both spellings; report the offending flag once.
     await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
@@ -247,7 +247,7 @@ describe("grouped chain leaf positionals", () => {
   });
 
   it("rejects the camelCase spelling too", async () => {
-    const tokens = ["gasfree", "trace", "--traceId", "12345"];
+    const tokens = ["demo", "trace", "--traceId", "12345"];
     const { shellOpts } = chainFixture(tokens);
     await expect(buildCli(shellOpts).parseAsync(tokens)).rejects.toMatchObject({
       code: "invalid_option",

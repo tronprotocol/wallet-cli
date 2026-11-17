@@ -7,8 +7,7 @@ Every command — including every subcommand — has its own page. Most follow t
 wallet-cli supports two chain families, **TRON** and **EVM**, and `--network` selects one network of one family. Commands fall into these kinds:
 
 - **Portable** — the same command on either family, with the family-specific parts named per family: `account balance` / `info` / `portfolio`, `block`, `tx send` / `broadcast` / `status` / `info` / `sign`, `token` (all five), `contract call` / `send` / `deploy`, `chain node` / `prices`, `message sign`, `typed-data sign`.
-- **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset`, `exchange` and `gasfree` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
-- **Service commands** — `x402` and `bai` talk to HTTP services rather than to a chain node. The ones that pay (`x402 pay` / `roundtrip`, `bai recharge`) use the selected network's family; the catalog, usage, and report commands take no network. `8004` runs on both families, but only on networks with an ERC-8004 registry — not `ethereum` or `sepolia`.
+- **TRON only** — the command implements a TRON protocol feature with no EVM counterpart: `account history` / `activate` / `set`, `chain params`, `contract info` / `clear-abi` / `create2` / `set-origin-energy-limit` / `set-user-resource-percent`, `tx approvals` / `multisig`, and every command in the `stake`, `vote`, `reward`, `proposal`, `witness`, `permission`, `asset` and `exchange` groups. Run against an EVM network they fail with **`family_mismatch`** before any node call.
 - **Local** — no network at all: `create`, `import`, `use`, `current`, `list`, `derive`, `rename`, `backup`, `delete`, `change-password`, `config`, `networks`, `contact`, `encoding`, `address`, `plugin`. Some of these still accept `--network` as a **display selector** (which family's address to print, which key a keystore export takes); no node is contacted either way.
 
 Individual flags are family-scoped the same way. `--help` tags them `(TRON only)` / `(EVM only)`, and using one on the other family is a usage error — `invalid_option`, exit `2`.
@@ -96,10 +95,6 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 | `contract set-origin-energy-limit` | [contract/set-origin-energy-limit.md](contract/set-origin-energy-limit.md) |
 | `contract set-user-resource-percent` | [contract/set-user-resource-percent.md](contract/set-user-resource-percent.md) |
 | `contract create2` | [contract/create2.md](contract/create2.md) |
-| `gasfree` (group) | [gasfree/index.md](gasfree/index.md) |
-| `gasfree info` | [gasfree/info.md](gasfree/info.md) |
-| `gasfree transfer` | [gasfree/transfer.md](gasfree/transfer.md) |
-| `gasfree trace` | [gasfree/trace.md](gasfree/trace.md) |
 
 ## Staking, voting, rewards
 
@@ -165,34 +160,6 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 | `typed-data` (group) | [typed-data/index.md](typed-data/index.md) |
 | `typed-data sign` | [typed-data/sign.md](typed-data/sign.md) |
 
-## Payments and Agent identity
-
-| Command | Page |
-|---|---|
-| `x402` (group) | [x402/index.md](x402/index.md) |
-| `x402 pay` | [x402/pay.md](x402/pay.md) |
-| `x402 serve` | [x402/serve.md](x402/serve.md) |
-| `x402 roundtrip` | [x402/roundtrip.md](x402/roundtrip.md) |
-| `x402 provider-list` | [x402/provider-list.md](x402/provider-list.md) |
-| `x402 provider-show` | [x402/provider-show.md](x402/provider-show.md) |
-| `x402 endpoint-list` | [x402/endpoint-list.md](x402/endpoint-list.md) |
-| `x402 update-catalog` | [x402/update-catalog.md](x402/update-catalog.md) |
-| `bai` (group) | [bai/index.md](bai/index.md) |
-| `bai usage-summary` | [bai/usage-summary.md](bai/usage-summary.md) |
-| `bai usage-records` | [bai/usage-records.md](bai/usage-records.md) |
-| `bai recharge-orders` | [bai/recharge-orders.md](bai/recharge-orders.md) |
-| `bai recharge` | [bai/recharge.md](bai/recharge.md) |
-| `bai report-recharge` | [bai/report-recharge.md](bai/report-recharge.md) |
-| `8004` (group) | [8004/index.md](8004/index.md) |
-| `8004 show` | [8004/show.md](8004/show.md) |
-| `8004 operator-check` | [8004/operator-check.md](8004/operator-check.md) |
-| `8004 register` | [8004/register.md](8004/register.md) |
-| `8004 update` | [8004/update.md](8004/update.md) |
-| `8004 transfer` | [8004/transfer.md](8004/transfer.md) |
-| `8004 approve` | [8004/approve.md](8004/approve.md) |
-| `8004 add-operator` | [8004/add-operator.md](8004/add-operator.md) |
-| `8004 remove-operator` | [8004/remove-operator.md](8004/remove-operator.md) |
-
 ## Plugins
 
 | Command | Page |
@@ -203,7 +170,7 @@ The catalog is the authority on all of this: `wallet-cli --json-schema` reports 
 | `plugin update` | [plugin/update.md](plugin/update.md) |
 | `plugin remove` | [plugin/remove.md](plugin/remove.md) |
 
-The command groups of an installed plugin, such as `sunswap` and `sunpump`, are documented by the plugin. Their `--help` and their entries in `wallet-cli --json-schema` are available once the plugin is installed. See the [plugin guide](../guide/plugins.md).
+The command groups of an installed plugin are documented by the plugin. Their `--help` and their entries in `wallet-cli --json-schema` are available once the plugin is installed. See the [plugin guide](../guide/plugins.md).
 
 ## Local
 
@@ -238,10 +205,10 @@ Fee and multi-sig flags are **family-scoped**, so they are not global:
 
 | Flags | Family | Where |
 |---|---|---|
-| Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` or GasFree |
-| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy`, and the `8004` writes |
+| Permission group and expiry — see below | TRON | TRON transaction-building commands that sign or can emit unsigned hex; not `tx broadcast` |
+| `--fee-limit <sun>` | TRON | the commands that spend energy: `tx send`, `contract send` / `deploy`, and plugin commands that call contracts |
 | `--gas-limit <n>` / `--max-fee <gwei>` / `--priority-fee <gwei>` / `--nonce <n>` | EVM | `tx send`, `contract send` / `deploy` |
 
 `--permission-id` selects the permission group to sign under (0=owner, 1=witness, 2-9=active) and `--expiration` extends the window for collecting co-signatures. An EVM transaction carries exactly one signature, so neither has a counterpart there: on a portable command they are tagged `(TRON only)` and refused on EVM with `invalid_option`.
 
-Where two or more early-exit modes exist, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. Passing two modes is `invalid_option` and names the first one given (`invalid --dry-run: cannot be combined with --sign-only`); `--json-schema` lists the modes as an `exclusive` group. For `--expiration` the code depends on where the check runs: on the `account`, `permission`, `contract`, `proposal`, `witness` and `8004` writes it is `invalid_value` (`invalid --expiration: only valid with --sign-only or --build-only`); elsewhere it is `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).
+Where two or more early-exit modes exist, they are mutually exclusive, and `--expiration` is accepted only alongside `--sign-only` or `--build-only`. Breaking either rule is a usage error at exit `2`. Passing two modes is `invalid_option` and names the first one given (`invalid --dry-run: cannot be combined with --sign-only`); `--json-schema` lists the modes as an `exclusive` group. For `--expiration` the code depends on where the check runs: on the `account`, `permission`, `contract`, `proposal` and `witness` writes, and on plugin writes that say so, it is `invalid_value` (`invalid --expiration: only valid with --sign-only or --build-only`); elsewhere it is `invalid_option`. Branch on the exit code, not on the code string; see [machine interface](../machine-interface.md#error-codes).

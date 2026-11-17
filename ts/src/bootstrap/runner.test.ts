@@ -135,7 +135,7 @@ describe("bootstrap error boundary", () => {
   }
 
   const BROKEN = [
-    'gasfreeApiSecret: "SUPERSECRET123"',
+    'tronlinkSecretKey: "SUPERSECRET123"',
     'defaultNetwork: "unterminated',
     "  bad: [1,2",
     "",

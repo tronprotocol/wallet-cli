@@ -62,7 +62,7 @@ Balances, tokens, and transactions are entirely separate per network. A txid fro
 
 Your TRON address is the same on every TRON network, and your EVM address the same on every EVM one — but they are **two different addresses derived from the same key**, at BIP44 coin types 195 and 60. The selected network chooses which of your account's addresses a command acts as. See [Accounts and HD wallets](accounts-and-hd.md).
 
-The family also decides which commands exist. TRON protocol features — staking, SR voting, TRC10, the Bancor exchange, on-chain permissions, GasFree — have no EVM counterpart, and those commands fail on an EVM network with `family_mismatch` before any node call. Family-scoped **flags** behave the same way, failing with `invalid_option`. The [command reference](../commands/index.md#which-commands-run-on-which-networks) lists which is which.
+The family also decides which commands exist. TRON protocol features — staking, SR voting, TRC10, the Bancor exchange, on-chain permissions — have no EVM counterpart, and those commands fail on an EVM network with `family_mismatch` before any node call. Family-scoped **flags** behave the same way, failing with `invalid_option`. The [command reference](../commands/index.md#which-commands-run-on-which-networks) lists which is which.
 
 ## Fees: the `tron-resource` model
 

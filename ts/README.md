@@ -7,7 +7,7 @@ The agent-first implementation of wallet-cli, built for automation: every comman
 - **Agent-first** — stable JSON output, deterministic exit codes, and discoverable schemas, built for scripts, CI, and AI agents (details in [The contract, in one paragraph](#the-contract-in-one-paragraph)).
 - **Encrypted local storage** — software keystores are encrypted on disk; secrets are never passed via argv or environment variables.
 - **Software and Ledger signing** — sign in software, or on a Ledger device (the private key never leaves the device).
-- **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, SunSwap swaps and liquidity, SunPump trading and launches, multi-sig, GasFree transfers, message signing, and on-chain queries.
+- **Covers the full TRON feature surface** — HD wallets, TRX and TRC20/TRC10 transfers, staking / resource delegation, voting / rewards, governance proposals and super-representative operation, smart-contract calls, deployment and governance, TRC10 issuance, the on-chain Bancor exchange, multi-sig, message signing, and on-chain queries; plugins add SunSwap, SunPump, GasFree, x402 payments, B.AI and ERC-8004 Agent identities.
 - **TRON and EVM chains** — one account holds an address on each; transfers, tokens, contracts, signing and chain queries work the same on both, and TRON-only protocol features are refused on EVM rather than half-working.
 
 ## Table of contents
@@ -42,7 +42,7 @@ Networks are identified by a canonical [CAIP-2](https://chainagnostic.org/CAIPs/
 | `eip155:8453` | `base` | Base | **Real funds** |
 | `eip155:84532` | `base-sepolia` | Base test network | None |
 
-Balances, tokens, and transactions are isolated per network. The family decides two things: **which address** a command acts as — one account holds a TRON base58 address and an EVM `0x` address, derived from the same seed — and **which commands exist**, since TRON protocol features (staking, SR voting, TRC10, the Bancor exchange, on-chain permissions, GasFree) have no EVM counterpart and are refused there with `family_mismatch`. Fees follow the family too: TRON's `tron-resource` model (bandwidth + energy) or EVM gas. See [networks](docs/concepts/networks.md), [accounts](docs/concepts/accounts-and-hd.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
+Balances, tokens, and transactions are isolated per network. The family decides two things: **which address** a command acts as — one account holds a TRON base58 address and an EVM `0x` address, derived from the same seed — and **which commands exist**, since TRON protocol features (staking, SR voting, TRC10, the Bancor exchange, on-chain permissions) have no EVM counterpart and are refused there with `family_mismatch`. Fees follow the family too: TRON's `tron-resource` model (bandwidth + energy) or EVM gas. See [networks](docs/concepts/networks.md), [accounts](docs/concepts/accounts-and-hd.md) and [energy & bandwidth](docs/concepts/energy-bandwidth.md).
 
 `tron:mainnet`, `tron:nile` and `tron:shasta` are permanent aliases. Output reports canonical CAIP-2 network ids, such as `tron:3448148188` for Nile.
 
@@ -162,7 +162,6 @@ Token and contract operations, resource staking, voting rewards, message signing
 | [`vote`](docs/commands/vote/index.md) · [`reward`](docs/commands/reward/index.md)               | Vote for super representatives and claim voting rewards                                                                                                                                                                              |
 | [`message`](docs/commands/message/index.md) · [`typed-data`](docs/commands/typed-data/index.md) | Sign arbitrary messages, or EIP-712/TIP-712 structured data                                                                                                                                                                          |
 | [`permission`](docs/commands/permission/index.md)                                               | View / update account permissions for multi-sig                                                                                                                                                                                      |
-| [`gasfree`](docs/commands/gasfree/index.md)                                                     | Gas-free token transfers via the GasFree service                                                                                                                                                                                     |
 
 ### Governance, TRC10, and the on-chain exchange
 
@@ -177,19 +176,11 @@ Chain governance, super-representative operation, and TRON's protocol-level TRC1
 
 ### Plugins
 
-More command groups are added by plugins. SunSwap (swaps and V2/V3/V4 liquidity) and SunPump (bonding-curve trades and token launches) are plugins with their own repository and documentation; install them with `wallet-cli plugin install sunswap` and `wallet-cli plugin install sunpump`. Plugins run with the wallet's privileges, so install them only from sources you trust. See the [plugin guide](docs/guide/plugins.md).
+More command groups are added by plugins. SunSwap (swaps and V2/V3/V4 liquidity) and SunPump (bonding-curve trades and token launches) are plugins with their own repository and documentation; install them with `wallet-cli plugin install sunswap` and `wallet-cli plugin install sunpump`. GasFree transfers, x402 payments, B.AI and ERC-8004 Agent identities are the `gasfree`, `x402`, `bai` and `erc8004` plugins of the protocol plugin repository, each documented there. Plugins run with the wallet's privileges, so install them only from sources you trust. See the [plugin guide](docs/guide/plugins.md).
 
 | Command | Description |
 |---|---|
 | [`plugin`](docs/commands/plugin/index.md) | Install, list, update and remove plugins ([install](docs/commands/plugin/install.md) · [list](docs/commands/plugin/list.md) · [update](docs/commands/plugin/update.md) · [remove](docs/commands/plugin/remove.md)) |
-
-### Payments and Agent identity
-
-| Command | Description |
-|---|---|
-| [`x402`](docs/commands/x402/index.md) | Pay x402-protected HTTP endpoints, run a local paywall, and browse the provider catalog |
-| [`bai`](docs/commands/bai/index.md) | B.AI credits, usage records, and stablecoin recharges |
-| [`8004`](docs/commands/8004/index.md) | Read and manage ERC-8004 Agent identities |
 
 ### Local tools and configuration
 

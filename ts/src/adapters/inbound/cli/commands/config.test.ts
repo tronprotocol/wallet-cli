@@ -2,12 +2,12 @@ import { expect, it, vi } from "vitest";
 import { registerConfigCommands } from "./config.js";
 import { CommandRegistry } from "../registry/index.js";
 import { ConfigService } from "../../../../application/use-cases/config-service.js";
-import { BUILTIN_CREDENTIALS } from "../../../../bootstrap/plugins/__test-support__/credentials.js";
+import { PLUGIN_CREDENTIALS } from "../../../../domain/plugins/__test-support__/credentials.js";
 
 function fixture(hasKey: boolean) {
   const execute = vi.fn(() => ({ value: "********" }));
   const registry = new CommandRegistry();
-  const service = Object.assign(new ConfigService({} as never, BUILTIN_CREDENTIALS), { execute });
+  const service = Object.assign(new ConfigService({} as never, PLUGIN_CREDENTIALS), { execute });
   registerConfigCommands(registry, service);
   const ctx = {
     secrets: { has: () => hasKey, require: () => "fake-credential" },
@@ -20,9 +20,9 @@ function fixture(hasKey: boolean) {
 const CREDENTIAL_KEYS = [
   "tronlinkSecretId",
   "tronlinkSecretKey",
-  "gasfreeApiKey",
-  "gasfreeApiSecret",
-  "baiApiKey",
+  "demoApiKey",
+  "demoApiSecret",
+  "otherApiKey",
   "networks.nile.apiKey",
 ];
 

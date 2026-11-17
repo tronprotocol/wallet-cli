@@ -334,10 +334,10 @@ it("renders activity as human progress in text and structured events in JSON", (
   );
 });
 
-it.each(["next-page", "", null])("preserves B.AI cursor pagination (%s)", (nextCursor) => {
+it.each(["next-page", "", null])("preserves cursor pagination (%s)", (nextCursor) => {
   const formatter = createOutputFormatter("json", capture("json").sm, 0);
   const result = JSON.parse(
-    formatter.success("bai.usage-records", undefined, {
+    formatter.success("demo.usage-records", undefined, {
       records: [],
       pagination: { offset: 0, limit: 3, hasMore: false, nextCursor },
     }),

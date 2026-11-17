@@ -207,9 +207,7 @@ describe("plugin install from local sources", () => {
     expect(await installed()).toEqual(["qaprobe@1.0.0"]);
   });
 
-  it("refuses to update or remove a built-in or a missing plugin", async () => {
-    expect((await cli(["plugin", "remove", "gasfree"])).json.error.code).toBe("plugin_conflict");
-    expect((await cli(["plugin", "update", "gasfree"])).json.error.code).toBe("plugin_conflict");
+  it("refuses to update or remove a missing plugin", async () => {
     const missing = await cli(["plugin", "remove", "qaprobe"]);
     expect(missing.status).toBe(2);
     expect(missing.json.error.code).toBe("plugin_not_installed");

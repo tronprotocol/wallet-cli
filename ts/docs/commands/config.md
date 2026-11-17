@@ -17,7 +17,7 @@ wallet-cli config [<key>] [<value>] [options]
 
 | Option | Description |
 |---|---|
-| `--api-key-stdin` | Read a credential value from stdin (fd 0). Accepted only with a credential key: `tronlinkSecretId`, `tronlinkSecretKey`, a key a plugin declares (such as `gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey`), `networks.<id>.apiKey` |
+| `--api-key-stdin` | Read a credential value from stdin (fd 0). Accepted only with a credential key: `tronlinkSecretId`, `tronlinkSecretKey`, a key a plugin declares, `networks.<id>.apiKey` |
 
 Plus [global options](index.md).
 
@@ -41,13 +41,7 @@ Known keys:
 | `networks.<id>.apiKeyHeader` | header name | (unset) | HTTP header name, 1–64 letters, digits or ``!#$%&'*+-.^_`\|~``; surrounding whitespace is trimmed, e.g. `TRON-PRO-API-KEY` |
 | `networks.<id>.apiKey` | string | (unset) | Credential sent in that header. **Secret** — always rendered masked, set only through `--api-key-stdin` |
 
-Plugin credentials — keys a plugin declares; the built-in plugins declare these three:
-
-| Key | Declared by | Meaning |
-|---|---|---|
-| `gasfreeApiKey` | `gasfree`, `x402`, `bai` | GasFree API key ([`gasfree`](gasfree/index.md); x402 relays through GasFree, and B.AI pays through x402) |
-| `gasfreeApiSecret` | `gasfree`, `x402`, `bai` | GasFree API secret |
-| `baiApiKey` | `bai` | B.AI personal API key, used by the `bai` commands |
+Plugin credentials — keys a plugin declares. Each plugin documents its own keys; `config --help` lists the keys of the plugins present.
 
 A plugin credential is a **secret** under the same rules as the core's (below): set only through `--api-key-stdin`, masked in every output, and a `config.yaml` that holds one must have mode `0600`. `config` lists, reads and writes a plugin credential while a plugin that declares it is built in or installed with a readable manifest, also when that plugin cannot be loaded. `config --help` names the declared keys with each plugin's summary, and `--json-schema` names the keys only; a key several plugins declare is listed once. With no declaring plugin, the key is unknown (`invalid_value`); a value already in `config.yaml` stays there untouched, is no longer checked or masked, and is used again when a plugin that declares it is installed. To discard it, delete the line from `config.yaml`.
 
@@ -57,15 +51,13 @@ Precedence for a value that has both a flag and a config key (highest first): co
 
 **Secrets are never rendered in clear text.** `tronlinkSecretId`, `tronlinkSecretKey`, `networks.<id>.apiKey` and every declared plugin credential come back as `********` from every read, and setting one echoes `value` and `input` as `"********"` too. Any other output that repeats a configured value — a result, an error from a node or service, a warning, a progress line or a log line — shows `********` in its place. In JSON output, a string holding the value keeps its other text, and a number, `true`, `false` or `null` equal to the value becomes the string `"********"`, so the output stays valid JSON.
 
-**Secrets are read only from stdin.** None of them is accepted as a command-line value — `config gasfreeApiKey <key>` fails with `invalid_option` — so a credential never lands in shell history or a process listing. Pipe it in with `--api-key-stdin`, one key per run. A `config.yaml` that holds any of them must be a regular file with mode `0600`, or every command fails with `insecure_config`.
+**Secrets are read only from stdin.** None of them is accepted as a command-line value — `config tronlinkSecretKey <key>` fails with `invalid_option` — so a credential never lands in shell history or a process listing. Pipe it in with `--api-key-stdin`, one key per run. A `config.yaml` that holds any of them must be a regular file with mode `0600`, or every command fails with `insecure_config`.
 
 **Endpoints are trimmed in listings, full in named reads.** `config` and `config networks` show `httpEndpoint` as a host only, because a commercial endpoint may carry its key in the URL path. Naming one network (`config networks.tron:3448148188`) or its leaf (`config networks.tron:3448148188.httpEndpoint`) is the deliberate act that reveals the whole URL.
 
 An unset field is **absent** from the view rather than present and empty — the view says what *is* configured. Reading an unset key by name returns only `key` (text: `<key>  Not configured`).
 
-The external-service credentials are **per-environment**: the GasFree (`gasfreeApiKey` / `gasfreeApiSecret`) and TronLink (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`) credentials must match the service environment of the current `--network` (mainnet vs testnet); a mismatch fails with `provider_error`, so swap them when you switch environments. When a key is unset, the commands that need it fail with a clear error — `gasfree_credentials_missing` for [`gasfree`](gasfree/index.md), `tronlink_credentials_missing` for [`tx multisig`](tx/multisig.md).
-
-**Setting `baiApiKey` only saves the key locally:** it does not contact B.AI, needs no network, account or master password, and neither checks the key nor binds a wallet. [`bai recharge`](bai/recharge.md) checks the paying address's binding each time it runs and binds it first if needed.
+The TronLink credentials (`tronlinkSecretId` / `tronlinkSecretKey` / `tronlinkChannel`) are **per-environment**: they must match the service environment of the current `--network` (mainnet vs testnet); a mismatch fails with `provider_error`, so swap them when you switch environments. When they are unset, [`tx multisig`](tx/multisig.md) fails with `tronlink_credentials_missing`.
 
 An invalid value returns `invalid_value` (exit 2). Credential values must contain 1–256 characters without control characters. Network endpoints, header names and credentials are validated on load as well as on set.
 
@@ -119,8 +111,6 @@ aliases
 tronlinkSecretId   ********
 tronlinkSecretKey  ********
 tronlinkChannel    test
-gasfreeApiKey      ********
-gasfreeApiSecret   ********
 ```
 
 Read one key, then set it:
@@ -165,18 +155,6 @@ wallet-cli config networks.tron:728126428.apiKeyHeader TRON-PRO-API-KEY
 printf '%s\n' "$TRONGRID_KEY" | wallet-cli config networks.tron:728126428.apiKey --api-key-stdin
 ```
 
-Store the GasFree credentials and a B.AI API key, each read from stdin:
-
-```bash
-printf '%s\n' "$GASFREE_KEY" | wallet-cli config gasfreeApiKey --api-key-stdin
-printf '%s\n' "$GASFREE_SECRET" | wallet-cli config gasfreeApiSecret --api-key-stdin
-```
-
-
-```bash
-printf '%s\n' "$BAI_KEY" | wallet-cli config baiApiKey --api-key-stdin
-```
-
 Reading one network gives the endpoint in full, unlike the listing above:
 
 ```bash
@@ -202,7 +180,7 @@ wallet-cli config networks.tron:3448148188 -o json
 
 | Mode | `data` fields |
 |---|---|
-| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `pluginRegistry`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, then each declared plugin credential (`gasfreeApiKey`, `gasfreeApiSecret`, `baiApiKey` from the built-in plugins, then those of installed plugins) — each only when set, secrets masked |
+| show all (no args) | one field per key: `defaultNetwork`, `defaultOutput`, `timeoutMs`, `pluginRegistry`, `networks` (id → `{httpEndpoint, apiKeyHeader?, apiKey?}`, endpoints trimmed to hosts), `aliases` (alias → id), `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, then each credential a plugin declares — each only when set, secrets masked |
 | read (`<key>`) | `key`, `value`; only `key` when the key is unset |
 | set (`<key> <value>`) | `key`, `value`, `input` (the raw string as typed); both `"********"` when the key is a secret |
 

@@ -81,7 +81,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     description: "show extra diagnostic output",
     defaultValue: false,
   },
-  // Wording must also cover provider-submitted transactions, such as GasFree.
+  // Wording must also cover provider-submitted transactions, such as a plugin service.
   {
     name: "wait",
     kind: "boolean",

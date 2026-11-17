@@ -10,7 +10,7 @@ wallet-cli contact add <name> <address> [--note <text>]
 
 ## Description
 
-Saves a recipient (name → address) to the local address book. The name can then be used wherever a recipient is expected — [`tx send --to`](../tx/send.md) and [`gasfree transfer --to`](../gasfree/transfer.md). The address checksum is validated locally; no node access.
+Saves a recipient (name → address) to the local address book. The name can then be used wherever a recipient is expected — for example [`tx send --to`](../tx/send.md). The address checksum is validated locally; no node access.
 
 The name must be 1–64 characters and must not look like an address (so it can't be confused with a literal `--to` address).
 

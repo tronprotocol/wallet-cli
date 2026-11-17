@@ -14,7 +14,6 @@ import {
   normalizeCliError,
   FollowUpTable,
 } from "./errors.js";
-import { GASFREE_FOLLOW_UPS } from "../../../../plugins/gasfree/adapters/inbound/follow-ups.js";
 import { assertPositiveAmount } from "../../../../domain/amounts/index.js";
 import {
   normalizeTokenId,
@@ -33,17 +32,19 @@ describe("CLI error projection", () => {
 
   it("renders references in the envelope and the text message", () => {
     const followUps = new FollowUpTable();
-    followUps.register(GASFREE_FOLLOW_UPS);
+    followUps.register({
+      "demo-trace": (id) => (id === undefined ? "demo trace" : `demo trace ${id}`),
+    });
     const error = new UsageError(
       "invalid_option",
-      errorMessage`${inputRef("tickSpacing")} is wrong for ${"a\nb"}; see ${followUpStep("gasfree-trace", "t1")}`,
+      errorMessage`${inputRef("tickSpacing")} is wrong for ${"a\nb"}; see ${followUpStep("demo-trace", "t1")}`,
     );
     expect(errorEnvelope(error, followUps)).toEqual({
       code: "invalid_option",
-      message: "--tick-spacing is wrong for a\nb; see gasfree trace t1",
+      message: "--tick-spacing is wrong for a\nb; see demo trace t1",
     });
     expect(cliMessage(error.userMessage, followUps).textMessage).toBe(
-      "--tick-spacing is wrong for a\\nb; see gasfree trace t1",
+      "--tick-spacing is wrong for a\\nb; see demo trace t1",
     );
   });
 

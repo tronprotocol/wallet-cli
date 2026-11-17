@@ -38,7 +38,7 @@ The command was malformed — a flag is unknown, missing, conflicting, or has a 
 
 - Re-run with `--help` on the exact subcommand: `wallet-cli tx send --help`.
 - Common conflicts: `--amount` vs `--raw-amount`; `--token` vs `--contract` vs `--asset-id`; `--dry-run` vs `--sign-only`; `--constructor-args` vs `--constructor-params`; `--artifact` vs `--code` vs `--code-file` on `contract deploy`; two `*-stdin` flags in one run.
-- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `networks`, `aliases`, `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}`, and the credential keys `gasfreeApiKey`, `gasfreeApiSecret`, `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, `baiApiKey`) and values (`defaultOutput` is `text` or `json`; `timeoutMs` is an integer from 0 to 2147483647).
+- `invalid_value` on `config`: check the allowed keys (`defaultNetwork`, `defaultOutput`, `timeoutMs`, `networks`, `aliases`, `networks.<id>.{httpEndpoint|apiKeyHeader|apiKey}`, the credential keys `tronlinkSecretId`, `tronlinkSecretKey`, `tronlinkChannel`, and the credential keys of installed plugins) and values (`defaultOutput` is `text` or `json`; `timeoutMs` is an integer from 0 to 2147483647).
 
 ## `family_mismatch` (exit 2)
 
@@ -85,7 +85,7 @@ The command did not finish within `--timeout` (default 90000 ms), which covers t
 - Raise the limit: `--timeout 180000`. A `--timeout` below 2000 never submits a transaction or payment.
 - A transaction that was accepted but not yet confirmed when the time runs out returns `stage: "submitted"` and a warning instead of `timeout`; check it with `tx status`.
 - Ledger: confirm the device is unlocked and the app the account was registered with (`--app tron` or `--app ethereum`) is open, then retry.
-- **If `error.details.outcome` is `"unknown"`**, the transaction, payment or service write may have taken effect. When `error.details.txId` is present, check `tx status` with that id before resending; otherwise reconcile with the command's own evidence (the GasFree `nonce` or `traceId`, `candidateTxHash`, the B.AI order, `sunpump token-search`). See [unknown outcome](machine-interface.md#unknown-outcome-errordetailsoutcome).
+- **If `error.details.outcome` is `"unknown"`**, the transaction, payment or service write may have taken effect. When `error.details.txId` is present, check `tx status` with that id before resending; otherwise reconcile with the command's own evidence, as its reference page describes. See [unknown outcome](machine-interface.md#unknown-outcome-errordetailsoutcome).
 
 ## `rpc_error` (exit 1)
 
@@ -95,14 +95,13 @@ The node accepted the connection but rejected the request — a TRON API call, o
 - *Insufficient balance / bandwidth / energy*: fund the account, or stake for resources (`stake freeze`) — see [Networks](concepts/networks.md) for how resources work; on Nile use the faucet.
 - *TRC20 send reverting* (`execution_reverted`, "TRON constant call reverted"): work through it in this order — (1) the recipient or the contract address is wrong; (2) only once that is ruled out, consider raising `--fee-limit` (default 100000000 SUN) — it only lets a genuinely expensive call through. A token balance too low for the amount fails before this, with `insufficient_token_balance`: check it with `token balance --contract <address>`, and remember a TRX faucet does not give you tokens.
 
-- *`Request failed with status code 429`*: the public TronGrid endpoint is rate-limiting you. Space the calls out and retry, or configure an API key with `config networks.<id>.apiKey --api-key-stdin`. (A 429 from GasFree, TronLink, B.AI, x402, the SunSwap or SunPump services, or `account history` is `provider_rate_limited` instead.)
+- *`Request failed with status code 429`*: the public TronGrid endpoint is rate-limiting you. Space the calls out and retry, or configure an API key with `config networks.<id>.apiKey --api-key-stdin`. (A 429 from TronLink, a service a plugin calls, or `account history` is `provider_rate_limited` instead.)
 
 ## `unsupported_network_capability` (exit 2)
 
 The command exists but the selected network does not support it. The message names the network that does.
 
 - A command of an installed plugin runs on the networks its plugin supports; `wallet-cli --json-schema` lists them under the command's `support`.
-- `8004` does not run on `ethereum` or `sepolia`.
 
 ## `ledger_setting_required` / `device_*` (exit 1)
 

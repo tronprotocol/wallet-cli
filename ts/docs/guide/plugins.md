@@ -6,7 +6,7 @@ A plugin adds command groups to wallet-cli. This guide shows how to install one,
 
 | Kind | Examples | How you get it |
 |---|---|---|
-| Built-in | `gasfree`, `erc8004` (command group `8004`), `x402`, `bai` | Ships inside wallet-cli; always present; changes only with wallet-cli itself |
+| Built-in | none at present | Ships inside wallet-cli; always present; changes only with wallet-cli itself |
 | Installed | `sunswap`, `sunpump` | Added with `wallet-cli plugin install`; updated and removed by you |
 
 Both kinds behave like any other command group: the same global options, the same JSON envelope, the same exit codes. wallet-cli keeps your wallets, accounts, configuration and signing; a plugin supplies the commands of one protocol.
@@ -67,10 +67,6 @@ wallet-cli plugin list
 
 ```console
 NAME     VERSION  KIND       SOURCE                                                      STATE  COMMANDS
-gasfree  1.0.0    builtin    -                                                           ok     gasfree
-erc8004  1.0.0    builtin    -                                                           ok     8004
-x402     1.0.0    builtin    -                                                           ok     x402
-bai      1.0.0    builtin    -                                                           ok     bai
 sunpump  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunpump  ok     sunpump
 sunswap  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunswap  ok     sunswap
 ```
@@ -79,7 +75,7 @@ sunswap  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/
 
 ## Credentials
 
-A plugin that calls a service with an API key declares the key; built-in GasFree, x402 and B.AI declare `gasfreeApiKey`, `gasfreeApiSecret` and `baiApiKey`. Once the plugin is installed, `wallet-cli config --help` lists its keys, and you set one the same way as a core credential, from stdin:
+A plugin that calls a service with an API key declares the key. Once the plugin is installed, `wallet-cli config --help` lists its keys, and you set one the same way as a core credential, from stdin:
 
 ```bash
 printf '%s\n' "$EXAMPLE_KEY" | wallet-cli config exampleApiKey --api-key-stdin

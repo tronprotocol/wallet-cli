@@ -485,9 +485,9 @@ describe("objects handed to a plugin", () => {
       recipients: { resolve: vi.fn() },
       config: {
         credentials: new Map([
-          ["gasfreeApiKey", "k"],
-          ["gasfreeApiSecret", "s"],
-          ["baiApiKey", "b"],
+          ["demoApiKey", "k"],
+          ["demoApiSecret", "s"],
+          ["otherApiKey", "b"],
         ]),
       },
       broadcastGuard: { assertAllowed: vi.fn() },
@@ -547,7 +547,7 @@ describe("objects handed to a plugin", () => {
     expect(reachable(services.accounts)).toEqual(["checkAccount"]);
     expect(services.accounts.checkAccount("main", "tron")).toBeUndefined();
     expect(services.config.credential("tronlinkSecretKey" as never)).toBeUndefined();
-    expect(services.config.credential("gasfreeApiKey")).toBe("k");
+    expect(services.config.credential("demoApiKey")).toBe("k");
   });
 
   it("give the plugin host exactly its documented members", () => {
@@ -586,7 +586,7 @@ describe("plugin credentials", () => {
     );
     expect(result).toEqual({ ok: true });
     expect(config!.credential("demoApiKey")).toBe("value of demoApiKey");
-    for (const key of ["otherApiKey", "gasfreeApiKey", "constructor", "toString", "__proto__"]) {
+    for (const key of ["otherApiKey", "undeclaredApiKey", "constructor", "toString", "__proto__"]) {
       expect(() => config!.credential(key)).toThrow(/did not declare the credential/);
     }
   });

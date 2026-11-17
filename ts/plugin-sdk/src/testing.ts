@@ -29,7 +29,7 @@ export {
 } from "../../src/application/services/broadcast-guard.js";
 export type { ChainGatewayProvider } from "../../src/application/ports/chain/gateway-provider.js";
 export type { TronGateway } from "../../src/application/ports/chain/tron/tron-gateway.js";
-export type { SignerResolver } from "../../src/application/services/signer/index.js";
+export { SignerResolver } from "../../src/application/services/signer/index.js";
 export type { ExecutionContext } from "../../src/adapters/inbound/cli/contracts/execution-context.js";
 export {
   chainInputSchema,
@@ -42,3 +42,19 @@ export {
   expiredCheck,
   expiringCheck,
 } from "../../src/adapters/outbound/http/__test-support__/dispatch.js";
+export { MonotonicClock } from "../../src/application/services/command-deadline.js";
+export type { EvmGateway } from "../../src/application/ports/chain/evm/evm-gateway.js";
+export type { Signer } from "../../src/domain/types/index.js";
+export type { FamilyBinding } from "../../src/adapters/inbound/cli/contracts/index.js";
+export { CommandRegistry } from "../../src/adapters/inbound/cli/registry/index.js";
+export { neutralInputSchema } from "../../src/adapters/inbound/cli/shell/index.js";
+export { StreamManager } from "../../src/adapters/inbound/cli/stream/index.js";
+export { evmTransactionChainId } from "../../src/adapters/outbound/chain/evm/evm.js";
+export { tronSignStrategy } from "../../src/adapters/outbound/chain/tron/signing-strategy.js";
+export { evmSignStrategy } from "../../src/adapters/outbound/chain/evm/signing-strategy.js";
+export { pluginCommandContext } from "../../src/bootstrap/plugins/host.js";
+export { ProcessLifetime } from "../../src/bootstrap/process-lifetime.js";
+export { ConfigLoader, NetworkRegistry } from "../../src/adapters/outbound/config/index.js";
+export { createOutputFormatter } from "../../src/adapters/inbound/cli/output/index.js";
+export { Keystore } from "../../src/adapters/outbound/keystore/index.js";
+export { AtomicFileStore } from "../../src/adapters/outbound/persistence/fs/index.js";

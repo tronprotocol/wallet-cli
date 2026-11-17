@@ -6,7 +6,7 @@ import { ConfigLoader, NetworkRegistry } from "./index.js";
 import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
 import { CliError, inputRef } from "../../../domain/errors/index.js";
 import { errorEnvelope } from "../../inbound/cli/output/errors.js";
-import { BUILTIN_CREDENTIAL_KEYS } from "../../../bootstrap/plugins/__test-support__/credentials.js";
+import { PLUGIN_CREDENTIAL_KEYS } from "../../../domain/plugins/__test-support__/credentials.js";
 
 function envWithConfig(yaml: string, mode?: number): NodeJS.ProcessEnv {
   const root = mkdtempSync(join(tmpdir(), "wcli-config-"));
@@ -115,14 +115,14 @@ describe("ConfigLoader TronLink credentials", () => {
   );
 });
 
-describe("ConfigLoader GasFree credentials", () => {
-  const credentials = ["gasfreeApiKey: TEST", "gasfreeApiSecret: TESTTESTTEST", ""].join("\n");
+describe("ConfigLoader plugin credentials", () => {
+  const credentials = ["demoApiKey: TEST", "demoApiSecret: TESTTESTTEST", ""].join("\n");
 
   it("loads credentials only from a private config file", () => {
-    const config = ConfigLoader.load(envWithConfig(credentials, 0o600), BUILTIN_CREDENTIAL_KEYS);
+    const config = ConfigLoader.load(envWithConfig(credentials, 0o600), PLUGIN_CREDENTIAL_KEYS);
     expect(Object.fromEntries(config.credentials)).toMatchObject({
-      gasfreeApiKey: "TEST",
-      gasfreeApiSecret: "TESTTESTTEST",
+      demoApiKey: "TEST",
+      demoApiSecret: "TESTTESTTEST",
     });
   });
 
@@ -130,27 +130,27 @@ describe("ConfigLoader GasFree credentials", () => {
     "rejects credentials in a group/world-readable file",
     () => {
       expect(() =>
-        ConfigLoader.load(envWithConfig(credentials, 0o644), BUILTIN_CREDENTIAL_KEYS),
+        ConfigLoader.load(envWithConfig(credentials, 0o644), PLUGIN_CREDENTIAL_KEYS),
       ).toThrow(/mode 0600/);
     },
   );
 });
 
-describe("ConfigLoader B.AI configuration", () => {
-  const configured = ["baiApiKey: bai_test_secret", ""].join("\n");
+describe("ConfigLoader configuration of a second plugin key", () => {
+  const configured = ["otherApiKey: other_test_secret", ""].join("\n");
 
-  it("loads the B.AI key only from a private config file", () => {
-    const config = ConfigLoader.load(envWithConfig(configured, 0o600), BUILTIN_CREDENTIAL_KEYS);
+  it("loads the second plugin key only from a private config file", () => {
+    const config = ConfigLoader.load(envWithConfig(configured, 0o600), PLUGIN_CREDENTIAL_KEYS);
     expect(Object.fromEntries(config.credentials)).toMatchObject({
-      baiApiKey: "bai_test_secret",
+      otherApiKey: "other_test_secret",
     });
   });
 
   it.runIf(process.platform !== "win32")(
-    "rejects a B.AI key in a group/world-readable file",
+    "rejects a second plugin key in a group/world-readable file",
     () => {
       expect(() =>
-        ConfigLoader.load(envWithConfig(configured, 0o644), BUILTIN_CREDENTIAL_KEYS),
+        ConfigLoader.load(envWithConfig(configured, 0o644), PLUGIN_CREDENTIAL_KEYS),
       ).toThrow(/mode 0600/);
     },
   );
@@ -159,12 +159,9 @@ describe("ConfigLoader B.AI configuration", () => {
 describe("ConfigLoader unreadable/malformed config", () => {
   it("classifies malformed YAML without echoing the file content", () => {
     const env = envWithConfig(
-      [
-        'gasfreeApiSecret: "SUPERSECRET123"',
-        'defaultNetwork: "unterminated',
-        "  bad: [1,2",
-        "",
-      ].join("\n"),
+      ['demoApiSecret: "SUPERSECRET123"', 'defaultNetwork: "unterminated', "  bad: [1,2", ""].join(
+        "\n",
+      ),
       0o600,
     );
 
@@ -183,7 +180,7 @@ describe("ConfigLoader unreadable/malformed config", () => {
 
   it("loads a config with a YAML warning without printing the line that holds a credential", () => {
     const env = envWithConfig(
-      "defaultNetwork: nile\nbaiApiKey: !unknowntag FAKE-KEY-0000\n",
+      "defaultNetwork: nile\notherApiKey: !unknowntag FAKE-KEY-0000\n",
       0o600,
     );
     const emitted: unknown[] = [];
@@ -530,17 +527,17 @@ describe("ConfigLoader plugin network blocks", () => {
 });
 
 describe("ConfigLoader permission check covers every credential key", () => {
-  it.each([
-    "tronlinkSecretId",
-    "tronlinkSecretKey",
-    "gasfreeApiKey",
-    "gasfreeApiSecret",
-    "baiApiKey",
-  ])("refuses a group-readable file that holds only %s", (key) => {
-    expect(() =>
-      ConfigLoader.load(envWithConfig(`${key}: fake-credential\n`, 0o644), BUILTIN_CREDENTIAL_KEYS),
-    ).toThrowError(expect.objectContaining({ code: "insecure_config" }));
-  });
+  it.each(["tronlinkSecretId", "tronlinkSecretKey", "demoApiKey", "demoApiSecret", "otherApiKey"])(
+    "refuses a group-readable file that holds only %s",
+    (key) => {
+      expect(() =>
+        ConfigLoader.load(
+          envWithConfig(`${key}: fake-credential\n`, 0o644),
+          PLUGIN_CREDENTIAL_KEYS,
+        ),
+      ).toThrowError(expect.objectContaining({ code: "insecure_config" }));
+    },
+  );
 
   it("checks a plugin credential key only while a plugin declares it", () => {
     const env = envWithConfig("qaprobeApiKey: fake-credential\n", 0o644);

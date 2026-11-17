@@ -72,7 +72,7 @@ describe("parseGlobals", () => {
     expect(secretPaths.password).toBeUndefined();
   });
 
-  it("maps --api-key-stdin to the B.AI configuration secret channel", () => {
+  it("maps --api-key-stdin to the configuration secret channel", () => {
     const { secretPaths, stdinFlags } = parseGlobals(["config", "baiApiKey", "--api-key-stdin"]);
     expect(secretPaths.apiKey).toBe("-");
     expect(stdinFlags).toEqual(["--api-key-stdin"]);
@@ -177,7 +177,7 @@ describe("invalidGlobalError", () => {
 });
 
 describe("commandPathOf", () => {
-  const known = new Set(["tx", "tx.send", "x402.pay", "list"]);
+  const known = new Set(["tx", "tx.send", "demo.pay", "list"]);
   const isCommand = (path: string[]) => known.has(path.join("."));
 
   it("finds the longest registered path, skipping global flags and their values", () => {
@@ -187,8 +187,8 @@ describe("commandPathOf", () => {
         isCommand,
       ),
     ).toEqual(["tx", "send"]);
-    expect(commandPathOf(["-o=json", "x402", "pay", "https://x.test"], isCommand)).toEqual([
-      "x402",
+    expect(commandPathOf(["-o=json", "demo", "pay", "https://x.test"], isCommand)).toEqual([
+      "demo",
       "pay",
     ]);
   });

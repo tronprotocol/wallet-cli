@@ -10,7 +10,7 @@ wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account 
 
 - Always pass `-o json`. Text output is for humans and carries no stability promise.
 - In JSON mode, stdout carries **exactly one terminal frame** — the result envelope. Nothing else is ever written to stdout. Diagnostics go to stderr.
-- Long-running `x402` and `bai` commands also report progress on stderr: `⏳ …` lines in text mode, and one `{"type":"activity","message":"…"}` line per step in JSON mode. Ledger device prompts go there the same way (`{"type":"awaiting_device",…}` in JSON mode). They are informational — ignore them or show them to a user, but never parse them for the outcome.
+- A long-running command may also report progress on stderr: `⏳ …` lines in text mode, and one `{"type":"activity","message":"…"}` line per step in JSON mode. Ledger device prompts go there the same way (`{"type":"awaiting_device",…}` in JSON mode). They are informational — ignore them or show them to a user, but never parse them for the outcome.
 - `--timeout <ms>` is one deadline for the whole command; see [Time limit](#time-limit---timeout).
 - A command that submits a transaction waits for its confirmation; `--no-wait` returns after submission. See [Script safety](#script-safety-never-mistake-submitted-for-confirmed).
 - `--network` takes a canonical **CAIP-2** id (`tron:3448148188`, `eip155:11155111`) or a short alias (`nile`, `sepolia`, `bsc`). The namespace is not the chain family: `eip155` addresses the `evm` family. Aliases resolve once at selection; nothing downstream ever sees one, and the envelope's `chain.network` always reports the canonical id. Prefer canonical ids in scripts — an alias is a local config entry and can be re-pointed.
@@ -18,13 +18,13 @@ wallet-cli <command> -o json [--network <id|alias>] [--timeout <ms>] [--account 
 
 ### Time limit (`--timeout`)
 
-`--timeout <ms>` limits the whole command, from start to the result envelope. It takes decimal digits representing an integer from 0 to 2147483647; the default is `config.timeoutMs`, built-in 90000. `0` disables the command deadline and confirmation cap. Transports can enforce their own timeouts; ERC-8004 metadata fetching keeps a 10 s safety cap, and transaction validity remains finite.
+`--timeout <ms>` limits the whole command, from start to the result envelope. It takes decimal digits representing an integer from 0 to 2147483647; the default is `config.timeoutMs`, built-in 90000. `0` disables the command deadline and confirmation cap. Transports can enforce their own timeouts, and transaction validity remains finite.
 
 - **What counts.** Every node, service and device call, polling for confirmation, approvals, on-device confirmation on a Ledger, and reading a `*-stdin` flag. A `*-stdin` read starts before the command runs, also when stdin is a terminal (end it with Ctrl-D). Time spent waiting for input at an interactive TTY prompt (`create`, `import`, `backup`, `change-password`, `delete`) does not count.
-- **Out of time.** Before a result is known, the command fails with `timeout` (exit `1`). A read returns no partial result: optional data that a command otherwise leaves out when it is unavailable (prices, token metadata, ERC-8004 metadata, witness lists, brokerage, block numbers and times, a dry run's nonce and balance checks) also ends the command with `timeout`.
+- **Out of time.** Before a result is known, the command fails with `timeout` (exit `1`). A read returns no partial result: optional data that a command otherwise leaves out when it is unavailable (prices, token metadata, witness lists, brokerage, block numbers and times, a dry run's nonce and balance checks) also ends the command with `timeout`.
 - **Before a write is sent.** A transaction, payment or service submission is not started with less than 2000 ms left; it fails with `timeout` and no `error.details.txId` or `error.details.outcome`, and nothing was sent. A finite `--timeout` below 2000 can read and build, but never submits.
 - **After a write is sent.** A signed transaction whose reply is lost fails with `timeout`, `rpc_error` or `invalid_node_response`, with the transaction's id in `error.details.txId` and `error.details.outcome: "unknown"` ([unknown outcome](#unknown-outcome-errordetailsoutcome)); check it with `tx status` before sending again. A transaction that was accepted while the command was still polling for its confirmation returns exit `0` with `stage: "submitted"`, its `txId`, and a warning; so does one whose polling stopped on an error that cannot be retried unchanged. A read after an accepted write that runs out of time adds a warning and keeps the result (for example `proposal create` when the new proposal's id was not read).
-- **Commands with their own outcome.** GasFree, TronLink, x402 and B.AI report an interrupted submission as described in [Out of time after a submission](#out-of-time-after-a-submission). `tx multisig --watch` fails with `timeout` at the deadline; pass `--timeout 0` to watch until stopped. `x402 serve` applies the limit to start-up and then to each request; see [`x402 serve`](commands/x402/serve.md).
+- **Commands with their own outcome.** TronLink reports an interrupted submission as described in [Out of time after a submission](#out-of-time-after-a-submission). `tx multisig --watch` fails with `timeout` at the deadline; pass `--timeout 0` to watch until stopped.
 - **Local work.** Waiting for a file lock takes at most 5 s and never past the deadline, and no write starts after it. A write that has started finishes and reports its real result. Key derivation for the master password cannot be interrupted, so a command can end later than its deadline by the time that takes.
 - **Delivery.** The process ends after the result has been written to stdout. A reader that never reads the pipe can delay that; the deadline limits the command's work, not delivery to an unread pipe.
 
@@ -44,7 +44,7 @@ wallet-cli tx send --json-schema
 
 One call returns the whole surface: `tool`, `version`, `globalFlags`, `errorCodes`, and `commands[]`. Command entries carry `id`, `kind`, `path`, `usage`, `summary`, `requires` (network / auth / wallet), `capability`, `examples`, and `inputSchema`, a JSON Schema for their input; chain commands also declare `families`. This is the intended way to learn the CLI; do not scrape `--help`. A family argument scopes the catalog to one chain family.
 
-A command with a `capability` also carries `support`, mapping each configured network of its families to `supported`, `unsupported`, or `needs-inputs`. `unsupported` fails with **`unsupported_network_capability`** before any request. `needs-inputs` means the network supports the command only with inputs it otherwise defaults: `x402 serve` on a network with no registered default token needs `--token`, or `--asset` with `--decimals`. A command with flags that exclude each other carries `exclusive`: groups of flag names, each with a `label` and a `select` of `exactly-one` (the default) or `at-most-one`. Breaking a group fails with **`invalid_option`**.
+A command with a `capability` also carries `support`, mapping each configured network of its families to `supported`, `unsupported`, or `needs-inputs`. `unsupported` fails with **`unsupported_network_capability`** before any request. `needs-inputs` means the network supports the command only with inputs it otherwise defaults, such as a token where the network has no default token for the command. A command with flags that exclude each other carries `exclusive`: groups of flag names, each with a `label` and a `select` of `exactly-one` (the default) or `at-most-one`. Breaking a group fails with **`invalid_option`**.
 
 ### Chain families
 
@@ -151,7 +151,7 @@ Helpers that assume strings (`.meta.warnings | join("\n")`, `Array.prototype.joi
 
 ### Pagination
 
-Commands that return an offset/limit window report it in `meta.pagination`, never inside `data`. The current set is `asset list`, `exchange list`, `proposal list`, `backup --records`, `x402 provider-list`, `bai recharge-orders` and `bai usage-records`; a command may accept `--limit` merely as a result cap and then omit pagination metadata:
+Commands that return an offset/limit window report it in `meta.pagination`, never inside `data`. The current set is `asset list`, `exchange list`, `proposal list` and `backup --records`; a command may accept `--limit` merely as a result cap and then omit pagination metadata:
 
 | Key | Type | Meaning |
 |---|---|---|
@@ -159,7 +159,7 @@ Commands that return an offset/limit window report it in `meta.pagination`, neve
 | `limit` | number \| **null** | Page size; `null` = unlimited (no `--limit` given) |
 | `total` | number \| **null** | Matching records in total; `null` means **no count exists**, not "it was omitted" |
 
-All three keys are always present, so `null` is the only "unknown" signal and absent never has to be told apart from null. A cursor-paged service may add two more: `hasMore` (boolean) and `nextCursor` (string, pass back with `--cursor`) — currently only [`bai usage-records`](commands/bai/usage-records.md), whose `total` is always `null`.
+All three keys are always present, so `null` is the only "unknown" signal and absent never has to be told apart from null. A cursor-paged service may add two more: `hasMore` (boolean) and `nextCursor` (string, pass back with `--cursor`). No core command uses them; a plugin command that does documents it.
 
 `total` is `null` permanently for the commands served by TRON's paginated node endpoints — [`asset list`](commands/asset/list.md) and [`exchange list`](commands/exchange/list.md). The endpoint returns no count, and computing one would mean transferring every record (5,187 assets, 2.7 MB on mainnet). Page until a short page comes back rather than comparing against a total:
 
@@ -236,14 +236,12 @@ Common codes at exit **2** (usage — fix the call):
 | `account_not_found` | No local account by that id, label or address |
 | `contact_not_found` / `already_exists` | No contact by that name, or a contact name/address is already stored |
 | `token_not_in_book` / `token_is_official` / `token_already_listed` | Token address-book conditions |
-| `unsupported_token` | The selected provider or command does not support that token |
 | `insufficient_voting_power` | The requested votes exceed the account's voting power |
-| `gasfree_credentials_missing` / `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config <key> --api-key-stdin`) |
+| `tronlink_credentials_missing` | Required service credentials are not configured (set them with `config <key> --api-key-stdin`) |
 | `unknown_parameter` | No chain parameter by that name or id (`proposal create --set`) |
 | `invalid_asset_name` | A TRC10 name or abbreviation outside 1–32 visible ASCII characters |
 | `migration_required` | Persisted wallet data needs an upgrade this invocation cannot perform, because the master password was unavailable — re-run in a terminal, or pipe it with `--password-stdin`. See [startup wallet-data upgrades](#startup-wallet-data-upgrades) |
 | `seed_not_found` | `derive` was pointed at an account or id that is not an HD wallet — a private-key, Ledger or watch-only account |
-| `bai_credentials_missing` | No B.AI API key is configured. Set it with `config baiApiKey --api-key-stdin` |
 | `ambiguous_account` | `--account <address>` matches more than one account and they are not interchangeable signers for the family being acted on; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
 
 Common codes at exit **1** (execution — runtime failure):
@@ -264,13 +262,13 @@ Common codes at exit **1** (execution — runtime failure):
 | `ledger_setting_required` | A setting in the Ledger TRON app must be enabled — **Custom contracts** or **Sign by Hash**; the message names which. See [TRON app settings](guide/ledger.md#tron-app-settings) |
 | `tx_integrity` / `invalid_transaction` | A presigned transaction failed integrity / validity checks |
 | `insufficient_balance` / `insufficient_token_balance` | Not enough TRX / token to cover the amount plus fees |
-| `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, GasFree / TronLink payloads), a failed request, a 5xx status from GasFree, or an error status from TronLink. GasFree's other statuses have their own codes: 401/403 `gasfree_auth_failed`, 404 `not_found`, 429 `provider_rate_limited`, any other 4xx `gasfree_rejected`. TronLink reports every status other than 404 and 429 this way |
-| `provider_rate_limited` | An external service returned HTTP 429: GasFree, TronLink, B.AI, an x402 facilitator, GasFree relay or endpoint, the x402 provider catalog, or the TronGrid history endpoint (`account history`). `error.details` carries `httpStatus: 429` and, when the service sent a `Retry-After` header as seconds or as an HTTP-date, `retryAfterSeconds` (whole seconds from now; `0` for a date in the past). The TronGrid history endpoint never reports `retryAfterSeconds`. A B.AI error also carries `procedure` and `retryPayment: false`. An x402 error adds the payment details below — a 429 during settlement is `paymentStatus: "unknown"` |
+| `provider_error` | A node or external service produced something the CLI will not act on — a malformed, self-contradictory or out-of-range response (TRON permission data, chain parameters, a protobuf codec the local TronWeb build does not expose, TronLink payloads), a failed request, or an error status from TronLink. TronLink reports every status other than 404 and 429 this way |
+| `provider_rate_limited` | An external service returned HTTP 429: TronLink, the TronGrid history endpoint (`account history`), or a service a plugin calls. `error.details` carries `httpStatus: 429` and, when the service sent a `Retry-After` header as seconds or as an HTTP-date, `retryAfterSeconds` (whole seconds from now; `0` for a date in the past). The TronGrid history endpoint never reports `retryAfterSeconds`. A plugin may add fields of its own |
 | `tx_expired` | The transaction expired before or during signing — including while waiting for a Ledger confirmation, checked again after the device signs — or the TRON node rejected it as expired. Rebuild and sign again |
 | `chain_id_mismatch` | A transaction or typed data names a different chain than the selected network |
 | `nonce_too_low` | The EVM transaction's nonce is already used by a mined transaction |
 | `history_not_supported` | The selected network exposes no transaction history endpoint (`account history`, TRON): none is configured, or it answers HTTP 404 |
-| `not_found` | The addressed thing does not exist — for example an unactivated account, a transaction, a block, or a GasFree / TronLink resource. Lookups with a group of their own use the specific code below |
+| `not_found` | The addressed thing does not exist — for example an unactivated account, a transaction, a block, or a TronLink resource. Lookups with a group of their own use the specific code below |
 | `proposal_not_found` / `contract_not_found` / `asset_not_found` / `exchange_not_found` | Nothing on chain under that proposal id, contract address, TRC10 reference, or exchange pair id |
 | `ambiguous_asset_name` | A TRC10 name matches more than one token; `error.details` carries the candidates — see [`error.details.matches`](#errordetailsmatches) |
 | `ledger_unsupported` | The selected Ledger app cannot sign this transaction type — refused before the device is touched (TRON account activation, account id, `asset` writes, contract deploy and governance, `witness` writes, and `stake cancel-unfreeze`) |
@@ -289,17 +287,9 @@ Common codes at exit **1** (execution — runtime failure):
 | `legacy_derivation` | A seed account uses `m/44'/195'/<index>'/0/0` with index greater than zero, which the CLI refuses to sign as a seed account. Raised when signing as that TRON address, or when `derive` adds an account to its wallet. See [Recover addresses after `legacy_derivation`](troubleshooting/legacy-derivation-recovery.md) |
 | `derivation_mismatch` | An account's stored address matches no derivation path of its seed — `wallets.json` and the encrypted vault disagree |
 | `execution_reverted` | The contract reverted the call; `error.details.revertData` carries the raw revert data when the node returned any |
-| `not_authorized` | The account is not permitted to perform this operation. `8004 update` / `transfer` / `approve`: the account is neither the Agent's owner nor an operator allowed to do this, decoded from the registry's revert before signing |
-| `agent_not_found` | No Agent with that id in the selected network's registry — `8004 show`, and the `8004` writes (decoded from the registry's revert before signing) |
-| `amount_exceeds_limit` / `no_matching_requirement` | `x402 pay`, with or without `--dry-run`: the price is above `--max-amount` / `--max-raw-amount`, or no payment route offered by the endpoint matches the selected network, `--token`, `--asset`, or `--scheme`. Raised before signing (`details.paymentStatus: "not_sent"`) |
-| `gasfree_insufficient_balance` / `gasfree_not_activated` / `gasfree_asset_unsupported` | An `exact_gasfree` x402 payment: the GasFree account cannot cover payment plus maximum fee, is not activated, or does not hold the selected token contract (check the network, token and `--gasfree-relay`). Raised before anything is sent (`details.paymentStatus: "not_sent"`) |
-| `permit2_allowance_required` / `approval_reset_required` | An x402 payment needs a token allowance first, or the token needs its allowance reset to zero before a new one |
-| `fee_cap_exceeded` / `payer_mismatch` / `signed_payload_mismatch` | An x402 authorization is refused before or after signing: the GasFree fee is above the cap, the payload names another payer, or the signature covers a different struct than requested. `signed_payload_mismatch` is also raised for every signature from a Ledger (transaction, message or typed data) that is malformed, does not recover to the signing account, or covers other bytes than the ones the device was sent; the signature is not returned, written or submitted |
-| `invalid_settlement` / `invalid_x402_response` | A paid response carried an invalid settlement receipt, or an x402 response could not be decoded |
-| `provider_not_found` / `catalog_schema_unsupported` | `x402 provider-show` / `endpoint-list`: no provider by that name; or the downloaded catalog uses a version this build cannot read |
-| `port_in_use` | `x402 serve` / `roundtrip`: the requested local port is taken. `x402 serve --daemon` reports a background server that failed to start, including on a taken port, as `provider_error` with `error.details.logFile` |
+| `not_authorized` | The account is not permitted to perform this operation |
+| `signed_payload_mismatch` | The signature covers a different struct than requested. It is raised for every signature from a Ledger (transaction, message or typed data) that is malformed, does not recover to the signing account, or covers other bytes than the ones the device was sent; the signature is not returned, written or submitted |
 | `response_too_large` | A remote response exceeded the CLI's size limit |
-| `bai_auth_failed` / `bai_rejected` | B.AI rejected the API key, or refused an operation for a recognized business reason (`error.details.reason`) |
 | `plugin_invalid` | The plugin package is malformed or incomplete: no plugin manifest, a missing or oversized file, or an archive entry that leaves the package |
 | `plugin_incompatible` | The plugin was built for a plugin API this wallet-cli does not provide. The message names the side to update: wallet-cli, or the plugin |
 | `plugin_integrity` | The downloaded package does not match the SHA-512 integrity value the registry published, or the registry published no SHA-512 value. Nothing is installed |
@@ -314,39 +304,19 @@ TRON broadcast replies `OTHER_ERROR` and `NOT_ENOUGH_EFFECTIVE_CONNECTION` are u
 
 An error whose request may have acted carries `error.details.outcome: "unknown"`: the transaction, payment or service write may have taken effect even though the command failed.
 
-- **Where it appears.** On every path that submits or pays: a chain submit (`tx send`, `tx broadcast`, and every other ✍️ command), `tx multisig --create` / `--sign`, `gasfree transfer` (including a `gasfree_integrity` failure after the submission), an x402 or B.AI payment whose `paymentStatus` is `unknown`, and the order B.AI creates before a `bai recharge` payment.
+- **Where it appears.** On every path that submits or pays: a chain submit (`tx send`, `tx broadcast`, and every other ✍️ command), `tx multisig --create` / `--sign`, and a plugin's submission or payment whose outcome is unknown.
 - **What it means for retrying.** It overrides the code's `retry` class. An agent that sees it does not rebuild or re-sign the operation, because that creates a second, distinct one.
-- **How to reconcile.** Look up `error.details.txId` with [`tx status`](commands/tx/status.md), or, when there is no `txId`, use the command's own evidence (the GasFree `nonce` or `traceId`, `candidateTxHash`, the B.AI order). For a chain transaction, an agent may instead rebroadcast the same signed transaction with [`tx broadcast`](commands/tx/broadcast.md): a node that already holds it answers `submitted` with `alreadyKnown: true`.
+- **How to reconcile.** Look up `error.details.txId` with [`tx status`](commands/tx/status.md), or, when there is no `txId`, use the command's own evidence. For a chain transaction, an agent may instead rebroadcast the same signed transaction with [`tx broadcast`](commands/tx/broadcast.md): a node that already holds it answers `submitted` with `alreadyKnown: true`.
 - **Where it does not appear.** A failure known not to have acted — a definite rejection, a refusal before anything was sent, or a `timeout` that sent nothing — does not carry the field.
 - The other fields (`txId`, `paymentStatus`, `retryPayment`, …) keep the meanings given for each command.
 
-### x402 and B.AI payment details
-
-A failed payment carries extra fields in `error.details` so a script can tell whether money may have moved:
-
-| Field | Meaning |
-|---|---|
-| `phase` | Where it failed: `request`, `challenge`, `create_payment`, `sign`, `payment_request`, `verify`, or `settle` |
-| `httpStatus` | HTTP status of the failed request, when there was one |
-| `paymentStatus` | `not_sent` — nothing was sent; `unknown` — the outcome cannot be established, so reconcile before paying again (the error also carries [`outcome: "unknown"`](#unknown-outcome-errordetailsoutcome)); `settled` — a settlement receipt arrived but the paid resource could not be delivered |
-| `settled` / `delivered` | Whether the payment settled and the resource arrived |
-| `retryPayment` | `false` means do **not** pay again to recover. It overrides the code's generic `retry` value |
-| `candidateTxHash` / `candidateNetwork` | A transaction that may be the payment. Evidence for reconciliation, not proof of payment |
-| `approval` | TRON: the one-time Permit2 approve that was signed before the failure — `{txId, token, spender, allowance, feeLimitSun, status}` with `status` `confirmed` (mined before the payment was signed) or `exported` (signed into the payment package for the endpoint to sponsor). When the approve fails after it was sent and before it confirmed, `error.details.txId` carries its transaction ID instead, with `outcome: "unknown"` unless the approve is known to have failed on chain (`execution_reverted`): an unconfirmed approve may still land. It is not the payment; do not report it as one. Only `status: "confirmed"` means the allowance exists on chain; `exported` is a signature only. A `paymentStatus: "not_sent"` beside it means the payment package, with any exported approval in it, did not leave in a paid request |
-| `orderId` | `bai recharge`: B.AI's id of the order created before the payment, when B.AI returned one |
-
-**Treat `paymentStatus: "unknown"` as possibly paid.** A payment whose request was never sent, even after it was signed, reports `not_sent`; once the paid request is sent, an error without a settlement receipt reports `unknown`.
-
 ### Out of time after a submission
 
-These commands do not submit a chain transaction of their own, so a deadline that ends after their submission is reported this way:
+This command does not submit a chain transaction of its own, so a deadline that ends after its submission is reported this way:
 
 | Command | Result |
 |---|---|
-| `gasfree transfer` | The provider accepted the transfer but the time limit ended the wait for its outcome: exit `0`, the submitted receipt with its `traceId`, and a warning. The reply to the submission was lost: `timeout` or `provider_error` with `paymentStatus: "unknown"`, `outcome: "unknown"`, `retryPayment: false`, and `network`, `serviceProvider`, `owner`, `from` (the GasFree address), `to`, `token`, `tokenAddress`, `amount`, `authorizedMaxFee`, `nonce`, `deadline` (the authorization's expiry, unix seconds), and `permitDigest` in `error.details`. No `traceId` is known and the signature is not included. The CLI does not look the transfer up afterwards: compare the `nonce` that [`gasfree info`](commands/gasfree/info.md) reports with `details.nonce` before you transfer again. A receipt or polled record that does not match the signed authorization fails with `gasfree_integrity`, `traceId` and `outcome: "unknown"`; check it with [`gasfree trace`](commands/gasfree/trace.md) before you transfer again |
 | `tx multisig --create` / `--sign` | The reply to the TronLink submission was lost: the error adds `txId` (when the transaction has one), `address`, `network` and `outcome: "unknown"` to `error.details`, with a warning to inspect the address's existing collection before submitting again |
-| `x402 pay`, `x402 roundtrip` | No paid request is sent with less than 2000 ms left (`timeout`, `phase: "payment_request"`, `paymentStatus: "not_sent"`, `retryPayment: false`). A limit that ends while the payment is being created — node reads, GasFree relay reads, signing — fails with `timeout` and `phase` `create_payment` or `sign`, and no request of the payment starts after it. An interrupted payment carries the [payment details](#x402-and-bai-payment-details) above |
-| `bai recharge` | The time ran out after the payment and before it was reported to B.AI: exit `0` with `creditStatus: "unconfirmed"`, the `txHash`, `retryPayment: false`, `code: "timeout"`, and a warning to report it with `bai report-recharge`. Do not pay again. A payment the time limit refused before its request was sent fails with `timeout` and `paymentStatus: "not_sent"`. When the reply to the order creation is lost (a `timeout`, a 5xx, a dropped connection or a reply that does not parse), the error carries `outcome: "unknown"` and no payment details: no payment was made, but B.AI may hold an unpaid order |
 
 ### `error.details.matches`
 
@@ -386,17 +356,14 @@ printf '%s' "$MASTER_PASSWORD_FROM_YOUR_VAULT" | wallet-cli tx send \
 
 This is a wallet; a wrong success check loses money. The rules:
 
-1. Broadcast (✍️) commands **wait for confirmation by default**: they poll until the transaction is confirmed or failed, within the command's [time limit](#time-limit---timeout). When the time runs out first, the command returns the submitted receipt with a warning. This covers transactions the CLI signs and submits, `tx broadcast` of an imported signed transaction (TRON and EVM), and `gasfree transfer`.
+1. Broadcast (✍️) commands **wait for confirmation by default**: they poll until the transaction is confirmed or failed, within the command's [time limit](#time-limit---timeout). When the time runs out first, the command returns the submitted receipt with a warning. This covers transactions the CLI signs and submits, and `tx broadcast` of an imported signed transaction (TRON and EVM).
    - **Chain transactions.** A failed poll is retried only when its error code has `retry` `same` or `later`; any other error ends the wait at once, and the command returns the submitted receipt with a `{code, message}` warning whose `code` is that error code. A transaction that later steps depend on (an approval) fails instead; see item 5.
    - **`--timeout 0`.** The command polls until there is an outcome or such an error, which for an EVM transaction that is never mined means indefinitely; use a finite `--timeout` or `--no-wait` when the command must end.
-   - **`gasfree transfer`** polls the GasFree trace instead, with its own rules: it retries a poll that could not reach the service, got a 5xx status, or timed out; any other failed poll ends the wait, and the command returns the submitted receipt with a plain-text warning that names the error code and the `gasfree trace` command to follow it with. A trace that does not match the signed authorization, changes its id, or moves back to an earlier state fails with `gasfree_integrity`, `traceId`, and `outcome: "unknown"`.
    - **Payload.** A flat object with a `kind` naming the operation (`send`, `stake-freeze`, `permission-update`, `account-activate`, `proposal-create`, `asset-issue`, `exchange-trade`, …), a `stage`, and the `txId`; block, fee, and result fields appear only with `confirmed` or `failed`.
 
    **A receipt reports the transaction outcome in `data.stage`, never in `success`.** A transaction that was accepted, mined, and then reverted is a *successful command* carrying a *failed transaction*: the envelope stays `success: true` and the exit code stays `0`, while `data.stage` is `"failed"`. Exit codes say whether the CLI could carry out the request, not whether the chain accepted the result — so branch on `data.stage` (`confirmed` / `failed` / `submitted`) before recording the operation as done. `submitted` means the outcome is not known yet.
 
    **Ids the chain assigns arrive only with confirmation.** A new proposal's `proposalId`, a TRC10's `assetId`, an exchange pair's `exchangeId` do not exist at submission — they are absent from a submitted receipt and appear once the command (or a later query) sees the transaction on chain.
-
-   The same applies to an Agent id: `8004 register` puts the requested `uri` in `data.identity` at once, and adds `identity.agentId` (a decimal string) only when a confirmed registration event can be read. `8004 update` reports `identity.agentId`, `oldURI` and `requestedURI`, plus `newURI` after confirmation; `8004 transfer` reports `agentId`, `oldOwner` and `requestedOwner`, plus `newOwner` after confirmation. `8004 approve` reports `agentId` and `operator` (the zero address for `--revoke`). `8004 add-operator` and `remove-operator` report `operator` and `requestedApproval`, plus `approved` — read back from the registry — after confirmation.
 
 2. To return right after submission, pass `--no-wait`. The receipt has `stage: "submitted"` and the `txId`, with no block, fee, or result:
 
@@ -404,7 +371,7 @@ This is a wallet; a wrong success check loses money. The rules:
    { "kind": "send", "stage": "submitted", "txId": "7d9b6a08…", "rawAmount": "1000000", "to": "TSx72…" }
    ```
 
-   `--wait` names the default explicitly. Pass each flag bare and at most one of them: `--wait=<value>`, `--no-wait=<value>`, a following `true` or `false`, or both flags together fail with `invalid_option` (exit `2`). Both flags apply only where a transaction is submitted: with `--dry-run`, `--build-only`, `--sign-only`, or `--quote`, on reads and local commands, and on `x402 pay`, `x402 roundtrip`, `bai recharge`, and `tx multisig`, either flag fails with `invalid_option` and nothing is sent. Without the flags these commands run as usual. A command's `--help` lists `--wait` and `--no-wait` only where they apply.
+   `--wait` names the default explicitly. Pass each flag bare and at most one of them: `--wait=<value>`, `--no-wait=<value>`, a following `true` or `false`, or both flags together fail with `invalid_option` (exit `2`). Both flags apply only where a transaction is submitted: with `--dry-run`, `--build-only`, `--sign-only`, or `--quote`, on reads and local commands, on `tx multisig`, and on plugin commands that settle outside the chain, either flag fails with `invalid_option` and nothing is sent. Without the flags these commands run as usual. A command's `--help` lists `--wait` and `--no-wait` only where they apply.
 
 3. Or poll yourself with `tx status`, which has a **four-state model**:
 
@@ -420,8 +387,6 @@ This is a wallet; a wrong success check loses money. The rules:
    > `confirmed` means included and receipted, not finalized. Use a TRON SolidityNode view or an EVM finalized-block check where that distinction matters.
 
    > A deadline that ends in `pending` or `not_found` is an unknown outcome. Do not record it as failed, and do not resend automatically without external reconciliation.
-
-   **GasFree transfers are the exception.** `gasfree transfer` submits to a provider, not directly to a node: the submitted receipt carries a `traceId` (not a `txId`), and progress follows the provider's states — `WAITING` → `INPROGRESS` → `CONFIRMING` → `SUCCEED` / `FAILED`. The command follows these states by default; after `--no-wait`, follow them with [`gasfree trace <traceId>`](commands/gasfree/trace.md) rather than `tx status`; a `txId` appears only once the provider puts it on-chain.
 
 ```bash
 #!/usr/bin/env bash
@@ -468,7 +433,7 @@ A dry run's `fee` is what the chain's own simulation predicts.
 
 ## Plugins
 
-Some command groups are served by plugins. A **built-in** plugin ships inside wallet-cli and is always present (`gasfree`, `x402`, `bai`, `8004`); its commands, codes and outputs are part of this document. An **installed** plugin is added with [`plugin install`](commands/plugin/install.md) and extends this contract while it is installed:
+Some command groups are served by plugins. A plugin is added with [`plugin install`](commands/plugin/install.md) and extends this contract while it is installed:
 
 - **Discovery.** `--json-schema` lists an installed plugin's commands under `commands[]` and its error codes under `errorCodes`, with the same entry shape as any other. A plugin that is not installed contributes nothing; its group word fails with `unknown_command`, and the message names `plugin list` and `plugin install`.
 - **Attribution.** The envelope of a command served by an installed plugin carries `meta.plugin: {"name", "version"}`, on success and on failure. A call that is refused before wallet-cli has resolved the command to a plugin carries none: conflicting stdin options, or a `config.yaml` that cannot be read. Built-in plugins and core commands never carry it.

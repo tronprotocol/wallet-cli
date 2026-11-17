@@ -1,10 +1,10 @@
 {
   "schema": "wallet-cli.result.v1",
   "success": false,
-  "command": "gasfree.info",
+  "command": "tx.multisig",
   "error": {
-    "code": "unsupported_network_capability",
-    "message": "gasfree info is available on tron and nile only"
+    "code": "tronlink_credentials_missing",
+    "message": "TronLink credentials are incomplete; configure tronlinkSecretId, tronlinkSecretKey, and tronlinkChannel"
   },
   "meta": {
     "durationMs": 0,

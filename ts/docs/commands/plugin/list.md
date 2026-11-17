@@ -34,10 +34,6 @@ wallet-cli plugin list
 
 ```console
 NAME     VERSION  KIND       SOURCE                                                      STATE  COMMANDS
-gasfree  1.0.0    builtin    -                                                           ok     gasfree
-erc8004  1.0.0    builtin    -                                                           ok     8004
-x402     1.0.0    builtin    -                                                           ok     x402
-bai      1.0.0    builtin    -                                                           ok     bai
 sunpump  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunpump  ok     sunpump
 sunswap  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunswap  ok     sunswap
 ```
@@ -47,7 +43,7 @@ wallet-cli plugin list -o json
 ```
 
 ```json
-{"schema":"wallet-cli.result.v1","success":true,"command":"plugin.list","data":[{"name":"gasfree","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["gasfree"],"kind":"builtin","state":"ok"},{"name":"erc8004","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["8004"],"kind":"builtin","state":"ok"},{"name":"x402","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["x402"],"kind":"builtin","state":"ok"},{"name":"bai","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["bai"],"kind":"builtin","state":"ok"},{"name":"sunpump","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["sunpump"],"kind":"installed","state":"ok","source":{"type":"directory","path":"/home/me/wallet-cli-sun-plugins/packages/sunpump"},"installedAt":"2026-11-16T21:32:45.930Z"},{"name":"sunswap","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["sunswap"],"kind":"installed","state":"ok","source":{"type":"directory","path":"/home/me/wallet-cli-sun-plugins/packages/sunswap"},"installedAt":"2026-11-16T21:32:46.345Z"}],"meta":{"durationMs":146,"warnings":[]}}
+{"schema":"wallet-cli.result.v1","success":true,"command":"plugin.list","data":[{"name":"sunpump","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["sunpump"],"kind":"installed","state":"ok","source":{"type":"directory","path":"/home/me/wallet-cli-sun-plugins/packages/sunpump"},"installedAt":"2026-11-16T21:32:45.930Z"},{"name":"sunswap","version":"1.0.0","apiVersion":1,"apiRevision":1,"groups":["sunswap"],"kind":"installed","state":"ok","source":{"type":"directory","path":"/home/me/wallet-cli-sun-plugins/packages/sunswap"},"installedAt":"2026-11-16T21:32:46.345Z"}],"meta":{"durationMs":146,"warnings":[]}}
 ```
 
 ## Output

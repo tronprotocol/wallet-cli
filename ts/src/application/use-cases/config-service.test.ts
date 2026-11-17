@@ -3,7 +3,7 @@ import { ConfigService } from "./config-service.js";
 import type { ConfigDocumentRepository } from "../ports/config-document-repository.js";
 import type { NetworkRegistry } from "../ports/network-registry.js";
 import type { Config } from "../../domain/types/index.js";
-import { BUILTIN_CREDENTIALS } from "../../bootstrap/plugins/__test-support__/credentials.js";
+import { PLUGIN_CREDENTIALS } from "../../domain/plugins/__test-support__/credentials.js";
 
 const effective = { timeoutMs: 90_000, networks: {}, credentials: new Map() } as unknown as Config;
 
@@ -20,7 +20,7 @@ function service(): { svc: ConfigService; update: ReturnType<typeof vi.fn> } {
     (fn: (c: unknown) => { document: unknown; result: unknown }) => fn({}).result,
   );
   const docs = { update } as unknown as ConfigDocumentRepository;
-  return { svc: new ConfigService(docs, BUILTIN_CREDENTIALS), update };
+  return { svc: new ConfigService(docs, PLUGIN_CREDENTIALS), update };
 }
 
 describe("ConfigService timeoutMs validation", () => {
@@ -85,39 +85,40 @@ describe("ConfigService TronLink credentials", () => {
   });
 });
 
-describe("ConfigService GasFree credentials", () => {
+describe("ConfigService plugin credentials", () => {
   it("writes the documented flat keys and masks the API secret", () => {
     const { svc } = service();
-    expect(svc.execute({ key: "gasfreeApiKey", value: "TEST" }, effective, networks)).toMatchObject(
-      { key: "gasfreeApiKey", value: "********" },
-    );
+    expect(svc.execute({ key: "demoApiKey", value: "TEST" }, effective, networks)).toMatchObject({
+      key: "demoApiKey",
+      value: "********",
+    });
     expect(
-      svc.execute({ key: "gasfreeApiSecret", value: "TESTTESTTEST" }, effective, networks),
-    ).toMatchObject({ key: "gasfreeApiSecret", value: "********" });
+      svc.execute({ key: "demoApiSecret", value: "TESTTESTTEST" }, effective, networks),
+    ).toMatchObject({ key: "demoApiSecret", value: "********" });
   });
 
   it("never returns an effective API secret in config views", () => {
-    const configured = configuredWith("gasfreeApiSecret", "secret");
+    const configured = configuredWith("demoApiSecret", "secret");
     const { svc } = service();
-    expect(svc.execute({}, configured, networks)).toMatchObject({ gasfreeApiSecret: "********" });
-    expect(svc.execute({ key: "gasfreeApiSecret" }, configured, networks)).toEqual({
-      key: "gasfreeApiSecret",
+    expect(svc.execute({}, configured, networks)).toMatchObject({ demoApiSecret: "********" });
+    expect(svc.execute({ key: "demoApiSecret" }, configured, networks)).toEqual({
+      key: "demoApiSecret",
       value: "********",
     });
   });
 });
 
-describe("ConfigService B.AI configuration", () => {
+describe("ConfigService configuration of a second plugin key", () => {
   it("masks the API key in write and read receipts", () => {
     const { svc } = service();
     expect(
-      svc.execute({ key: "baiApiKey", value: "bai_test_secret" }, effective, networks),
-    ).toMatchObject({ key: "baiApiKey", value: "********", input: "********" });
+      svc.execute({ key: "otherApiKey", value: "other_test_secret" }, effective, networks),
+    ).toMatchObject({ key: "otherApiKey", value: "********", input: "********" });
 
-    const configured = configuredWith("baiApiKey", "bai_test_secret");
-    expect(svc.execute({}, configured, networks)).toMatchObject({ baiApiKey: "********" });
-    expect(svc.execute({ key: "baiApiKey" }, configured, networks)).toEqual({
-      key: "baiApiKey",
+    const configured = configuredWith("otherApiKey", "other_test_secret");
+    expect(svc.execute({}, configured, networks)).toMatchObject({ otherApiKey: "********" });
+    expect(svc.execute({ key: "otherApiKey" }, configured, networks)).toEqual({
+      key: "otherApiKey",
       value: "********",
     });
   });
@@ -458,21 +459,18 @@ describe("ConfigService writes the API-key pair", () => {
   });
 });
 
-it.each([
-  "tronlinkSecretId",
-  "tronlinkSecretKey",
-  "gasfreeApiKey",
-  "gasfreeApiSecret",
-  "baiApiKey",
-])("never echoes %s in config outputs", (key) => {
-  const { svc } = service();
-  const value = "sentinel-secret-123";
-  const configured = configuredWith(key, value);
-  for (const result of [
-    svc.execute({}, configured, networks),
-    svc.execute({ key }, configured, networks),
-    svc.execute({ key, value }, configured, networks),
-  ]) {
-    expect(JSON.stringify(result)).not.toContain(value);
-  }
-});
+it.each(["tronlinkSecretId", "tronlinkSecretKey", "demoApiKey", "demoApiSecret", "otherApiKey"])(
+  "never echoes %s in config outputs",
+  (key) => {
+    const { svc } = service();
+    const value = "sentinel-secret-123";
+    const configured = configuredWith(key, value);
+    for (const result of [
+      svc.execute({}, configured, networks),
+      svc.execute({ key }, configured, networks),
+      svc.execute({ key, value }, configured, networks),
+    ]) {
+      expect(JSON.stringify(result)).not.toContain(value);
+    }
+  },
+);

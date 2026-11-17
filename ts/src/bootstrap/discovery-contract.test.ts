@@ -71,8 +71,10 @@ describe("envelope contract snapshots", () => {
       "json",
       "--network",
       "shasta",
-      "gasfree",
-      "info",
+      "tx",
+      "multisig",
+      "--account",
+      "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
     ]);
     expect(exit).toBe(2);
     await expect(normalized(out)).toMatchFileSnapshot("__snapshots__/envelope.error.json");
@@ -129,7 +131,7 @@ describe("every registered exclusive group", () => {
         name,
       ).toBe(true);
     }
-    expect(checked).toBeGreaterThanOrEqual(35);
+    expect(checked).toBeGreaterThanOrEqual(31);
   });
 
   it("names only flags that some family accepts", () => {

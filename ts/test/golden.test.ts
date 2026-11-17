@@ -35,7 +35,6 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.stdout).toContain("  account");
     expect(r.stdout).toContain("  tx");
     expect(r.stdout).toMatch(/^  permission\s/m);
-    expect(r.stdout).toMatch(/^  gasfree\s/m);
     expect(r.stdout).toMatch(/^  encoding\s/m);
     expect(r.stdout).toMatch(/^  address\s/m);
     expect(r.stdout).toMatch(/^  contact\s/m);
@@ -1063,24 +1062,6 @@ describe("golden CLI — yargs tail keys are not user-facing flags", () => {
   });
 });
 
-it.each([
-  ["x402", "pay", "http://127.0.0.1:1/pay"],
-  ["x402", "roundtrip", "--pay-to", TRON1],
-  ["bai", "recharge", "1"],
-])("rejects unused wait flags before payment: %j", (...args) => {
-  for (const flag of ["--wait", "--no-wait"]) {
-    const wait = run([...args, "--network", "tron", flag, "-o", "json"], { password: null });
-    expect(wait.status).toBe(2);
-    expect(wait.json?.error.code).toBe("invalid_option");
-    expect(wait.json?.error.message).toContain(`does not accept ${flag}: `);
-  }
-  const removed = run([...args, "--network", "tron", "--wait-timeout", "100", "-o", "json"], {
-    password: null,
-  });
-  expect(removed.json?.error.code).toBe("invalid_option");
-  expect(removed.json?.error.message).toBe("unknown option(s): --wait-timeout");
-});
-
 it.each([["--wait"], ["--no-wait"]])(
   "refuses %s on reads and local commands, which run normally without it",
   (flag) => {
@@ -1117,38 +1098,4 @@ it.each([
     expect(r.status).toBe(2);
     expect(r.json?.error.code).toBe("invalid_option");
   }
-});
-
-it("reads --body-file - from stdin instead of treating the dash as a positional", () => {
-  seedWallet();
-  const result = run(
-    [
-      "x402",
-      "pay",
-      "http://127.0.0.1:1/pay",
-      "--network",
-      "nile",
-      "--body-file",
-      "-",
-      "--method",
-      "POST",
-      "-o",
-      "json",
-    ],
-    { password: null, input: "{}" },
-  );
-  expect(result.json?.error.code).toBe("provider_error");
-  expect(result.json?.error.details.paymentStatus).toBe("not_sent");
-  expect(result.json?.error.message).not.toContain("body-file");
-});
-
-it.each([
-  ["0.5", "tron", "invalid_amount"],
-  ["1", "nile", "unsupported_network_capability"],
-])("validates B.AI recharge input before credentials: %s on %s", (amount, network, code) => {
-  seedWallet();
-  const result = run(["bai", "recharge", amount, "--network", network, "-o", "json"], {
-    password: null,
-  });
-  expect(result.json?.error.code).toBe(code);
 });

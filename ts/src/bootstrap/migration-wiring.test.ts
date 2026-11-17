@@ -153,9 +153,9 @@ describe("the startup migration gate is wired into main()", () => {
     ["help", ["--help"]],
     ["version", ["--version"]],
     ["schema", ["--json-schema"]],
-    ["x402 help", ["x402", "--help"]],
-    ["bai help", ["bai", "--help"]],
-    ["8004 help", ["8004", "--help"]],
+    ["tx help", ["tx", "--help"]],
+    ["stake help", ["stake", "--help"]],
+    ["plugin help", ["plugin", "--help"]],
     ["bare invocation", []],
   ])("renders %s without touching an old secret-bearing wallet", async (_surface, tokens) => {
     const { code, stdout, walletsPath } = await runIn(v1SeedDoc, tokens);
@@ -173,7 +173,6 @@ describe("the startup migration gate is wired into main()", () => {
 
 describe("TRON-only commands on an EVM network", () => {
   it.each([
-    ["gasfree", "info"],
     ["stake", "info"],
     ["permission", "show"],
   ])("refuses `%s %s` on eip155:1", async (group, verb) => {

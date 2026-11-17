@@ -34,7 +34,7 @@ export function rateLimitDetails(headers: Headers): RateLimitDetails {
   return { httpStatus: 429, ...(seconds === undefined ? {} : { retryAfterSeconds: seconds }) };
 }
 
-// `service` names the service in the message, for example "GasFree service". `context` holds the
+// `service` names the service in the message, for example "TronLink service". `context` holds the
 // flow's own detail fields; the rate-limit keys win over it.
 export function rateLimitedError(
   service: string,

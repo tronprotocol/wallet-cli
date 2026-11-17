@@ -1,6 +1,3 @@
-import { processBroadcastGuard } from "../../../../application/services/broadcast-guard.js";
-import { PluginSigning } from "../../../../application/services/plugins/plugin-signing.js";
-import { X402Service } from "../../../../plugins/x402/application/use-cases/x402-service.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,25 +11,9 @@ import { readBoundedTextFile } from "../commands/artifact.js";
 import { StreamManager } from "../stream/index.js";
 import { createOutputFormatter } from "./index.js";
 import { contractCreate2TronBinding, contractDeployEvmBinding } from "../commands/contract.js";
-import { x402Commands } from "../../../../plugins/x402/adapters/inbound/commands.js";
-import { pluginCommandContext } from "../../../../bootstrap/plugins/host.js";
 import { registerWalletCommands } from "../commands/wallet.js";
 import { CommandRegistry } from "../registry/index.js";
-import { SignerResolver } from "../../../../application/services/signer/index.js";
-import { X402PaymentClient } from "../../../../plugins/x402/adapters/outbound/x402/payment-client.js";
-import { unsentPaymentError } from "../../../../plugins/x402/adapters/outbound/x402/payment-error.js";
-import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 import { normalizeCliError } from "./errors.js";
-
-// Registers the plugin's commands as the host does: each run gets the plugin context.
-function registerX402Commands(registry: CommandRegistry, service: never): void {
-  for (const command of x402Commands(() => service))
-    registry.add({
-      ...command,
-      run: (ctx: never, net: never, input: never) =>
-        command.run(pluginCommandContext(ctx, 0), net, input),
-    } as never);
-}
 
 function thrown(action: () => unknown): CliError {
   try {
@@ -68,13 +49,11 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
     for (const path of roots.splice(0)) rmSync(path, { recursive: true, force: true });
   });
 
-  const service = { deploy: vi.fn(), create2: vi.fn(), pay: vi.fn() };
+  const service = { deploy: vi.fn(), create2: vi.fn() };
   const deploy = contractDeployEvmBinding(service as never);
   const create2 = contractCreate2TronBinding(service as never);
   const registry = new CommandRegistry();
-  registerX402Commands(registry, service as never);
   registerWalletCommands(registry, { walletService: {} as never });
-  const pay = registry.resolveNeutral(["x402", "pay"])!;
   const importKeystore = registry.resolveNeutral(["import", "keystore"])!;
   const fileCommands = [
     {
@@ -88,10 +67,6 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
     {
       name: "contract create2 code",
       run: (path: string) => create2.run({} as never, {} as never, { codeFile: path }),
-    },
-    {
-      name: "x402 request body",
-      run: (path: string) => pay.run({} as never, {} as never, { bodyFile: path }),
     },
   ];
 
@@ -132,7 +107,6 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
     { name: "malformed artifact", body: "not JSON", run: fileCommands[1]!.run },
     { name: "missing artifact bytecode", body: "{}", run: fileCommands[1]!.run },
     { name: "empty artifact bytecode", body: '{"bytecode":"0x"}', run: fileCommands[1]!.run },
-    { name: "oversized request body", body: "x".repeat(1_048_577), run: fileCommands[3]!.run },
   ])("escapes an existing filename in $name validation", async ({ body, run }) => {
     const path = join(root(), "input\nFAKE_LOG");
     writeFileSync(path, body);
@@ -177,27 +151,6 @@ describe("untrusted input in text errors (WALLETCLI-SEC-002)", () => {
       );
     },
   );
-
-  it("preserves a keystore error's safe text through payment preparation", () => {
-    const keystore = new Keystore(root(), new AtomicFileStore(), () => "unused");
-    const resolver = new SignerResolver(keystore, {} as never, {} as never);
-    const client = new X402Service(
-      new X402PaymentClient(),
-      new PluginSigning(resolver as never, {} as never),
-      {} as never,
-      {} as never,
-      processBroadcastGuard,
-    );
-    const error = thrown(() =>
-      client.prepare({ activeAccount: "missing\nFAKE_LOG" } as never, { family: "tron" } as never),
-    );
-    expect(render(error, "text").trimEnd()).not.toContain("\n");
-    expect(render(error, "text")).toContain("missing\\nFAKE_LOG");
-    expect(JSON.parse(render(error, "json")).error).toMatchObject({
-      message: "no account labelled 'missing\nFAKE_LOG'",
-      details: { phase: "sign", paymentStatus: "not_sent" },
-    });
-  });
 
   it("preserves authored multiline guidance and candidate table layout", () => {
     const error = new UsageError("ambiguous_account", "Choose an account.\nUse its accountId.", {
@@ -247,83 +200,5 @@ describe("submission error output", () => {
       message: "node: lost\nreply",
       details: { txId },
     });
-  });
-});
-
-describe("x402 not-sent errors keep CLI input spelling", () => {
-  const net = { id: "eip155:56", family: "evm", chainId: "56" } as never;
-  const scope = { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never;
-
-  async function responseError(body: Uint8Array, contentType: string): Promise<CliError> {
-    const fetcher = vi.fn<typeof fetch>(
-      async () => new Response(new Uint8Array(body), { headers: { "content-type": contentType } }),
-    );
-    const client = new X402Service(
-      new X402PaymentClient(fetcher),
-      new PluginSigning(
-        { resolve: vi.fn(), assertCanSign: vi.fn() } as never as never,
-        {} as never,
-      ),
-      {} as never,
-      {} as never,
-      processBroadcastGuard,
-    );
-    const error = await client
-      .pay(scope, net, { url: "https://api.example/resource", method: "GET", headers: [] })
-      .catch((caught: unknown) => caught);
-    expect(error).toBeInstanceOf(CliError);
-    return error as CliError;
-  }
-
-  it.each([
-    {
-      name: "binary",
-      body: new TextEncoder().encode("binary content"),
-      contentType: "application/octet-stream",
-      message:
-        "binary response requires --out to save its bytes; check payment details before any further payment",
-    },
-    {
-      name: "invalid UTF-8",
-      body: Uint8Array.from([0xff, 0xfe]),
-      contentType: "text/plain",
-      message:
-        "endpoint returned invalid UTF-8; --out is required to save raw bytes; check payment details before any further payment",
-    },
-  ])("renders the $name response error with --out", async ({ body, contentType, message }) => {
-    const error = await responseError(body, contentType);
-    expect(error.parts).toContainEqual({ input: "out" });
-    expect(render(error, "text")).toContain(`]: ${message}\n`);
-    expect(JSON.parse(render(error, "json")).error.message).toBe(message);
-  });
-
-  it.each([
-    {
-      sdk: "All payment requirements were rejected by spendControls.maxAmountPerPayment ($1, including USDT). Raise maxAmountPerPayment, set it to false to disable, set allowedAssets[].maxAmountPerPayment for a per-asset atomic cap, or set spendControls: false to disable all spend controls.",
-      message:
-        "payment exceeds the built-in $1 per-payment ceiling; pass --max-amount, or --max-raw-amount with --token or --asset, to authorize it",
-    },
-    {
-      sdk: "All payment requirements were rejected by spendControls: only default assets or entries in spendControls.allowedAssets are allowed. Add an allowedAssets entry for non-default tokens, set allowedAssets: true, or set spendControls: false.",
-      message:
-        "no offered payment route uses an asset the built-in spend control allows; pass --max-amount, or --max-raw-amount with --token or --asset, to set the ceiling yourself",
-    },
-  ])("renders a spend-control refusal through the not-sent conversion", ({ sdk, message }) => {
-    const error = unsentPaymentError(
-      new Error(`Failed to create payment payload: ${sdk}`),
-      "create_payment",
-    );
-    expect(render(error, "text")).toContain(`]: ${message}\n`);
-    expect(JSON.parse(render(error, "json")).error).toMatchObject({
-      message,
-      details: { paymentStatus: "not_sent" },
-    });
-  });
-
-  it("still replaces the reconcile advice when nothing was sent", () => {
-    const error = unsentPaymentError(new Error("socket hang up"), "create_payment");
-    expect(JSON.parse(render(error, "json")).error.message).toBe(
-      "x402 request or payment failed; no payment was sent",
-    );
   });
 });

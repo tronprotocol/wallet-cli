@@ -98,8 +98,8 @@ describe("toBaseUnits", () => {
     });
 
     it("keeps a plain-text label verbatim", () => {
-      expect(() => toBaseUnits("abc", 6, "TRX", "GasFree fee ceiling")).toThrow(
-        "GasFree fee ceiling must be a non-negative decimal TRX amount",
+      expect(() => toBaseUnits("abc", 6, "TRX", "fee ceiling")).toThrow(
+        "fee ceiling must be a non-negative decimal TRX amount",
       );
     });
 
