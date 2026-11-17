@@ -2,13 +2,8 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ERROR_CODES, type ErrorCodeEntry } from "../domain/errors/codes.js";
-import { builtinPluginErrorCodes } from "./plugins/__test-support__/error-codes.js";
 
-const CODES: Readonly<Record<string, ErrorCodeEntry>> = Object.assign(
-  {},
-  ERROR_CODES,
-  ...Object.values(builtinPluginErrorCodes()),
-);
+const CODES: Readonly<Record<string, ErrorCodeEntry>> = ERROR_CODES;
 
 const DOC = fileURLToPath(new URL("../../docs/machine-interface.md", import.meta.url));
 

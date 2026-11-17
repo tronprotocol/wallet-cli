@@ -2,14 +2,11 @@
 
 A plugin adds command groups to wallet-cli. This guide shows how to install one, keep it up to date, remove it, and what to check before you trust it.
 
-## Built-in and installed plugins
+## What a plugin is
 
-| Kind | Examples | How you get it |
-|---|---|---|
-| Built-in | none at present | Ships inside wallet-cli; always present; changes only with wallet-cli itself |
-| Installed | `sunswap`, `sunpump` | Added with `wallet-cli plugin install`; updated and removed by you |
+wallet-cli ships with no plugins. You add one with `wallet-cli plugin install` (for example `sunswap` or `sunpump`), and you update and remove it yourself.
 
-Both kinds behave like any other command group: the same global options, the same JSON envelope, the same exit codes. wallet-cli keeps your wallets, accounts, configuration and signing; a plugin supplies the commands of one protocol.
+An installed plugin behaves like any other command group: the same global options, the same JSON envelope, the same exit codes. wallet-cli keeps your wallets, accounts, configuration and signing; a plugin supplies the commands of one protocol.
 
 ## Before you install: trust
 
@@ -66,9 +63,9 @@ wallet-cli plugin list
 ```
 
 ```console
-NAME     VERSION  KIND       SOURCE                                                      STATE  COMMANDS
-sunpump  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunpump  ok     sunpump
-sunswap  1.0.0    installed  directory /home/me/wallet-cli-sun-plugins/packages/sunswap  ok     sunswap
+NAME     VERSION  SOURCE                                                      STATE  COMMANDS
+sunpump  1.0.0    directory /home/me/wallet-cli-sun-plugins/packages/sunpump  ok     sunpump
+sunswap  1.0.0    directory /home/me/wallet-cli-sun-plugins/packages/sunswap  ok     sunswap
 ```
 
 `STATE` is `ok`, `incompatible` (the plugin and wallet-cli need different plugin API versions; the reason names the side to update) or `broken` (the reason says why). A plugin that is not `ok` affects only its own commands.
@@ -112,7 +109,7 @@ The first word is not a wallet-cli command and not the group of an installed plu
 
 ## For scripts and agents
 
-- `wallet-cli --json-schema` lists the commands and error codes of installed plugins together with the built-in ones.
+- `wallet-cli --json-schema` lists the commands and error codes of installed plugins together with the core ones.
 - The envelope of an installed plugin's command carries `meta.plugin` with the plugin's `name` and `version`.
 - A script that depends on a plugin should check `wallet-cli plugin list -o json` first and install the plugin when it is missing.
 

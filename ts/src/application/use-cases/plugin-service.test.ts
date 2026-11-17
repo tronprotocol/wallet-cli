@@ -107,7 +107,7 @@ function failAfter(call: string) {
 
 function setup(
   packages: Record<string, () => PluginPackage | Promise<PluginPackage>>,
-  options: { ops?: StoreFileOps; builtinFailure?: string } = {},
+  options: { ops?: StoreFileOps } = {},
 ) {
   const source: PluginSource = {
     fromRegistry: vi.fn(async (_registry, spec) => packages[`registry:${spec.name}`]!()),
@@ -122,16 +122,6 @@ function setup(
     store,
     source,
     {
-      builtins: [
-        {
-          name: "gasfree",
-          version: "1.0.0",
-          apiVersion: 1,
-          apiRevision: 1,
-          groups: ["gasfree"],
-          ...(options.builtinFailure === undefined ? {} : { failure: options.builtinFailure }),
-        },
-      ],
       reservedWords: new Set(["tx", "plugin", "tron"]),
       loadState: () => undefined,
     },
@@ -152,10 +142,7 @@ describe("PluginService.install", () => {
       groups: ["demo"],
       notice: PLUGIN_TRUST_NOTICE,
     });
-    expect(service.list().map((e) => [e.name, e.kind, e.state])).toEqual([
-      ["gasfree", "builtin", "ok"],
-      ["demo", "installed", "ok"],
-    ]);
+    expect(service.list().map((e) => [e.name, e.state])).toEqual([["demo", "ok"]]);
   });
 
   it.each([
@@ -166,8 +153,6 @@ describe("PluginService.install", () => {
       "plugin update demo",
     ],
     ["a reserved group", { name: "x", groups: ["tx"] }, "plugin_conflict", '"tx"'],
-    ["a built-in group", { name: "x", groups: ["gasfree"] }, "plugin_conflict", '"gasfree"'],
-    ["a built-in name", { name: "gasfree", groups: ["y"] }, "plugin_conflict", "built-in"],
     [
       "a newer API revision",
       { name: "x", groups: ["y"], apiRevision: PLUGIN_API_REVISION + 1 },
@@ -188,12 +173,7 @@ describe("PluginService.install", () => {
       code,
       message: expect.stringContaining(text),
     });
-    expect(
-      service
-        .list()
-        .filter((e) => e.kind === "installed")
-        .map((e) => e.name),
-    ).toEqual(["demo"]);
+    expect(service.list().map((e) => e.name)).toEqual(["demo"]);
   });
 
   it("lets only one of two concurrent installs claim a group", async () => {
@@ -273,14 +253,8 @@ describe("PluginService.update and remove", () => {
     });
   });
 
-  it("refuses a built-in plugin and a name that is not installed", async () => {
+  it("refuses a name that is not installed", async () => {
     const { service } = setup({});
-    expect(() => service.remove("gasfree")).toThrow(
-      expect.objectContaining({ code: "plugin_conflict" }),
-    );
-    await expect(service.update("gasfree", DEADLINE)).rejects.toMatchObject({
-      code: "plugin_conflict",
-    });
     expect(() => service.remove("demo")).toThrow(
       expect.objectContaining({ code: "plugin_not_installed" }),
     );
@@ -294,7 +268,7 @@ describe("PluginService.update and remove", () => {
     expect(await service.update(undefined, DEADLINE)).toEqual([]);
     await service.install(dir("/p"), "", DEADLINE);
     expect(service.remove("demo")).toEqual({ name: "demo", version: "1.0.0", removed: true });
-    expect(service.list().map((e) => e.name)).toEqual(["gasfree"]);
+    expect(service.list()).toEqual([]);
   });
 
   it("refuses an update whose plugin was removed and reinstalled from another source meanwhile", async () => {
@@ -396,19 +370,5 @@ describe("PluginService.update and remove", () => {
     expect(() => service.remove("demo")).toThrow(
       expect.objectContaining({ code: "plugin_not_installed" }),
     );
-  });
-});
-
-describe("PluginService.list", () => {
-  it("reports a built-in plugin that failed to register as broken, with its reason", () => {
-    const { service } = setup({}, { builtinFailure: "its registration threw" });
-    expect(service.list()).toEqual([
-      expect.objectContaining({
-        name: "gasfree",
-        kind: "builtin",
-        state: "broken",
-        reason: "its registration threw",
-      }),
-    ]);
   });
 });

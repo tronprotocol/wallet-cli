@@ -5,7 +5,7 @@ import { ProcessLifetime } from "./process-lifetime.js";
 import { MigrationService } from "../application/use-cases/migration-service.js";
 import { FileDataMigrations } from "../adapters/outbound/persistence/migration.js";
 import { migrationSteps } from "./migration-steps.js";
-import type { JsonValue, OutputMode } from "../domain/types/index.js";
+import type { OutputMode } from "../domain/types/index.js";
 import type { Globals, SessionRef } from "../adapters/inbound/cli/contracts/index.js";
 import { ConfigLoader, NetworkRegistry } from "../adapters/outbound/config/index.js";
 import { YamlConfigDocument } from "../adapters/outbound/config/yaml-config-document.js";
@@ -55,16 +55,11 @@ import { EvmContractService } from "../application/use-cases/evm/contract-servic
 import { TronContractService } from "../application/use-cases/tron/contract-service.js";
 import { PluginSigning } from "../application/services/plugins/plugin-signing.js";
 import { TronContractCalls } from "../application/services/plugins/tron-contract-calls.js";
-import { BUILTIN_PLUGINS } from "./plugins/builtin.js";
-import { hostServices, registerPlugin, RESERVED_WORDS } from "./plugins/host.js";
+import { hostServices, RESERVED_WORDS } from "./plugins/host.js";
 import { PluginLoader } from "./plugins/loader.js";
 import { FilePluginStore } from "../adapters/outbound/plugins/store.js";
 import type { PluginStore, StoredPlugin } from "../application/ports/plugin-store.js";
-import {
-  mergeCredentials,
-  parsePluginCredentials,
-  type PluginCredentialManifest,
-} from "../domain/plugins/index.js";
+import { mergeCredentials, type PluginCredentialManifest } from "../domain/plugins/index.js";
 import { PackageSource } from "../adapters/outbound/plugins/source.js";
 import { PluginService } from "../application/use-cases/plugin-service.js";
 import { registerPluginCommands } from "../adapters/inbound/cli/commands/plugin.js";
@@ -93,16 +88,8 @@ function readManifests(store: Pick<PluginStore, "list">): Pick<PluginStore, "lis
   }
 }
 
-// Built-in plugins first, in their order, then installed plugins by name; a key once.
+// Installed plugins by name; a key once.
 function declaredCredentials(installed: Pick<PluginStore, "list">): PluginCredentialManifest[] {
-  const builtin = BUILTIN_PLUGINS.map((plugin) => {
-    try {
-      return parsePluginCredentials(plugin.credentials as JsonValue | undefined);
-    } catch {
-      // Its registration fails with the reason.
-      return [];
-    }
-  });
   let stored: StoredPlugin[] = [];
   try {
     stored = installed.list();
@@ -113,7 +100,7 @@ function declaredCredentials(installed: Pick<PluginStore, "list">): PluginCreden
     .flatMap((item) => (item.state === "installed" ? [item.plugin] : []))
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((plugin) => plugin.credentials);
-  return mergeCredentials([...builtin, ...manifests]);
+  return mergeCredentials(manifests);
 }
 
 export function composeCliRuntime(options: BootstrapOptions) {
@@ -249,16 +236,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     services,
     timeoutMs,
   };
-  const failedPlugins = new Map<string, string>();
-  for (const plugin of BUILTIN_PLUGINS) {
-    const registration = registerPlugin(plugin, pluginTargets);
-    if (!registration.ok) {
-      failedPlugins.set(plugin.name, registration.reason);
-      streams.diagnostic("debug", `plugin ${plugin.name} was not loaded: ${registration.reason}`);
-    }
-  }
-
-  // Installed plugins may not take a word that core commands, families or built-in plugins use.
+  // Installed plugins may not take a word that core commands or families use.
   const reservedWords = new Set([
     ...registry.topLevelWords(),
     ...Object.keys(FAMILIES),
@@ -271,14 +249,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
       pluginStore,
       new PackageSource(),
       {
-        builtins: BUILTIN_PLUGINS.map((p) => ({
-          name: p.name,
-          version: p.version,
-          apiVersion: p.apiVersion,
-          apiRevision: p.apiRevision,
-          groups: p.groups.map((g) => g.name),
-          ...(failedPlugins.has(p.name) ? { failure: failedPlugins.get(p.name)! } : {}),
-        })),
         reservedWords,
         loadState: (name) => plugins.state(name),
       },
@@ -327,7 +297,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     capabilities: capabilityRegistry,
     errorCodes,
     followUps,
-    failedPlugins,
     plugins,
     registerCapabilities,
     targetResolver: new TargetResolver({ networkRegistry, keystore }),

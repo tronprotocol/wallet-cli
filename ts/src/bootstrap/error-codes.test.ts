@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import { ERROR_CODES, type ErrorCodeEntry } from "../domain/errors/codes.js";
 import { EVM_REJECTION_CODES } from "../adapters/outbound/chain/evm/node-errors.js";
 import { TRON_REJECTION_CODES } from "../adapters/outbound/chain/tron/node-errors.js";
-import { builtinPluginErrorCodes } from "./plugins/__test-support__/error-codes.js";
 
 const SRC = fileURLToPath(new URL("..", import.meta.url));
 
@@ -57,13 +56,7 @@ function producedCodes(): Set<string> {
   return codes;
 }
 
-const PLUGIN_CODES = builtinPluginErrorCodes();
-// The codes a runtime with the built-in plugins publishes.
-const CODES: Readonly<Record<string, ErrorCodeEntry>> = Object.assign(
-  {},
-  ERROR_CODES,
-  ...Object.values(PLUGIN_CODES),
-);
+const CODES: Readonly<Record<string, ErrorCodeEntry>> = ERROR_CODES;
 
 describe("the error-code index", () => {
   it("has an entry for every code the source can throw", () => {
@@ -81,26 +74,10 @@ describe("the error-code index", () => {
 
   it("keeps the codes the core throws in the core table", () => {
     const outside = thrownSites()
-      .filter(({ where }) => !where.startsWith("plugins/"))
       .filter(({ code }) => !(code in ERROR_CODES))
       .map(({ code, where }) => `${code} in ${where}`)
       .sort();
     expect(outside).toEqual([]);
-  });
-
-  it("lets plugins share a code only with the same entry, and never redefine a core code", () => {
-    const declared = new Map<string, ErrorCodeEntry>();
-    const wrong: string[] = [];
-    for (const [plugin, codes] of Object.entries(PLUGIN_CODES))
-      for (const [code, entry] of Object.entries(codes)) {
-        if (code in ERROR_CODES) wrong.push(`${plugin}: ${code} is a core code`);
-        const first = declared.get(code);
-        if (first !== undefined && JSON.stringify(first) !== JSON.stringify(entry)) {
-          wrong.push(`${plugin}: ${code} differs from an earlier declaration`);
-        }
-        declared.set(code, first ?? entry);
-      }
-    expect(wrong).toEqual([]);
   });
 
   it("gives every code an exit class, a retry answer, and a one-line meaning", () => {

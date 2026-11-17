@@ -4001,7 +4001,7 @@
         "list"
       ],
       "usage": "wallet-cli plugin list [options]",
-      "summary": "List built-in and installed plugins",
+      "summary": "List installed plugins",
       "requires": {
         "network": "none",
         "auth": "none",

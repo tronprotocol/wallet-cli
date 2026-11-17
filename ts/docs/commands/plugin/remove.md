@@ -14,8 +14,6 @@ Removes an installed plugin and its command groups. From the next command on, it
 
 Settings the plugin read from `config.yaml` are left as written, so installing the plugin again restores its behaviour. The files of removed versions stay under the wallet-cli home directory (`plugins/<name>/versions/`); delete that directory to reclaim the space.
 
-Built-in plugins cannot be removed.
-
 ## Arguments
 
 | Argument | Meaning |

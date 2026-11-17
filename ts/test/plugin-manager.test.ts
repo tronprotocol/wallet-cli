@@ -99,9 +99,9 @@ async function useStub() {
 }
 
 const installed = async () =>
-  (await cli(["plugin", "list"])).json.data
-    .filter((p: { kind: string }) => p.kind === "installed")
-    .map((p: { name: string; version: string }) => `${p.name}@${p.version}`);
+  (await cli(["plugin", "list"])).json.data.map(
+    (p: { name: string; version: string }) => `${p.name}@${p.version}`,
+  );
 
 describe("plugin install from a registry", () => {
   it("installs by short name after checking integrity, and lists the record", async () => {
@@ -124,7 +124,6 @@ describe("plugin install from a registry", () => {
       apiVersion: 1,
       apiRevision: 1,
       groups: ["qaprobe"],
-      kind: "installed",
       state: "ok",
       source: { type: "registry", spec: PACKAGE, registry },
       integrity: sha512(tarballs.get("1.0.0")!),

@@ -184,7 +184,6 @@ describe("shipped exclusive groups actually render", () => {
   });
 });
 
-// Help text of plugin groups comes from the built-in plugin definitions.
 // A plugin group whose commands serve TRON only, as an installed plugin declares it.
 function withPluginGroup(reg: CommandRegistry): CommandRegistry {
   reg.addGroup({

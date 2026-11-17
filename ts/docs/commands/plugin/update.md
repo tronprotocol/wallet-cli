@@ -19,8 +19,6 @@ Fetches each installed plugin again from the source it was installed from: the r
 
 Without a name every installed plugin is updated. One failure does not stop the others; the command then fails with the first failure's code and reports every plugin in `error.details.results`.
 
-Built-in plugins change only with wallet-cli itself.
-
 ## Arguments
 
 | Argument | Meaning |

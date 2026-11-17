@@ -15,9 +15,8 @@ import {
 } from "../../plugin-api/index.js";
 import type { PluginChainSpec } from "../../plugin-api/cli.js";
 import { hostServices, pluginCommandContext, registerPlugin, type PluginTargets } from "./host.js";
-import { BUILTIN_PLUGINS } from "./builtin.js";
 
-// Built-in plugins read their service credentials when they register.
+// A plugin reads its service credentials when it registers.
 const SERVICES = { config: { credential: () => undefined } } as unknown as HostServices;
 
 const NETWORKS = [
@@ -367,22 +366,6 @@ describe("registerPlugin", () => {
       .families.tron!.run(ctx, {} as NetworkDescriptor, {});
     expect(result).toEqual(CONTEXT_MEMBERS);
   });
-
-  it("registers the built-in plugins", () => {
-    const t = targets();
-    for (const builtin of BUILTIN_PLUGINS) expect(registerPlugin(builtin, t)).toEqual({ ok: true });
-  });
-
-  it.each(BUILTIN_PLUGINS.map((p) => [p.name, p] as const))(
-    "registers the built-in plugin %s with no other plugin registered",
-    (_name, builtin) => {
-      const t = targets();
-      expect(registerPlugin(builtin, t)).toEqual({ ok: true });
-      expect(t.commands.groups().map((g) => g.name)).toEqual(
-        expect.arrayContaining(builtin.groups.map((g) => g.name)),
-      );
-    },
-  );
 });
 
 const CONTEXT_MEMBERS = [

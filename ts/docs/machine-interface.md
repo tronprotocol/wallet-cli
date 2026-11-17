@@ -225,7 +225,7 @@ Common codes at exit **2** (usage — fix the call):
 | `unsupported_network_capability` | The selected network does not offer what this command needs |
 | `limit_exceeded` | A bounded input (file size, list length, page size) was over its limit |
 | `unknown_command` | No such command. The first word may be the command group of a plugin that is not installed — see [plugins](#plugins) |
-| `plugin_conflict` | `plugin install`: a plugin of that name is already installed, or its name or a command group belongs to wallet-cli, a built-in plugin or another installed plugin. `plugin update`: the installed plugin changed while its update was being fetched — run the update again. `plugin remove`: the plugin is built in |
+| `plugin_conflict` | `plugin install`: a plugin of that name is already installed, or its name or a command group belongs to wallet-cli or another installed plugin. `plugin update`: the installed plugin changed while its update was being fetched — run the update again |
 | `plugin_not_installed` | `plugin update` / `plugin remove`: no installed plugin by that name |
 | `output_exists` | Target file already exists and is never overwritten (`backup --out`, `address generate --out`, `tx sign --out`). Deterministic — retrying the same path always fails |
 | `file_not_found` | An input file named by a flag does not exist (`contract deploy --artifact` / `--code-file`, `contract create2 --code-file`) |
@@ -423,7 +423,7 @@ echo "transaction outcome unknown after deadline: $txid" >&2
 exit 1
 ```
 
-4. **Batch operations**: each built-in command is one transaction with one exit code. A plugin command may send several transactions, such as an approval before the call that spends it; the plugin documents how it reports them. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.
+4. **Batch operations**: each core command is one transaction with one exit code. A plugin command may send several transactions, such as an approval before the call that spends it; the plugin documents how it reports them. Stop-on-first-failure is the default safe posture; if you continue, track per-item txids and reconcile with `tx status` before reporting success.
 
 ### `fee` is an estimate
 
@@ -436,9 +436,9 @@ A dry run's `fee` is what the chain's own simulation predicts.
 Some command groups are served by plugins. A plugin is added with [`plugin install`](commands/plugin/install.md) and extends this contract while it is installed:
 
 - **Discovery.** `--json-schema` lists an installed plugin's commands under `commands[]` and its error codes under `errorCodes`, with the same entry shape as any other. A plugin that is not installed contributes nothing; its group word fails with `unknown_command`, and the message names `plugin list` and `plugin install`.
-- **Attribution.** The envelope of a command served by an installed plugin carries `meta.plugin: {"name", "version"}`, on success and on failure. A call that is refused before wallet-cli has resolved the command to a plugin carries none: conflicting stdin options, or a `config.yaml` that cannot be read. Built-in plugins and core commands never carry it.
+- **Attribution.** The envelope of a command served by an installed plugin carries `meta.plugin: {"name", "version"}`, on success and on failure. A call that is refused before wallet-cli has resolved the command to a plugin carries none: conflicting stdin options, or a `config.yaml` that cannot be read. Core commands never carry it.
 - **Same envelope, same exit codes.** A plugin returns data and wallet-cli prints it: one terminal frame, exit `0` / `1` / `2`, `--timeout`, `--wait` / `--no-wait`, `--dry-run` and the [unknown outcome](#unknown-outcome-errordetailsoutcome) rules hold for plugin commands as written here.
-- **Credentials.** A plugin may declare credential keys. While a plugin that declares a key is built in or installed with a readable manifest, [`config`](commands/config.md) lists, reads and writes it like a core credential: from `--api-key-stdin` only, masked in every output, and `insecure_config` when `config.yaml` holding it is not mode `0600`. Without such a plugin the key is unknown to `config` (`invalid_value`) and a value left in `config.yaml` is kept as written.
+- **Credentials.** A plugin may declare credential keys. While a plugin that declares a key is installed with a readable manifest, [`config`](commands/config.md) lists, reads and writes it like a core credential: from `--api-key-stdin` only, masked in every output, and `insecure_config` when `config.yaml` holding it is not mode `0600`. Without such a plugin the key is unknown to `config` (`invalid_value`) and a value left in `config.yaml` is kept as written.
 - **Own codes and fields.** A plugin's error codes, warnings and payload fields are documented by the plugin, not here. Branch on the exit code first; treat a code you do not know as its exit class says.
 - **A plugin that cannot load.** A broken or incompatible plugin affects only its own groups: they fail with `plugin_load_failed` or `plugin_incompatible`, and [`plugin list`](commands/plugin/list.md) reports its `state` and `reason`. This holds while the plugin's installation record can be read. A plugin whose record is unreadable claims no group: `plugin list` shows it as `broken`, its group words fail with `unknown_command`, and its commands and codes are absent from `--json-schema` until it is removed and installed again.
 

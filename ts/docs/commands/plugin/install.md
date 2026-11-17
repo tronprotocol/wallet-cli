@@ -30,7 +30,7 @@ Before anything is published, the package is refused when:
 
 - it has no plugin manifest, or a file is missing or too large (`plugin_invalid`);
 - it was built for a plugin API this wallet-cli does not provide (`plugin_incompatible`);
-- a plugin of that name is already installed, or its name or one of its command groups belongs to wallet-cli, a built-in plugin, or another installed plugin (`plugin_conflict`).
+- a plugin of that name is already installed, or its name or one of its command groups belongs to wallet-cli or another installed plugin (`plugin_conflict`).
 
 A refused or interrupted install leaves the installed plugins as they were.
 

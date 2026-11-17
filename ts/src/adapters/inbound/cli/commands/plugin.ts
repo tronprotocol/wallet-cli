@@ -57,12 +57,11 @@ function formatList(entries: PluginListEntry[]): string {
   const rows = entries.map((e) => [
     e.name,
     e.version ?? "-",
-    e.kind,
     listSource(e.source),
     e.state,
     e.groups.join(", ") || "-",
   ]);
-  const head = ["NAME", "VERSION", "KIND", "SOURCE", "STATE", "COMMANDS"];
+  const head = ["NAME", "VERSION", "SOURCE", "STATE", "COMMANDS"];
   const widths = head.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i]!.length)));
   const line = (cells: string[]) =>
     cells.map((c, i) => (i === cells.length - 1 ? c : c.padEnd(widths[i]!))).join("  ");
@@ -130,9 +129,9 @@ export function registerPluginCommands(registry: CommandRegistry, service: Plugi
     network: "none",
     wallet: "none",
     auth: "none",
-    summary: "List built-in and installed plugins",
+    summary: "List installed plugins",
     description:
-      "List the built-in and installed plugins with their versions, plugin API numbers, command groups and state: ok, incompatible (with the side that needs an update) or broken (with the reason).",
+      "List the installed plugins with their versions, plugin API numbers, command groups and state: ok, incompatible (with the side that needs an update) or broken (with the reason).",
     fields: empty,
     input: empty,
     examples: [{ cmd: "wallet-cli plugin list" }],
@@ -169,8 +168,7 @@ export function registerPluginCommands(registry: CommandRegistry, service: Plugi
     auth: "none",
     positionals: [{ field: "name" }],
     summary: "Remove an installed plugin",
-    description:
-      "Remove an installed plugin and its command groups. Built-in plugins cannot be removed.",
+    description: "Remove an installed plugin and its command groups.",
     fields: removeFields,
     input: removeFields,
     examples: [{ cmd: "wallet-cli plugin remove sunswap" }],

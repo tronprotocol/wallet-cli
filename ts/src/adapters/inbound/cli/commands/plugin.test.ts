@@ -54,18 +54,16 @@ describe("parsePluginSource", () => {
 });
 
 describe("plugin list text", () => {
-  it("shows each plugin's source after its kind and leaves the integrity value to JSON", () => {
+  it("shows each plugin's source after its version and leaves the integrity value to JSON", () => {
     const registry = new CommandRegistry();
     registerPluginCommands(registry, {} as PluginService);
     const list = registry.resolveNeutral(["plugin", "list"])!;
     const text = list.formatText!(
       [
-        { name: "gasfree", version: "1.0.0", groups: ["gasfree"], kind: "builtin", state: "ok" },
         {
           name: "sunswap",
           version: "1.2.0",
           groups: ["sunswap"],
-          kind: "installed",
           state: "ok",
           source: {
             type: "registry",
@@ -78,7 +76,6 @@ describe("plugin list text", () => {
           name: "qaprobe",
           version: "0.1.0",
           groups: ["qaprobe"],
-          kind: "installed",
           state: "ok",
           source: { type: "directory", path: "/p/qaprobe" },
         },
@@ -86,7 +83,6 @@ describe("plugin list text", () => {
           name: "demo",
           version: "2.0.0",
           groups: ["demo"],
-          kind: "installed",
           state: "ok",
           source: { type: "archive", path: "/p/demo-2.0.0.tgz" },
         },
@@ -94,11 +90,10 @@ describe("plugin list text", () => {
       {} as never,
     );
     expect((text as string).split("\n")).toEqual([
-      "NAME     VERSION  KIND       SOURCE                                   STATE  COMMANDS",
-      "gasfree  1.0.0    builtin    -                                        ok     gasfree",
-      "sunswap  1.2.0    installed  registry @tron-walletcli/plugin-sunswap  ok     sunswap",
-      "qaprobe  0.1.0    installed  directory /p/qaprobe                     ok     qaprobe",
-      "demo     2.0.0    installed  archive /p/demo-2.0.0.tgz                ok     demo",
+      "NAME     VERSION  SOURCE                                   STATE  COMMANDS",
+      "sunswap  1.2.0    registry @tron-walletcli/plugin-sunswap  ok     sunswap",
+      "qaprobe  0.1.0    directory /p/qaprobe                     ok     qaprobe",
+      "demo     2.0.0    archive /p/demo-2.0.0.tgz                ok     demo",
     ]);
     expect(text).not.toContain("sha512");
   });

@@ -32,22 +32,10 @@ export type PluginInstallSource =
   | { readonly type: "directory"; readonly path: string }
   | { readonly type: "archive"; readonly path: string };
 
-// A plugin that ships with wallet-cli.
-export interface BuiltinPluginInfo {
-  readonly name: string;
-  readonly version: string;
-  readonly apiVersion: number;
-  readonly apiRevision: number;
-  readonly groups: readonly string[];
-  // Why the plugin could not be registered in this process; absent when it was.
-  readonly failure?: string;
-}
-
 export type PluginLoadState =
   { readonly state: "ok" } | { readonly state: "incompatible" | "broken"; readonly reason: string };
 
 export interface PluginEnvironment {
-  readonly builtins: readonly BuiltinPluginInfo[];
   // Top-level words of core commands, family names and other words the core keeps.
   readonly reservedWords: ReadonlySet<string>;
   // Whether each installed plugin could be loaded in this process.
@@ -60,7 +48,6 @@ export interface PluginListEntry {
   readonly apiVersion?: number;
   readonly apiRevision?: number;
   readonly groups: readonly string[];
-  readonly kind: "builtin" | "installed";
   readonly state: "ok" | "incompatible" | "broken";
   readonly reason?: string;
   readonly source?: PluginSourceRecord;
@@ -120,18 +107,7 @@ export class PluginService {
   ) {}
 
   list(): PluginListEntry[] {
-    const builtins: PluginListEntry[] = this.env.builtins.map((b) => ({
-      name: b.name,
-      version: b.version,
-      apiVersion: b.apiVersion,
-      apiRevision: b.apiRevision,
-      groups: b.groups,
-      kind: "builtin",
-      ...(b.failure === undefined
-        ? { state: "ok" as const }
-        : { state: "broken" as const, reason: b.failure }),
-    }));
-    const installed = this.store
+    return this.store
       .list()
       .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
       .map((stored): PluginListEntry => {
@@ -139,7 +115,6 @@ export class PluginService {
           return {
             name: stored.name,
             groups: [],
-            kind: "installed",
             state: "broken",
             reason: stored.reason,
           };
@@ -152,7 +127,6 @@ export class PluginService {
           apiVersion: p.apiVersion,
           apiRevision: p.apiRevision,
           groups: p.groups.map((g) => g.name),
-          kind: "installed",
           state: load.state,
           ...(load.state === "ok" ? {} : { reason: load.reason }),
           source: p.source,
@@ -160,7 +134,6 @@ export class PluginService {
           installedAt: p.installedAt,
         };
       });
-    return [...builtins, ...installed];
   }
 
   async install(
@@ -239,7 +212,6 @@ export class PluginService {
   }
 
   remove(name: string): PluginRemoveResult {
-    this.#refuseBuiltin(name);
     return this.store.update(name, (installed) => {
       const stored = installed.find((s) => nameOf(s) === name);
       if (stored === undefined) throw notInstalled(name);
@@ -255,7 +227,6 @@ export class PluginService {
   }
 
   #installed(name: string): InstalledPlugin {
-    this.#refuseBuiltin(name);
     const stored = this.store.list().find((s) => nameOf(s) === name);
     if (stored === undefined) throw notInstalled(name);
     if (stored.state === "unreadable") {
@@ -341,14 +312,8 @@ export class PluginService {
     const manifest = parsePluginManifest(pkg.packageJson);
     const compatibility = pluginCompatibility(manifest.apiVersion, manifest.apiRevision);
     if (!compatibility.compatible) throw incompatiblePlugin(manifest.name, compatibility);
-    const reserved = (word: string) =>
-      this.env.reservedWords.has(word) ||
-      this.env.builtins.some((b) => b.name === word || b.groups.includes(word));
-    if (this.env.builtins.some((b) => b.name === manifest.name)) {
-      throw pluginConflict(`plugin name ${manifest.name} belongs to a built-in plugin`);
-    }
     for (const group of manifest.groups) {
-      if (reserved(group.name)) {
+      if (this.env.reservedWords.has(group.name)) {
         throw pluginConflict(
           `command group "${group.name}" of plugin ${manifest.name} is reserved by wallet-cli`,
         );
@@ -377,14 +342,6 @@ export class PluginService {
       entrySha256: digest(entry),
       installedAt: new Date(this.clock()).toISOString(),
     };
-  }
-
-  #refuseBuiltin(name: string): void {
-    if (this.env.builtins.some((b) => b.name === name)) {
-      throw pluginConflict(
-        `plugin ${name} is built into wallet-cli and changes only with wallet-cli itself`,
-      );
-    }
   }
 }
 

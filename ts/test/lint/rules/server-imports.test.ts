@@ -71,7 +71,7 @@ describe("server imports", () => {
   it.each([
     "src/adapters/inbound/server.ts",
     "src/adapters/inbound/http/server.ts",
-    "src/adapters/outbound/x402/server.test.ts",
+    "src/adapters/outbound/pricing/server.test.ts",
     "src/application/services/server.test.ts",
     "src/domain/server.test.ts",
     "src/bootstrap/server.test.ts",
@@ -89,7 +89,7 @@ describe("server imports", () => {
   it.each([
     "src/adapters/inbound-other/server.ts",
     "src/adapters/outbound/inbound/server.ts",
-    "src/adapters/outbound/x402/server.ts",
+    "src/adapters/outbound/pricing/server.ts",
     "src/application/services/server.ts",
     "src/domain/server.ts",
     "src/bootstrap/server.ts",
