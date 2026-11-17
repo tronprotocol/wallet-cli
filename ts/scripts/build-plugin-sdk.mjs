@@ -25,6 +25,10 @@ await build({
   target: "node22",
   outExtension: () => ({ js: ".mjs" }),
   noExternal: [/.*/],
+  // Inlined CommonJS packages call require for Node's own modules, which an ES module does not have.
+  banner: {
+    js: 'import { createRequire as sdkCreateRequire } from "node:module";\nconst require = sdkCreateRequire(import.meta.url);',
+  },
   tsconfig: "tsconfig.json",
   silent: true,
 });
