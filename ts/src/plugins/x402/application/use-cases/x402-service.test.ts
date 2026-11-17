@@ -6,8 +6,7 @@ import { X402Service } from "./x402-service.js";
 import type { ProviderCatalogPort } from "../ports/provider-catalog.js";
 import type { X402Inspection, X402PaidResult } from "../ports/x402-payment.js";
 import type { X402ServeDetails } from "../ports/x402-server.js";
-import { ExecutionError, WalletError } from "../../../../domain/errors/index.js";
-import { BaiRechargeFlow } from "../../../bai/application/use-cases/bai-recharge-flow.js";
+import { WalletError } from "../../../../domain/errors/index.js";
 import { processBroadcastGuard } from "../../../../application/services/broadcast-guard.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
@@ -318,44 +317,6 @@ describe("roundtrip failures before the payment request", () => {
     port: 0,
     facilitatorUrl: "https://facilitator.example",
   };
-  const recharge = (service: X402Service) =>
-    new BaiRechargeFlow(
-      { createOrder: async () => ({ orderId: "order-1" }), reportTxHash: vi.fn() },
-      {
-        pay: async () => {
-          await service.roundtrip(scope, network, roundtripInput);
-          throw new Error("unreachable");
-        },
-      },
-    ).execute(NO_DEADLINE, {
-      channel: "crypto",
-      chain: "bnb",
-      tokenName: "USDT",
-      amount: "10",
-      walletAddress: "payer",
-      deviceType: "web",
-    } as never);
-
-  it.each([
-    ["a port in use", new ExecutionError("port_in_use", "in use"), "port_in_use"],
-    ["an unclassified error", new Error("EACCES"), "internal_error"],
-    ["a deadline refusal", new DeadlineExpiredError(), "timeout"],
-  ])("reports a paywall host start failure (%s) as not sent", async (_case, failure, code) => {
-    const f = fixture();
-    f.start.mockRejectedValueOnce(failure);
-    const error = (await recharge(f.service).catch((e: unknown) => e)) as {
-      code: string;
-      details: object;
-    };
-    expect(error).toMatchObject({
-      code,
-      details: { paymentStatus: "not_sent", retryPayment: false, orderId: "order-1" },
-    });
-    expect(error.details).not.toHaveProperty("outcome");
-    expect(error instanceof DeadlineExpiredError).toBe(failure instanceof DeadlineExpiredError);
-    expect(f.request).not.toHaveBeenCalled();
-  });
-
   it("reports a limit check failure before the paid request as not sent", async () => {
     const f = fixture();
     f.facts.mockReturnValue({ tokenDecimals: () => 18 });

@@ -1,16 +1,13 @@
 import { processBroadcastGuard } from "../../../../application/services/broadcast-guard.js";
 import { PluginSigning } from "../../../../application/services/plugins/plugin-signing.js";
-import { X402FacilitatorClient } from "../../../x402/adapters/outbound/x402/facilitator-client.js";
-import { X402PaywallHttpServer } from "../../../x402/adapters/inbound/http/paywall-server.js";
-import { paywallTerms } from "../../../x402/application/use-cases/x402-paywall.js";
+import { X402FacilitatorClient } from "../../adapters/outbound/x402/facilitator-client.js";
+import { X402PaywallHttpServer } from "../../adapters/inbound/http/paywall-server.js";
+import { paywallTerms } from "./x402-paywall.js";
 import { expect, it, vi } from "vitest";
 import { BaiService } from "./bai-service.js";
 import type { BaiApi } from "../ports/bai-api.js";
-import type {
-  X402PaymentResult,
-  X402ResponseResult,
-} from "../../../x402/application/ports/x402-payment.js";
-import type { X402ServeDetails } from "../../../x402/application/ports/x402-server.js";
+import type { X402PaymentResult, X402ResponseResult } from "../ports/x402-payment.js";
+import type { X402ServeDetails } from "../ports/x402-server.js";
 import type { BaiRawOrder } from "../ports/bai-recharge.js";
 import { CommandDeadline } from "../../../../application/services/command-deadline.js";
 
@@ -202,9 +199,8 @@ it.each([
 );
 
 it("previews a recipient recharge without creating an order or obtaining any signature", async () => {
-  const { X402Service } = await import("../../../x402/application/use-cases/x402-service.js");
-  const { X402PaymentClient } =
-    await import("../../../x402/adapters/outbound/x402/payment-client.js");
+  const { X402Service } = await import("./x402-service.js");
+  const { X402PaymentClient } = await import("../../adapters/outbound/x402/payment-client.js");
   const signing = {
     assertCanSign: vi.fn(),
     resolve: vi.fn(() => {
@@ -299,9 +295,8 @@ it("reports account ambiguity before checking binding or contacting B.AI", async
 });
 
 it("checks relay configuration before creating any preorder", async () => {
-  const { X402Service } = await import("../../../x402/application/use-cases/x402-service.js");
-  const { X402PaymentClient } =
-    await import("../../../x402/adapters/outbound/x402/payment-client.js");
+  const { X402Service } = await import("./x402-service.js");
+  const { X402PaymentClient } = await import("../../adapters/outbound/x402/payment-client.js");
   const api = { createOrder: vi.fn(), reportTxHash: vi.fn() };
   const payments = new X402Service(
     new X402PaymentClient(),
@@ -484,7 +479,7 @@ it("previews an unbound wallet with a warning without unlocking, signing, bindin
 it.each([false, true])(
   "runs application signer preparation before binding and preorder (failure=%s)",
   async (failure) => {
-    const { X402Service } = await import("../../../x402/application/use-cases/x402-service.js");
+    const { X402Service } = await import("./x402-service.js");
     const { WalletError } = await import("../../../../domain/errors/index.js");
     const f = liveBindingFixture();
     const prepare = vi.fn(() => {

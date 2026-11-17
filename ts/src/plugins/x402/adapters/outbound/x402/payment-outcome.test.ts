@@ -1,7 +1,6 @@
 import { processBroadcastGuard } from "../../../../../application/services/broadcast-guard.js";
 import { PluginSigning } from "../../../../../application/services/plugins/plugin-signing.js";
 import { X402Service } from "../../../application/use-cases/x402-service.js";
-import { BaiRechargeFlow } from "../../../../bai/application/use-cases/bai-recharge-flow.js";
 import { afterEach, expect, it } from "vitest";
 import { Wallet } from "ethers";
 import { X402PaymentClient } from "./payment-client.js";
@@ -123,42 +122,6 @@ it("reports a paid request the deadline refuses before dispatch as not sent", as
   const error = (await pay().catch((e: unknown) => e)) as { code: string; details: object };
   expect(sent.paidRequests).toBe(0);
   expect(error).toMatchObject({ code: "timeout", details: { paymentStatus: "not_sent" } });
-  expect(error).toBeInstanceOf(DeadlineExpiredError);
-  expect(error.details).not.toHaveProperty("outcome");
-});
-
-it("keeps a B.AI recharge whose payment was refused before dispatch free of an unknown outcome", async () => {
-  // Signing leaves 1500 ms, below what the submit check admits.
-  const { sent, pay } = fixture(
-    async () => new Response("unreachable"),
-    (now) => {
-      now.ms = 8_500;
-    },
-  );
-  const flow = new BaiRechargeFlow(
-    {
-      createOrder: async () => ({ orderId: "order-1" }),
-      reportTxHash: async () => {
-        throw new Error("must not report");
-      },
-    },
-    { pay } as never,
-  );
-  const error = (await flow
-    .execute(deadline, {
-      channel: "crypto",
-      chain: "base",
-      tokenName: "USDC",
-      amount: "1",
-      walletAddress: "0x1111111111111111111111111111111111111111",
-      deviceType: "web",
-    } as never)
-    .catch((e: unknown) => e)) as { code: string; details: object };
-  expect(sent.paidRequests).toBe(0);
-  expect(error).toMatchObject({
-    code: "timeout",
-    details: { paymentStatus: "not_sent", orderId: "order-1" },
-  });
   expect(error).toBeInstanceOf(DeadlineExpiredError);
   expect(error.details).not.toHaveProperty("outcome");
 });

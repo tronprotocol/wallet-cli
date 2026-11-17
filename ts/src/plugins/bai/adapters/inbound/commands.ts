@@ -4,7 +4,7 @@ import {
   assertBaiRechargePrecision,
   baiRechargeAmount,
 } from "../../domain/recharge-policy.js";
-import { integerLiteral, rawPaymentAmount, paymentAmount } from "../../../x402/api.js";
+import { integerLiteral, rawPaymentAmount, paymentAmount } from "./payment-values.js";
 import { z } from "../../../../plugin-api/cli.js";
 import {
   FollowUpTable,

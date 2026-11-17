@@ -8,7 +8,6 @@ import type { ProviderCatalogPort } from "../../../application/ports/provider-ca
 import { X402PaymentClient } from "./payment-client.js";
 import { X402FacilitatorClient } from "./facilitator-client.js";
 import { X402PaywallHttpServer } from "../../inbound/http/paywall-server.js";
-import { baiPaymentResult } from "../../../../bai/application/services/bai-payment-result.js";
 import { SigningService } from "../../../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../../../../../adapters/outbound/chain/evm/evm.js";
 import { CommandDeadline } from "../../../../../application/services/command-deadline.js";
@@ -91,10 +90,6 @@ it.each([
     );
     expect(new URL(String(result.serve.payUrl)).port).not.toBe("0");
     expect(result.settlement).toEqual({ success: true, transaction, network: id, payer });
-    expect(baiPaymentResult({ ...result.pay, settlement: result.settlement }, id)).toEqual({
-      txHash: transaction,
-      payer,
-    });
     expect(result.pay).not.toHaveProperty("settlement");
     expect(signTypedData).toHaveBeenCalledOnce();
     expect(facilitator).toHaveBeenCalledTimes(2);

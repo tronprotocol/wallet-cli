@@ -1,7 +1,7 @@
 import { CHAIN_FAMILIES, isTxHash, sameAddress } from "../../../../plugin-api/domain.js";
 import { TransportError } from "../../../../plugin-api/domain.js";
-import { sameX402Network, x402NetworkFamily } from "../../../x402/api.js";
-import type { X402ResponseResult } from "../../../x402/api.js";
+import { sameX402Network, x402NetworkFamily } from "../../domain/network-id.js";
+import type { X402ResponseResult } from "../ports/x402-payment.js";
 
 /** Only a successful x402 settlement can be reported to B.AI as a payment. */
 export function baiPaymentResult(

@@ -19,7 +19,7 @@ import {
   assertBaiRechargePrecision,
   baiRechargeAmount,
 } from "../../domain/recharge-policy.js";
-import type { X402RoundtripPort, X402ServeInput } from "../../../x402/api.js";
+import type { X402RoundtripPort, X402ServeInput } from "../ports/x402-server.js";
 import { baiPaymentResult } from "../services/bai-payment-result.js";
 import type { TransactionScope } from "../../../../plugin-api/application.js";
 import type { NetworkDescriptor } from "../../../../plugin-api/domain.js";
