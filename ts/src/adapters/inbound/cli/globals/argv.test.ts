@@ -73,7 +73,7 @@ describe("parseGlobals", () => {
   });
 
   it("maps --api-key-stdin to the configuration secret channel", () => {
-    const { secretPaths, stdinFlags } = parseGlobals(["config", "baiApiKey", "--api-key-stdin"]);
+    const { secretPaths, stdinFlags } = parseGlobals(["config", "demoApiKey", "--api-key-stdin"]);
     expect(secretPaths.apiKey).toBe("-");
     expect(stdinFlags).toEqual(["--api-key-stdin"]);
   });
