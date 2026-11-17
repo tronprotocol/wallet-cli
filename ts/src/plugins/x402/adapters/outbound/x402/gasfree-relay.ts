@@ -17,7 +17,7 @@ import { fetchBounded } from "../../../../../plugin-api/http.js";
 import { rateLimitDetails } from "../../../../../plugin-api/http.js";
 import { X402_FAMILIES } from "../../../domain/families.js";
 
-// Where the GasFree Open API of a network is, when it has one; the GasFree plugin decides.
+// Where the GasFree Open API of a network is, when it has one.
 export type GasFreeOpenApiLocator = (
   network: NetworkDescriptor,
 ) => { readonly baseUrl: string; readonly apiPrefix: string } | null | undefined;

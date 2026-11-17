@@ -372,6 +372,17 @@ describe("registerPlugin", () => {
     const t = targets();
     for (const builtin of BUILTIN_PLUGINS) expect(registerPlugin(builtin, t)).toEqual({ ok: true });
   });
+
+  it.each(BUILTIN_PLUGINS.map((p) => [p.name, p] as const))(
+    "registers the built-in plugin %s with no other plugin registered",
+    (_name, builtin) => {
+      const t = targets();
+      expect(registerPlugin(builtin, t)).toEqual({ ok: true });
+      expect(t.commands.groups().map((g) => g.name)).toEqual(
+        expect.arrayContaining(builtin.groups.map((g) => g.name)),
+      );
+    },
+  );
 });
 
 const CONTEXT_MEMBERS = [

@@ -65,3 +65,12 @@ export const X402_ERROR_CODES = {
     meaning: "the provider catalog schema version is unsupported",
   },
 } as const satisfies Readonly<Record<string, ErrorCodeEntry>>;
+
+// Raised by the GasFree relay; the same entry as the GasFree plugin's.
+export const X402_GASFREE_ERROR_CODES = {
+  gasfree_credentials_missing: {
+    exit: 2,
+    retry: "never",
+    meaning: "no GasFree credentials are configured",
+  },
+} as const satisfies Readonly<Record<string, ErrorCodeEntry>>;
