@@ -37,7 +37,6 @@ function targets(): PluginTargets & {
     followUps: new FollowUpTable(),
     networks: NETWORKS,
     services: SERVICES,
-    timeoutMs: 0,
   };
 }
 
@@ -376,7 +375,6 @@ const CONTEXT_MEMBERS = [
   "emit",
   "warn",
   "output",
-  "timeoutMs",
   "readStdinBytes",
   "log",
 ];
@@ -419,17 +417,16 @@ function reachable(value: object): string[] {
 
 describe("objects handed to a plugin", () => {
   it("give the command context exactly its documented members", async () => {
-    const ctx = pluginCommandContext(executionContext(), 5000);
+    const ctx = pluginCommandContext(executionContext());
     expect(reachable(ctx)).toEqual(CONTEXT_MEMBERS);
     expect(reachable(ctx.deadline)).toEqual(["signal", "remainingMs", "expired", "assertActive"]);
     expect(reachable(ctx.log)).toEqual(["line", "diagnostic"]);
     expect(Object.isFrozen(ctx)).toBe(true);
-    expect(ctx.timeoutMs).toBe(5000);
     expect(await ctx.readStdinBytes()).toEqual(new Uint8Array([1]));
   });
 
   it("refuse stdin when a secret was given on it", async () => {
-    const ctx = pluginCommandContext(executionContext(["password"]), 0);
+    const ctx = pluginCommandContext(executionContext(["password"]));
     await expect(ctx.readStdinBytes()).rejects.toMatchObject({
       code: "invalid_option",
       message: "stdin is already used by --password-stdin",

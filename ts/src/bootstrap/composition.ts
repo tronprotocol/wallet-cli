@@ -234,7 +234,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     followUps,
     networks: Object.values(config.networks),
     services,
-    timeoutMs,
   };
   // Installed plugins may not take a word that core commands or families use.
   const reservedWords = new Set([

@@ -77,7 +77,6 @@ function setup(stored: StoredPlugin[], services = {} as HostServices) {
     followUps: new FollowUpTable(),
     networks: [],
     services,
-    timeoutMs: 0,
   };
   const importer = vi.fn((url: string) => import(url));
   const loader = new PluginLoader({ list: () => stored }, targets, importer);

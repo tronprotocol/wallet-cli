@@ -145,7 +145,6 @@ describe("an installed plugin", () => {
         "output",
         "readStdinBytes",
         "resolveAddress",
-        "timeoutMs",
         "wait",
         "warn",
       ],

@@ -8,8 +8,6 @@ export type DiagnosticLevel = "info" | "debug" | "warn";
 // What a plugin command receives; it carries no secret, stream or prompt.
 export interface PluginCommandContext extends TransactionScope {
   readonly output: OutputMode;
-  // The command's time limit as resolved at start; 0 means none.
-  readonly timeoutMs: number;
   // The non-secret stdin payload, read once; refused when stdin carries a secret. `input` names the
   // option that reads stdin in that refusal.
   readStdinBytes(input?: string): Promise<Uint8Array>;

@@ -178,10 +178,7 @@ function deadlineFacade(deadline: ExecutionDeadline): ExecutionDeadline {
   });
 }
 
-export function pluginCommandContext(
-  ctx: ExecutionContext,
-  timeoutMs: number,
-): PluginCommandContext {
+export function pluginCommandContext(ctx: ExecutionContext): PluginCommandContext {
   return facade<PluginCommandContext>({
     deadline: deadlineFacade(ctx.deadline),
     get activeAccount() {
@@ -192,7 +189,6 @@ export function pluginCommandContext(
     emit: (event) => ctx.emit(event),
     warn: (message) => ctx.warn(message),
     output: ctx.output,
-    timeoutMs,
     // Refused before reading, so a secret on stdin is never handed to the plugin.
     readStdinBytes: async (input?: string) => {
       const claimed = SECRET_KINDS.find((kind) => ctx.secrets.has(kind));
@@ -223,8 +219,6 @@ export interface PluginTargets {
   // Every configured network; a plugin's predicates are evaluated on each before it is published.
   readonly networks: readonly NetworkDescriptor[];
   readonly services: HostServices;
-  // The command's resolved time limit, handed to plugin commands; 0 means none.
-  readonly timeoutMs: number;
 }
 
 export type PluginRegistration =
@@ -362,7 +356,7 @@ function stage(
   const run =
     <I, O>(handler: (ctx: PluginCommandContext, net: any, input: I) => Promise<O>) =>
     (ctx: ExecutionContext, net: any, input: I) =>
-      handler(pluginCommandContext(ctx, targets.timeoutMs), net, input);
+      handler(pluginCommandContext(ctx), net, input);
 
   // Rejects duplicate paths within the plugin before anything is published.
   const scratch = new CommandRegistry();
