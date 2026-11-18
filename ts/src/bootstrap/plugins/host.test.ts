@@ -3,7 +3,6 @@ import { z } from "zod";
 import { CommandRegistry } from "../../adapters/inbound/cli/registry/index.js";
 import { CapabilityRegistry } from "../../application/services/capability/index.js";
 import { errorCodeEntry, ErrorCodeTable } from "../../domain/errors/codes.js";
-import { FollowUpTable } from "../../adapters/inbound/cli/output/errors.js";
 import type { ExecutionContext } from "../../adapters/inbound/cli/contracts/index.js";
 import type { NetworkDescriptor } from "../../domain/types/index.js";
 import {
@@ -34,7 +33,6 @@ function targets(): PluginTargets & {
     commands,
     capabilities: new CapabilityRegistry(),
     errorCodes: new ErrorCodeTable(),
-    followUps: new FollowUpTable(),
     networks: NETWORKS,
     services: SERVICES,
   };
@@ -47,7 +45,6 @@ function contents(t: PluginTargets & { capabilities: CapabilityRegistry }) {
     groups: t.commands.groups().map((g) => g.name),
     codes: Object.keys(t.errorCodes.table()).length,
     predicate: t.capabilities.hasPredicate("demo.read"),
-    followUp: t.followUps.spelling("demo-show"),
   };
 }
 
@@ -85,7 +82,6 @@ describe("registerPlugin", () => {
         host.chainCommand(spec(["demo", "show"]), "tron", { run });
         host.errorCodes({ demo_publish_failed: ENTRY });
         host.capabilities({ "demo.read": () => "unsupported" });
-        host.followUps({ "demo-show": () => "demo show" });
       }),
       t,
     );
@@ -96,7 +92,6 @@ describe("registerPlugin", () => {
     expect(Object.keys(t.errorCodes.table()).at(-1)).toBe("demo_publish_failed");
     expect(errorCodeEntry("demo_publish_failed")).toBeUndefined();
     expect(t.capabilities.hasPredicate("demo.read")).toBe(true);
-    expect(t.followUps.spelling("demo-show")?.(undefined)).toBe("demo show");
   });
 
   it("refuses a command outside the plugin's groups", () => {
@@ -179,7 +174,6 @@ describe("registerPlugin", () => {
         host.chainCommand(spec(["demo", "show"]), "tron", { run });
         host.errorCodes({ demo_partial_failed: ENTRY });
         host.capabilities({ "demo.partial": () => "supported" });
-        host.followUps({ "demo-partial": () => "demo show" });
         throw new Error("register failed");
       }),
       t,
@@ -189,7 +183,6 @@ describe("registerPlugin", () => {
     expect(t.commands.groups()).toEqual([]);
     expect(t.errorCodes.entry("demo_partial_failed")).toBeUndefined();
     expect(t.capabilities.hasPredicate("demo.partial")).toBe(false);
-    expect(t.followUps.spelling("demo-partial")).toBeUndefined();
   });
 
   it("fails a plugin that catches a refused declaration, and stages no part of a refused batch", () => {
@@ -198,7 +191,7 @@ describe("registerPlugin", () => {
     const result = registerPlugin(
       plugin((host) => {
         host.chainCommand(spec(["demo", "show"]), "tron", { run });
-        host.followUps({ "demo-show": () => "demo show" });
+        host.capabilities({ "demo.read": () => "supported" });
         try {
           host.errorCodes({ demo_caught: ENTRY, timeout: { ...ENTRY } });
         } catch {
@@ -253,7 +246,7 @@ describe("registerPlugin", () => {
     const before = contents(t);
     const result = registerPlugin(
       plugin((host) => {
-        host.followUps({ "demo-show": () => "demo show" });
+        host.errorCodes({ demo_refused: ENTRY });
         host.command({ path: ["demo", "show"], examples: [], run } as never);
       }),
       // Taken words are checked against the group; the command path is only found by the target.
@@ -304,19 +297,14 @@ describe("registerPlugin", () => {
     expect(t.capabilities.support("tron:1", "demo.read")).toBe("needs-inputs");
   });
 
-  it("keeps each runtime's codes and follow-ups to itself", () => {
-    const declare = () =>
-      plugin((host) => {
-        host.errorCodes({ demo_runtime: ENTRY });
-        host.followUps({ "demo-show": () => "demo show" });
-      });
+  it("keeps each runtime's codes to itself", () => {
+    const declare = () => plugin((host) => host.errorCodes({ demo_runtime: ENTRY }));
     const a = targets();
     const b = targets();
     expect(registerPlugin(declare(), a)).toEqual({ ok: true });
     expect(b.errorCodes.entry("demo_runtime")).toBeUndefined();
-    expect(b.followUps.spelling("demo-show")).toBeUndefined();
     expect(registerPlugin(declare(), b)).toEqual({ ok: true });
-    expect(b.followUps.spelling("demo-show")?.(undefined)).toBe("demo show");
+    expect(b.errorCodes.entry("demo_runtime")).toEqual(ENTRY);
   });
 
   it("refuses wallet-management fields, unsupported API numbers and late declarations", () => {
@@ -566,14 +554,7 @@ describe("objects handed to a plugin", () => {
       plugin((host) => (members = reachable(host))),
       targets(),
     );
-    expect(members).toEqual([
-      "services",
-      "command",
-      "chainCommand",
-      "errorCodes",
-      "capabilities",
-      "followUps",
-    ]);
+    expect(members).toEqual(["services", "command", "chainCommand", "errorCodes", "capabilities"]);
   });
 });
 

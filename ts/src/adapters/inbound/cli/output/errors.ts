@@ -26,48 +26,19 @@ const FOLLOW_UP_COMMANDS: Record<FollowUp, (subject: string | undefined) => stri
     contract === undefined ? "wallet-cli token add" : `wallet-cli token add --contract ${contract}`,
 };
 
-type Spelling = (subject: string | undefined) => string;
-
-export function followUpSpelling(step: string): Spelling | undefined {
-  return Object.hasOwn(FOLLOW_UP_COMMANDS, step) ? FOLLOW_UP_COMMANDS[step as FollowUp] : undefined;
-}
-
-// The core follow-up steps plus the steps the plugins of one runtime registered.
-export class FollowUpTable {
-  readonly #registered = new Map<string, Spelling>();
-
-  spelling(step: string): Spelling | undefined {
-    return followUpSpelling(step) ?? this.#registered.get(step);
-  }
-
-  // A step that already has a spelling keeps it.
-  register(steps: Readonly<Record<string, (subject?: string) => string>>): void {
-    for (const [step, spell] of Object.entries(steps)) {
-      if (this.spelling(step) === undefined) this.#registered.set(step, spell);
-    }
-  }
-}
-
-const CORE_FOLLOW_UPS = new FollowUpTable();
-
 export function flagFor(field: string): string {
   const global = GLOBAL_FLAG_SPECS.find((spec) => spec.field === field);
   return `--${global ? global.name : camelToKebab(field)}`;
 }
 
 // The message as the CLI shows it: JSON keeps raw values, text escapes them.
-export function cliMessage(
-  message: UserMessage,
-  followUps: FollowUpTable = CORE_FOLLOW_UPS,
-): { message: string; textMessage: string } {
+export function cliMessage(message: UserMessage): { message: string; textMessage: string } {
   if (message.parts === undefined || message.parts.length === 0) {
     return { message: message.message, textMessage: message.textMessage };
   }
   const spell = (ref: InputRef | FollowUpRef): string => {
     if ("input" in ref) return flagFor(ref.input);
-    const spelling = followUps.spelling(ref.followUp);
-    if (spelling) return spelling(ref.subject);
-    return ref.subject === undefined ? ref.followUp : `${ref.followUp} ${ref.subject}`;
+    return FOLLOW_UP_COMMANDS[ref.followUp](ref.subject);
   };
   return {
     message: renderMessageParts(message.parts, spell, false),
@@ -75,11 +46,8 @@ export function cliMessage(
   };
 }
 
-export function errorEnvelope(
-  err: CliError,
-  followUps?: FollowUpTable,
-): { code: string; message: string; details?: object } {
-  const { message } = cliMessage(err.userMessage, followUps);
+export function errorEnvelope(err: CliError): { code: string; message: string; details?: object } {
+  const { message } = cliMessage(err.userMessage);
   return err.details === undefined
     ? { code: err.code, message }
     : { code: err.code, message, details: err.details };

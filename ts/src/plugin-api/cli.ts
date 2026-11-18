@@ -39,7 +39,7 @@ export {
 } from "../adapters/inbound/cli/render/family.js";
 export { structuredText } from "../adapters/inbound/cli/render/structured.js";
 export { formatFee, TxFormatters } from "../adapters/inbound/cli/render/tx.js";
-export { cliMessage, exitCodeOf, FollowUpTable } from "../adapters/inbound/cli/output/errors.js";
+export { exitCodeOf } from "../adapters/inbound/cli/output/errors.js";
 export { addressFieldsFor, Schemas } from "../adapters/inbound/cli/schemas/index.js";
 export { tronExpirationRefine } from "../adapters/inbound/cli/commands/shared.js";
 export {

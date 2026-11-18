@@ -2,18 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   ChainError,
   errorMessage,
-  followUpStep,
+  followUp,
   inputRef,
   UsageError,
 } from "../../../../domain/errors/index.js";
-import {
-  cliMessage,
-  errorEnvelope,
-  exitCodeOf,
-  flagFor,
-  normalizeCliError,
-  FollowUpTable,
-} from "./errors.js";
+import { cliMessage, errorEnvelope, exitCodeOf, flagFor, normalizeCliError } from "./errors.js";
 import { assertPositiveAmount } from "../../../../domain/amounts/index.js";
 import {
   normalizeTokenId,
@@ -31,20 +24,16 @@ describe("CLI error projection", () => {
   });
 
   it("renders references in the envelope and the text message", () => {
-    const followUps = new FollowUpTable();
-    followUps.register({
-      "demo-trace": (id) => (id === undefined ? "demo trace" : `demo trace ${id}`),
-    });
     const error = new UsageError(
       "invalid_option",
-      errorMessage`${inputRef("tickSpacing")} is wrong for ${"a\nb"}; see ${followUpStep("demo-trace", "t1")}`,
+      errorMessage`${inputRef("tickSpacing")} is wrong for ${"a\nb"}; see ${followUp("asset-info", "t1")}`,
     );
-    expect(errorEnvelope(error, followUps)).toEqual({
+    expect(errorEnvelope(error)).toEqual({
       code: "invalid_option",
-      message: "--tick-spacing is wrong for a\nb; see demo trace t1",
+      message: "--tick-spacing is wrong for a\nb; see asset info t1",
     });
-    expect(cliMessage(error.userMessage, followUps).textMessage).toBe(
-      "--tick-spacing is wrong for a\\nb; see demo trace t1",
+    expect(cliMessage(error.userMessage).textMessage).toBe(
+      "--tick-spacing is wrong for a\\nb; see asset info t1",
     );
   });
 

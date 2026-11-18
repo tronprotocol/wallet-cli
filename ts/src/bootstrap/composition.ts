@@ -23,7 +23,6 @@ import { SecretResolver, type SecretPaths } from "../adapters/inbound/cli/input/
 import { createPrompter } from "../adapters/inbound/cli/input/prompt/index.js";
 import { CommandRegistry } from "../adapters/inbound/cli/registry/index.js";
 import { createOutputFormatter } from "../adapters/inbound/cli/output/index.js";
-import { FollowUpTable } from "../adapters/inbound/cli/output/errors.js";
 import { ErrorCodeTable } from "../domain/errors/codes.js";
 import { registerWalletCommands } from "../adapters/inbound/cli/commands/wallet.js";
 import { registerConfigCommands } from "../adapters/inbound/cli/commands/config.js";
@@ -127,10 +126,9 @@ export function composeCliRuntime(options: BootstrapOptions) {
     undefined,
     configuredCredentials(config),
   );
-  // What plugins add to these tables belongs to this runtime only.
+  // What plugins add to this table belongs to this runtime only.
   const errorCodes = new ErrorCodeTable();
-  const followUps = new FollowUpTable();
-  const formatter = createOutputFormatter(output, streams, options.startedAt, followUps);
+  const formatter = createOutputFormatter(output, streams, options.startedAt);
 
   const store = new AtomicFileStore(deadline);
   const configService = new ConfigService(
@@ -232,7 +230,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     commands: registry,
     capabilities: capabilityRegistry,
     errorCodes,
-    followUps,
     networks: Object.values(config.networks),
     services,
   };
@@ -279,7 +276,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     accounts: walletService,
     prompter,
     formatter,
-    followUps,
   };
   const session: SessionRef = {};
 
@@ -296,7 +292,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     session,
     capabilities: capabilityRegistry,
     errorCodes,
-    followUps,
     plugins,
     registerCapabilities,
     targetResolver: new TargetResolver({ networkRegistry, keystore }),

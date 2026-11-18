@@ -13,7 +13,7 @@ import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
-import { cliMessage, errorEnvelope, type FollowUpTable } from "./errors.js";
+import { cliMessage, errorEnvelope } from "./errors.js";
 
 export interface OutputFormatter {
   // The format of the frames `success` and `event` return.
@@ -38,7 +38,6 @@ abstract class BaseOutputFormatter {
   constructor(
     protected readonly streams: StreamManager,
     protected readonly startedAt: number,
-    protected readonly followUps?: FollowUpTable,
   ) {}
 
   #plugin: PluginAttribution | undefined;
@@ -75,7 +74,7 @@ class JsonOutputFormatter extends BaseOutputFormatter implements OutputFormatter
     const env = OutputEnvelope.error(
       ctx?.commandId ?? "",
       ctx?.net,
-      errorEnvelope(err, this.followUps),
+      errorEnvelope(err),
       this.meta(),
     );
     this.streams.result(toJson(env), "json");
@@ -150,7 +149,7 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   }
 
   error(err: CliError): void {
-    const line = `error [${err.code}]: ${cliMessage(err.userMessage, this.followUps).textMessage}`;
+    const line = `error [${err.code}]: ${cliMessage(err.userMessage).textMessage}`;
     const candidates = renderErrorDetails(err.details);
     const text = candidates ? `${line}\n${candidates}` : line;
     this.streams.errorLine(sanitizeText(text));
@@ -165,11 +164,10 @@ export function createOutputFormatter(
   output: OutputMode,
   streams: StreamManager,
   startedAt: number,
-  followUps?: FollowUpTable,
 ): OutputFormatter {
   return output === "json"
-    ? new JsonOutputFormatter(streams, startedAt, followUps)
-    : new HumanOutputFormatter(streams, startedAt, followUps);
+    ? new JsonOutputFormatter(streams, startedAt)
+    : new HumanOutputFormatter(streams, startedAt);
 }
 
 function renderEvent(e: ProgressEvent): string {

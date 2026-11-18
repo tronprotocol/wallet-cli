@@ -29,7 +29,6 @@ import type {
 } from "../../adapters/inbound/cli/contracts/index.js";
 import { SECRET_KINDS } from "../../adapters/inbound/cli/contracts/index.js";
 import { CommandRegistry, type HelpGroup } from "../../adapters/inbound/cli/registry/index.js";
-import type { FollowUpTable } from "../../adapters/inbound/cli/output/errors.js";
 import { camelToKebab } from "../../adapters/inbound/cli/arity/index.js";
 import {
   PLUGIN_API_REVISION,
@@ -221,7 +220,6 @@ export interface PluginTargets {
   readonly commands: CommandRegistry;
   readonly capabilities: Pick<CapabilityRegistry, "hasPredicate" | "addPredicates">;
   readonly errorCodes: ErrorCodeTable;
-  readonly followUps: FollowUpTable;
   // Every configured network; a plugin's predicates are evaluated on each before it is published.
   readonly networks: readonly NetworkDescriptor[];
   readonly services: HostServices;
@@ -236,7 +234,6 @@ interface StagedPlugin {
   readonly chains: { spec: ChainSpec; family: ChainFamily; binding: FamilyBinding }[];
   readonly codes: Map<string, ErrorCodeEntry>;
   readonly predicates: Map<string, CapabilityPredicate>;
-  readonly followUps: Map<string, (subject?: string) => string>;
 }
 
 // Publishes all of a plugin's declarations, or none of them. `credentials` is the validated list of
@@ -253,7 +250,6 @@ export function registerPlugin(
     targets.commands.addAll(staged);
     targets.errorCodes.declare(Object.fromEntries(staged.codes));
     targets.capabilities.addPredicates(predicates);
-    targets.followUps.register(Object.fromEntries(staged.followUps));
     return { ok: true };
   } catch (error) {
     return { ok: false, reason: error instanceof Error ? error.message : String(error) };
@@ -372,7 +368,6 @@ function stage(
     chains: [],
     codes: new Map(),
     predicates: new Map(),
-    followUps: new Map(),
   };
   // One snapshot per declared spec, so families bound to one spec share it.
   const specs = new Map<object, ChainSpec>();
@@ -441,18 +436,6 @@ function stage(
         accepted.set(key, predicate);
       }
       for (const [key, predicate] of accepted) staged.predicates.set(key, predicate);
-    }),
-    followUps: declare((steps) => {
-      const accepted = new Map<string, (subject?: string) => string>();
-      for (const [step, spell] of Object.entries(steps)) {
-        const existing =
-          accepted.get(step) ?? staged.followUps.get(step) ?? targets.followUps.spelling(step);
-        if (existing !== undefined && existing !== spell) {
-          throw new Error(`plugin ${name} redefines the follow-up ${step}`);
-        }
-        accepted.set(step, spell);
-      }
-      for (const [step, spell] of accepted) staged.followUps.set(step, spell);
     }),
   });
   try {

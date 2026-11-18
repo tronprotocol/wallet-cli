@@ -11,7 +11,7 @@ import process from "node:process";
 import { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "@tron-walletcli/plugin-sdk";
 import { sleepWithin } from "@tron-walletcli/plugin-sdk/application";
 import { tronTxModeFields, txModeExclusive, txModeFields, z } from "@tron-walletcli/plugin-sdk/cli";
-import { ChainError, errorMessage, followUp, sunAmount } from "@tron-walletcli/plugin-sdk/domain";
+import { ChainError, sunAmount } from "@tron-walletcli/plugin-sdk/domain";
 
 /** @type {string} */
 const VARIANT = QAPROBE_VARIANT;
@@ -177,7 +177,6 @@ const plugin = {
     host.errorCodes({
       qaprobe_refused: { exit: 1, retry: "never", meaning: "the QA probe refused the value" },
     });
-    host.followUps({ "qaprobe-read": (subject) => `qaprobe read --value ${subject ?? "ok"}` });
     host.capabilities({ "qaprobe.read": () => "supported" });
     const readSpec = {
       path: [group, "read"],
@@ -199,7 +198,7 @@ const plugin = {
           if (input.value === "failure") {
             throw new ChainError(
               "qaprobe_refused",
-              errorMessage`the probe refuses this value; try ${followUp("qaprobe-read", "ok")}`,
+              "the probe refuses this value; try qaprobe read --value ok",
             );
           }
           if (input.value === "slow" && !(await sleepWithin(ctx.deadline, 600_000))) {

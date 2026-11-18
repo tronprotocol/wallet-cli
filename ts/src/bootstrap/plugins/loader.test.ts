@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CommandRegistry } from "../../adapters/inbound/cli/registry/index.js";
-import { FollowUpTable } from "../../adapters/inbound/cli/output/errors.js";
 import { CapabilityRegistry } from "../../application/services/capability/index.js";
 import type { InstalledPlugin, StoredPlugin } from "../../application/ports/plugin-store.js";
 import { ErrorCodeTable } from "../../domain/errors/codes.js";
@@ -74,7 +73,6 @@ function setup(stored: StoredPlugin[], services = {} as HostServices) {
     commands,
     capabilities: new CapabilityRegistry(),
     errorCodes: new ErrorCodeTable(),
-    followUps: new FollowUpTable(),
     networks: [],
     services,
   };

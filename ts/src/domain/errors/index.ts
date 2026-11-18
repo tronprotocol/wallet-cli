@@ -14,8 +14,7 @@ export type FollowUp =
   | "token-add";
 
 export interface FollowUpRef {
-  // A core FollowUp, or a step a plugin registered.
-  readonly followUp: string;
+  readonly followUp: FollowUp;
   readonly subject?: string;
 }
 
@@ -37,11 +36,6 @@ export function inputRef(field: string): InputRef {
 }
 
 export function followUp(step: FollowUp, subject?: string): FollowUpRef {
-  return followUpStep(step, subject);
-}
-
-// A step named by a plugin; the plugin registers how the inbound adapter spells it.
-export function followUpStep(step: string, subject?: string): FollowUpRef {
   return subject === undefined ? { followUp: step } : { followUp: step, subject };
 }
 

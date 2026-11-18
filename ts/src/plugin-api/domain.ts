@@ -31,13 +31,9 @@ export {
   CliError,
   errorMessage,
   ExecutionError,
-  followUpStep as followUp,
-  inputRef,
-  isUserMessage,
   TransportError,
   UsageError,
   WalletError,
-  type InputRef,
   type UserMessage,
 } from "../domain/errors/index.js";
 export { redactErrorMessage } from "../domain/errors/redact.js";

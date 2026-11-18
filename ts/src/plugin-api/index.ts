@@ -33,8 +33,6 @@ export interface PluginHost {
   errorCodes(codes: Readonly<Record<string, ErrorCodeEntry>>): void;
   // Keys start with the plugin's name or one of its group names, followed by a dot.
   capabilities(predicates: Readonly<Record<string, CapabilityPredicate>>): void;
-  // How the CLI spells each next step the plugin's errors and warnings name.
-  followUps(steps: Readonly<Record<string, (subject?: string) => string>>): void;
 }
 
 export interface PluginDefinition {

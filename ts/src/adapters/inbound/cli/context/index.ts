@@ -19,7 +19,7 @@ import type {
   StreamManager,
 } from "../contracts/index.js";
 import type { OutputFormatter } from "../output/index.js";
-import { cliMessage, type FollowUpTable } from "../output/errors.js";
+import { cliMessage } from "../output/errors.js";
 import type { UserMessage } from "../../../../domain/errors/index.js";
 import type { Prompter } from "../input/prompt/index.js";
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
@@ -39,8 +39,6 @@ export interface RuntimeDeps {
   accounts: AccountSession;
   prompter: Prompter;
   formatter: OutputFormatter;
-  // Spells the follow-up steps that plugins registered in this runtime.
-  followUps?: FollowUpTable;
 }
 
 class ExecutionContextImpl implements ExecutionContext {
@@ -92,20 +90,19 @@ class ExecutionContextImpl implements ExecutionContext {
   }
 
   warn(message: string | WarningView | UserMessage | CodedWarning): void {
-    this.deps.streams.diagnostic("warn", cliWarning(message, this.deps.followUps));
+    this.deps.streams.diagnostic("warn", cliWarning(message));
   }
 }
 
 function cliWarning(
   message: string | WarningView | UserMessage | CodedWarning,
-  followUps: FollowUpTable | undefined,
 ): string | WarningView {
   if (typeof message === "string") return message;
-  if (!("code" in message)) return cliMessage(message, followUps).message;
+  if (!("code" in message)) return cliMessage(message).message;
   const text = message.message;
   return {
     ...message,
-    message: typeof text === "string" ? text : cliMessage(text, followUps).message,
+    message: typeof text === "string" ? text : cliMessage(text).message,
   };
 }
 

@@ -302,8 +302,8 @@ imports only its entry of `plugin-api`:
 Checked by the dependency rules of the plugin's repository.
 
 9.3 A plugin declares and the core acts. A plugin registers commands (one Zod schema each, rule 2.3), error
-codes, capability predicates and follow-up steps through `PluginHost`. Its commands return typed results and
-supply a text formatter; the core prints. A plugin does not write to stdout or stderr. A plugin declares the
+codes and capability predicates through `PluginHost`. Its commands return typed results and supply a text
+formatter; the core prints. A plugin does not write to stdout or stderr. A plugin declares the
 credential keys it reads, and the core reads, stores and masks them under 6.6 as it does its own. **review**.
 
 9.4 A plugin never receives a signer, the keystore, the secret resolver or the master password. It signs
@@ -321,8 +321,9 @@ complete, immutable version directory (3.5). **test**.
 9.7 Every export of `plugin-api` is part of the contract. Removing or changing one raises the API version;
 adding one raises the API revision. **test**: a snapshot of the export names.
 
-9.8 Sections 2 to 8 apply to plugin code as written. Inside a plugin, its `domain` owns its error codes (7.2)
-and its `application` owns its capability predicates (5.3); both reach the core's registries through
-`PluginHost`. The closed-type rule (3.1) covers a plugin's ports and contracts. No plugin reads a secret; a
-plugin's `index.ts` may read non-secret environment variables. **review**, plus
-the checks each section names.
+9.8 Sections 2 to 8 apply to plugin code as written. Exception to 7.1: a plugin's messages name commands and
+options as the text the user reads, and the core prints them unchanged. Inside a plugin, its `domain` owns its
+error codes (7.2) and its `application` owns its capability predicates (5.3); both reach the core's registries
+through `PluginHost`. The closed-type rule (3.1) covers a plugin's ports and contracts. No plugin reads a
+secret; a plugin's `index.ts` may read non-secret environment variables. **review**, plus the checks each
+section names.
