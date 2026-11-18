@@ -1,6 +1,6 @@
 import type { DispatchCheck } from "../../../application/contracts/deadline.js";
 import { ChainError, type CliError, TransportError } from "../../../domain/errors/index.js";
-import { boundedResponse, fetchBounded, MAX_HTTP_RESPONSE_BYTES } from "./http-response.js";
+import { boundedResponse, MAX_HTTP_RESPONSE_BYTES } from "./http-response.js";
 
 type FetchFunction = typeof globalThis.fetch;
 
@@ -45,25 +45,6 @@ export function rateLimitedError(
     ...context,
     ...rateLimitDetails(headers),
   });
-}
-
-// A fetch hook for SDK clients: the dispatch check, no redirects, the size bound, and 429 as
-// provider_rate_limited, thrown before the SDK can discard the response headers.
-export function serviceFetch(options: {
-  readonly service: string;
-  readonly check: DispatchCheck;
-  readonly fetchImpl?: FetchFunction;
-  readonly maxBytes?: number;
-}): FetchFunction {
-  const { service, check, fetchImpl = globalThis.fetch, maxBytes } = options;
-  const limited: FetchFunction = async (input, init) => {
-    const response = await fetchImpl(input, init);
-    if (response.status !== 429) return response;
-    await response.body?.cancel().catch(() => {});
-    throw rateLimitedError(service, response.headers);
-  };
-  return (input, init) =>
-    fetchBounded(limited, input, { ...init, redirect: "error" }, check, maxBytes);
 }
 
 // The service's own errors for failures that are not an HTTP status it answered with.

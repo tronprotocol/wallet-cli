@@ -45,6 +45,7 @@ export {
 export { MonotonicClock } from "../../src/application/services/command-deadline.js";
 export type { EvmGateway } from "../../src/application/ports/chain/evm/evm-gateway.js";
 export type { Signer } from "../../src/domain/types/index.js";
+export { tronHexAddress } from "../../src/domain/address/index.js";
 export type { FamilyBinding } from "../../src/adapters/inbound/cli/contracts/index.js";
 export { CommandRegistry } from "../../src/adapters/inbound/cli/registry/index.js";
 export { neutralInputSchema } from "../../src/adapters/inbound/cli/shell/index.js";

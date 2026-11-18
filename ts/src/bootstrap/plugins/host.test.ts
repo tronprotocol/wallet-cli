@@ -504,7 +504,6 @@ describe("objects handed to a plugin", () => {
         ]),
       },
       broadcastGuard: { assertAllowed: vi.fn() },
-      clock: () => 7,
     });
     expect(reachable(services)).toEqual([
       "signing",
@@ -516,7 +515,6 @@ describe("objects handed to a plugin", () => {
       "recipients",
       "config",
       "broadcastGuard",
-      "clock",
       "lifetime",
       "accounts",
     ]);
@@ -554,8 +552,6 @@ describe("objects handed to a plugin", () => {
     expect(reachable(services.recipients)).toEqual(["resolve"]);
     expect(reachable(services.config)).toEqual(["networkBlock", "credential"]);
     expect(reachable(services.broadcastGuard)).toEqual(["assertAllowed"]);
-    expect(reachable(services.clock)).toEqual(["now"]);
-    expect(services.clock.now()).toBe(7);
     expect(reachable(services.lifetime)).toEqual(["keepAlive", "log"]);
     expect(reachable(services.lifetime.log)).toEqual(["record", "diagnostic"]);
     expect(reachable(services.accounts)).toEqual(["checkAccount"]);

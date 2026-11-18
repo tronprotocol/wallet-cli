@@ -116,11 +116,6 @@ export interface PluginConfig {
   credential(key: string): string | undefined;
 }
 
-export interface PluginClock {
-  // Wall-clock milliseconds since the epoch.
-  now(): number;
-}
-
 export interface HostServices {
   readonly signing: PluginSigningService;
   readonly gateways: PluginGateways;
@@ -132,7 +127,6 @@ export interface HostServices {
   readonly config: PluginConfig;
   // Checked before every submit to the plugin's own service.
   readonly broadcastGuard: BroadcastGuard;
-  readonly clock: PluginClock;
   readonly lifetime: PluginLifetime;
   readonly accounts: PluginAccounts;
 }

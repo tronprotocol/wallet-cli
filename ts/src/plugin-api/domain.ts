@@ -34,7 +34,6 @@ export {
   followUpStep as followUp,
   inputRef,
   isUserMessage,
-  replaceMessageLayout,
   TransportError,
   UsageError,
   WalletError,
@@ -50,7 +49,6 @@ export {
   isZeroAmount,
   sunAmount,
   toBaseUnits,
-  weiAmount,
   type BaseUnits,
   type Sun,
   type Wei,
@@ -64,7 +62,6 @@ export {
   tronAddressToEvmHex,
   tronHash20Hex,
   tronHexFromHash20,
-  tronHexAddress,
   tronHexToBase58,
 } from "../domain/address/index.js";
 export {
@@ -80,4 +77,4 @@ export {
 export { matchTokenSymbol } from "../domain/token/symbol.js";
 export { isUnlimitedAllowance, UNLIMITED_ALLOWANCE } from "../domain/token/allowance.js";
 export { DEFAULT_FEE_LIMIT_SUN } from "../domain/fees/tron.js";
-export { normalizeTypedData, resolvePrimaryType } from "../domain/typed-data/index.js";
+export { normalizeTypedData } from "../domain/typed-data/index.js";

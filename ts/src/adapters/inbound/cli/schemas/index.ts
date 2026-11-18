@@ -26,19 +26,6 @@ export function addressFieldsFor(
   family: ChainFamily,
   ...names: string[]
 ): (value: Record<string, unknown>, ctx: z.RefinementCtx) => void {
-  return validateAddressFields(family, false, names);
-}
-
-// Reports family_mismatch for valid addresses from another family.
-export function addressFamilyFieldsFor(family: ChainFamily, ...names: string[]) {
-  return validateAddressFields(family, true, names);
-}
-
-function validateAddressFields(
-  family: ChainFamily,
-  detectFamily: boolean,
-  names: string[],
-): (value: Record<string, unknown>, ctx: z.RefinementCtx) => void {
   return (value, ctx) => {
     for (const name of names) {
       const candidate = value[name];
@@ -47,22 +34,9 @@ function validateAddressFields(
           code: "custom",
           path: [name],
           message: `invalid ${family} address`,
-          params: {
-            errorCode:
-              detectFamily && addressCodec(family === "evm" ? "tron" : "evm").validate(candidate)
-                ? "family_mismatch"
-                : "invalid_address",
-          },
+          params: { errorCode: "invalid_address" },
         });
       }
     }
-  };
-}
-
-export function allRefines<T>(
-  ...refines: Array<(value: T, ctx: z.RefinementCtx) => void>
-): (value: T, ctx: z.RefinementCtx) => void {
-  return (value, ctx) => {
-    for (const refine of refines) refine(value, ctx);
   };
 }

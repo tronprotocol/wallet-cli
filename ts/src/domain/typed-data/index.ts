@@ -82,19 +82,6 @@ function typeClosure(
   return Object.fromEntries(Object.entries(types).filter(([name]) => seen.has(name)));
 }
 
-function rootTypes(types: Record<string, TypedDataField[]>): string[] {
-  return Object.keys(types).filter((name) => !isReferencedType(types, name));
-}
-
-// Returns the declared or unique root; callers requiring a signing guard must reject undefined.
-export function resolvePrimaryType(
-  payload: Pick<TypedDataPayload, "types" | "primaryType">,
-): string | undefined {
-  if (payload.primaryType !== undefined) return payload.primaryType;
-  const roots = rootTypes(payload.types);
-  return roots.length === 1 ? roots[0] : undefined;
-}
-
 // Drops EIP712Domain for encoder compatibility; accepts value as an alias for message.
 export function normalizeTypedData(raw: unknown): TypedDataPayload {
   if (!isObject(raw)) throw new UsageError("invalid_payload", "typed data must be a JSON object");

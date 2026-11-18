@@ -1,12 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  classifyError,
-  errorMessage,
-  followUpStep,
-  inputRef,
-  replaceMessageLayout,
-  UsageError,
-} from "./index.js";
+import { classifyError, errorMessage, followUpStep, inputRef, UsageError } from "./index.js";
 
 describe("errorMessage trusted layout and external values", () => {
   it("escapes input line separators while preserving authored multiline guidance", () => {
@@ -54,21 +47,6 @@ describe("structured references", () => {
     expect(outer.textMessage).toBe("bad fee: a\\nb; more");
     const plain = errorMessage`${{ message: "x\ny", textMessage: "x\\ny" }}!`;
     expect(plain.textMessage).toBe("x\\ny!");
-  });
-
-  it("rewrites authored layout without touching references or external values", () => {
-    const message = errorMessage`use ${inputRef("out")} for ${"a; old"}; old`;
-    const rewritten = replaceMessageLayout(message, /; old/g, "; new");
-    expect(rewritten.parts).toEqual([
-      "use ",
-      { input: "out" },
-      " for ",
-      { value: "a; old" },
-      "; new",
-    ]);
-    expect(
-      replaceMessageLayout({ message: "x; old", textMessage: "x; old" }, /; old/g, "; new"),
-    ).toEqual({ message: "x; new", textMessage: "x; new" });
   });
 });
 

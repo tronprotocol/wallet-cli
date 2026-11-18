@@ -10,7 +10,6 @@ export type {
   GovernanceTransactionInput,
   TransactionModeInput,
 } from "../application/contracts/transaction-input.js";
-export type { WallClock } from "../application/contracts/wall-clock.js";
 export type {
   ContractCallPayload,
   ContractParameter,
@@ -30,7 +29,6 @@ export {
 export type { BroadcastGuard } from "../application/contracts/broadcast-guard.js";
 export {
   assertSubmitAdmitted,
-  CommandDeadline,
   endedByDeadline,
   requestDispatchCheck,
   submitDispatchCheck,
@@ -59,7 +57,6 @@ export type {
   TypedDataSignPayload,
   HostServices,
   PluginAccounts,
-  PluginClock,
   PluginConfig,
   PluginContracts,
   PluginEvmGateway,

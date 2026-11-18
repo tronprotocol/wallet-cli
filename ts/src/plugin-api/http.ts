@@ -4,7 +4,6 @@ export {
   rateLimitDetails,
   requestJson,
   retryAfterSeconds,
-  serviceFetch,
   type JsonServiceErrors,
 } from "../adapters/outbound/http/json-service.js";
 export {
@@ -12,7 +11,6 @@ export {
   fetchBounded,
   MAX_HTTP_RESPONSE_BYTES,
 } from "../adapters/outbound/http/http-response.js";
-export { createTimedFetch } from "../adapters/outbound/http/timed-fetch.js";
 export {
   abortReason,
   untilAborted,

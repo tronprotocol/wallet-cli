@@ -10,7 +10,6 @@ import type { ErrorCodeEntry, ErrorCodeTable } from "../../domain/errors/codes.j
 import { UsageError } from "../../domain/errors/index.js";
 import { FAMILIES } from "../../domain/family/index.js";
 import type { BroadcastGuard } from "../../application/contracts/broadcast-guard.js";
-import type { WallClock } from "../../application/contracts/wall-clock.js";
 import type { DispatchCheck, ExecutionDeadline } from "../../application/contracts/deadline.js";
 import type { ChainGatewayProvider } from "../../application/ports/chain/gateway-provider.js";
 import type { NetworkRegistry } from "../../application/ports/network-registry.js";
@@ -87,11 +86,10 @@ export interface HostServiceDependencies {
   readonly recipients: Pick<RecipientResolver, "resolve">;
   readonly config: Pick<Config, "credentials">;
   readonly broadcastGuard: BroadcastGuard;
-  readonly clock: WallClock;
 }
 
 export function hostServices(deps: HostServiceDependencies): HostServices {
-  const { signing, gateways, contracts, recipients, config, broadcastGuard, clock } = deps;
+  const { signing, gateways, contracts, recipients, config, broadcastGuard } = deps;
   const { tronCalls, tokens } = deps;
   const aliases = Object.freeze({ ...deps.aliases });
   return facade<HostServices>({
@@ -164,7 +162,6 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
       credential: (key) => config.credentials.get(key),
     }),
     broadcastGuard: facade({ assertAllowed: () => broadcastGuard.assertAllowed() }),
-    clock: facade({ now: () => clock() }),
     lifetime: facade({
       keepAlive: () => deps.lifetime.keepAlive(),
       log: facade({

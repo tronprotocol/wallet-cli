@@ -149,7 +149,6 @@ describe("an installed plugin", () => {
       services: [
         "accounts",
         "broadcastGuard",
-        "clock",
         "config",
         "contracts",
         "gateways",

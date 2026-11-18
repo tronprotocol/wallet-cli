@@ -227,7 +227,6 @@ export function composeCliRuntime(options: BootstrapOptions) {
     recipients: recipientResolver,
     config,
     broadcastGuard: processBroadcastGuard,
-    clock: systemWallClock,
   });
   const pluginTargets = {
     commands: registry,

@@ -10,7 +10,6 @@ import {
   rateLimitDetails,
   requestJson,
   retryAfterSeconds,
-  serviceFetch,
   type JsonServiceRequest,
 } from "./json-service.js";
 
@@ -234,40 +233,5 @@ describe("requestJson", () => {
     await expect(
       requestJson(fetchImpl, "https://x.test", {}, { ...REQUEST, check }),
     ).rejects.toThrow("example timed out");
-  });
-});
-
-describe("serviceFetch", () => {
-  it("throws provider_rate_limited on 429 and refuses redirects", async () => {
-    const fetchImpl = serving(
-      () => new Response("slow", { status: 429, headers: { "retry-after": "3" } }),
-    );
-    const error = (await serviceFetch({ service: "Example API", check: NO_CHECK, fetchImpl })(
-      "https://x.test",
-    ).catch((caught: unknown) => caught)) as ChainError;
-    expect(error).toMatchObject({ code: "provider_rate_limited" });
-    expect(error.details).toEqual({ httpStatus: 429, retryAfterSeconds: 3 });
-    expect(fetchImpl.mock.calls[0]![1]).toMatchObject({ redirect: "error" });
-  });
-
-  it("bounds the body and passes other statuses through", async () => {
-    const fetchImpl = serving(() => new Response("x".repeat(64), { status: 500 }));
-    await expect(
-      serviceFetch({ service: "Example API", check: NO_CHECK, fetchImpl, maxBytes: 16 })(
-        "https://x.test",
-      ),
-    ).rejects.toMatchObject({ code: "response_too_large" });
-    const response = await serviceFetch({ service: "Example API", check: NO_CHECK, fetchImpl })(
-      "https://x.test",
-    );
-    expect(response.status).toBe(500);
-  });
-
-  it("sends nothing once the deadline has passed", async () => {
-    const fetchImpl = serving(() => Response.json({}));
-    await expect(
-      serviceFetch({ service: "Example API", check: expiredCheck(), fetchImpl })("https://x.test"),
-    ).rejects.toBeInstanceOf(DeadlineExpiredError);
-    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
