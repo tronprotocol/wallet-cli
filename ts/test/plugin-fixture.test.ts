@@ -163,15 +163,7 @@ describe("an installed plugin", () => {
         "tronCalls",
       ],
       signing: ["assertCanSign", "prepare", "sign", "signerAddress"],
-      host: [
-        "apiVersion",
-        "capabilities",
-        "chainCommand",
-        "command",
-        "errorCodes",
-        "followUps",
-        "services",
-      ],
+      host: ["capabilities", "chainCommand", "command", "errorCodes", "followUps", "services"],
     });
   });
 });

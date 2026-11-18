@@ -13,7 +13,6 @@ exports[`pins the runtime export names of each plugin-api entry 1`] = `
     "resolveTronAccount",
     "sleepWithin",
     "submitDispatchCheck",
-    "systemWallClock",
     "transactionMode",
     "transactionRequiresSigner",
     "unlessDeadline",

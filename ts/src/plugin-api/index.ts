@@ -27,7 +27,6 @@ export interface PluginCredential {
 }
 
 export interface PluginHost {
-  readonly apiVersion: number;
   readonly services: HostServices;
   command(definition: PluginCommand): void;
   chainCommand(spec: PluginChainSpec, family: ChainFamily, binding: PluginFamilyBinding): void;
@@ -50,6 +49,3 @@ export interface PluginDefinition {
   // Synchronous; declares only, performs no I/O.
   register(host: PluginHost): void;
 }
-
-export type { CapabilityPredicate, ErrorCodeEntry, HostServices };
-export type { PluginChainSpec, PluginCommand, PluginFamilyBinding };

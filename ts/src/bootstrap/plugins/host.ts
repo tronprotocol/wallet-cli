@@ -30,11 +30,11 @@ import { camelToKebab } from "../../adapters/inbound/cli/arity/index.js";
 import {
   PLUGIN_API_REVISION,
   PLUGIN_API_VERSION,
-  type CapabilityPredicate,
-  type HostServices,
   type PluginDefinition,
   type PluginHost,
 } from "../../plugin-api/index.js";
+import type { CapabilityPredicate } from "../../plugin-api/application.js";
+import type { HostServices } from "../../plugin-api/host-services.js";
 import { WALLET_MANAGEMENT_FIELDS, type PluginCommandContext } from "../../plugin-api/command.js";
 import type {
   PluginEvmGateway,
@@ -386,7 +386,6 @@ function stage(
       }
     };
   const host: PluginHost = facade<PluginHost>({
-    apiVersion: PLUGIN_API_VERSION,
     services,
     command: declare((definition) => {
       noWalletFields(definition, definition.path);

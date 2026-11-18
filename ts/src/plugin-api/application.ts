@@ -10,7 +10,7 @@ export type {
   GovernanceTransactionInput,
   TransactionModeInput,
 } from "../application/contracts/transaction-input.js";
-export { systemWallClock, type WallClock } from "../application/contracts/wall-clock.js";
+export type { WallClock } from "../application/contracts/wall-clock.js";
 export type {
   ContractCallPayload,
   ContractParameter,

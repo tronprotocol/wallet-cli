@@ -8,7 +8,7 @@ import { CapabilityRegistry } from "../../application/services/capability/index.
 import type { InstalledPlugin, StoredPlugin } from "../../application/ports/plugin-store.js";
 import { ErrorCodeTable } from "../../domain/errors/codes.js";
 import { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "../../domain/plugins/index.js";
-import type { HostServices } from "../../plugin-api/index.js";
+import type { HostServices } from "../../plugin-api/host-services.js";
 import { PLUGIN_API_GLOBAL, PLUGIN_API_OBJECT } from "./api-object.js";
 import { PluginLoader } from "./loader.js";
 import type { PluginTargets } from "./host.js";

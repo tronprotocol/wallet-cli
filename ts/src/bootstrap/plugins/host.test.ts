@@ -9,10 +9,10 @@ import type { NetworkDescriptor } from "../../domain/types/index.js";
 import {
   PLUGIN_API_REVISION,
   PLUGIN_API_VERSION,
-  type HostServices,
   type PluginDefinition,
   type PluginHost,
 } from "../../plugin-api/index.js";
+import type { HostServices } from "../../plugin-api/host-services.js";
 import type { PluginChainSpec } from "../../plugin-api/cli.js";
 import { hostServices, pluginCommandContext, registerPlugin, type PluginTargets } from "./host.js";
 
@@ -537,7 +537,6 @@ describe("objects handed to a plugin", () => {
       targets(),
     );
     expect(members).toEqual([
-      "apiVersion",
       "services",
       "command",
       "chainCommand",
