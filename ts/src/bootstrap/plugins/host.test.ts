@@ -374,9 +374,7 @@ const CONTEXT_MEMBERS = [
   "wait",
   "emit",
   "warn",
-  "output",
   "readStdinBytes",
-  "log",
 ];
 
 function executionContext(secrets: string[] = []): ExecutionContext {
@@ -415,12 +413,45 @@ function reachable(value: object): string[] {
   return names;
 }
 
+describe("the lifetime log", () => {
+  function lifetimeLog(output: "text" | "json") {
+    const streams = { errorLine: vi.fn(), diagnostic: vi.fn() };
+    const services = hostServices({
+      lifetime: { keepAlive: vi.fn() },
+      streams,
+      output,
+      config: { credentials: new Map() },
+    } as never);
+    return { log: services.lifetime.log, streams };
+  }
+
+  it("writes the text of a record in text mode", () => {
+    const { log, streams } = lifetimeLog("text");
+    log.record("Payment required: HTTP 402 (1 ms)", { status: 402 });
+    expect(streams.errorLine.mock.calls).toEqual([["Payment required: HTTP 402 (1 ms)"]]);
+  });
+
+  it("writes the data of a record as one JSON line in JSON mode", () => {
+    const { log, streams } = lifetimeLog("json");
+    log.record("ignored", { event: "x402.request", status: 402, durationMs: 0 });
+    expect(streams.errorLine.mock.calls).toEqual([
+      ['{"event":"x402.request","status":402,"durationMs":0}'],
+    ]);
+  });
+
+  it("hands diagnostics to the diagnostic stream at their level", () => {
+    const { log, streams } = lifetimeLog("json");
+    log.diagnostic("debug", "line");
+    expect(streams.diagnostic.mock.calls).toEqual([["debug", "line"]]);
+    expect(streams.errorLine).not.toHaveBeenCalled();
+  });
+});
+
 describe("objects handed to a plugin", () => {
   it("give the command context exactly its documented members", async () => {
     const ctx = pluginCommandContext(executionContext());
     expect(reachable(ctx)).toEqual(CONTEXT_MEMBERS);
     expect(reachable(ctx.deadline)).toEqual(["signal", "remainingMs", "expired", "assertActive"]);
-    expect(reachable(ctx.log)).toEqual(["line", "diagnostic"]);
     expect(Object.isFrozen(ctx)).toBe(true);
     expect(await ctx.readStdinBytes()).toEqual(new Uint8Array([1]));
   });
@@ -453,6 +484,8 @@ describe("objects handed to a plugin", () => {
       aliases,
       networks: { resolve: vi.fn(), resolveDefault: vi.fn() } as never,
       lifetime: { keepAlive: vi.fn(), longLived: false } as never,
+      streams: { errorLine: vi.fn(), diagnostic: vi.fn(), result: vi.fn() } as never,
+      output: "json",
       accounts: { resolveAccount: vi.fn(), unlock: vi.fn() } as never,
       gateways: {
         get: () => gateway,
@@ -523,7 +556,8 @@ describe("objects handed to a plugin", () => {
     expect(reachable(services.broadcastGuard)).toEqual(["assertAllowed"]);
     expect(reachable(services.clock)).toEqual(["now"]);
     expect(services.clock.now()).toBe(7);
-    expect(reachable(services.lifetime)).toEqual(["keepAlive"]);
+    expect(reachable(services.lifetime)).toEqual(["keepAlive", "log"]);
+    expect(reachable(services.lifetime.log)).toEqual(["record", "diagnostic"]);
     expect(reachable(services.accounts)).toEqual(["checkAccount"]);
     expect(services.accounts.checkAccount("main", "tron")).toBeUndefined();
     expect(services.config.credential("tronlinkSecretKey" as never)).toBeUndefined();

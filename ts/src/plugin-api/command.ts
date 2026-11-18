@@ -1,5 +1,5 @@
 import type { ZodObject, ZodRawShape, RefinementCtx } from "zod";
-import type { NetworkDescriptor, OutputMode } from "../domain/types/index.js";
+import type { NetworkDescriptor } from "../domain/types/index.js";
 import type { TransactionScope } from "../application/contracts/execution-scope.js";
 import type { ChainSpec, CommandDefinition } from "../adapters/inbound/cli/contracts/command.js";
 
@@ -7,15 +7,9 @@ export type DiagnosticLevel = "info" | "debug" | "warn";
 
 // What a plugin command receives; it carries no secret, stream or prompt.
 export interface PluginCommandContext extends TransactionScope {
-  readonly output: OutputMode;
   // The non-secret stdin payload, read once; refused when stdin carries a secret. `input` names the
   // option that reads stdin in that refusal.
   readStdinBytes(input?: string): Promise<Uint8Array>;
-  readonly log: {
-    // A line on stderr.
-    line(text: string): void;
-    diagnostic(level: DiagnosticLevel, text: string): void;
-  };
 }
 
 // Fields of core command definitions that belong to wallet management.

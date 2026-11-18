@@ -1,6 +1,7 @@
 import type {
   AccountSelector,
   ChainFamily,
+  JsonValue,
   NetworkBlock,
   NetworkDescriptor,
   SignedTxOf,
@@ -8,6 +9,7 @@ import type {
   UnsignedTx,
 } from "../domain/types/index.js";
 import type { DispatchCheck } from "../application/contracts/deadline.js";
+import type { DiagnosticLevel } from "./command.js";
 import type { TransactionScope } from "../application/contracts/execution-scope.js";
 import type { BroadcastGuard } from "../application/contracts/broadcast-guard.js";
 import type { TronGateway } from "../application/ports/chain/tron/tron-gateway.js";
@@ -87,6 +89,14 @@ export interface PluginAccounts {
 export interface PluginLifetime {
   // Keeps the process alive after the command returns and ends the command deadline.
   keepAlive(): void;
+  // Lines on stderr for a command that keeps serving after it returns.
+  readonly log: PluginServerLog;
+}
+
+export interface PluginServerLog {
+  // One line: `text` in text output mode, `JSON.stringify(data)` in JSON output mode.
+  record(text: string, data: JsonValue): void;
+  diagnostic(level: DiagnosticLevel, text: string): void;
 }
 
 // Every call on a returned gateway runs under `check`.

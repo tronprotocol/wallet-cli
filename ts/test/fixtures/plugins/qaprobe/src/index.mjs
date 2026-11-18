@@ -316,7 +316,10 @@ const plugin = {
       examples: [{ cmd: "wallet-cli qaprobe credential --echo" }],
       async run(ctx, _net, input) {
         const value = services.config.credential(CREDENTIAL_KEY);
-        if (input.echo && value !== undefined) ctx.log.line(`qaprobe received ${value}`);
+        if (input.echo && value !== undefined) {
+          const line = `qaprobe received ${value}`;
+          services.lifetime.log.record(line, line);
+        }
         return {
           key: CREDENTIAL_KEY,
           configured: value !== undefined,

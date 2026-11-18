@@ -219,6 +219,8 @@ export function composeCliRuntime(options: BootstrapOptions) {
     aliases: config.aliases,
     networks: networkRegistry,
     lifetime,
+    streams,
+    output,
     accounts: keystore,
     gateways: gatewayProvider,
     contracts,

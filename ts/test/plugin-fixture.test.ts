@@ -141,8 +141,6 @@ describe("an installed plugin", () => {
         "activeAccount",
         "deadline",
         "emit",
-        "log",
-        "output",
         "readStdinBytes",
         "resolveAddress",
         "wait",

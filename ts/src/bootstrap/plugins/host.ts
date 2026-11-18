@@ -1,5 +1,10 @@
 // Builds what a plugin registers against, checks everything it declares, and publishes it in one step.
-import type { ChainFamily, Config, NetworkDescriptor } from "../../domain/types/index.js";
+import type {
+  ChainFamily,
+  Config,
+  NetworkDescriptor,
+  OutputMode,
+} from "../../domain/types/index.js";
 import { networkBlock } from "../../domain/types/index.js";
 import type { ErrorCodeEntry, ErrorCodeTable } from "../../domain/errors/codes.js";
 import { UsageError } from "../../domain/errors/index.js";
@@ -70,6 +75,9 @@ export interface HostServiceDependencies {
   readonly aliases: Readonly<Record<string, string>>;
   readonly networks: Pick<NetworkRegistry, "resolve">;
   readonly lifetime: Pick<ProcessLifetime, "keepAlive">;
+  // Where and in which form the lifetime log writes.
+  readonly streams: Pick<ExecutionContext["streams"], "errorLine" | "diagnostic">;
+  readonly output: OutputMode;
   readonly accounts: Pick<AccountStore, "resolveAccount">;
   readonly gateways: ChainGatewayProvider;
   readonly contracts: {
@@ -157,7 +165,14 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
     }),
     broadcastGuard: facade({ assertAllowed: () => broadcastGuard.assertAllowed() }),
     clock: facade({ now: () => clock() }),
-    lifetime: facade({ keepAlive: () => deps.lifetime.keepAlive() }),
+    lifetime: facade({
+      keepAlive: () => deps.lifetime.keepAlive(),
+      log: facade({
+        record: (text, data) =>
+          deps.streams.errorLine(deps.output === "json" ? JSON.stringify(data) : text),
+        diagnostic: (level, text) => deps.streams.diagnostic(level, text),
+      }),
+    }),
     // Only whether the selector resolves; the wallet record stays in the core.
     accounts: facade({
       checkAccount: (account, family) => {
@@ -188,7 +203,6 @@ export function pluginCommandContext(ctx: ExecutionContext): PluginCommandContex
     wait: ctx.wait,
     emit: (event) => ctx.emit(event),
     warn: (message) => ctx.warn(message),
-    output: ctx.output,
     // Refused before reading, so a secret on stdin is never handed to the plugin.
     readStdinBytes: async (input?: string) => {
       const claimed = SECRET_KINDS.find((kind) => ctx.secrets.has(kind));
@@ -203,11 +217,6 @@ export function pluginCommandContext(ctx: ExecutionContext): PluginCommandContex
       }
       return ctx.streams.readStdinBytesOnce(ctx.deadline.signal);
     },
-    log: facade({
-      line: (text: string) => ctx.streams.errorLine(text),
-      diagnostic: (level: "info" | "debug" | "warn", text: string) =>
-        ctx.streams.diagnostic(level, text),
-    }),
   });
 }
 
