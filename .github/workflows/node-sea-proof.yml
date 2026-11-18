@@ -1,0 +1,183 @@
+name: Node SEA proof
+
+on:
+  push:
+    branches:
+      - chore/node-sea-proof
+
+permissions:
+  contents: read
+
+jobs:
+  sea:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            executable: wallet-cli
+          - os: ubuntu-22.04-arm
+            executable: wallet-cli
+          - os: macos-15-intel
+            executable: wallet-cli
+          - os: macos-15
+            executable: wallet-cli
+          - os: windows-2022
+            executable: wallet-cli.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      EXE: standalone/${{ matrix.executable }}
+      EXT: ${{ matrix.os == 'windows-2022' && '.exe' || '' }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ts
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26.13.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build SEA
+        id: build
+        run: node scripts/sea/build.mjs --outfile "$EXE"
+
+      - name: Verify executable and embedded Ledger addon
+        id: verify
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node scripts/verify-standalone.mjs "$EXE"
+
+      - name: Build probes
+        id: probe_build
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node scripts/sea/probe/build.mjs --outdir standalone/probe
+
+      - name: Probe ES module import
+        id: probe_import
+        if: ${{ !cancelled() && steps.probe_build.outcome == 'success' }}
+        run: "standalone/probe/import-probe$EXT"
+
+      - name: Probe module.registerHooks
+        id: probe_hooks
+        if: ${{ !cancelled() && steps.probe_build.outcome == 'success' }}
+        run: "standalone/probe/hooks-probe$EXT"
+
+      - name: Check --json-schema through a pipe
+        id: pipe
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          "$EXE" --json-schema > schema-file.json
+          file_bytes="$(wc -c < schema-file.json | tr -d ' ')"
+          pipe_bytes="$("$EXE" --json-schema | wc -c | tr -d ' ')"
+          echo "file=${file_bytes} pipe=${pipe_bytes}"
+          echo "bytes=pipe ${pipe_bytes} / file ${file_bytes}" >> "$GITHUB_OUTPUT"
+          "$EXE" --json-schema | node -e 'let s = ""; process.stdin.setEncoding("utf8").on("data", (d) => (s += d)).on("end", () => { JSON.parse(s); console.log("piped output parses as JSON"); });'
+          if [[ "${pipe_bytes}" != "${file_bytes}" ]]; then
+            echo "::error::--json-schema through a pipe has ${pipe_bytes} bytes, written to a file ${file_bytes}"
+            exit 1
+          fi
+
+      - name: Verify macOS code signature
+        id: codesign
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'macOS' }}
+        run: codesign --verify --verbose "$EXE"
+
+      - name: Report highest required GLIBC
+        id: glibc
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && runner.os == 'Linux' }}
+        run: |
+          set -euo pipefail
+          native_addon="$(node --input-type=module -e 'import { resolveNodeHidAddon } from "./scripts/standalone/resolve-node-hid-addon.ts"; console.log(resolveNodeHidAddon().nativeAddon)')"
+          highest() { readelf --version-info --wide "$1" | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)*' | sed 's/^GLIBC_//' | sort -Vu | tail -n 1; }
+          exe_glibc="$(highest "$EXE")"
+          addon_glibc="$(highest "${native_addon}")"
+          echo "executable GLIBC_${exe_glibc}, HID addon GLIBC_${addon_glibc}, maximum allowed GLIBC_2.35"
+          echo "versions=executable ${exe_glibc}, addon ${addon_glibc}" >> "$GITHUB_OUTPUT"
+          for required in "${exe_glibc}" "${addon_glibc}"; do
+            if [[ "$(printf '%s\n%s\n' 2.35 "${required}" | sort -V | tail -n 1)" != "2.35" ]]; then
+              echo "::error::requires GLIBC_${required}; maximum allowed is GLIBC_2.35"
+              exit 1
+            fi
+          done
+
+      - name: Run --version on an x64 CPU model without AVX2 (QEMU)
+        id: qemu
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.os == 'ubuntu-22.04' }}
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-user > /dev/null
+          qemu-x86_64 --version | head -n 1
+          # Nehalem has SSE4.2 and no AVX, the same CPU level as bun's linux-x64-baseline target.
+          qemu-x86_64 -cpu Nehalem "$EXE" --version
+
+      - name: Write summary
+        if: ${{ always() }}
+        env:
+          TARGET: ${{ matrix.os }}
+          BUILD: ${{ steps.build.outcome }}
+          VERIFY: ${{ steps.verify.outcome }}
+          PROBE_BUILD: ${{ steps.probe_build.outcome }}
+          PROBE_IMPORT: ${{ steps.probe_import.outcome }}
+          PROBE_HOOKS: ${{ steps.probe_hooks.outcome }}
+          PIPE: ${{ steps.pipe.outcome }}
+          PIPE_BYTES: ${{ steps.pipe.outputs.bytes }}
+          CODESIGN: ${{ steps.codesign.outcome }}
+          GLIBC: ${{ steps.glibc.outcome }}
+          GLIBC_VERSIONS: ${{ steps.glibc.outputs.versions }}
+          QEMU: ${{ steps.qemu.outcome }}
+        run: |
+          result() { case "$1" in success) echo pass ;; failure) echo fail ;; *) echo "${1:-not run}" ;; esac; }
+          size="not built"
+          version_time="not built"
+          if [[ -f "$EXE" ]]; then
+            size="$(node -p "(require('node:fs').statSync(process.argv[1]).size / 1048576).toFixed(1) + ' MiB'" "$EXE")"
+            version_time="$(node -e '
+              const { spawnSync } = require("node:child_process");
+              const exe = require("node:path").resolve(process.argv[1]);
+              const runs = [];
+              for (let i = 0; i < 6; i++) {
+                const start = process.hrtime.bigint();
+                spawnSync(exe, ["--version"]);
+                runs.push(Number(process.hrtime.bigint() - start) / 1e6);
+              }
+              const rest = runs.slice(1).sort((a, b) => a - b);
+              console.log(`first ${runs[0].toFixed(0)} ms, median of next 5 ${rest[2].toFixed(0)} ms`);
+            ' "$EXE")"
+          fi
+          {
+            echo "### ${TARGET} ($(node -p 'process.platform + "-" + process.arch'))"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Node | $(node --version) |"
+            echo "| Build SEA | $(result "$BUILD") |"
+            echo "| verify-standalone (version, help, Ledger addon) | $(result "$VERIFY") |"
+            echo "| Build probes | $(result "$PROBE_BUILD") |"
+            echo "| Import probe (vm default loader, plain and top-level await) | $(result "$PROBE_IMPORT") |"
+            echo "| Hooks probe (registerHooks, host class) | $(result "$PROBE_HOOKS") |"
+            echo "| Pipe check (--json-schema) | $(result "$PIPE") ${PIPE_BYTES} |"
+            echo "| codesign --verify (macOS) | $(result "$CODESIGN") |"
+            echo "| Highest GLIBC <= 2.35 (Linux) | $(result "$GLIBC") ${GLIBC_VERSIONS} |"
+            echo "| --version under QEMU -cpu Nehalem (ubuntu-22.04) | $(result "$QEMU") |"
+            echo "| Executable size | ${size} |"
+            echo "| --version wall time | ${version_time} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for probe in import hooks; do
+            if [[ -f "standalone/probe/${probe}-probe${EXT}" ]]; then
+              echo "#### ${probe} probe output" >> "$GITHUB_STEP_SUMMARY"
+              { echo '```'; "standalone/probe/${probe}-probe${EXT}" 2>&1 || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
