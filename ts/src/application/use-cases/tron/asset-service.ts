@@ -3,7 +3,7 @@ import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 // Inputs use whole tokens; chain quantities and returned supply amounts use minimal units.
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, UsageError } from "../../../domain/errors/index.js";
 import { assertPositive, toBaseUnits } from "../../../domain/amounts/index.js";
 import {
   icoPriceLabel,
@@ -84,7 +84,7 @@ export class TronAssetService {
     if ((input.assetRef === undefined) === (input.issuer === undefined)) {
       throw new UsageError(
         "invalid_value",
-        errorMessage`provide exactly one of <asset> or ${inputRef("issuer")}`,
+        errorMessage`provide exactly one of <asset> or --issuer`,
       );
     }
     const asset =
@@ -117,24 +117,18 @@ export class TronAssetService {
     const owner = scope.resolveAddress("tron");
 
     const precision = trc10Precision(input.precision ?? 0);
-    const name = trc10Symbol(input.name, "name");
-    const abbr = input.abbr === undefined ? "" : trc10Symbol(input.abbr, "abbr");
+    const name = trc10Symbol(input.name, "--name");
+    const abbr = input.abbr === undefined ? "" : trc10Symbol(input.abbr, "--abbr");
     const url = trc10Url(input.url);
     const description = trc10Description(input.description ?? "");
     const supply = trc10Supply(input.supply);
     const rate = parsePrice(input.price, precision);
-    const startTime = parseUtcDateTime(input.start, "start");
-    const endTime = parseUtcDateTime(input.end, "end");
+    const startTime = parseUtcDateTime(input.start, "--start");
+    const endTime = parseUtcDateTime(input.end, "--end");
     if (startTime <= this.now())
-      throw new UsageError(
-        "invalid_value",
-        errorMessage`${inputRef("start")} must be in the future`,
-      );
+      throw new UsageError("invalid_value", errorMessage`--start must be in the future`);
     if (endTime <= startTime) {
-      throw new UsageError(
-        "invalid_value",
-        errorMessage`${inputRef("end")} must be later than ${inputRef("start")}`,
-      );
+      throw new UsageError("invalid_value", errorMessage`--end must be later than --start`);
     }
     const scale = 10n ** BigInt(precision);
     const frozenSupply = (input.freeze ?? []).map((entry) => parseTranche(entry, scale));
@@ -151,7 +145,7 @@ export class TronAssetService {
       abbr,
       description,
       url,
-      totalSupply: toSafeInteger(supply * scale, "supply"),
+      totalSupply: toSafeInteger(supply * scale, "--supply"),
       trxNum: rate.trxNum,
       num: rate.num,
       precision,
@@ -218,7 +212,7 @@ export class TronAssetService {
     ) {
       throw new UsageError(
         "invalid_value",
-        errorMessage`give at least one of ${inputRef("description")}, ${inputRef("url")}, ${inputRef("freeNetPerAccount")}, ${inputRef("publicFreeNet")}`,
+        errorMessage`give at least one of --description, --url, --free-net-per-account, --public-free-net`,
       );
     }
     const asset = await this.#requireOwnAsset(gateway, owner);
@@ -289,7 +283,7 @@ export class TronAssetService {
     if (received === 0n) {
       throw new UsageError(
         "invalid_value",
-        errorMessage`${inputRef("pay")} is too small to buy even one unit of this token at its ICO rate`,
+        errorMessage`--pay is too small to buy even one unit of this token at its ICO rate`,
       );
     }
 
@@ -446,10 +440,7 @@ function priceLabel(rate: IcoRate, precision: number): string {
 function parsePrice(value: string, precision: number): IcoRate {
   const match = /^(\d+):(\d+)$/.exec(value.trim());
   if (!match) {
-    throw new UsageError(
-      "invalid_value",
-      errorMessage`${inputRef("price")} must be <trx>:<tokens>, e.g. 1:100`,
-    );
+    throw new UsageError("invalid_value", errorMessage`--price must be <trx>:<tokens>, e.g. 1:100`);
   }
   return icoRate(BigInt(match[1]!), BigInt(match[2]!), precision);
 }
@@ -460,20 +451,20 @@ function parseTranche(value: string, scale: bigint): TronAssetTranche {
   if (!match) {
     throw new UsageError(
       "invalid_value",
-      errorMessage`${inputRef("freeze")} must be <amount>:<days>, e.g. 100000000:30`,
+      errorMessage`--freeze must be <amount>:<days>, e.g. 100000000:30`,
     );
   }
-  const amount = assertPositive(BigInt(match[1]!), errorMessage`${inputRef("freeze")} amount`);
-  const days = assertPositive(Number(match[2]!), errorMessage`${inputRef("freeze")} days`);
-  return { frozen_amount: toSafeInteger(amount * scale, "freeze"), frozen_days: days };
+  const amount = assertPositive(BigInt(match[1]!), errorMessage`--freeze amount`);
+  const days = assertPositive(Number(match[2]!), errorMessage`--freeze days`);
+  return { frozen_amount: toSafeInteger(amount * scale, "--freeze"), frozen_days: days };
 }
 
-function parseUtcDateTime(value: string, field: string): number {
+function parseUtcDateTime(value: string, option: string): number {
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/.exec(value.trim());
   if (!match) {
     throw new UsageError(
       "invalid_value",
-      errorMessage`${inputRef(field)} must be YYYY-MM-DD or "YYYY-MM-DD HH:mm:ss" (read as UTC)`,
+      errorMessage`${option} must be YYYY-MM-DD or "YYYY-MM-DD HH:mm:ss" (read as UTC)`,
     );
   }
   const [, y, mo, d, h = "00", mi = "00", s = "00"] = match;
@@ -481,20 +472,17 @@ function parseUtcDateTime(value: string, field: string): number {
   // Reject Date.UTC rollover in both date and time components.
   const iso = new Date(stamp).toISOString();
   if (iso.slice(0, 19) !== `${y}-${mo}-${d}T${h}:${mi}:${s}`) {
-    throw new UsageError(
-      "invalid_value",
-      errorMessage`${inputRef(field)} is not a real date and time`,
-    );
+    throw new UsageError("invalid_value", errorMessage`${option} is not a real date and time`);
   }
   return stamp;
 }
 
 // TronWeb passes int64 fields as JS numbers; reject precision loss.
-function toSafeInteger(value: bigint, field: string): number {
+function toSafeInteger(value: bigint, option: string): number {
   if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
     throw new UsageError(
       "invalid_value",
-      errorMessage`${inputRef(field)} is too large to represent exactly at this precision`,
+      errorMessage`${option} is too large to represent exactly at this precision`,
     );
   }
   return Number(value);

@@ -6,7 +6,7 @@ import type {
   TronTransactionArtifact,
   TxReceiptKind,
 } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, UsageError } from "../../../domain/errors/index.js";
 import {
   MAX_UNFREEZING_ENTRIES,
   toRpcCode,
@@ -291,7 +291,7 @@ export class TronStakeService {
     if (receiver === owner) {
       throw new UsageError(
         "invalid_value",
-        errorMessage`${inputRef("receiver")} must differ from the owner address`,
+        errorMessage`--receiver must differ from the owner address`,
       );
     }
   }

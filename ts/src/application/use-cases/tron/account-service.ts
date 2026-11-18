@@ -1,7 +1,7 @@
 import { endedByDeadline, requestDispatchCheck } from "../../services/command-deadline.js";
 import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { EffectiveTokenEntry, NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, UsageError } from "../../../domain/errors/index.js";
 import { accountText } from "../../../domain/account/index.js";
 import { FAMILIES } from "../../../domain/family/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
@@ -44,10 +44,7 @@ export class TronAccountService {
     input: TransactionModeInput & { address: string },
   ) {
     if (!ADDRESS.validate(input.address)) {
-      throw new UsageError(
-        "invalid_value",
-        errorMessage`${inputRef("address")} must be a valid TRON address`,
-      );
+      throw new UsageError("invalid_value", errorMessage`--address must be a valid TRON address`);
     }
     // Ledger cannot sign AccountCreateContract; reject before RPC.
     if (transactionRequiresSigner(input)) {
@@ -111,10 +108,7 @@ export class TronAccountService {
     input: TransactionModeInput & { name?: string; id?: string },
   ) {
     if ((input.name === undefined) === (input.id === undefined)) {
-      throw new UsageError(
-        "invalid_option",
-        errorMessage`provide exactly one of ${inputRef("name")} or ${inputRef("id")}`,
-      );
+      throw new UsageError("invalid_option", errorMessage`provide exactly one of --name or --id`);
     }
     const field = input.name !== undefined ? ("name" as const) : ("id" as const);
     // Ledger supports AccountUpdateContract (name), but not SetAccountIdContract (id).

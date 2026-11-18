@@ -7,7 +7,6 @@ import type { TxPipeline, TronTxPipelineParams } from "../../services/pipeline/i
 import type { WallClock } from "../../contracts/wall-clock.js";
 import { TronProposalService } from "./proposal-service.js";
 import { isUserMessage } from "../../../domain/errors/index.js";
-import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
@@ -225,7 +224,7 @@ describe("proposal create --wait identifies the proposal it created, or admits i
     const waiting = {
       ...scope,
       wait: true,
-      warn: (m) => warnings.push(isUserMessage(m) ? cliMessage(m).message : String(m)),
+      warn: (m) => warnings.push(isUserMessage(m) ? m.message : String(m)),
     } as typeof scope;
     const { service } = createService(
       {

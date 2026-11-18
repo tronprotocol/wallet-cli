@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { errorMessage, inputRef } from "../errors/index.js";
+import { errorMessage } from "../errors/index.js";
 import { matchTokenSymbol, tokenBySymbol } from "./symbol.js";
 
-const INSTEAD = errorMessage`use ${inputRef("contract")}`;
+const INSTEAD = errorMessage`use --contract`;
 
 const FOO_A = { id: "A", symbol: "FOO" };
 const FOO_B = { id: "B", symbol: "foo" };
@@ -40,8 +40,7 @@ describe("tokenBySymbol", () => {
     expect(() => tokenBySymbol([FOO_A, FOO_B], "FOO", "net", INSTEAD)).toThrow(
       expect.objectContaining({
         code: "ambiguous_token_symbol",
-        message: expect.stringMatching(/A, B/),
-        parts: expect.arrayContaining([{ input: "contract" }]),
+        message: expect.stringMatching(/A, B; use --contract$/),
       }),
     );
   });

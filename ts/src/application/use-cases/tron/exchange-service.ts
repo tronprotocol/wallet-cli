@@ -2,7 +2,7 @@ import { requestDispatchCheck } from "../../services/command-deadline.js";
 import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, UsageError } from "../../../domain/errors/index.js";
 import { assertPositive, isPositive, toBaseUnits } from "../../../domain/amounts/index.js";
 import {
   TRX_TOKEN_ID,
@@ -121,7 +121,7 @@ export class TronExchangeService {
     const gateway = this.gateways.get(network, "tron", requestDispatchCheck(scope.deadline));
     const owner = scope.resolveAddress("tron");
 
-    const [rawFirst, rawSecond] = splitPair(input.pair, inputRef("pair"));
+    const [rawFirst, rawSecond] = splitPair(input.pair, "--pair");
     const firstTokenId = normalizeTokenId(rawFirst);
     const secondTokenId = normalizeTokenId(rawSecond);
     if (firstTokenId === secondTokenId) {
@@ -279,7 +279,7 @@ export class TronExchangeService {
     if (otherQuant <= 0n) {
       throw new UsageError(
         "invalid_value",
-        errorMessage`${inputRef("amount")} is too small for this pair's current ratio: the other side works out to 0 ${otherMeta.label}`,
+        errorMessage`--amount is too small for this pair's current ratio: the other side works out to 0 ${otherMeta.label}`,
       );
     }
     if (action === "withdraw") {
@@ -372,14 +372,14 @@ export class TronExchangeService {
     if (given !== 1) {
       throw new UsageError(
         "invalid_option",
-        errorMessage`provide exactly one of ${inputRef("amount")} or ${inputRef("rawAmount")}`,
+        errorMessage`provide exactly one of --amount or --raw-amount`,
       );
     }
     const raw =
       input.amount !== undefined
         ? toBaseUnits(input.amount, meta.decimals, meta.label)
         : input.rawAmount!;
-    return assertPositive(BigInt(raw), inputRef("amount"));
+    return assertPositive(BigInt(raw), "--amount");
   }
 
   async #pairAmounts(
@@ -393,10 +393,10 @@ export class TronExchangeService {
     if (given !== 1) {
       throw new UsageError(
         "invalid_option",
-        errorMessage`provide exactly one of ${inputRef("amounts")} or ${inputRef("rawAmounts")}`,
+        errorMessage`provide exactly one of --amounts or --raw-amounts`,
       );
     }
-    const pair = inputRef(input.amounts !== undefined ? "amounts" : "rawAmounts");
+    const pair = input.amounts !== undefined ? "--amounts" : "--raw-amounts";
     const [a, b] = splitPair((input.amounts ?? input.rawAmounts)!, pair);
     const convert = (value: string, meta: TokenMeta): bigint => {
       const raw =
@@ -430,18 +430,18 @@ export class TronExchangeService {
     if (given > 1) {
       throw new UsageError(
         "invalid_option",
-        errorMessage`choose at most one of ${inputRef("minReceived")}, ${inputRef("rawMinReceived")}, ${inputRef("slippage")}`,
+        errorMessage`choose at most one of --min-received, --raw-min-received, --slippage`,
       );
     }
     if (input.minReceived !== undefined) {
       return BigInt(
-        toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label, inputRef("minReceived")),
+        toBaseUnits(input.minReceived, buyMeta.decimals, buyMeta.label, "--min-received"),
       );
     }
     if (input.rawMinReceived !== undefined) return BigInt(input.rawMinReceived);
     if (input.slippage !== undefined) return slippageFloor(predicted, input.slippage);
     scope.warn(
-      errorMessage`no slippage protection: this trade accepts any non-zero return at any price. Pass ${inputRef("slippage")} or ${inputRef("minReceived")} to set a floor.`,
+      errorMessage`no slippage protection: this trade accepts any non-zero return at any price. Pass --slippage or --min-received to set a floor.`,
     );
     return UNPROTECTED_FLOOR;
   }

@@ -95,7 +95,7 @@ describe("resolveLedgerPath", () => {
       scanLimit: 3,
     }).catch((e) => e);
     expect(err.message).toContain("Ledger Live");
-    expect(err.message).toContain("increase scanLimit");
+    expect(err.message).toContain("increase --scan-limit");
     expect(err.message).not.toMatch(/MetaMask|MEW|MyCrypto/);
   });
 });

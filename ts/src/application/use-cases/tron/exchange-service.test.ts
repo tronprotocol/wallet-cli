@@ -6,7 +6,7 @@ import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js
 import type { TronAsset, TronExchange, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { TxPipeline } from "../../services/pipeline/index.js";
 import { isUserMessage } from "../../../domain/errors/index.js";
-import { cliMessage, errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
+import { errorEnvelope } from "../../../adapters/inbound/cli/output/errors.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
@@ -31,7 +31,7 @@ const scope: TransactionScope = {
 
   emit: () => {},
   warn: (m) => {
-    warnings.push(typeof m === "string" ? m : isUserMessage(m) ? cliMessage(m).message : "");
+    warnings.push(typeof m === "string" ? m : isUserMessage(m) ? m.message : "");
   },
 };
 
@@ -132,7 +132,7 @@ describe("exchange create", () => {
       service({}).create(scope, NET, { pair: "TRX:1000123", rawAmounts: "0:1" }),
     ).rejects.toMatchObject({
       code: "invalid_value",
-      message: "rawAmounts sides must both be greater than zero",
+      message: "--raw-amounts sides must both be greater than zero",
     });
   });
 
@@ -143,7 +143,7 @@ describe("exchange create", () => {
     expect(errorEnvelope(error).message).toBe("provide exactly one of --amounts or --raw-amounts");
     await expect(
       service({}).create(scope, NET, { pair: "TRX:1000123", amounts: "1:1", rawAmounts: "1:1" }),
-    ).rejects.toThrow(/exactly one of amounts or rawAmounts/);
+    ).rejects.toThrow(/exactly one of --amounts or --raw-amounts/);
   });
 });
 
@@ -200,7 +200,7 @@ describe("exchange inject / withdraw", () => {
       svc.inject(scope, NET, { id: 12, token: "TRX", rawAmount: "0" }),
     ).rejects.toMatchObject({
       code: "invalid_value",
-      message: "amount must be greater than zero",
+      message: "--amount must be greater than zero",
     });
   });
 
@@ -244,7 +244,7 @@ describe("exchange trade", () => {
       svc.trade(scope, NET, { ...base, minReceived: "1.1234567" }),
     ).rejects.toMatchObject({
       code: "invalid_amount",
-      message: expect.stringContaining("minReceived has too many decimal places"),
+      message: expect.stringContaining("--min-received has too many decimal places"),
     });
   });
 

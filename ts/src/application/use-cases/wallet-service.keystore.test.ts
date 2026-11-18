@@ -18,7 +18,6 @@ import { KeystoreV3 } from "../../domain/keystore/index.js";
 import { tronHexAddress } from "../../domain/address/index.js";
 import { derivePrivAddresses } from "../../domain/wallet/index.js";
 import { WalletService } from "./wallet-service.js";
-import { cliMessage } from "../../adapters/inbound/cli/output/errors.js";
 
 const MNEMONIC = "test test test test test test test test test test test junk";
 const PW = "masterpw123A!";
@@ -211,7 +210,7 @@ describe("WalletService derive selection", () => {
     });
 
     expect(() => h.service.derive({ account: accountId })).toThrowError(
-      /account is not HD; select an account belonging to an HD wallet or pass seedId/,
+      /account is not HD; select an account belonging to an HD wallet or pass --seed-id/,
     );
   });
 
@@ -220,7 +219,7 @@ describe("WalletService derive selection", () => {
     const { accountId } = h.keystore.import({ secret: RAW_KEY, type: "privateKey" });
 
     expect(() => h.service.derive({ seedId: accountId })).toThrowError(
-      /wallet is not HD; seedId must name an HD seed wallet/,
+      /wallet is not HD; --seed-id must name an HD seed wallet/,
     );
   });
 
@@ -710,7 +709,7 @@ describe("native backup warns about accounts the default recovery flow will not 
     const h = legacyHarness();
     const warnings: unknown[] = [];
 
-    h.service.backup(`${h.seedId}.0`, undefined, (m) => warnings.push(cliMessage(m).message));
+    h.service.backup(`${h.seedId}.0`, undefined, (m) => warnings.push(m.message));
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toContain(

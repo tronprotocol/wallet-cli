@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AccountSelection } from "./account-selection.js";
 import { errorMessage, UsageError, type CliError } from "../../domain/errors/index.js";
-import { cliMessage } from "../../adapters/inbound/cli/output/errors.js";
 import type { Wallet } from "../../domain/types/index.js";
 
 const TRON = "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7";
@@ -61,9 +60,7 @@ describe("AccountSelection.select", () => {
   it("reports missing_wallet_address naming the account option when nothing is active", () => {
     const error = thrown(() => new AccountSelection(store(seed)).select());
     expect(error.code).toBe("missing_wallet_address");
-    expect(cliMessage(error.userMessage).message).toBe(
-      "no active account; import one or pass --account",
-    );
+    expect(error.userMessage.message).toBe("no active account; import one or pass --account");
   });
 
   it("uses the caller's message when nothing is active", () => {
@@ -90,7 +87,7 @@ describe("AccountSelection.address", () => {
   it("reports family_mismatch naming the account's family and the network option", () => {
     const error = thrown(() => new AccountSelection(store(evmWatch)).address("wlt_w", "tron"));
     expect(error.code).toBe("family_mismatch");
-    expect(cliMessage(error.userMessage).message).toBe(
+    expect(error.userMessage.message).toBe(
       "selected account is evm-only and has no tron address; pass --network for a evm network, or change defaultNetwork",
     );
   });

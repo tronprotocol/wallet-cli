@@ -1,56 +1,12 @@
-// An input named by its field; the inbound adapter spells it for its own interface.
-export interface InputRef {
-  readonly input: string;
-}
+// Authored layout, or an external value (with its text rendering when already composed).
+export type MessagePart = string | { readonly value: string; readonly text?: string };
 
-// A next step the user can take; the inbound adapter names the command that performs it.
-export type FollowUp =
-  | "account-list"
-  | "account-rename"
-  | "asset-info"
-  | "keystore-backup"
-  | "ledger-import"
-  | "proposal-list"
-  | "token-add";
-
-export interface FollowUpRef {
-  readonly followUp: FollowUp;
-  readonly subject?: string;
-}
-
-// Authored layout, an external value (with its text rendering when already composed), or a
-// reference the inbound adapter spells.
-export type MessagePart =
-  string | { readonly value: string; readonly text?: string } | InputRef | FollowUpRef;
-
-// Separates trusted layout from escaped external values. `message` names inputs by field;
-// `parts`, when present, lets the inbound adapter spell the references for its interface.
+// Separates trusted layout from escaped external values: `message` keeps raw values for JSON,
+// `textMessage` escapes their line separators for text output. `parts` keeps the two apart.
 export interface UserMessage {
   readonly message: string;
   readonly textMessage: string;
   readonly parts?: readonly MessagePart[];
-}
-
-export function inputRef(field: string): InputRef {
-  return { input: field };
-}
-
-export function followUp(step: FollowUp, subject?: string): FollowUpRef {
-  return subject === undefined ? { followUp: step } : { followUp: step, subject };
-}
-
-function isInputRef(value: unknown): value is InputRef {
-  return (
-    typeof value === "object" && value !== null && typeof (value as InputRef).input === "string"
-  );
-}
-
-function isFollowUpRef(value: unknown): value is FollowUpRef {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as FollowUpRef).followUp === "string"
-  );
 }
 
 export function isUserMessage(value: unknown): value is UserMessage {
@@ -72,32 +28,13 @@ export function singleLineErrorValue(value: string): string {
 }
 
 // External values are escaped only when `escape` is set.
-export function renderMessageParts(
-  parts: readonly MessagePart[],
-  spell: (ref: InputRef | FollowUpRef) => string,
-  escape: boolean,
-): string {
+function renderMessageParts(parts: readonly MessagePart[], escape: boolean): string {
   let out = "";
   for (const part of parts) {
     if (typeof part === "string") out += part;
-    else if ("value" in part)
-      out += escape ? (part.text ?? singleLineErrorValue(part.value)) : part.value;
-    else out += spell(part);
+    else out += escape ? (part.text ?? singleLineErrorValue(part.value)) : part.value;
   }
   return out;
-}
-
-function neutralSpelling(ref: InputRef | FollowUpRef): string {
-  if ("input" in ref) return ref.input;
-  return ref.subject === undefined ? ref.followUp : `${ref.followUp} ${ref.subject}`;
-}
-
-function userMessage(parts: readonly MessagePart[]): UserMessage {
-  return {
-    message: renderMessageParts(parts, neutralSpelling, false),
-    textMessage: renderMessageParts(parts, neutralSpelling, true),
-    parts,
-  };
 }
 
 function partsOf(message: UserMessage): readonly MessagePart[] {
@@ -105,22 +42,26 @@ function partsOf(message: UserMessage): readonly MessagePart[] {
 }
 
 // Escapes interpolated line separators for text output; preserves raw values for JSON.
-// Input and follow-up references and nested messages stay structured.
+// A nested message keeps its parts.
 export function errorMessage(strings: TemplateStringsArray, ...values: unknown[]): UserMessage {
   const parts: MessagePart[] = [strings[0]!];
   for (const [index, value] of values.entries()) {
-    if (isInputRef(value) || isFollowUpRef(value)) parts.push(value);
-    else if (isUserMessage(value)) parts.push(...partsOf(value));
+    if (isUserMessage(value)) parts.push(...partsOf(value));
     else parts.push({ value: String(value) });
     parts.push(strings[index + 1]!);
   }
-  return userMessage(parts.filter((part) => part !== ""));
+  const kept = parts.filter((part) => part !== "");
+  return {
+    message: renderMessageParts(kept, false),
+    textMessage: renderMessageParts(kept, true),
+    parts: kept,
+  };
 }
 
 export abstract class CliError extends Error {
   abstract readonly kind: "usage" | "execution";
   readonly textMessage: string;
-  // Empty when the message has no references to spell.
+  // Empty when the message is a plain string.
   readonly parts: readonly MessagePart[];
   constructor(
     public readonly code: string,
@@ -132,7 +73,7 @@ export abstract class CliError extends Error {
     this.parts = typeof message === "string" ? [] : (message.parts ?? []);
     this.name = new.target.name;
   }
-  // The message with its references kept structured, for composing another error.
+  // The message with its parts, for composing another error.
   get userMessage(): UserMessage {
     return this.parts.length === 0
       ? { message: this.message, textMessage: this.textMessage }

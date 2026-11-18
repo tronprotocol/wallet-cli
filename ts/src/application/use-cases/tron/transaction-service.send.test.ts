@@ -133,7 +133,7 @@ describe("TronTransactionService --token", () => {
       }),
     ).rejects.toMatchObject({
       code: "ambiguous_token_symbol",
-      parts: expect.arrayContaining([{ input: "contract" }, { input: "assetId" }]),
+      message: expect.stringMatching(/; use --contract or --asset-id$/),
     });
     expect(pipeline.runTron).not.toHaveBeenCalled();
   });

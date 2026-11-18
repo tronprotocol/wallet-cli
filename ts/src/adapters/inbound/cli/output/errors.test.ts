@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  ChainError,
-  errorMessage,
-  followUp,
-  inputRef,
-  UsageError,
-} from "../../../../domain/errors/index.js";
-import { cliMessage, errorEnvelope, exitCodeOf, flagFor, normalizeCliError } from "./errors.js";
+import { ChainError, errorMessage, UsageError } from "../../../../domain/errors/index.js";
+import { errorEnvelope, exitCodeOf, normalizeCliError } from "./errors.js";
 import { assertPositiveAmount } from "../../../../domain/amounts/index.js";
 import {
   normalizeTokenId,
@@ -17,22 +11,16 @@ import { planEvmFee } from "../../../../domain/evm/evm-gas.js";
 import { parseChainParameterAssignments } from "../../../../domain/tron/governance/chain-parameters.js";
 
 describe("CLI error projection", () => {
-  it("spells input references as flags, including globals with their own names", () => {
-    expect(flagFor("permissionId")).toBe("--permission-id");
-    expect(flagFor("timeoutMs")).toBe("--timeout");
-    expect(flagFor("wait")).toBe("--wait");
-  });
-
-  it("renders references in the envelope and the text message", () => {
+  it("puts the raw message in the envelope and escapes values in the text message", () => {
     const error = new UsageError(
       "invalid_option",
-      errorMessage`${inputRef("tickSpacing")} is wrong for ${"a\nb"}; see ${followUp("asset-info", "t1")}`,
+      errorMessage`--tick-spacing is wrong for ${"a\nb"}; see asset info t1`,
     );
     expect(errorEnvelope(error)).toEqual({
       code: "invalid_option",
       message: "--tick-spacing is wrong for a\nb; see asset info t1",
     });
-    expect(cliMessage(error.userMessage).textMessage).toBe(
+    expect(error.userMessage.textMessage).toBe(
       "--tick-spacing is wrong for a\\nb; see asset info t1",
     );
   });
@@ -71,11 +59,14 @@ describe("CLI error projection", () => {
 });
 
 describe("CLI wording of inner-layer messages", () => {
+  // The JSON message; the text message must be the same for these option names.
   function cliText(action: () => unknown): string {
     try {
       action();
     } catch (error) {
-      return errorEnvelope(error as UsageError).message;
+      const { message } = errorEnvelope(error as UsageError);
+      expect((error as UsageError).textMessage).toBe(message);
+      return message;
     }
     throw new Error("expected a CLI error");
   }
@@ -91,7 +82,7 @@ describe("CLI wording of inner-layer messages", () => {
       () => normalizeTokenId("abc"),
       '"abc" is not a token id — use TRX or a numeric TRC10 id (look one up with `asset info <name>`)',
     ],
-    ["pair", () => splitPair("x", inputRef("rawAmounts")), "--raw-amounts must be <a>:<b>"],
+    ["pair", () => splitPair("x", "--raw-amounts"), "--raw-amounts must be <a>:<b>"],
     [
       "parameter assignment",
       () => parseChainParameterAssignments(["x"], []),
@@ -102,11 +93,7 @@ describe("CLI wording of inner-layer messages", () => {
       () => planEvmFee({ gasPriceWei: "1", gasLimit: "21000", overrides: { maxFeeWei: "2" } }),
       "--max-fee and --priority-fee need an EIP-1559 chain; this network prices in gasPrice",
     ],
-    [
-      "amount",
-      () => assertPositiveAmount(0n, inputRef("amount")),
-      "--amount must be greater than zero",
-    ],
+    ["amount", () => assertPositiveAmount(0n, "--amount"), "--amount must be greater than zero"],
   ])("renders the %s message as before", (_name, action, text) => {
     expect(cliText(action)).toBe(text);
   });
@@ -119,7 +106,7 @@ describe("CLI wording of inner-layer messages", () => {
       gasLimit: "21000",
       overrides: { maxFeeWei: "500000" },
     });
-    expect(plan.warnings?.map((warning) => cliMessage(warning).message)).toEqual([
+    expect(plan.warnings?.map((warning) => warning.message)).toEqual([
       "--max-fee 500000 wei is below the node's suggested tip of 1000000 wei, so the tip was reduced to match it; a node rejects a tip above the fee cap",
       "--max-fee 500000 wei is below the current base fee of 1000000000 wei; this transaction cannot be included until the base fee falls",
     ]);

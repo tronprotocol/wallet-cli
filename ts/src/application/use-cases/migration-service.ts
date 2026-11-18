@@ -1,5 +1,5 @@
 import type { DataMigrations, PendingUpgrade } from "../ports/data-migration.js";
-import { errorMessage, inputRef, UsageError } from "../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../domain/errors/index.js";
 
 export interface MigrationOutcome {
   status: "current" | "upgraded" | "cancelled";
@@ -42,7 +42,7 @@ export class MigrationService {
       if (supplied === null) {
         throw new UsageError(
           "migration_required",
-          errorMessage`this wallet file was created by an older version and must be updated before any command can run; run wallet-cli in a terminal, or pipe the master password with ${inputRef("passwordStdin")}`,
+          errorMessage`this wallet file was created by an older version and must be updated before any command can run; run wallet-cli in a terminal, or pipe the master password with --password-stdin`,
         );
       }
       password = supplied;

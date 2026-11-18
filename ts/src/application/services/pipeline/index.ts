@@ -12,7 +12,7 @@ import type {
 } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
-import { errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../../domain/errors/index.js";
 import { OWNER_PERMISSION_ID } from "../../../domain/tron/permission/index.js";
 import type { SignOrigin, SigningService } from "../signing/signing-service.js";
 import { localTxId as txIdOf } from "../broadcast-identity.js";
@@ -138,7 +138,7 @@ export class TxPipeline {
         ) {
           throw new UsageError(
             "invalid_option",
-            errorMessage`this chain adapter cannot apply ${inputRef("permissionId")} or ${inputRef("expiration")}`,
+            errorMessage`this chain adapter cannot apply --permission-id or --expiration`,
           );
         }
         return tx;

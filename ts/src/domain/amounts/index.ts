@@ -1,12 +1,5 @@
 // Use string arithmetic to preserve amount precision.
-import {
-  ChainError,
-  errorMessage,
-  inputRef,
-  UsageError,
-  type InputRef,
-  type UserMessage,
-} from "../errors/index.js";
+import { ChainError, errorMessage, UsageError, type UserMessage } from "../errors/index.js";
 
 // Bounds remote precision before allocating scaled amounts.
 export function checkedTokenDecimals(decimals: number): number {
@@ -25,7 +18,7 @@ export function isZeroAmount(text: string): boolean {
 }
 
 // Amounts that move value must be greater than zero.
-export function assertPositiveAmount(value: bigint, label: string | InputRef): bigint {
+export function assertPositiveAmount(value: bigint, label: string): bigint {
   if (value <= 0n) {
     throw new UsageError("invalid_amount", errorMessage`${label} must be greater than zero`);
   }
@@ -39,7 +32,7 @@ export function isPositive(value: bigint | number): boolean {
 // Counts and protocol parameters; money uses assertPositiveAmount and its invalid_amount code.
 export function assertPositive<T extends bigint | number>(
   value: T,
-  label: string | InputRef | UserMessage,
+  label: string | UserMessage,
 ): T {
   if (!isPositive(value)) {
     throw new UsageError("invalid_value", errorMessage`${label} must be greater than zero`);
@@ -75,7 +68,7 @@ export function toBaseUnits(
   value: string,
   decimals: number,
   unitLabel: string,
-  input: string | InputRef = inputRef("amount"),
+  input = "--amount",
 ): string {
   checkedTokenDecimals(decimals);
   const v = value.trim();

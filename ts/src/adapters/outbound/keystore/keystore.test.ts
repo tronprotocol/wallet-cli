@@ -24,7 +24,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { Keystore, walletAddress } from "./index.js";
-import { followUp, type CliError } from "../../../domain/errors/index.js";
+import { type CliError } from "../../../domain/errors/index.js";
 import { AtomicFileStore } from "../persistence/fs/index.js";
 import { Derivation } from "../../../domain/derivation/index.js";
 import { TronAddress } from "../../../domain/address/index.js";
@@ -275,7 +275,6 @@ describe("Keystore", () => {
     } catch (caught) {
       error = caught as CliError;
     }
-    expect(error?.parts).toContainEqual(followUp("ledger-import"));
     expect(errorEnvelope(error!)).toEqual({
       code: "seed_not_found",
       message:

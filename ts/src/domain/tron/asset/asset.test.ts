@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { inputRef } from "../../errors/index.js";
 import {
   icoPriceLabel,
   icoRate,
@@ -36,8 +35,8 @@ describe("TRC10 ICO rate", () => {
   it("rejects non-positive sides and out-of-range precision", () => {
     expect(() => icoRate(0n, 100n, 6)).toThrow(/positive/);
     expect(() => icoRate(1n, 0n, 6)).toThrow(/positive/);
-    expect(() => icoRate(1n, 1n, 7)).toThrow(/^precision must be/);
-    expect(() => icoRate(1n, 1n, -1)).toThrow(/^precision must be/);
+    expect(() => icoRate(1n, 1n, 7)).toThrow(/^--precision must be/);
+    expect(() => icoRate(1n, 1n, -1)).toThrow(/^--precision must be/);
   });
 
   it("computes participation the way the chain does — multiply, then truncate", () => {
@@ -46,7 +45,7 @@ describe("TRC10 ICO rate", () => {
     // The chain does not refund the remainder.
     const coarse = { trxNum: 3, num: 1 };
     expect(icoTokensFor(10n, coarse)).toBe(3n);
-    expect(() => icoTokensFor(0n, rate)).toThrow(/^pay must be greater than zero/);
+    expect(() => icoTokensFor(0n, rate)).toThrow(/^--pay must be greater than zero/);
   });
 
   it("renders a rate back as whole TRX to whole tokens", () => {
@@ -77,16 +76,15 @@ describe("trc10Precision", () => {
 
 describe("TRC10 text and supply", () => {
   it("accepts 1-32 visible ASCII characters as a name or abbreviation", () => {
-    expect(trc10Symbol("TOKEN_1", "name")).toBe("TOKEN_1");
-    expect(trc10Symbol("x".repeat(32), "abbr")).toBe("x".repeat(32));
+    expect(trc10Symbol("TOKEN_1", "--name")).toBe("TOKEN_1");
+    expect(trc10Symbol("x".repeat(32), "--abbr")).toBe("x".repeat(32));
   });
 
   it.each(["", "two words", "é", "x".repeat(33)])("rejects %j and names the field", (value) => {
-    expect(() => trc10Symbol(value, "abbr")).toThrow(
+    expect(() => trc10Symbol(value, "--abbr")).toThrow(
       expect.objectContaining({
         code: "invalid_asset_name",
-        message: "abbr must be 1-32 visible ASCII characters, with no spaces",
-        parts: expect.arrayContaining([inputRef("abbr")]),
+        message: "--abbr must be 1-32 visible ASCII characters, with no spaces",
       }),
     );
   });

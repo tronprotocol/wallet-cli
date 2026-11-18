@@ -7,13 +7,7 @@ import type {
   TxInfoView,
   TxStatusView,
 } from "../../../domain/types/index.js";
-import {
-  ChainError,
-  errorMessage,
-  ExecutionError,
-  followUp,
-  inputRef,
-} from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, ExecutionError } from "../../../domain/errors/index.js";
 import { assertEvmTransactionChain } from "../../services/signing/chain-identity.js";
 import { submitAndStage } from "../../services/submit-and-stage.js";
 import { FAMILIES } from "../../../domain/family/index.js";
@@ -150,7 +144,7 @@ export class EvmTransactionService {
         this.tokens.effective(networkId, account),
         input.token,
         networkId,
-        errorMessage`use ${inputRef("contract")}`,
+        errorMessage`use --contract`,
       );
       if (entry.kind !== "erc20") {
         throw new ExecutionError(
@@ -185,7 +179,7 @@ export class EvmTransactionService {
     if (decimals === undefined) {
       throw new ExecutionError(
         "token_metadata_unavailable",
-        errorMessage`could not establish decimals for ${contract}: it did not answer decimals() and is not in the address book. Add it with \`${followUp("token-add", contract)}\`, or pass ${inputRef("rawAmount")} in base units.`,
+        errorMessage`could not establish decimals for ${contract}: it did not answer decimals() and is not in the address book. Add it with \`wallet-cli token add --contract ${contract}\`, or pass --raw-amount in base units.`,
       );
     }
     return {
@@ -355,7 +349,7 @@ export class EvmTransactionService {
           ]).catch(
             unlessDeadline(scope.deadline, (e: unknown) => {
               scope.warn(
-                errorMessage`${inputRef("dryRun")}: the node could not be reached, so nonce and balance were not checked (${(e as Error).message})`,
+                errorMessage`--dry-run: the node could not be reached, so nonce and balance were not checked (${(e as Error).message})`,
               );
               return undefined;
             }),
@@ -379,7 +373,7 @@ export class EvmTransactionService {
           detail: `${parsed.nonce} is ahead of the account's next nonce ${pending}; it stays queued until the gap is filled`,
         });
         scope.warn(
-          errorMessage`${inputRef("dryRun")}: nonce ${parsed.nonce} leaves a gap after ${pending}; this transaction cannot be mined until the missing one is broadcast`,
+          errorMessage`--dry-run: nonce ${parsed.nonce} leaves a gap after ${pending}; this transaction cannot be mined until the missing one is broadcast`,
         );
       } else {
         checks.push({

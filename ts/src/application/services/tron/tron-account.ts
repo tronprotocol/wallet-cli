@@ -4,7 +4,7 @@ import type { AccountScope } from "../../contracts/execution-scope.js";
 import type { DispatchCheck } from "../../contracts/deadline.js";
 import type { TronAccount, TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, UsageError } from "../../../domain/errors/index.js";
 
 /** TRON-only commands cannot resolve a family mismatch by switching to an EVM network. */
 export function resolveTronAccount(scope: AccountScope): string {
@@ -14,7 +14,7 @@ export function resolveTronAccount(scope: AccountScope): string {
     if (error instanceof UsageError && error.code === "family_mismatch")
       throw new UsageError(
         "family_mismatch",
-        errorMessage`this command supports TRON only; select an account with a TRON address using ${inputRef("account")}, or switch the active account`,
+        errorMessage`this command supports TRON only; select an account with a TRON address using --account, or switch the active account`,
       );
     throw error;
   }

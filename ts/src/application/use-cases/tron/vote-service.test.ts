@@ -57,7 +57,7 @@ describe("TronVoteService.cast", () => {
     const entries = Array.from({ length: 31 }, () => `${SR1}=1`);
     await expect(svc.cast(scope, NET, { for: entries })).rejects.toMatchObject({
       code: "invalid_value",
-      message: "for accepts at most 30 entries",
+      message: "--for accepts at most 30 entries",
     });
   });
 

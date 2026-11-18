@@ -44,15 +44,15 @@ describe("transactionMode", () => {
     expectCode(() => transactionMode({ permissionId: 10 }), "invalid_option");
   });
 
-  it("names inputs by field, not by flag", () => {
+  it("names the options", () => {
     expect(() => transactionMode({ dryRun: true, buildOnly: true })).toThrow(
-      "choose at most one of dryRun, signOnly, buildOnly",
+      "choose at most one of --dry-run, --sign-only, --build-only",
     );
     expect(() => transactionMode({ permissionId: 10 })).toThrow(
-      "permissionId must be an integer from 0 to 9",
+      "--permission-id must be an integer from 0 to 9",
     );
     expect(() => transactionMode({ expiration: 1_000 })).toThrow(
-      "expiration is only valid with signOnly or buildOnly",
+      "--expiration is only valid with --sign-only or --build-only",
     );
   });
 });
@@ -74,21 +74,17 @@ describe("waitsForConfirmation", () => {
   });
 
   it.each([
-    [true, "wait"],
-    [false, "noWait"],
+    [true, "--wait"],
+    [false, "--no-wait"],
   ] as const)(
     "refuses explicit intent %s where nothing is submitted, naming %s",
-    (intent, input) => {
-      let error: unknown;
-      try {
-        waitsForConfirmation(intent, false);
-      } catch (e) {
-        error = e;
-      }
-      expect(error).toMatchObject({ code: "invalid_option" });
-      expect((error as { userMessage: { parts: unknown[] } }).userMessage.parts).toContainEqual({
-        input,
-      });
+    (intent, option) => {
+      expect(() => waitsForConfirmation(intent, false)).toThrow(
+        expect.objectContaining({
+          code: "invalid_option",
+          message: `${option} applies only when a transaction is submitted`,
+        }),
+      );
     },
   );
 });

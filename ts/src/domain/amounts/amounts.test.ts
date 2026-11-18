@@ -12,7 +12,7 @@ import {
   positiveBaseUnits,
   toBaseUnits,
 } from "./index.js";
-import { inputRef, UsageError } from "../errors/index.js";
+import { UsageError } from "../errors/index.js";
 
 describe("supported token precision", () => {
   it.each([-1, 1.5, 78, 9999999999, NaN, Infinity])(
@@ -76,24 +76,18 @@ describe("toBaseUnits", () => {
 
   describe("names the offending option", () => {
     it("defaults to the amount input for the commands whose option is that", () => {
-      expect(() => toBaseUnits("1.1234567", 6, "TRX")).toThrow(/^amount has too many/);
+      expect(() => toBaseUnits("1.1234567", 6, "TRX")).toThrow(/^--amount has too many/);
       expect(() => toBaseUnits("abc", 6, "TRX")).toThrow(
-        expect.objectContaining({
-          message: "amount must be a non-negative decimal TRX amount",
-          parts: expect.arrayContaining([inputRef("amount")]),
-        }),
+        "--amount must be a non-negative decimal TRX amount",
       );
     });
 
-    it("uses the caller's input reference in both messages", () => {
-      expect(() => toBaseUnits("1.1234567", 6, "TRX", inputRef("minReceived"))).toThrow(
-        expect.objectContaining({
-          message: "minReceived has too many decimal places for TRX (max 6)",
-          parts: expect.arrayContaining([inputRef("minReceived")]),
-        }),
+    it("uses the caller's option in both messages", () => {
+      expect(() => toBaseUnits("1.1234567", 6, "TRX", "--min-received")).toThrow(
+        "--min-received has too many decimal places for TRX (max 6)",
       );
-      expect(() => toBaseUnits("abc", 6, "TRX", inputRef("minReceived"))).toThrow(
-        "minReceived must be a non-negative decimal TRX amount",
+      expect(() => toBaseUnits("abc", 6, "TRX", "--min-received")).toThrow(
+        "--min-received must be a non-negative decimal TRX amount",
       );
     });
 
@@ -104,7 +98,7 @@ describe("toBaseUnits", () => {
     });
 
     it("still returns the converted value when the input is fine", () => {
-      expect(toBaseUnits("1.5", 6, "TRX", inputRef("minReceived"))).toBe("1500000");
+      expect(toBaseUnits("1.5", 6, "TRX", "--min-received")).toBe("1500000");
     });
   });
 });
@@ -126,14 +120,6 @@ describe("positive amount rule", () => {
       expect.objectContaining({
         code: "invalid_value",
         message: "--count must be greater than zero",
-      }),
-    );
-  });
-  it("assertPositive names an input reference", () => {
-    expect(() => assertPositive(0, inputRef("count"))).toThrowError(
-      expect.objectContaining({
-        message: "count must be greater than zero",
-        parts: [inputRef("count"), " must be greater than zero"],
       }),
     );
   });

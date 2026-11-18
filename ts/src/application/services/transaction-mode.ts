@@ -8,7 +8,7 @@ import type {
   TxOutcome,
   UnsignedTx,
 } from "../../domain/types/index.js";
-import { errorMessage, inputRef, UsageError } from "../../domain/errors/index.js";
+import { errorMessage, UsageError } from "../../domain/errors/index.js";
 import {
   isPermissionId,
   MAX_PERMISSION_ID,
@@ -29,27 +29,27 @@ export function transactionMode(input: TransactionModeInput): ResolvedTransactio
   if (selected > 1) {
     throw new UsageError(
       "invalid_option",
-      errorMessage`choose at most one of ${inputRef("dryRun")}, ${inputRef("signOnly")}, ${inputRef("buildOnly")}`,
+      errorMessage`choose at most one of --dry-run, --sign-only, --build-only`,
     );
   }
   const permissionId = input.permissionId ?? OWNER_PERMISSION_ID;
   if (!isPermissionId(permissionId)) {
     throw new UsageError(
       "invalid_option",
-      errorMessage`${inputRef("permissionId")} must be an integer from ${OWNER_PERMISSION_ID} to ${MAX_PERMISSION_ID}`,
+      errorMessage`--permission-id must be an integer from ${OWNER_PERMISSION_ID} to ${MAX_PERMISSION_ID}`,
     );
   }
   if (input.expiration !== undefined) {
     if (!isTronExpirationMs(input.expiration)) {
       throw new UsageError(
         "invalid_option",
-        errorMessage`${inputRef("expiration")} must be an integer from 1 to ${MAX_TRON_EXPIRATION_MS} milliseconds`,
+        errorMessage`--expiration must be an integer from 1 to ${MAX_TRON_EXPIRATION_MS} milliseconds`,
       );
     }
     if (!input.signOnly && !input.buildOnly) {
       throw new UsageError(
         "invalid_option",
-        errorMessage`${inputRef("expiration")} is only valid with ${inputRef("signOnly")} or ${inputRef("buildOnly")}`,
+        errorMessage`--expiration is only valid with --sign-only or --build-only`,
       );
     }
   }
@@ -117,7 +117,7 @@ export function waitsForConfirmation(intent: boolean | undefined, submits: boole
   if (intent !== undefined) {
     throw new UsageError(
       "invalid_option",
-      errorMessage`${inputRef(intent ? "wait" : "noWait")} applies only when a transaction is submitted`,
+      errorMessage`${intent ? "--wait" : "--no-wait"} applies only when a transaction is submitted`,
     );
   }
   return false;

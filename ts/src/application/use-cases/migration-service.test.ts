@@ -60,7 +60,7 @@ describe("MigrationService", () => {
 
     expect(error?.code).toBe("migration_required");
     expect(error?.kind).toBe("usage");
-    expect(error?.message).toContain("pipe the master password with passwordStdin");
+    expect(error?.message).toContain("pipe the master password with --password-stdin");
     expect(data.apply).not.toHaveBeenCalled();
   });
 

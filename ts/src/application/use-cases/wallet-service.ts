@@ -28,8 +28,6 @@ import type {
 import {
   errorMessage,
   ExecutionError,
-  followUp,
-  inputRef,
   UsageError,
   WalletError,
   type UserMessage,
@@ -213,7 +211,7 @@ export class WalletService {
         if (!/^wlt_[^.]+$/.test(id)) {
           throw new UsageError(
             "invalid_value",
-            errorMessage`${inputRef("seedId")} takes a seed id (wlt_…), not '${request.seedId}'; copy it from the HD group header in \`${followUp("account-list")}\``,
+            errorMessage`--seed-id takes a seed id (wlt_…), not '${request.seedId}'; copy it from the HD group header in \`list\``,
           );
         }
         return this.wallets.resolveWallet(id);
@@ -221,7 +219,7 @@ export class WalletService {
 
       const account = this.#selection.select(
         request.account,
-        errorMessage`no active account; select an HD account with ${inputRef("account")} or pass ${inputRef("seedId")}`,
+        errorMessage`no active account; select an HD account with --account or pass --seed-id`,
       );
       return this.wallets.resolveAccount(account).wallet;
     })();
@@ -230,8 +228,8 @@ export class WalletService {
       throw new UsageError(
         "seed_not_found",
         request.seedId !== undefined
-          ? errorMessage`${wallet.source.type} wallet is not HD; ${inputRef("seedId")} must name an HD seed wallet`
-          : errorMessage`${wallet.source.type} account is not HD; select an account belonging to an HD wallet or pass ${inputRef("seedId")} <wlt_…>`,
+          ? errorMessage`${wallet.source.type} wallet is not HD; --seed-id must name an HD seed wallet`
+          : errorMessage`${wallet.source.type} account is not HD; select an account belonging to an HD wallet or pass --seed-id <wlt_…>`,
       );
     }
     const result = this.wallets.addAccount(wallet.id, request.index, request.label);
@@ -321,7 +319,10 @@ export class WalletService {
       if (stranded.length > 0 && warn) {
         const one = stranded.length === 1;
         const steps = stranded
-          .map((a) => errorMessage`  ${followUp("keystore-backup", `${wallet.id}.${a.index}`)}`)
+          .map(
+            (a) =>
+              errorMessage`  wallet-cli backup ${wallet.id}.${a.index} --keystore --network tron:728126428 --password-stdin`,
+          )
           .reduce((all, step) => errorMessage`${all}\n${step}`);
         warn(
           errorMessage`this version's default mnemonic recovery will NOT recreate ${stranded

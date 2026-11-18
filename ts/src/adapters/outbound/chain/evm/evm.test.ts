@@ -16,7 +16,7 @@ import { submitWithTxId } from "../../../../application/services/broadcast-ident
 import { HttpTransportError, type HttpTransport } from "../../http/index.js";
 import { UsageError, type CliError } from "../../../../domain/errors/index.js";
 import { baseUnitAmount } from "../../../../domain/amounts/index.js";
-import { cliMessage, exitCodeOf } from "../../../inbound/cli/output/errors.js";
+import { exitCodeOf } from "../../../inbound/cli/output/errors.js";
 
 const NO_CHECK = requestDispatchCheck(new CommandDeadline(0));
 
@@ -1307,7 +1307,7 @@ describe("EvmRpcClient contract-write encoding", () => {
       expect((e as CliError).message).toMatch(
         /^could not encode the constructor arguments against /,
       );
-      expect(cliMessage((e as CliError).userMessage).message).toContain(`against ${flag}:`);
+      expect((e as CliError).userMessage.message).toContain(`against ${flag}:`);
     }
   });
 

@@ -5,13 +5,12 @@ import { accountRef, walletAddress } from "../../domain/wallet/index.js";
 import { addressCodec, familyOf } from "../../domain/family/index.js";
 import {
   errorMessage,
-  inputRef,
   UsageError,
   WalletError,
   type UserMessage,
 } from "../../domain/errors/index.js";
 
-const NO_ACTIVE_ACCOUNT = errorMessage`no active account; import one or pass ${inputRef("account")}`;
+const NO_ACTIVE_ACCOUNT = errorMessage`no active account; import one or pass --account`;
 
 // Decides which account a command acts on.
 export class AccountSelection {
@@ -41,7 +40,7 @@ export class AccountSelection {
     throw new UsageError(
       "family_mismatch",
       own
-        ? errorMessage`selected account is ${own}-only and has no ${family} address; pass ${inputRef("network")} for a ${own} network, or change defaultNetwork`
+        ? errorMessage`selected account is ${own}-only and has no ${family} address; pass --network for a ${own} network, or change defaultNetwork`
         : errorMessage`active account has no ${family} address`,
     );
   }

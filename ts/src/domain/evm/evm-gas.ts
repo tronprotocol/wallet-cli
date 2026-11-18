@@ -1,5 +1,5 @@
 // Prices are decimal wei strings; BigInt preserves precision beyond Number.MAX_SAFE_INTEGER.
-import { errorMessage, inputRef, UsageError, type UserMessage } from "../errors/index.js";
+import { errorMessage, UsageError, type UserMessage } from "../errors/index.js";
 import { weiAmount, type Wei } from "../amounts/index.js";
 
 export type EvmFeeMode = "eip1559" | "legacy";
@@ -50,7 +50,7 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
     if (overrides.maxFeeWei !== undefined || overrides.priorityFeeWei !== undefined) {
       throw new UsageError(
         "invalid_option",
-        errorMessage`${inputRef("maxFee")} and ${inputRef("priorityFee")} need an EIP-1559 chain; this network prices in gasPrice`,
+        errorMessage`--max-fee and --priority-fee need an EIP-1559 chain; this network prices in gasPrice`,
       );
     }
     return {
@@ -77,12 +77,12 @@ export function planEvmFee(input: EvmFeeInput): EvmFeePlan {
   const warnings: UserMessage[] = [];
   if (clamped) {
     warnings.push(
-      errorMessage`${inputRef("maxFee")} ${maxFee} wei is below the node's suggested tip of ${suggested} wei, so the tip was reduced to match it; a node rejects a tip above the fee cap`,
+      errorMessage`--max-fee ${maxFee} wei is below the node's suggested tip of ${suggested} wei, so the tip was reduced to match it; a node rejects a tip above the fee cap`,
     );
   }
   if (maxFee < base) {
     warnings.push(
-      errorMessage`${inputRef("maxFee")} ${maxFee} wei is below the current base fee of ${base} wei; this transaction cannot be included until the base fee falls`,
+      errorMessage`--max-fee ${maxFee} wei is below the current base fee of ${base} wei; this transaction cannot be included until the base fee falls`,
     );
   }
 

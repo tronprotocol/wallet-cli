@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChainAddresses, Wallet, WalletsFile } from "../types/index.js";
+import type { UsageError } from "../errors/index.js";
 import {
   assignLabel,
   isHdWallet,
@@ -165,12 +166,32 @@ describe("selectDerivedAccount", () => {
       expect.objectContaining({
         code: "invalid_value",
         message: expect.stringMatching(
-          /'savings' already exists at index 1.*account-rename savings/,
+          /'savings' already exists at index 1.*`rename savings --label <new>`/,
         ),
       }),
     );
     expect(file.labels["wlt_a.1"]).toBe("savings");
     expect(file.activeAccount).toBe("wlt_a.0");
+  });
+
+  it("escapes the quoted label but not the rename command in text output", () => {
+    const label = "a\u0085b\u2028c\u2029d";
+    const wallet = seedWallet("wlt_a", { "0": A0, "1": A1 });
+    const file: WalletsFile = {
+      ...emptyFile(),
+      wallets: [wallet],
+      labels: { "wlt_a.0": "main", "wlt_a.1": label },
+      activeAccount: "wlt_a.0",
+    };
+    let error: UsageError | undefined;
+    try {
+      selectDerivedAccount(file, wallet, 1, undefined, "renamed");
+    } catch (caught) {
+      error = caught as UsageError;
+    }
+    const tail = `already exists at index 1; change its label with \`rename ${label} --label <new>\``;
+    expect(error?.message).toBe(`account '${label}' ${tail}`);
+    expect(error?.textMessage).toBe(`account 'a\\u0085b\\u2028c\\u2029d' ${tail}`);
   });
 
   it("refuses a label for an existing slot that has none", () => {

@@ -12,7 +12,7 @@ import type {
   TxParties,
   TxStatusView,
 } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, UsageError } from "../../../domain/errors/index.js";
 import { tokenBySymbol } from "../../../domain/token/symbol.js";
 import { TRX_TRANSFER_BANDWIDTH_BURN_SUN } from "../../../domain/fees/tron.js";
 import {
@@ -205,7 +205,7 @@ export class TronTransactionService {
         this.tokens.effective(networkId, account),
         input.token,
         networkId,
-        errorMessage`use ${inputRef("contract")} or ${inputRef("assetId")}`,
+        errorMessage`use --contract or --asset-id`,
       );
       if (token.kind !== "trc20" && token.kind !== "trc10") {
         throw new UsageError("invalid_value", `${input.token} is not a TRON token on ${networkId}`);

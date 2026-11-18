@@ -43,7 +43,6 @@ import { AtomicFileStore } from "../persistence/fs/index.js";
 import {
   errorMessage,
   ExecutionError,
-  followUp,
   UsageError,
   WalletError,
 } from "../../../domain/errors/index.js";
@@ -219,7 +218,7 @@ export class Keystore {
         throw new UsageError(
           "seed_not_found",
           wallet.source.type === "ledger"
-            ? errorMessage`${message} — import another path with '${followUp("ledger-import")}'`
+            ? errorMessage`${message} — import another path with 'import ledger'`
             : message,
         );
       }

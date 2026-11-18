@@ -7,7 +7,7 @@ import {
   toUtf8String,
   type TransactionLike,
 } from "ethers";
-import { ChainError, UsageError, errorMessage, inputRef } from "../../../../domain/errors/index.js";
+import { ChainError, UsageError, errorMessage } from "../../../../domain/errors/index.js";
 import { decimalToSafeNumber, quantityToSafeNumber } from "../../../../domain/numbers/index.js";
 import { classifyEvmRejection, isAlreadyKnown, isDefiniteSubmitRefusal } from "./node-errors.js";
 import { evmChecksumAddress, isEvmAddress } from "../../../../domain/address/index.js";
@@ -396,9 +396,9 @@ export class EvmRpcClient implements EvmGateway {
         "invalid_value",
         args.source === "abi"
           ? errorMessage`could not encode the constructor arguments against the ABI: ${reason}`
-          : errorMessage`could not encode the constructor arguments against ${inputRef(
-              args.source === "signature" ? "constructorSignature" : "constructorParams",
-            )}: ${reason}`,
+          : errorMessage`could not encode the constructor arguments against ${
+              args.source === "signature" ? "--constructor-signature" : "--constructor-params"
+            }: ${reason}`,
       );
     }
   }

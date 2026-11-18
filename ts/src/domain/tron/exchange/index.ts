@@ -1,4 +1,4 @@
-import { errorMessage, followUp, inputRef, UsageError, type InputRef } from "../../errors/index.js";
+import { errorMessage, UsageError } from "../../errors/index.js";
 
 // java-tron uses a notional supply of 1e18.
 const SUPPLY = 1e18;
@@ -20,7 +20,7 @@ export function slippageFloor(predicted: bigint, percent: number): bigint {
   if (!(percent > 0 && percent < 100)) {
     throw new UsageError(
       "invalid_value",
-      errorMessage`${inputRef("slippage")} must be greater than 0 and less than 100`,
+      errorMessage`--slippage must be greater than 0 and less than 100`,
     );
   }
   if (predicted <= 0n) {
@@ -54,7 +54,7 @@ export function normalizeTokenId(input: string): string {
   if (/^\d+$/.test(value)) return value;
   throw new UsageError(
     "invalid_value",
-    errorMessage`"${input}" is not a token id — use TRX or a numeric TRC10 id (look one up with \`${followUp("asset-info")}\`)`,
+    errorMessage`"${input}" is not a token id — use TRX or a numeric TRC10 id (look one up with \`asset info <name>\`)`,
   );
 }
 
@@ -62,7 +62,7 @@ export function tokenIdLabel(tokenId: string): string {
   return tokenId === TRX_TOKEN_ID ? "TRX" : tokenId;
 }
 
-export function splitPair(value: string, input: InputRef): [string, string] {
+export function splitPair(value: string, input: string): [string, string] {
   const parts = value.split(":");
   if (parts.length !== 2 || !parts[0]?.trim() || !parts[1]?.trim()) {
     throw new UsageError("invalid_value", errorMessage`${input} must be <a>:<b>`);

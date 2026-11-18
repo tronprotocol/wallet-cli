@@ -27,7 +27,6 @@ import {
   CliError,
   errorMessage,
   ExecutionError,
-  inputRef,
   TransportError,
   UsageError,
 } from "../../../domain/errors/index.js";
@@ -109,7 +108,7 @@ export class TronMultisigCollaborationService {
     if ((transaction.signature?.length ?? 0) !== 0) {
       throw new UsageError(
         "invalid_value",
-        errorMessage`TronLink ${inputRef("create")} requires an unsigned transaction`,
+        errorMessage`TronLink --create requires an unsigned transaction`,
       );
     }
 

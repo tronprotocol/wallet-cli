@@ -1,4 +1,4 @@
-import { errorMessage, inputRef, UsageError } from "../errors/index.js";
+import { errorMessage, UsageError } from "../errors/index.js";
 import { utf8ByteLength } from "../tron/governance/limits.js";
 
 export type AccountTextKind = "name" | "id";
@@ -16,7 +16,7 @@ export function accountText(kind: AccountTextKind, value: string): string {
   if (bytes < min || bytes > max || /[\p{Cc}\p{Cf}]/u.test(value)) {
     throw new UsageError(
       "invalid_value",
-      errorMessage`${inputRef(kind)} must be ${min}-${max} safe UTF-8 bytes`,
+      errorMessage`--${kind} must be ${min}-${max} safe UTF-8 bytes`,
     );
   }
   return value;

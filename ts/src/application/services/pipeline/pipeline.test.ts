@@ -11,7 +11,12 @@ import type {
   UnsignedTx,
 } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
-import { ChainError, classifyError, errorMessage } from "../../../domain/errors/index.js";
+import {
+  ChainError,
+  classifyError,
+  errorMessage,
+  type UserMessage,
+} from "../../../domain/errors/index.js";
 import { SigningService } from "../signing/signing-service.js";
 
 function scope(over: Partial<TransactionScope> = {}): TransactionScope {
@@ -272,11 +277,7 @@ import { systemWallClock } from "../../contracts/wall-clock.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import { DeadlineExpiredError } from "../../contracts/deadline.js";
 import { CommandDeadline, SUBMIT_ADMISSION_RESERVE_MS } from "../command-deadline.js";
-import {
-  cliMessage,
-  errorEnvelope,
-  exitCodeOf,
-} from "../../../adapters/inbound/cli/output/errors.js";
+import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
 
 const NO_DEADLINE = new CommandDeadline(0);
 
@@ -671,7 +672,7 @@ describe("TxPipeline under the command deadline", () => {
         ctx: scope({
           wait: true,
           deadline: at(5_000).deadline,
-          warn: (m) => warnings.push(cliMessage(m as never).message),
+          warn: (m) => warnings.push((m as UserMessage).message),
         }),
         confirm: async () => undefined,
       }),

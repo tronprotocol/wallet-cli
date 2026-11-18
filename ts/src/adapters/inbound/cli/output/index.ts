@@ -13,7 +13,7 @@ import type { CliError } from "../../../../domain/errors/index.js";
 import { OutputEnvelope, toJson } from "./envelope.js";
 import { renderErrorDetails, renderGenericText } from "../render/index.js";
 import { sanitizeText } from "../render/scalars.js";
-import { cliMessage, errorEnvelope } from "./errors.js";
+import { errorEnvelope } from "./errors.js";
 
 export interface OutputFormatter {
   // The format of the frames `success` and `event` return.
@@ -149,7 +149,7 @@ class HumanOutputFormatter extends BaseOutputFormatter implements OutputFormatte
   }
 
   error(err: CliError): void {
-    const line = `error [${err.code}]: ${cliMessage(err.userMessage).textMessage}`;
+    const line = `error [${err.code}]: ${err.textMessage}`;
     const candidates = renderErrorDetails(err.details);
     const text = candidates ? `${line}\n${candidates}` : line;
     this.streams.errorLine(sanitizeText(text));

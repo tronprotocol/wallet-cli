@@ -19,7 +19,6 @@ import type {
   StreamManager,
 } from "../contracts/index.js";
 import type { OutputFormatter } from "../output/index.js";
-import { cliMessage } from "../output/errors.js";
 import type { UserMessage } from "../../../../domain/errors/index.js";
 import type { Prompter } from "../input/prompt/index.js";
 import type { WalletService } from "../../../../application/use-cases/wallet-service.js";
@@ -98,11 +97,11 @@ function cliWarning(
   message: string | WarningView | UserMessage | CodedWarning,
 ): string | WarningView {
   if (typeof message === "string") return message;
-  if (!("code" in message)) return cliMessage(message).message;
+  if (!("code" in message)) return message.message;
   const text = message.message;
   return {
     ...message,
-    message: typeof text === "string" ? text : cliMessage(text).message,
+    message: typeof text === "string" ? text : text.message,
   };
 }
 

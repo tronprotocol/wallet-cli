@@ -3,7 +3,7 @@ import type { ChainFamily } from "../../domain/types/index.js";
 import type { PromptPort } from "../ports/prompt.js";
 import { Derivation } from "../../domain/derivation/index.js";
 import { FAMILIES, canonicalAddress } from "../../domain/family/index.js";
-import { errorMessage, inputRef, UsageError, WalletError } from "../../domain/errors/index.js";
+import { errorMessage, UsageError, WalletError } from "../../domain/errors/index.js";
 import type { LedgerDevice } from "../ports/ledger-device.js";
 
 export interface LedgerLocator {
@@ -30,7 +30,7 @@ export async function resolveLedgerPath(
     if (!BIP32_PATH.test(locator.path) || !match) {
       throw new UsageError(
         "invalid_path",
-        errorMessage`${inputRef("path")} must be a BIP44 derivation path like m/44'/${FAMILIES[family].coinType}'/0'/0/0, not '${locator.path}'`,
+        errorMessage`--path must be a BIP44 derivation path like m/44'/${FAMILIES[family].coinType}'/0'/0/0, not '${locator.path}'`,
       );
     }
     const coinType = Number(match[1]);
@@ -38,7 +38,7 @@ export async function resolveLedgerPath(
     if (coinType !== expected) {
       throw new UsageError(
         "invalid_option",
-        errorMessage`${inputRef("path")} coin_type ${coinType} does not match ${inputRef("app")} ${family} (expected ${expected})`,
+        errorMessage`--path coin_type ${coinType} does not match --app ${family} (expected ${expected})`,
       );
     }
     return locator.path;
@@ -56,7 +56,7 @@ export async function resolveLedgerPath(
     }
     throw new WalletError(
       "ledger_address_not_found",
-      errorMessage`address not found among the first ${limit} Ledger Live accounts; increase ${inputRef("scanLimit")}, select a known account with ${inputRef("index")}, or register its exact derivation path with ${inputRef("path")}`,
+      errorMessage`address not found among the first ${limit} Ledger Live accounts; increase --scan-limit, select a known account with --index, or register its exact derivation path with --path`,
     );
   }
   return Derivation.ledgerPath(family, 0);

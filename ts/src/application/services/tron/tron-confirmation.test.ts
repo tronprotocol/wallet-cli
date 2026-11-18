@@ -4,7 +4,6 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { TronGateway } from "../../ports/chain/tron/tron-gateway.js";
 import type { BroadcastResult, TronTransactionArtifact } from "../../../domain/types/index.js";
 import { parseTronTxInfo } from "../../../adapters/outbound/chain/tron/tron-responses.js";
-import { cliMessage } from "../../../adapters/inbound/cli/output/errors.js";
 import { ChainError } from "../../../domain/errors/index.js";
 import { CommandDeadline, SUBMIT_ADMISSION_RESERVE_MS } from "../command-deadline.js";
 import { localTxId } from "../broadcast-identity.js";
@@ -26,7 +25,7 @@ function scope(
     warn: (m) => {
       const text = typeof m === "string" || !("code" in m) ? m : m.message;
       warnings.push(typeof text === "string" ? text : text.message);
-      cliWarnings.push(typeof text === "string" ? text : cliMessage(text).message);
+      cliWarnings.push(typeof text === "string" ? text : text.message);
     },
     ...over,
   };
@@ -285,7 +284,7 @@ describe("tx broadcast stops waiting on an error a retry cannot fix", () => {
     expect(getTransactionInfoById).toHaveBeenCalledTimes(1);
     const [warning] = warn.mock.calls[0]!;
     expect(warning.code).toBe("not_found");
-    expect(cliMessage(warning.message).message).toBe(
+    expect(warning.message.message).toBe(
       `${TX} not confirmed: waiting stopped on not_found (the node has no gettransactioninfobyid); returning submitted (it may still confirm on-chain)`,
     );
   });

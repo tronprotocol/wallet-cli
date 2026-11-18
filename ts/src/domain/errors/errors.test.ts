@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { classifyError, errorMessage, followUp, inputRef, UsageError } from "./index.js";
+import { classifyError, errorMessage, UsageError } from "./index.js";
 
 describe("errorMessage trusted layout and external values", () => {
   it("escapes input line separators while preserving authored multiline guidance", () => {
@@ -24,27 +24,12 @@ describe("errorMessage trusted layout and external values", () => {
   });
 });
 
-describe("structured references", () => {
-  it("names inputs by field and keeps the references for the interface to spell", () => {
-    const error = new UsageError(
-      "invalid_option",
-      errorMessage`${inputRef("permissionId")} must be from 0 to ${9}; see ${followUp("asset-info", "abc")}`,
-    );
-    expect(error.message).toBe("permissionId must be from 0 to 9; see asset-info abc");
-    expect(error.parts).toEqual([
-      { input: "permissionId" },
-      " must be from 0 to ",
-      { value: "9" },
-      "; see ",
-      { followUp: "asset-info", subject: "abc" },
-    ]);
-  });
-
-  it("keeps a nested message's parts and its authored text rendering", () => {
-    const inner = new UsageError("invalid_value", errorMessage`bad ${inputRef("fee")}: ${"a\nb"}`);
+describe("nested messages", () => {
+  it("keeps a nested message's raw and text renderings", () => {
+    const inner = new UsageError("invalid_value", errorMessage`bad --fee: ${"a\nb"}`);
     const outer = errorMessage`${inner.userMessage}; more`;
-    expect(outer.message).toBe("bad fee: a\nb; more");
-    expect(outer.textMessage).toBe("bad fee: a\\nb; more");
+    expect(outer.message).toBe("bad --fee: a\nb; more");
+    expect(outer.textMessage).toBe("bad --fee: a\\nb; more");
     const plain = errorMessage`${{ message: "x\ny", textMessage: "x\\ny" }}!`;
     expect(plain.textMessage).toBe("x\\ny!");
   });

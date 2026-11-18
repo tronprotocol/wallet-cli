@@ -80,7 +80,7 @@ describe("resolveGasLimit", () => {
 
     const error = await resolveGasLimit(gateway, {}).catch((e) => e);
 
-    expect(error.message).toMatch(/pass gasLimit to proceed/);
+    expect(error.message).toMatch(/pass --gas-limit to proceed/);
     expect(errorEnvelope(error).message).toBe(
       "the node could not estimate gas for this transaction; pass --gas-limit to proceed without an estimate. The node said: nope",
     );

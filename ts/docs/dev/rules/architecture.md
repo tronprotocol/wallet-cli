@@ -261,9 +261,8 @@ never from argv or environment variables, are stored in a file with mode 0600, a
 
 ## 7. Language boundary
 
-7.1 `application`, `domain`, and `adapters/outbound` do not name CLI flags or commands. Errors and warnings name
-inputs and next steps through structured references and fields; inbound decides how to describe them to the user.
-**review**.
+7.1 A message names commands and options as the text the user reads, in every layer. The CLI prints a message as
+it was written and escapes external values in text output. **test**.
 
 7.2 `domain` owns the error code registry: each code's meaning, retry class, and exit class, as published in the
 contract. `adapters/inbound` owns the envelope shape and the fallback for unknown and `either` codes. **test** for
@@ -284,7 +283,8 @@ loaded from the wallet-cli home directory; the core's source names no plugin.
 
 9.1 The core imports no plugin code and loads plugins only from the wallet-cli home directory, through the
 plugin loader. A plugin reaches the core only through the plugin SDK (`plugin-api`). Plugins do not depend on
-each other. **review**.
+each other: each plugin installs and works with no other plugin installed. Plugins of one repository may share
+source that each bundles, and a message may name another plugin's command. **review**.
 
 9.2 A plugin has the layout `index.ts`, `domain/`, `application/`, `adapters/inbound/`, `adapters/outbound/`.
 Rules 1.1 to 1.6, 1.8 and 1.9 hold inside it for those directories, with `index.ts` in the role of
@@ -321,8 +321,7 @@ complete, immutable version directory (3.5). **test**.
 9.7 Every export of `plugin-api` is part of the contract. Removing or changing one raises the API version;
 adding one raises the API revision. **test**: a snapshot of the export names.
 
-9.8 Sections 2 to 8 apply to plugin code as written. Exception to 7.1: a plugin's messages name commands and
-options as the text the user reads, and the core prints them unchanged. Inside a plugin, its `domain` owns its
+9.8 Sections 2 to 8 apply to plugin code as written. Inside a plugin, its `domain` owns its
 error codes (7.2) and its `application` owns its capability predicates (5.3); both reach the core's registries
 through `PluginHost`. The closed-type rule (3.1) covers a plugin's ports and contracts. No plugin reads a
 secret; a plugin's `index.ts` may read non-secret environment variables. **review**, plus the checks each

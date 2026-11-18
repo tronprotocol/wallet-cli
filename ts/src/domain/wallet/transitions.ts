@@ -7,7 +7,7 @@ import type {
   Wallet,
   WalletsFile,
 } from "../types/index.js";
-import { errorMessage, followUp, UsageError, WalletError } from "../errors/index.js";
+import { errorMessage, UsageError, WalletError } from "../errors/index.js";
 import { SOURCE_KINDS } from "../sources/index.js";
 import { accountIndices, accountRefOf, findByAddress, findBySource, firstIndex } from "./index.js";
 import { derivedAccountLabel, labelKey, walletLabel } from "./label.js";
@@ -106,9 +106,12 @@ export function selectDerivedAccount(
     label !== undefined &&
     (existing === undefined || labelKey(existing) !== labelKey(label))
   ) {
+    const account = existing ?? ref;
+    // The command is printed as written: text output does not escape the label inside it.
+    const rename = `rename ${account} --label <new>`;
     throw new UsageError(
       "invalid_value",
-      errorMessage`account '${existing ?? ref}' already exists at index ${index}; change its label with \`${followUp("account-rename", existing ?? ref)}\``,
+      errorMessage`account '${account}' already exists at index ${index}; change its label with \`${{ message: rename, textMessage: rename }}\``,
     );
   }
   if (derived) wallet.source.addresses[String(index)] = derived;

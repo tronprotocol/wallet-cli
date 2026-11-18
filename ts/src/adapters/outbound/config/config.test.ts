@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ConfigLoader, NetworkRegistry } from "./index.js";
 import { CONFIG_DEFAULTS } from "../../../application/contracts/config-defaults.js";
-import { CliError, inputRef } from "../../../domain/errors/index.js";
+import { CliError } from "../../../domain/errors/index.js";
 import { errorEnvelope } from "../../inbound/cli/output/errors.js";
 import { PLUGIN_CREDENTIAL_KEYS } from "../../../domain/plugins/__test-support__/credentials.js";
 
@@ -54,7 +54,6 @@ describe("ConfigLoader defaultNetwork", () => {
       error = caught;
     }
     expect(error).toBeInstanceOf(CliError);
-    expect((error as CliError).parts).toContainEqual(inputRef("network"));
     expect(errorEnvelope(error as CliError)).toEqual({
       code: "missing_network",
       message: "this command requires --network <id>",

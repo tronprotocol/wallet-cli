@@ -6,7 +6,7 @@ import {
 import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, inputRef, UsageError } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage, UsageError } from "../../../domain/errors/index.js";
 import { decimalToBigInt } from "../../../domain/numbers/index.js";
 import {
   ELECTED_SR_COUNT,
@@ -216,12 +216,12 @@ function parseVoteInputs(values: string[]): TronVote[] {
   if (values.length === 0)
     throw new UsageError(
       "invalid_value",
-      errorMessage`${inputRef("for")} must include at least one SR=votes entry`,
+      errorMessage`--for must include at least one SR=votes entry`,
     );
   if (values.length > MAX_VOTE_ITEMS)
     throw new UsageError(
       "invalid_value",
-      errorMessage`${inputRef("for")} accepts at most ${MAX_VOTE_ITEMS} entries`,
+      errorMessage`--for accepts at most ${MAX_VOTE_ITEMS} entries`,
     );
   const codec = addressCodec("tron");
   const seen = new Set<string>();
@@ -230,7 +230,7 @@ function parseVoteInputs(values: string[]): TronVote[] {
     if (separator <= 0 || separator === entry.length - 1) {
       throw new UsageError(
         "invalid_value",
-        errorMessage`invalid ${inputRef("for")} entry '${entry}'; expected SR=votes`,
+        errorMessage`invalid --for entry '${entry}'; expected SR=votes`,
       );
     }
     const witness = entry.slice(0, separator).trim();

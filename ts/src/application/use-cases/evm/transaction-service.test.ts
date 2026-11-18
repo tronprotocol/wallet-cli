@@ -12,11 +12,7 @@ import type { TransactionScope } from "../../contracts/execution-scope.js";
 import type { ChainGatewayProvider } from "../../ports/chain/gateway-provider.js";
 import type { TxPipeline, EvmTxPipelineParams } from "../../services/pipeline/index.js";
 import { decodeEvmRawTransaction } from "../../../adapters/outbound/chain/evm/evm.js";
-import {
-  cliMessage,
-  errorEnvelope,
-  exitCodeOf,
-} from "../../../adapters/inbound/cli/output/errors.js";
+import { errorEnvelope, exitCodeOf } from "../../../adapters/inbound/cli/output/errors.js";
 import { DeadlineExpiredError } from "../../contracts/deadline.js";
 import { CommandDeadline } from "../../services/command-deadline.js";
 
@@ -317,7 +313,7 @@ describe("EvmTransactionService.send — --token", () => {
       service.send(scope(), SEPOLIA, { to: RECEIVER, token: "FOO", amount: "1" } as never),
     ).rejects.toMatchObject({
       code: "ambiguous_token_symbol",
-      parts: expect.arrayContaining([{ input: "contract" }]),
+      message: expect.stringMatching(/; use --contract$/),
     });
     expect(pipeline.runEvm).not.toHaveBeenCalled();
   });
@@ -397,7 +393,7 @@ describe("EvmTransactionService.send — --contract without a book entry", () =>
       .catch((e) => e);
 
     expect(error).toMatchObject({ code: "token_metadata_unavailable" });
-    expect(error.message).toMatch(/rawAmount/);
+    expect(error.message).toMatch(/--raw-amount/);
   });
 
   it("does not need decimals at all for --raw-amount", async () => {
@@ -750,7 +746,7 @@ describe("EvmTransactionService.broadcast", () => {
     const out = await service.broadcast({ ...scope(true), deadline, warn }, SEPOLIA, SIGNED);
 
     expect(out).toMatchObject({ stage: "submitted" });
-    expect(cliMessage(warn.mock.calls.at(-1)![0]).message).toBe(
+    expect(warn.mock.calls.at(-1)![0].message).toBe(
       "0x6bfa290e4749ac903192c155d9b0f534ec9a8c8ab9dbb55bd155a91e3c0d7026 not confirmed before the command's time limit; returning submitted (it may still confirm on-chain)",
     );
   });
@@ -903,7 +899,7 @@ describe("EvmTransactionService.broadcast --dry-run", () => {
       expect.arrayContaining([expect.objectContaining({ name: "nonce", status: "warning" })]),
     );
     expect(warn).toHaveBeenCalledWith(
-      expect.objectContaining({ message: expect.stringContaining("dryRun: nonce") }),
+      expect.objectContaining({ message: expect.stringContaining("--dry-run: nonce") }),
     );
   });
 

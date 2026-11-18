@@ -6,7 +6,7 @@ import {
 import { systemWallClock, type WallClock } from "../../contracts/wall-clock.js";
 import type { ExecutionDeadline } from "../../contracts/deadline.js";
 import type { NetworkDescriptor, UnsignedTx } from "../../../domain/types/index.js";
-import { ChainError, errorMessage, followUp } from "../../../domain/errors/index.js";
+import { ChainError, errorMessage } from "../../../domain/errors/index.js";
 import {
   parseChainParameterAssignments,
   proposalParameters,
@@ -134,7 +134,7 @@ export class TronProposalService {
               // The proposal stands; only its id is unknown.
               if (endedByDeadline(error, scope.deadline)) {
                 scope.warn(
-                  errorMessage`the created proposal's id was not read before the command's time limit. Find it with \`${followUp("proposal-list")}\` — the transaction itself succeeded`,
+                  errorMessage`the created proposal's id was not read before the command's time limit. Find it with \`proposal list\` — the transaction itself succeeded`,
                 );
               }
               return undefined;
@@ -319,8 +319,8 @@ async function findCreatedProposal(
   if (matches.length === 1) return matches[0]!.id;
   scope.warn(
     matches.length === 0
-      ? errorMessage`could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. Find it with \`${followUp("proposal-list")}\` — the transaction itself succeeded`
-      : errorMessage`could not identify the created proposal: ${matches.length} new proposals match these parameters. Find it with \`${followUp("proposal-list")}\` before approving or deleting anything`,
+      ? errorMessage`could not identify the created proposal yet: the node's proposal list has not caught up with the confirmation. Find it with \`proposal list\` — the transaction itself succeeded`
+      : errorMessage`could not identify the created proposal: ${matches.length} new proposals match these parameters. Find it with \`proposal list\` before approving or deleting anything`,
   );
   return undefined;
 }

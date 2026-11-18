@@ -8,7 +8,6 @@ import {
   splitPair,
   tokenIdLabel,
 } from "./index.js";
-import { inputRef } from "../../errors/index.js";
 
 const TRX = 1_000_000n; // sun per TRX
 
@@ -56,9 +55,9 @@ describe("slippage floor", () => {
   });
 
   it("rejects a percentage outside (0, 100) and an unpriceable trade", () => {
-    expect(() => slippageFloor(100n, 0)).toThrow(/^slippage must be/);
-    expect(() => slippageFloor(100n, 100)).toThrow(/^slippage must be/);
-    expect(() => slippageFloor(100n, -1)).toThrow(/^slippage must be/);
+    expect(() => slippageFloor(100n, 0)).toThrow(/^--slippage must be/);
+    expect(() => slippageFloor(100n, 100)).toThrow(/^--slippage must be/);
+    expect(() => slippageFloor(100n, -1)).toThrow(/^--slippage must be/);
     expect(() => slippageFloor(0n, 1)).toThrow(/too small to return anything/);
   });
 });
@@ -99,9 +98,9 @@ describe("token ids", () => {
   });
 
   it("splits pair flags and rejects malformed ones", () => {
-    expect(splitPair("TRX:1000123", inputRef("pair"))).toEqual(["TRX", "1000123"]);
+    expect(splitPair("TRX:1000123", "--pair")).toEqual(["TRX", "1000123"]);
     for (const bad of ["TRX", "TRX:", ":1000123", "a:b:c", ""]) {
-      expect(() => splitPair(bad, inputRef("pair"))).toThrow(/^pair must be/);
+      expect(() => splitPair(bad, "--pair")).toThrow(/^--pair must be/);
     }
   });
 });
