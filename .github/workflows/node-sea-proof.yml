@@ -174,7 +174,7 @@ jobs:
             echo "| --version under QEMU -cpu Nehalem (ubuntu-22.04) | $(result "$QEMU") |"
             echo "| Executable size | ${size} |"
             echo "| --version wall time | ${version_time} |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
           for probe in import hooks; do
             if [[ -f "standalone/probe/${probe}-probe${EXT}" ]]; then
               echo "#### ${probe} probe output" >> "$GITHUB_STEP_SUMMARY"
