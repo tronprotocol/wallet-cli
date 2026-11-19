@@ -32,7 +32,7 @@ subject. Production modules never import test files or test helpers. Sections 2 
 | `adapters/inbound` | What drives the app: parse argv, prompt, render output, the envelope | `application`, `domain` |
 | `adapters/outbound` | What the app calls: implement ports, translate external data into port types, I/O, locks, encryption at rest | `application/ports`, `application/contracts`, `domain` |
 | `bootstrap` | Composition root and process lifecycle; assembly only, no decisions | everything |
-| `plugin-api` | The contract between the core and a plugin: types a plugin implements, host service interfaces, curated re-exports | `domain`, `application`, and the adapter helper modules it re-exports |
+| `plugin-sdk` | The contract between the core and a plugin: types a plugin implements, host service interfaces, curated re-exports | `domain`, `application`, and the adapter helper modules it re-exports |
 
 1.1 Dependencies point inward, as the table shows. **depcruise**.
 
@@ -282,16 +282,16 @@ commands, options, error codes or settings. A plugin is built in its own reposit
 loaded from the wallet-cli home directory; the core's source names no plugin.
 
 9.1 The core imports no plugin code and loads plugins only from the wallet-cli home directory, through the
-plugin loader. A plugin reaches the core only through the plugin SDK (`plugin-api`). Plugins do not depend on
+plugin loader. A plugin reaches the core only through the plugin SDK (`plugin-sdk`). Plugins do not depend on
 each other: each plugin installs and works with no other plugin installed. Plugins of one repository may share
 source that each bundles, and a message may name another plugin's command. **review**.
 
 9.2 A plugin has the layout `index.ts`, `domain/`, `application/`, `adapters/inbound/`, `adapters/outbound/`.
 Rules 1.1 to 1.6, 1.8 and 1.9 hold inside it for those directories, with `index.ts` in the role of
 `bootstrap`: it builds the plugin's services from the host services and registers its commands. Each layer
-imports only its entry of `plugin-api`:
+imports only its entry of `plugin-sdk`:
 
-| Plugin layer | `plugin-api` entries |
+| Plugin layer | `plugin-sdk` entries |
 |---|---|
 | `domain` | `domain` |
 | `application` | `domain`, `application` |
@@ -318,7 +318,7 @@ registered affects no core command and no other plugin. **test**.
 9.6 The plugin store publishes an install or an update by replacing one active manifest that points to a
 complete, immutable version directory (3.5). **test**.
 
-9.7 Every export of `plugin-api` is part of the contract. Removing or changing one raises the API version;
+9.7 Every export of `plugin-sdk` is part of the contract. Removing or changing one raises the API version;
 adding one raises the API revision. **test**: a snapshot of the export names.
 
 9.8 Sections 2 to 8 apply to plugin code as written. Inside a plugin, its `domain` owns its

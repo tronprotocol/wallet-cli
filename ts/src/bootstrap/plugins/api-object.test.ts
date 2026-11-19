@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import * as index from "../../plugin-api/index.js";
-import * as domain from "../../plugin-api/domain.js";
-import * as application from "../../plugin-api/application.js";
-import * as cli from "../../plugin-api/cli.js";
-import * as http from "../../plugin-api/http.js";
+import * as index from "../../plugin-sdk/index.js";
+import * as domain from "../../plugin-sdk/domain.js";
+import * as application from "../../plugin-sdk/application.js";
+import * as cli from "../../plugin-sdk/cli.js";
+import * as http from "../../plugin-sdk/http.js";
 import { PLUGIN_API_GLOBAL, PLUGIN_API_OBJECT, publishPluginApi } from "./api-object.js";
 
 describe("the plugin API object", () => {

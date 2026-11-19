@@ -1,4 +1,4 @@
-// Builds plugin-sdk/dist: type declarations of the five plugin-api entries, one runtime module per
+// Builds plugin-sdk/dist: type declarations of the five src/plugin-sdk entries, one runtime module per
 // entry that binds each export to the API object the host publishes, and the self-contained `testing`
 // entry that publishes the real API for plugin tests. Run with `node --import tsx`; an optional
 // argument names another output directory, for tests that must not touch plugin-sdk/dist.
@@ -6,7 +6,7 @@ import process from "node:process";
 import { mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { build } from "tsup";
 import { PLUGIN_API_GLOBAL, PLUGIN_API_OBJECT } from "../src/bootstrap/plugins/api-object.ts";
-import { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "../src/plugin-api/index.ts";
+import { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "../src/plugin-sdk/index.ts";
 
 const OUT = process.argv[2] ?? "plugin-sdk/dist";
 const ENTRIES = ["index", "domain", "application", "cli", "http"];
@@ -35,7 +35,7 @@ await build({
 // One declaration build, so testing.d.ts shares the declarations of the other entries.
 await build({
   entry: {
-    ...Object.fromEntries(ENTRIES.map((e) => [e, `src/plugin-api/${e}.ts`])),
+    ...Object.fromEntries(ENTRIES.map((e) => [e, `src/plugin-sdk/${e}.ts`])),
     testing: "plugin-sdk/src/testing.ts",
   },
   outDir: OUT,

@@ -66,7 +66,7 @@ export default tseslint.config(
       "src/application/ports/**/*.ts",
       "src/application/contracts/**/*.ts",
       "src/domain/types/**/*.ts",
-      "src/plugin-api/**/*.ts",
+      "src/plugin-sdk/**/*.ts",
     ],
     ignores: ["**/*.test.ts"],
     languageOptions: {

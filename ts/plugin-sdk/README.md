@@ -5,7 +5,7 @@ Types and host bindings for wallet-cli plugins. Not published; build it from `ts
 
 - `@tron-walletcli/plugin-sdk` and the `/domain`, `/application`, `/cli` and `/http` entries hold the
   type declarations of the plugin API. At run time each entry reads the API object that wallet-cli publishes
-  at `globalThis[Symbol.for("wallet-cli.plugin-api")]` before it imports a plugin, so a plugin bundles only
+  at `globalThis[Symbol.for("wallet-cli.plugin-sdk")]` before it imports a plugin, so a plugin bundles only
   these small modules. Outside wallet-cli they throw.
 - `PLUGIN_API_VERSION` and `PLUGIN_API_REVISION` are the numbers this SDK was built for. Put them in the
   plugin definition, and run `wallet-cli-plugin-stamp [package.json]` to write the same numbers into

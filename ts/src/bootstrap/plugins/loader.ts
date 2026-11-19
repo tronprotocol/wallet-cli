@@ -5,7 +5,7 @@ import type { InstalledPlugin, PluginStore } from "../../application/ports/plugi
 import type { PluginLoadState } from "../../application/use-cases/plugin-service.js";
 import { ExecutionError, type CliError } from "../../domain/errors/index.js";
 import { incompatiblePlugin, pluginCompatibility } from "../../domain/plugins/index.js";
-import type { PluginCredential, PluginDefinition, PluginGroup } from "../../plugin-api/index.js";
+import type { PluginCredential, PluginDefinition, PluginGroup } from "../../plugin-sdk/index.js";
 import { publishPluginApi } from "./api-object.js";
 import { registerPlugin, type PluginTargets } from "./host.js";
 import { pluginImporter, type PluginImporter } from "./import-plugin.js";

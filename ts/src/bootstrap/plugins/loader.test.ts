@@ -7,7 +7,7 @@ import { CapabilityRegistry } from "../../application/services/capability/index.
 import type { InstalledPlugin, StoredPlugin } from "../../application/ports/plugin-store.js";
 import { ErrorCodeTable } from "../../domain/errors/codes.js";
 import { PLUGIN_API_REVISION, PLUGIN_API_VERSION } from "../../domain/plugins/index.js";
-import type { HostServices } from "../../plugin-api/host-services.js";
+import type { HostServices } from "../../plugin-sdk/host-services.js";
 import { PLUGIN_API_GLOBAL, PLUGIN_API_OBJECT } from "./api-object.js";
 import { PluginLoader } from "./loader.js";
 import type { PluginTargets } from "./host.js";
@@ -18,7 +18,7 @@ afterAll(() => rmSync(dir, { recursive: true, force: true }));
 // A plugin module that registers one neutral command under each group.
 function moduleSource(name: string, groups: string[], extra = "", register = ""): string {
   return `
-    const api = globalThis[Symbol.for("wallet-cli.plugin-api")];
+    const api = globalThis[Symbol.for("wallet-cli.plugin-sdk")];
     if (api === undefined) throw new Error("no host API");
     ${extra}
     export default {

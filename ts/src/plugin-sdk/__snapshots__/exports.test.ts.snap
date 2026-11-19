@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`pins the runtime export names of each plugin-api entry 1`] = `
+exports[`pins the runtime export names of each plugin-sdk entry 1`] = `
 {
   "application": [
     "DeadlineExpiredError",

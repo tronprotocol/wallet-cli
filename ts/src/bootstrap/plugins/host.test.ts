@@ -11,9 +11,9 @@ import {
   PLUGIN_API_VERSION,
   type PluginDefinition,
   type PluginHost,
-} from "../../plugin-api/index.js";
-import type { HostServices } from "../../plugin-api/host-services.js";
-import type { PluginChainSpec } from "../../plugin-api/cli.js";
+} from "../../plugin-sdk/index.js";
+import type { HostServices } from "../../plugin-sdk/host-services.js";
+import type { PluginChainSpec } from "../../plugin-sdk/cli.js";
 import { hostServices, pluginCommandContext, registerPlugin, type PluginTargets } from "./host.js";
 
 // A plugin reads its service credentials when it registers.

@@ -1,11 +1,11 @@
 // The one copy of the plugin API an installed plugin uses; the SDK's runtime modules read it.
-import * as index from "../../plugin-api/index.js";
-import * as domain from "../../plugin-api/domain.js";
-import * as application from "../../plugin-api/application.js";
-import * as cli from "../../plugin-api/cli.js";
-import * as http from "../../plugin-api/http.js";
+import * as index from "../../plugin-sdk/index.js";
+import * as domain from "../../plugin-sdk/domain.js";
+import * as application from "../../plugin-sdk/application.js";
+import * as cli from "../../plugin-sdk/cli.js";
+import * as http from "../../plugin-sdk/http.js";
 
-export const PLUGIN_API_GLOBAL = Symbol.for("wallet-cli.plugin-api");
+export const PLUGIN_API_GLOBAL = Symbol.for("wallet-cli.plugin-sdk");
 
 // Every runtime export of the five entries, by entry name.
 export const PLUGIN_API_OBJECT = Object.freeze({

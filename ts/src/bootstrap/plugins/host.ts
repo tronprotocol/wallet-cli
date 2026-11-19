@@ -36,10 +36,10 @@ import {
   PLUGIN_API_VERSION,
   type PluginDefinition,
   type PluginHost,
-} from "../../plugin-api/index.js";
-import type { CapabilityPredicate } from "../../plugin-api/application.js";
-import type { HostServices } from "../../plugin-api/host-services.js";
-import { WALLET_MANAGEMENT_FIELDS, type PluginCommandContext } from "../../plugin-api/command.js";
+} from "../../plugin-sdk/index.js";
+import type { CapabilityPredicate } from "../../plugin-sdk/application.js";
+import type { HostServices } from "../../plugin-sdk/host-services.js";
+import { WALLET_MANAGEMENT_FIELDS, type PluginCommandContext } from "../../plugin-sdk/command.js";
 import type {
   PluginEvmGateway,
   PluginGateways,
@@ -48,7 +48,7 @@ import type {
   PluginTokens,
   PluginTronCalls,
   PluginTronGateway,
-} from "../../plugin-api/host-services.js";
+} from "../../plugin-sdk/host-services.js";
 import {
   parsePluginCredentials,
   type PluginCredentialManifest,
