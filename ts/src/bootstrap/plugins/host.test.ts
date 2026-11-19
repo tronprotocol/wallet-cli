@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { CommandRegistry } from "../../adapters/inbound/cli/registry/index.js";
@@ -436,6 +437,50 @@ describe("the lifetime log", () => {
 });
 
 describe("objects handed to a plugin", () => {
+  it("keep the started child behind the detached start facade", () => {
+    const raw = Object.assign(new EventEmitter(), {
+      pid: 7,
+      connected: true,
+      disconnect: vi.fn(() => raw),
+      unref: vi.fn(() => raw),
+      kill: vi.fn(() => true),
+    });
+    const services = hostServices({
+      lifetime: { keepAlive: vi.fn() },
+      launcher: { startDetached: () => raw },
+      streams: { errorLine: vi.fn(), diagnostic: vi.fn() },
+      output: "json",
+      config: { credentials: new Map() },
+    } as never);
+    const child = services.lifetime.startDetached({ argv: [], env: {}, stderr: 2 });
+    const calls: { receiver: unknown; args: unknown[] }[] = [];
+    function listener(this: unknown, ...args: unknown[]) {
+      calls.push({ receiver: this, args });
+    }
+
+    expect(child.on("message", listener)).toBeUndefined();
+    raw.emit("message", { ready: true }, "handle");
+    expect(calls).toEqual([{ receiver: undefined, args: [{ ready: true }] }]);
+    expect(child.off("message", listener)).toBeUndefined();
+    raw.emit("message", { ready: false });
+    expect(calls).toHaveLength(1);
+    expect(raw.listenerCount("message")).toBe(0);
+
+    expect(child.once("exit", listener)).toBeUndefined();
+    raw.emit("exit", 3, null);
+    raw.emit("exit", 3, null);
+    expect(calls.slice(1)).toEqual([{ receiver: undefined, args: [] }]);
+    expect(child.once("error", listener)).toBeUndefined();
+    expect(child.off("error", listener)).toBeUndefined();
+    expect(raw.listenerCount("error")).toBe(0);
+
+    expect(child.disconnect()).toBeUndefined();
+    expect(child.unref()).toBeUndefined();
+    expect(child.kill("SIGTERM")).toBeUndefined();
+    expect(raw.kill).toHaveBeenCalledWith("SIGTERM");
+    expect(child.pid).toBe(7);
+  });
+
   it("give the command context exactly its documented members", async () => {
     const ctx = pluginCommandContext(executionContext());
     expect(reachable(ctx)).toEqual(CONTEXT_MEMBERS);

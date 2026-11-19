@@ -188,7 +188,29 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
   });
 }
 
+type ChildEvent = "message" | "error" | "exit";
+type ChildListener = (message: JsonValue) => void;
+
+// The child's own methods return the child and call a listener with the child as `this`; neither reaches
+// the plugin. Each plugin listener has one wrapper per event, so `off` removes what `on` or `once` added.
 function detachedFacade(child: DetachedCli): DetachedCli {
+  const wrappers = new WeakMap<ChildListener, Map<ChildEvent, ChildListener>>();
+  const wrapper = (event: ChildEvent, listener: ChildListener): ChildListener => {
+    let byEvent = wrappers.get(listener);
+    if (!byEvent) wrappers.set(listener, (byEvent = new Map()));
+    let wrapped = byEvent.get(event);
+    if (!wrapped) {
+      wrapped =
+        event === "message" ? (message) => listener(message) : () => (listener as () => void)();
+      byEvent.set(event, wrapped);
+    }
+    return wrapped;
+  };
+  const raw = child as unknown as {
+    on(event: ChildEvent, listener: ChildListener): unknown;
+    once(event: ChildEvent, listener: ChildListener): unknown;
+    off(event: ChildEvent, listener: ChildListener): unknown;
+  };
   return facade<DetachedCli>({
     get pid() {
       return child.pid;
@@ -196,13 +218,24 @@ function detachedFacade(child: DetachedCli): DetachedCli {
     get connected() {
       return child.connected;
     },
-    on: (event, listener) => child.on(event, listener),
-    once: (event, listener) => child.once(event, listener),
-    off: ((event: "message" | "error" | "exit", listener: () => void) =>
-      child.off(event as "error", listener)) as DetachedCli["off"],
-    disconnect: () => child.disconnect(),
-    unref: () => child.unref(),
-    kill: (signal) => child.kill(signal),
+    on: ((event: ChildEvent, listener: ChildListener) => {
+      raw.on(event, wrapper(event, listener));
+    }) as DetachedCli["on"],
+    once: ((event: ChildEvent, listener: ChildListener) => {
+      raw.once(event, wrapper(event, listener));
+    }) as DetachedCli["once"],
+    off: ((event: ChildEvent, listener: ChildListener) => {
+      raw.off(event, wrapper(event, listener));
+    }) as DetachedCli["off"],
+    disconnect: () => {
+      child.disconnect();
+    },
+    unref: () => {
+      child.unref();
+    },
+    kill: (signal) => {
+      child.kill(signal);
+    },
   });
 }
 
