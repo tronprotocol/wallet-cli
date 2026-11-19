@@ -4,15 +4,25 @@ Types and host bindings for wallet-cli plugins. Not published; build it from `ts
 `npm run build:plugin-sdk`, then consume it as a packed tarball (`npm pack ./plugin-sdk`) or a `file:` path.
 
 - `@tron-walletcli/plugin-sdk` and the `/domain`, `/application`, `/cli` and `/http` entries hold the
-  type declarations of the plugin API. At run time each entry reads the API object that wallet-cli publishes
-  at `globalThis[Symbol.for("wallet-cli.plugin-sdk")]` before it imports a plugin, so a plugin bundles only
-  these small modules. Outside wallet-cli they throw.
+  type declarations of the plugin API. Inside wallet-cli the core answers a plugin's import of the four
+  entries itself, with the objects of its own API, so errors, Zod schemas and services are the core's.
 - `PLUGIN_API_VERSION` and `PLUGIN_API_REVISION` are the numbers this SDK was built for. Put them in the
   plugin definition, and run `wallet-cli-plugin-stamp [package.json]` to write the same numbers into
   `walletCli.plugin` of the package manifest.
 - `zod` is a peer dependency for the types only; at run time `z` comes from wallet-cli.
 
-Bundle a plugin into one ES module (`dist/index.mjs`) that inlines this SDK and its other dependencies.
+Bundle a plugin into one ES module (`dist/index.mjs`) that inlines its dependencies, and keep the four
+runtime entries external, so the built file imports them by name. For example, with esbuild:
+
+```js
+external: ["domain", "application", "cli", "http"].map((e) => `@tron-walletcli/plugin-sdk/${e}`),
+```
+
+Bundle the package root: it holds the two numbers above, which must be the ones the plugin was built for, not
+the core's. The package still contains a runtime module for each entry, which reads the API object that
+`/testing` publishes, so plugin unit tests run without wallet-cli; outside wallet-cli and without `/testing`
+they throw. A plugin that bundles them still works inside wallet-cli, but does not use the core's import of
+the entries.
 
 ## Credentials
 

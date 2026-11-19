@@ -12,12 +12,15 @@ export type QaprobeVariant =
   | "api-revision"
   | "import-failure"
   | "register-failure"
-  | "credential-core-key";
+  | "credential-core-key"
+  | "older-revision"
+  | "missing-export";
 
 const TS_ROOT = resolve(import.meta.dirname, "../..");
 const FIXTURE = join(TS_ROOT, "test/fixtures/plugins/qaprobe");
 const SDK = join(TS_ROOT, "plugin-sdk");
-const SDK_ENTRIES = ["domain", "application", "cli", "http"] as const;
+// The runtime entries the core serves to a plugin's import; the package root stays bundled.
+const SDK_RUNTIME_ENTRIES = ["domain", "application", "cli", "http"] as const;
 
 // Builds plugin-sdk/dist when it is missing.
 export function ensurePluginSdk(): void {
@@ -36,6 +39,18 @@ export async function buildQaprobe(
 ): Promise<string> {
   ensurePluginSdk();
   mkdirSync(join(outDir, "dist"), { recursive: true });
+  let root = join(SDK, "dist/index.mjs");
+  if (variant === "older-revision") {
+    // The root of an SDK built for the revision before this core's.
+    const { apiVersion, apiRevision } = JSON.parse(
+      readFileSync(join(SDK, "dist/version.json"), "utf8"),
+    );
+    root = `${outDir}.older-sdk-root.mjs`;
+    writeFileSync(
+      root,
+      `export const PLUGIN_API_VERSION = ${apiVersion};\nexport const PLUGIN_API_REVISION = ${apiRevision - 1};\n`,
+    );
+  }
   await build({
     entryPoints: [join(FIXTURE, "src/index.mjs")],
     outfile: join(outDir, "dist/index.mjs"),
@@ -45,12 +60,18 @@ export async function buildQaprobe(
     target: "node20",
     logLevel: "silent",
     define: { QAPROBE_VARIANT: JSON.stringify(variant), QAPROBE_VERSION: JSON.stringify(version) },
-    alias: {
-      "@tron-walletcli/plugin-sdk": join(SDK, "dist/index.mjs"),
-      ...Object.fromEntries(
-        SDK_ENTRIES.map((e) => [`@tron-walletcli/plugin-sdk/${e}`, join(SDK, `dist/${e}.mjs`)]),
-      ),
-    },
+    // An alias would also rewrite the subpaths, which must stay external.
+    plugins: [
+      {
+        name: "plugin-sdk-root",
+        setup: (b) =>
+          b.onResolve({ filter: /^@tron-walletcli\/plugin-sdk$/ }, () => ({ path: root })),
+      },
+    ],
+    external: SDK_RUNTIME_ENTRIES.map((e) => `@tron-walletcli/plugin-sdk/${e}`),
+    ...(variant === "missing-export"
+      ? { banner: { js: 'import { noSuchExport } from "@tron-walletcli/plugin-sdk/domain";' } }
+      : {}),
   });
   const pkg = JSON.parse(readFileSync(join(FIXTURE, "package.json"), "utf8"));
   pkg.version = version;
@@ -62,6 +83,7 @@ export async function buildQaprobe(
   const stamped = JSON.parse(readFileSync(manifest, "utf8"));
   if (variant === "api-version") stamped.walletCli.plugin.apiVersion += 1;
   if (variant === "api-revision") stamped.walletCli.plugin.apiRevision += 1;
+  if (variant === "older-revision") stamped.walletCli.plugin.apiRevision -= 1;
   writeFileSync(manifest, JSON.stringify(stamped, null, 2));
   return outDir;
 }

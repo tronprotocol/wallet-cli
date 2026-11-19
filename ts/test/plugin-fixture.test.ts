@@ -26,6 +26,8 @@ beforeAll(async () => {
     "import-failure",
     "register-failure",
     "credential-core-key",
+    "older-revision",
+    "missing-export",
   ] as const) {
     const dir = await buildQaprobe(join(work, variant), variant);
     archives.set(variant, packDirectory(dir, join(work, `${variant}.tgz`)));
@@ -52,6 +54,30 @@ function imports(): number {
   );
   return existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0;
 }
+
+describe("a built plugin", () => {
+  it("imports the SDK runtime entries by name and carries no forwarding code", () => {
+    const entry = readFileSync(join(work, "ok/dist/index.mjs"), "utf8");
+    const imported = [...entry.matchAll(/from "(@tron-walletcli\/plugin-sdk[^"]*)"/g)].map(
+      (m) => m[1],
+    );
+    expect(imported.sort()).toEqual([
+      "@tron-walletcli/plugin-sdk/application",
+      "@tron-walletcli/plugin-sdk/cli",
+      "@tron-walletcli/plugin-sdk/domain",
+    ]);
+    expect(entry).not.toContain("wallet-cli.plugin-sdk");
+    expect(entry).not.toContain("works only inside wallet-cli");
+  });
+
+  it("built for a lower revision of the plugin API loads and serves its commands", () => {
+    seedWallet();
+    install("older-revision");
+    const r = json(["qaprobe", "read", "--value", "hello"]);
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+    expect(r.json).toMatchObject({ success: true, data: { value: "hello" } });
+  });
+});
 
 describe("an installed plugin", () => {
   it("serves its commands with meta.plugin, and keeps its own error code and exit", () => {
@@ -347,6 +373,7 @@ describe("a plugin that cannot be loaded", () => {
   it.each([
     ["import-failure", "failed to load (qaprobe failed while it was imported)"],
     ["register-failure", "registration failed"],
+    ["missing-export", "does not provide an export named 'noSuchExport'"],
   ] as const)("is reported as broken after %s, and core commands still work", (variant, reason) => {
     install(variant);
     const r = json(["qaprobe", "read", "--value", "ok"]);

@@ -9,6 +9,7 @@ import type { PluginCredential, PluginDefinition, PluginGroup } from "../../plug
 import { publishPluginApi } from "./api-object.js";
 import { registerPlugin, type PluginTargets } from "./host.js";
 import { pluginImporter, type PluginImporter } from "./import-plugin.js";
+import { registerPluginSdkImports } from "./sdk-imports.js";
 
 // Which installed plugins this command imports.
 export interface LoadScope {
@@ -108,6 +109,7 @@ export class PluginLoader {
 
   async #import(entry: Entry, plugin: InstalledPlugin): Promise<void> {
     publishPluginApi();
+    registerPluginSdkImports();
     let definition: unknown;
     try {
       definition = (await this.importer(pathToFileURL(plugin.entryPath).href)).default;

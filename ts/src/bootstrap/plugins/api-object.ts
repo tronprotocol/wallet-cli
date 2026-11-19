@@ -16,6 +16,19 @@ export const PLUGIN_API_OBJECT = Object.freeze({
   http: Object.freeze({ ...http }),
 });
 
+export type PluginApiEntry = keyof typeof PLUGIN_API_OBJECT;
+
+const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+// The export names of one entry, sorted; each is written into generated module source.
+export function pluginApiExportNames(entry: PluginApiEntry): string[] {
+  const names = Object.keys(PLUGIN_API_OBJECT[entry]).sort();
+  for (const name of names) {
+    if (!IDENTIFIER.test(name) || name === "default") throw new Error(`cannot export ${name}`);
+  }
+  return names;
+}
+
 // Before the first import of an installed plugin.
 export function publishPluginApi(): void {
   if (Object.hasOwn(globalThis, PLUGIN_API_GLOBAL)) return;

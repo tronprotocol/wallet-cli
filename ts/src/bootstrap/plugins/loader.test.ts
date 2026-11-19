@@ -11,6 +11,9 @@ import type { HostServices } from "../../plugin-sdk/host-services.js";
 import { PLUGIN_API_GLOBAL, PLUGIN_API_OBJECT } from "./api-object.js";
 import { PluginLoader } from "./loader.js";
 import type { PluginTargets } from "./host.js";
+import { registerPluginSdkImports } from "./sdk-imports.js";
+
+vi.mock("./sdk-imports.js", () => ({ registerPluginSdkImports: vi.fn() }));
 
 const dir = mkdtempSync(join(tmpdir(), "wcli-loader-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -84,9 +87,11 @@ function setup(stored: StoredPlugin[], services = {} as HostServices) {
 
 describe("PluginLoader", () => {
   it("imports no plugin for a core command, and lists installed groups from their manifests", async () => {
+    vi.mocked(registerPluginSdkImports).mockClear();
     const t = setup([plugin("alpha"), plugin("beta")]);
     await t.loader.load({ all: false, word: "list" }, t.warn);
     expect(t.importer).not.toHaveBeenCalled();
+    expect(registerPluginSdkImports).not.toHaveBeenCalled();
     expect(t.commands.groups().map((g) => g.name)).toEqual(["alpha", "beta"]);
     expect(t.commands.resolveNeutral(["alpha", "run"])).toBeNull();
     expect(t.loader.owner("alpha")).toEqual({ name: "alpha", version: "1.0.0" });
@@ -105,10 +110,12 @@ describe("PluginLoader", () => {
     ).toEqual(["alpha", "beta"]);
   });
 
-  it("publishes the API object before the first import", async () => {
+  it("publishes the API object and registers the SDK imports before the first import", async () => {
     const t = setup([plugin("alpha")]);
     await t.loader.load({ all: true }, t.warn);
     expect((globalThis as Record<symbol, unknown>)[PLUGIN_API_GLOBAL]).toBe(PLUGIN_API_OBJECT);
+    const registered = vi.mocked(registerPluginSdkImports).mock.invocationCallOrder[0]!;
+    expect(registered).toBeLessThan(t.importer.mock.invocationCallOrder[0]!);
     expect(t.loader.state("alpha")).toEqual({ state: "ok" });
   });
 
