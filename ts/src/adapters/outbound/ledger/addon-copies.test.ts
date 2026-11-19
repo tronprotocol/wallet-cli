@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -9,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadAddonCopy, removeAddonCopies } from "./addon-copies.js";
 
@@ -144,6 +145,28 @@ describe("loadAddonCopy", () => {
     expect(load).toHaveBeenCalledTimes(1);
     expect(readdirSync(root)).toEqual([]);
   });
+
+  // A mode change denies nothing on Windows or to the superuser.
+  it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+    "throws a load failure of a copy it can no longer inspect as it is, without a second attempt",
+    () => {
+      const failure = new Error("permission denied");
+      let dir = "";
+      const { load } = loader((file) => {
+        dir = dirname(file);
+        chmodSync(dir, 0o000);
+        throw failure;
+      });
+      try {
+        expect(() =>
+          loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load, platform: "darwin" }),
+        ).toThrow(failure);
+        expect(load).toHaveBeenCalledTimes(1);
+      } finally {
+        chmodSync(dir, 0o700);
+      }
+    },
+  );
 
   it("throws a write failure in a directory that is still there as it is", () => {
     const { load } = loader();

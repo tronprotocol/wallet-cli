@@ -1,5 +1,4 @@
 import {
-  existsSync,
   lstatSync,
   mkdtempSync,
   readdirSync,
@@ -77,7 +76,7 @@ function attempt<T>(
     return { loaded: true, value: copy.load(file) };
   } catch (error) {
     // Removed by another start: the directory is gone, or the written file is.
-    if (!existsSync(dir) || (written && !existsSync(file))) return { loaded: false, error };
+    if (isGone(dir) || (written && isGone(file))) return { loaded: false, error };
     throw error;
   } finally {
     try {
@@ -85,5 +84,15 @@ function attempt<T>(
     } catch {
       // Windows keeps a loaded DLL locked; a later start removes the copy.
     }
+  }
+}
+
+// A path that cannot be inspected is not gone.
+function isGone(path: string): boolean {
+  try {
+    lstatSync(path);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT";
   }
 }
