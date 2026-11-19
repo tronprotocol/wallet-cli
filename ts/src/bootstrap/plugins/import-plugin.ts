@@ -26,8 +26,8 @@ export function vmLoaderImporter(): PluginImporter {
 }
 
 // In a single executable, import() in the embedded script loads only built-in modules.
-export function pluginImporter(): PluginImporter {
-  return isSea() ? vmLoaderImporter() : (url) => import(url);
+export function pluginImporter(singleExecutable: () => boolean = isSea): PluginImporter {
+  return singleExecutable() ? vmLoaderImporter() : (url) => import(url);
 }
 
 // Not a static import: the npm bundle drops the `node:` prefix, and `sea` has no name without it.

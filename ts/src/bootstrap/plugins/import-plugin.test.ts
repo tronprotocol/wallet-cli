@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, expect, it, vi } from "vitest";
-import { vmLoaderImporter } from "./import-plugin.js";
+import { isSea, pluginImporter, vmLoaderImporter } from "./import-plugin.js";
 
 const directory = mkdtempSync(join(tmpdir(), "import-plugin-test-"));
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -35,4 +35,33 @@ it("lets every other warning through", async () => {
   } finally {
     process.off("warning", spy);
   }
+});
+
+// Only the vm path swaps process.emitWarning around the import call.
+it("uses the vm loader in a single executable and plain import() elsewhere", async () => {
+  const entry = join(directory, "chosen.mjs");
+  writeFileSync(entry, "export default 7;\n");
+  const descriptor = Object.getOwnPropertyDescriptor(process, "emitWarning")!;
+  let value = process.emitWarning;
+  let swaps = 0;
+  Object.defineProperty(process, "emitWarning", {
+    configurable: true,
+    get: () => value,
+    set: (next) => {
+      swaps += 1;
+      value = next;
+    },
+  });
+  try {
+    expect((await pluginImporter(() => false)(pathToFileURL(entry).href)).default).toBe(7);
+    expect(swaps).toBe(0);
+    expect((await pluginImporter(() => true)(`${pathToFileURL(entry).href}?sea`)).default).toBe(7);
+    expect(swaps).toBe(2);
+  } finally {
+    Object.defineProperty(process, "emitWarning", descriptor);
+  }
+});
+
+it("is not a single executable under the test runner", () => {
+  expect(isSea()).toBe(false);
 });
