@@ -282,7 +282,8 @@ export class AtomicFileStore {
   }
 
   fsyncFile(path: string): void {
-    const fd = openSync(path, "r");
+    // Windows flushes only a handle opened for writing.
+    const fd = openSync(path, "r+");
     try {
       fsyncSync(fd);
     } finally {
