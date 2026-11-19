@@ -2,12 +2,12 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "wallet-cli ts/ architecture at 657e04b6",
+    "title": "wallet-cli ts/ architecture",
     "locale": "en",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/tronprotocol/wallet-cli",
-      "revision": "657e04b66935cf49ed3519289ce94f8603e118b0",
+      "revision": "61da3a5c7ff24dd2a641ac4eea53499977018018",
       "link_mode": "local-only"
     }
   },
@@ -16,7 +16,7 @@
       "id": "boot",
       "type": "backend",
       "label": "Composition root",
-      "sublabel": "bootstrap/ runner \u00b7 composition",
+      "sublabel": "bootstrap/ runner · composition",
       "pos": [
         40,
         60
@@ -40,8 +40,8 @@
     {
       "id": "families",
       "type": "backend",
-      "label": "Family plugins",
-      "sublabel": "bootstrap/families/ tron \u00b7 evm",
+      "label": "Chain families",
+      "sublabel": "bootstrap/families/ tron · evm",
       "pos": [
         340,
         60
@@ -67,10 +67,10 @@
       "id": "cli",
       "type": "frontend",
       "label": "CLI adapter",
-      "sublabel": "argv \u00b7 prompts \u00b7 render \u00b7 envelope",
+      "sublabel": "argv · prompts · render · envelope",
       "pos": [
         40,
-        330
+        262
       ],
       "size": [
         200,
@@ -93,10 +93,10 @@
       "id": "app",
       "type": "backend",
       "label": "Application",
-      "sublabel": "use cases \u00b7 services \u00b7 ports",
+      "sublabel": "use cases · services · ports",
       "pos": [
         340,
-        330
+        262
       ],
       "size": [
         200,
@@ -119,10 +119,10 @@
       "id": "domain",
       "type": "backend",
       "label": "Domain",
-      "sublabel": "address \u00b7 amounts \u00b7 errors",
+      "sublabel": "address · amounts · errors",
       "pos": [
         340,
-        560
+        435
       ],
       "size": [
         200,
@@ -142,10 +142,10 @@
       "id": "family",
       "type": "backend",
       "label": "domain/family",
-      "sublabel": "FAMILIES \u00b7 address codecs",
+      "sublabel": "FAMILIES · address codecs",
       "pos": [
         40,
-        560
+        435
       ],
       "size": [
         200,
@@ -161,10 +161,10 @@
       "id": "chainInt",
       "type": "backend",
       "label": "Chain + Ledger",
-      "sublabel": "chain/tron \u00b7 chain/evm \u00b7 ledger",
+      "sublabel": "chain/tron · chain/evm · ledger",
       "pos": [
         740,
-        150
+        128
       ],
       "size": [
         210,
@@ -186,10 +186,10 @@
       "id": "svcInt",
       "type": "backend",
       "label": "Service integrations",
-      "sublabel": "sunswap \u00b7 sunpump \u00b7 gasfree \u00b7 x402 \u2026",
+      "sublabel": "tronlink · price",
       "pos": [
         740,
-        330
+        262
       ],
       "size": [
         210,
@@ -197,13 +197,10 @@
       ],
       "sources": [
         {
-          "path": "ts/src/adapters/outbound/sunswap/router-api.ts"
-        },
-        {
-          "path": "ts/src/adapters/outbound/x402/payment-client.ts"
-        },
-        {
           "path": "ts/src/adapters/outbound/tronlink/client.ts"
+        },
+        {
+          "path": "ts/src/adapters/outbound/price/index.ts"
         }
       ]
     },
@@ -211,10 +208,10 @@
       "id": "store",
       "type": "backend",
       "label": "Local stores",
-      "sublabel": "keystore \u00b7 config \u00b7 token/contact books",
+      "sublabel": "keystore · config · books · plugins",
       "pos": [
         740,
-        610
+        472
       ],
       "size": [
         210,
@@ -228,7 +225,7 @@
           "path": "ts/src/adapters/outbound/config/index.ts"
         },
         {
-          "path": "ts/src/adapters/outbound/tokenbook/index.ts"
+          "path": "ts/src/adapters/outbound/plugins/store.ts"
         }
       ]
     },
@@ -236,10 +233,10 @@
       "id": "plumbing",
       "type": "backend",
       "label": "Shared plumbing",
-      "sublabel": "http \u00b7 persistence",
+      "sublabel": "http · persistence",
       "pos": [
         740,
-        470
+        368
       ],
       "size": [
         210,
@@ -257,11 +254,11 @@
     {
       "id": "nodes",
       "type": "external",
-      "label": "TRON nodes \u00b7 EVM RPC",
-      "sublabel": "TronWeb \u00b7 ethers",
+      "label": "TRON nodes · EVM RPC",
+      "sublabel": "TronWeb · ethers",
       "pos": [
         1060,
-        90
+        82
       ],
       "size": [
         200,
@@ -272,10 +269,10 @@
       "id": "device",
       "type": "external",
       "label": "Ledger device",
-      "sublabel": "HID \u00b7 Speculos",
+      "sublabel": "HID · Speculos",
       "pos": [
         1060,
-        210
+        172
       ],
       "size": [
         200,
@@ -286,10 +283,10 @@
       "id": "http",
       "type": "external",
       "label": "HTTP services",
-      "sublabel": "SunSwap \u00b7 GasFree \u00b7 TronLink \u00b7 x402",
+      "sublabel": "TronLink · CoinGecko",
       "pos": [
         1060,
-        330
+        262
       ],
       "size": [
         200,
@@ -300,10 +297,50 @@
       "id": "files",
       "type": "database",
       "label": "~/.wallet-cli files",
-      "sublabel": "wallets \u00b7 config.yaml \u00b7 books",
+      "sublabel": "wallets · config · books · plugins",
       "pos": [
         1060,
-        610
+        472
+      ],
+      "size": [
+        200,
+        64
+      ]
+    },
+    {
+      "id": "sdk",
+      "type": "backend",
+      "label": "Plugin SDK",
+      "sublabel": "contract · host services",
+      "pos": [
+        340,
+        608
+      ],
+      "size": [
+        200,
+        64
+      ],
+      "tag": "plugin-sdk/",
+      "sources": [
+        {
+          "path": "ts/src/plugin-sdk/index.ts"
+        },
+        {
+          "path": "ts/src/plugin-sdk/host-services.ts"
+        },
+        {
+          "path": "ts/src/bootstrap/plugins/loader.ts"
+        }
+      ]
+    },
+    {
+      "id": "plugins",
+      "type": "external",
+      "label": "Plugins",
+      "sublabel": "sunswap · sunpump · x402 · gasfree …",
+      "pos": [
+        40,
+        608
       ],
       "size": [
         200,
@@ -408,7 +445,7 @@
       "label": "implement ports",
       "labelAt": [
         692,
-        362
+        286
       ]
     },
     {
@@ -444,13 +481,26 @@
       "id": "svc-http",
       "from": "svcInt",
       "to": "http",
-      "label": "HTTPS \u00b7 WS"
+      "label": "HTTPS · WS"
     },
     {
       "id": "store-files",
       "from": "store",
       "to": "files",
       "label": "atomic write"
+    },
+    {
+      "id": "plugins-sdk",
+      "from": "plugins",
+      "to": "sdk",
+      "label": "import · register",
+      "variant": "emphasis"
+    },
+    {
+      "id": "sdk-domain",
+      "from": "sdk",
+      "to": "domain",
+      "label": "re-exports"
     }
   ],
   "cards": [
@@ -465,7 +515,7 @@
     },
     {
       "dot": "violet",
-      "title": "Family plug-in",
+      "title": "Chain families",
       "items": [
         "families/tron.ts and evm.ts register Spec + family Binding pairs",
         "they supply createGateway and signStrategy",
@@ -474,11 +524,11 @@
     },
     {
       "dot": "amber",
-      "title": "Code vs rules at HEAD",
+      "title": "Plugins",
       "items": [
-        "chain/* and x402 import application/services",
-        "ledger imports chain/tron",
-        "x402 HTTP server lives in adapters/outbound"
+        "a protocol feature is a plugin, built outside this repository",
+        "bootstrap/plugins loads it from ~/.wallet-cli/plugins and registers its commands",
+        "it reaches the core only through plugin-sdk"
       ]
     }
   ]
