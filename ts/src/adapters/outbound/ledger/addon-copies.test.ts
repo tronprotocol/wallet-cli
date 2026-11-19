@@ -1,8 +1,31 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, expect, it } from "vitest";
-import { removeAddonCopies } from "./addon-copies.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadAddonCopy, removeAddonCopies } from "./addon-copies.js";
+
+// Runs after each private directory is created, as another start would between creation and the write.
+const created = vi.hoisted(() => ({ hook: undefined as ((dir: string) => void) | undefined }));
+vi.mock("node:fs", async (importOriginal) => {
+  const fs = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...fs,
+    mkdtempSync: (prefix: string) => {
+      const dir = fs.mkdtempSync(prefix);
+      created.hook?.(dir);
+      return dir;
+    },
+  };
+});
 
 const PREFIX = "wallet-cli-hid-";
 let root: string;
@@ -10,7 +33,10 @@ let root: string;
 beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), "addon-copies-test-"));
 });
-afterEach(() => rmSync(root, { recursive: true, force: true }));
+afterEach(() => {
+  created.hook = undefined;
+  rmSync(root, { recursive: true, force: true });
+});
 
 function copy(name: string, ...files: string[]): string {
   const directory = join(root, name);
@@ -47,4 +73,91 @@ it("leaves an entry without the prefix untouched", () => {
 
 it("ignores a directory it cannot read", () => {
   expect(() => removeAddonCopies(join(root, "missing"), PREFIX)).not.toThrow();
+});
+
+describe("loadAddonCopy", () => {
+  const BYTES = new Uint8Array([1, 2, 3]);
+
+  function loader(behave: (file: string, call: number) => string = () => "binding") {
+    const files: string[] = [];
+    const load = vi.fn((file: string) => {
+      files.push(file);
+      expect(readFileSync(file)).toEqual(Buffer.from(BYTES));
+      return behave(file, files.length);
+    });
+    return { load, files };
+  }
+
+  it("loads a private copy and removes its directory", () => {
+    const { load } = loader();
+    expect(loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load, platform: "darwin" })).toBe(
+      "binding",
+    );
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it("tries once more when another start removes the directory before the write", () => {
+    let first = true;
+    created.hook = () => {
+      if (!first) return;
+      first = false;
+      removeAddonCopies(root, PREFIX);
+    };
+    const { load } = loader();
+    expect(loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load, platform: "darwin" })).toBe(
+      "binding",
+    );
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it("tries once more when another start removes the file before it is loaded", () => {
+    const { load } = loader((file, call) => {
+      if (call > 1) return "binding";
+      removeAddonCopies(root, PREFIX);
+      throw new Error(`dlopen failed: ${file}`);
+    });
+    expect(loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load, platform: "darwin" })).toBe(
+      "binding",
+    );
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails when the copy is removed on the second attempt as well", () => {
+    created.hook = () => removeAddonCopies(root, PREFIX);
+    const { load } = loader();
+    expect(() =>
+      loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load, platform: "darwin" }),
+    ).toThrow("the Ledger HID addon copy was removed before it could be loaded");
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("throws a load failure of a copy that is still there as it is, without a second attempt", () => {
+    const failure = new Error("not a valid addon");
+    const { load } = loader(() => {
+      throw failure;
+    });
+    expect(() =>
+      loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load, platform: "darwin" }),
+    ).toThrow(failure);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(readdirSync(root)).toEqual([]);
+  });
+
+  it("throws a write failure in a directory that is still there as it is", () => {
+    const { load } = loader();
+    expect(() =>
+      loadAddonCopy({ root, prefix: PREFIX, bytes: 42 as never, load, platform: "darwin" }),
+    ).toThrow(expect.objectContaining({ code: "ERR_INVALID_ARG_TYPE" }));
+    expect(load).not.toHaveBeenCalled();
+  });
+
+  it("removes earlier copies on Windows only", () => {
+    const leftover = copy(`${PREFIX}old`, "HID.node");
+    loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load: loader().load, platform: "linux" });
+    expect(existsSync(leftover)).toBe(true);
+    loadAddonCopy({ root, prefix: PREFIX, bytes: BYTES, load: loader().load, platform: "win32" });
+    expect(existsSync(leftover)).toBe(false);
+  });
 });
