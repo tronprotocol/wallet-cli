@@ -8,8 +8,7 @@ import { incompatiblePlugin, pluginCompatibility } from "../../domain/plugins/in
 import type { PluginCredential, PluginDefinition, PluginGroup } from "../../plugin-api/index.js";
 import { publishPluginApi } from "./api-object.js";
 import { registerPlugin, type PluginTargets } from "./host.js";
-
-export type PluginImporter = (url: string) => Promise<{ default?: unknown }>;
+import { pluginImporter, type PluginImporter } from "./import-plugin.js";
 
 // Which installed plugins this command imports.
 export interface LoadScope {
@@ -42,7 +41,7 @@ export class PluginLoader {
   constructor(
     private readonly store: Pick<PluginStore, "list">,
     private readonly targets: PluginTargets,
-    private readonly importer: PluginImporter = (url) => import(url),
+    private readonly importer: PluginImporter = pluginImporter(),
   ) {}
 
   // Each plugin is handled on its own: a failure marks that plugin and the loader goes on.

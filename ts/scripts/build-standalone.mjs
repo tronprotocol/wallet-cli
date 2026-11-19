@@ -1,42 +1,39 @@
-import { existsSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
+// usage: node scripts/build-standalone.mjs [--outfile PATH]
+// Builds wallet-cli as a Node single executable application with the Node that runs this script, for the
+// platform this script runs on.
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
-import { resolveNodeHidAddon } from "./standalone/resolve-node-hid-addon.js";
 
-const targetByHost = {
-  "darwin-arm64": "bun-darwin-arm64",
-  "darwin-x64": "bun-darwin-x64",
-  "linux-arm64": "bun-linux-arm64",
-  "linux-x64": "bun-linux-x64-baseline",
-  "win32-x64": "bun-windows-x64-baseline",
-};
-
-const pinnedCompilerByTarget = {
-  "bun-linux-x64-baseline": "node_modules/@oven/bun-linux-x64-baseline/bin/bun",
-  "bun-windows-x64-baseline": "node_modules/@oven/bun-windows-x64-baseline/bin/bun.exe",
-};
+const nodeMajor = Number.parseInt(process.versions.node.split(".", 1)[0], 10);
+if (nodeMajor < 26) {
+  console.error(
+    `scripts/build-standalone.mjs needs Node 26 or later (node --build-sea); this is Node ${process.version}`,
+  );
+  process.exit(1);
+}
+// Loaded after the version check: an older Node cannot strip the types of a .ts import.
+const { build } = await import("esbuild");
+const { resolveNodeHidAddon } = await import("./standalone/resolve-node-hid-addon.ts");
 
 function option(name) {
   const index = process.argv.indexOf(name);
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
-const host = `${process.platform}-${process.arch}`;
-const expectedTarget = targetByHost[host];
-if (!expectedTarget) {
-  throw new Error(`standalone builds are not supported on ${host}`);
-}
-
-const target = option("--target") ?? expectedTarget;
-if (target !== expectedTarget) {
-  throw new Error(
-    `refusing to combine ${host} native HID code with ${target}; build each target on its native runner`,
-  );
-}
-
 const defaultName = process.platform === "win32" ? "wallet-cli.exe" : "wallet-cli";
 const requestedOutfile = resolve(option("--outfile") ?? join("standalone", defaultName));
+// --build-sea writes a PE file only when the output name ends in .exe.
 const outfile =
   process.platform === "win32" && extname(requestedOutfile).toLowerCase() !== ".exe"
     ? `${requestedOutfile}.exe`
@@ -44,7 +41,6 @@ const outfile =
 const outfileExt = extname(outfile);
 const outfileStem = outfileExt ? outfile.slice(0, -outfileExt.length) : outfile;
 const stagedOutfile = `${outfileStem}.${process.pid}.${Date.now()}.building${outfileExt}`;
-const compileExecutable = resolveCompileExecutable(target);
 const { nativeAddon, nodeHidVersion, transportPackageJson } = resolveNodeHidAddon();
 console.log(
   `using node-hid ${nodeHidVersion} resolved from ${transportPackageJson}: ${nativeAddon}`,
@@ -52,55 +48,57 @@ console.log(
 
 mkdirSync(dirname(outfile), { recursive: true });
 
-const compile = {
-  target,
-  outfile: stagedOutfile,
-  autoloadDotenv: false,
-  autoloadBunfig: false,
-};
-if (compileExecutable) {
-  compile.executablePath = compileExecutable;
-  console.log(`using pinned Bun compiler executable ${compileExecutable}`);
-}
-
-const hidShim = resolve("scripts/standalone/node-hid.ts");
-
+const work = mkdtempSync(join(tmpdir(), "wallet-cli-sea-"));
 try {
-  const result = await Bun.build({
-    entrypoints: [resolve("src/index.ts")],
-    compile,
+  const main = join(work, "main.cjs");
+  await build({
+    entryPoints: [resolve("src/index.ts")],
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    target: "node26",
     minify: true,
+    outfile: main,
+    logLevel: "warning",
+    // ESM dependencies (yargs-parser) call createRequire(import.meta.url), which is undefined in a CJS bundle.
+    define: { "import.meta.url": "__sea_import_meta_url" },
+    banner: {
+      js: 'var __sea_import_meta_url=require("node:url").pathToFileURL(__filename).href;',
+    },
     plugins: [
       {
         name: "standalone-node-hid",
-        setup(build) {
-          build.onResolve({ filter: /^node-hid$/ }, () => ({ path: hidShim }));
-          build.onResolve({ filter: /^wallet-cli-native-node-hid$/ }, () => ({
-            path: nativeAddon,
+        setup(b) {
+          b.onResolve({ filter: /^node-hid$/ }, () => ({
+            path: resolve("scripts/standalone/node-hid.ts"),
           }));
         },
       },
     ],
   });
 
-  if (!result.success) {
-    for (const log of result.logs) console.error(log);
-    process.exitCode = 1;
-  } else {
-    // Embedding HID can invalidate Bun's Mach-O signature; sign before replacing the executable.
-    if (process.platform === "darwin") {
-      const signed = spawnSync("/usr/bin/codesign", ["--force", "--sign", "-", stagedOutfile], {
-        stdio: "inherit",
-      });
-      if (signed.error) throw signed.error;
-      if (signed.status !== 0) {
-        throw new Error(`codesign failed for ${stagedOutfile} with status ${signed.status}`);
-      }
-    }
-    await publishExecutable(stagedOutfile, outfile);
-    console.log(`built ${outfile} (${target})`);
+  const config = join(work, "sea-config.json");
+  writeFileSync(
+    config,
+    JSON.stringify({
+      main,
+      output: stagedOutfile,
+      disableExperimentalSEAWarning: true,
+      useCodeCache: true,
+      // The executable takes no runtime options from NODE_OPTIONS.
+      execArgvExtension: "none",
+      assets: { "HID.node": nativeAddon },
+    }),
+  );
+  run(process.execPath, ["--build-sea", config]);
+  // --build-sea leaves the Mach-O unsigned, and macOS refuses to run an unsigned arm64 binary.
+  if (process.platform === "darwin") {
+    run("/usr/bin/codesign", ["--force", "--sign", "-", stagedOutfile]);
   }
+  await publishExecutable(stagedOutfile, outfile);
+  console.log(`built ${outfile} (Node ${process.version}, ${process.platform}-${process.arch})`);
 } finally {
+  rmSync(work, { recursive: true, force: true });
   try {
     if (existsSync(stagedOutfile)) unlinkSync(stagedOutfile);
   } catch {
@@ -108,26 +106,12 @@ try {
   }
 }
 
-function resolveCompileExecutable(target) {
-  const configured = process.env.BUN_COMPILE_EXECUTABLE?.trim();
-  if (configured) {
-    const executable = resolve(configured);
-    if (!existsSync(executable)) {
-      throw new Error(`BUN_COMPILE_EXECUTABLE does not exist: ${executable}`);
-    }
-    return executable;
+function run(command, args) {
+  const result = spawnSync(command, args, { stdio: "inherit" });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(" ")} failed with status ${result.status}`);
   }
-
-  const pinnedCompiler = pinnedCompilerByTarget[target];
-  if (!pinnedCompiler) return undefined;
-
-  const executable = resolve(pinnedCompiler);
-  if (!existsSync(executable)) {
-    throw new Error(
-      `missing pinned compiler ${pinnedCompiler}; run npm ci without --omit=optional`,
-    );
-  }
-  return executable;
 }
 
 async function publishExecutable(staged, destination) {

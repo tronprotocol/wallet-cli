@@ -6,7 +6,7 @@ import environmentReads from "./eslint-rules/environment-reads.mjs";
 
 export default tseslint.config(
   {
-    // Build scripts use Node/Bun streams directly; plugin-sdk/dist is generated.
+    // Build scripts use Node streams directly; plugin-sdk/dist is generated.
     ignores: [
       "dist/**",
       "node_modules/**",

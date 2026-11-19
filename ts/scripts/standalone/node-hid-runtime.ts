@@ -10,7 +10,7 @@ interface NativeBinding {
   devices(...args: unknown[]): unknown[];
 }
 
-// Bun executables need an embedded binding; node-hid's runtime package lookup cannot work.
+// The standalone executable loads an embedded binding; node-hid's runtime package lookup cannot work there.
 export function createNodeHid(binding: NativeBinding) {
   class HID extends EventEmitter {
     private readonly raw: NativeHid;

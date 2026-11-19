@@ -38,6 +38,21 @@ if (help.status !== 0 || !help.stdout.includes("Usage:  wallet-cli")) {
 const isolatedHome = mkdtempSync(join(tmpdir(), "wallet-cli-standalone-"));
 const isolatedEnv = { ...process.env, WALLET_CLI_HOME: isolatedHome };
 try {
+  // The schema is larger than a pipe buffer, and spawnSync reads it through a pipe.
+  const schema = run(["--json-schema"], isolatedEnv);
+  let schemaError;
+  try {
+    JSON.parse(schema.stdout);
+  } catch (error) {
+    schemaError = error;
+  }
+  if (schema.status !== 0 || schemaError) {
+    throw new Error(
+      `--json-schema smoke test failed: status=${schema.status}, bytes=${schema.stdout.length}, ` +
+        `error=${schemaError}, stderr=${JSON.stringify(schema.stderr)}`,
+    );
+  }
+
   // A config write runs the atomic file store on the target platform.
   const write = run(["config", "timeoutMs", "120000", "--output", "json"], isolatedEnv);
   const read = run(["config", "timeoutMs", "--output", "json"], isolatedEnv);
