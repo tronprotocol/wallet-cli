@@ -281,9 +281,12 @@ commands, options, error codes or settings. A plugin is built in its own reposit
 loaded from the wallet-cli home directory; the core's source names no plugin.
 
 9.1 The core imports no plugin code and loads plugins only from the wallet-cli home directory, through the
-plugin loader. A plugin reaches the core only through the plugin SDK (`plugin-sdk`). Plugins do not depend on
-each other: each plugin installs and works with no other plugin installed. Plugins of one repository may share
-source that each bundles, and a message may name another plugin's command. **review**.
+plugin loader. A plugin reaches the core only through the plugin SDK (`plugin-sdk`). A built plugin imports the
+SDK entries `domain`, `application`, `cli` and `http` by name, and the core answers those imports with its own
+objects, so a plugin holds no second copy of the core's errors, schemas or services. A plugin bundles the SDK
+root, which holds the API numbers it was built for. Plugins do not depend on each other: each plugin installs
+and works with no other plugin installed. Plugins of one repository may share source that each bundles, and a
+message may name another plugin's command. **test** for the answered imports, **review**.
 
 9.2 A plugin has the layout `index.ts`, `domain/`, `application/`, `adapters/inbound/`, `adapters/outbound/`.
 Rules 1.1 to 1.6, 1.8 and 1.9 hold inside it for those directories, with `index.ts` in the role of
