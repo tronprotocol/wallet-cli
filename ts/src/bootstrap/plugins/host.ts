@@ -21,6 +21,7 @@ import type {
 import type { PluginSigning } from "../../application/services/plugins/plugin-signing.js";
 import type { RecipientResolver } from "../../application/services/recipient-resolver.js";
 import type { ProcessLifetime } from "../process-lifetime.js";
+import type { CliLauncher, DetachedCli } from "../../application/ports/cli-launcher.js";
 import type {
   ChainSpec,
   CommandDefinition,
@@ -73,6 +74,7 @@ export interface HostServiceDependencies {
   readonly aliases: Readonly<Record<string, string>>;
   readonly networks: Pick<NetworkRegistry, "resolve">;
   readonly lifetime: Pick<ProcessLifetime, "keepAlive">;
+  readonly launcher: CliLauncher;
   // Where and in which form the lifetime log writes.
   readonly streams: Pick<ExecutionContext["streams"], "errorLine" | "diagnostic">;
   readonly output: OutputMode;
@@ -163,6 +165,14 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
     broadcastGuard: facade({ assertAllowed: () => broadcastGuard.assertAllowed() }),
     lifetime: facade({
       keepAlive: () => deps.lifetime.keepAlive(),
+      startDetached: (start) =>
+        detachedFacade(
+          deps.launcher.startDetached({
+            argv: [...start.argv],
+            env: { ...start.env },
+            stderr: start.stderr,
+          }),
+        ),
       log: facade({
         record: (text, data) =>
           deps.streams.errorLine(deps.output === "json" ? JSON.stringify(data) : text),
@@ -175,6 +185,24 @@ export function hostServices(deps: HostServiceDependencies): HostServices {
         deps.accounts.resolveAccount(account, family);
       },
     }),
+  });
+}
+
+function detachedFacade(child: DetachedCli): DetachedCli {
+  return facade<DetachedCli>({
+    get pid() {
+      return child.pid;
+    },
+    get connected() {
+      return child.connected;
+    },
+    on: (event, listener) => child.on(event, listener),
+    once: (event, listener) => child.once(event, listener),
+    off: ((event: "message" | "error" | "exit", listener: () => void) =>
+      child.off(event as "error", listener)) as DetachedCli["off"],
+    disconnect: () => child.disconnect(),
+    unref: () => child.unref(),
+    kill: (signal) => child.kill(signal),
   });
 }
 

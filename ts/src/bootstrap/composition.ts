@@ -2,6 +2,7 @@ import { processBroadcastGuard } from "../application/services/broadcast-guard.j
 import { CommandDeadline } from "../application/services/command-deadline.js";
 import { systemWallClock } from "../application/contracts/wall-clock.js";
 import { ProcessLifetime } from "./process-lifetime.js";
+import { ProcessCliLauncher } from "../adapters/outbound/process/index.js";
 import { MigrationService } from "../application/use-cases/migration-service.js";
 import { FileDataMigrations } from "../adapters/outbound/persistence/migration.js";
 import { migrationSteps } from "./migration-steps.js";
@@ -217,6 +218,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
     aliases: config.aliases,
     networks: networkRegistry,
     lifetime,
+    launcher: new ProcessCliLauncher(),
     streams,
     output,
     accounts: keystore,

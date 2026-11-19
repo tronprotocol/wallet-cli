@@ -458,6 +458,19 @@ describe("objects handed to a plugin", () => {
 
   it("give each host service exactly its documented members", () => {
     const gateway = { getTrc20Balance: vi.fn(), getTokenInfo: vi.fn(), sendRaw: vi.fn() };
+    const child = {
+      pid: 7,
+      connected: true,
+      on: vi.fn(),
+      once: vi.fn(),
+      off: vi.fn(),
+      disconnect: vi.fn(),
+      unref: vi.fn(),
+      kill: vi.fn(),
+      send: vi.fn(),
+      stdin: null,
+    };
+    const launcher = { startDetached: vi.fn(() => child) };
     const aliases = { nile: "tron:3448148188" };
     const services = hostServices({
       signing: {
@@ -472,6 +485,7 @@ describe("objects handed to a plugin", () => {
       aliases,
       networks: { resolve: vi.fn(), resolveDefault: vi.fn() } as never,
       lifetime: { keepAlive: vi.fn(), longLived: false } as never,
+      launcher,
       streams: { errorLine: vi.fn(), diagnostic: vi.fn(), result: vi.fn() } as never,
       output: "json",
       accounts: { resolveAccount: vi.fn(), unlock: vi.fn() } as never,
@@ -540,7 +554,27 @@ describe("objects handed to a plugin", () => {
     expect(reachable(services.recipients)).toEqual(["resolve"]);
     expect(reachable(services.config)).toEqual(["networkBlock", "credential"]);
     expect(reachable(services.broadcastGuard)).toEqual(["assertAllowed"]);
-    expect(reachable(services.lifetime)).toEqual(["keepAlive", "log"]);
+    expect(reachable(services.lifetime)).toEqual(["keepAlive", "startDetached", "log"]);
+    const started = services.lifetime.startDetached({
+      argv: ["x402", "serve"],
+      env: { MARKER: "1" },
+      stderr: 9,
+      execPath: "/bin/sh",
+    } as never);
+    expect(launcher.startDetached.mock.calls).toEqual([
+      [{ argv: ["x402", "serve"], env: { MARKER: "1" }, stderr: 9 }],
+    ]);
+    expect(reachable(started)).toEqual([
+      "pid",
+      "connected",
+      "on",
+      "once",
+      "off",
+      "disconnect",
+      "unref",
+      "kill",
+    ]);
+    expect(started.pid).toBe(7);
     expect(reachable(services.lifetime.log)).toEqual(["record", "diagnostic"]);
     expect(reachable(services.accounts)).toEqual(["checkAccount"]);
     expect(services.accounts.checkAccount("main", "tron")).toBeUndefined();

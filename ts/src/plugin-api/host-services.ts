@@ -26,6 +26,7 @@ import type { TronContractService } from "../application/use-cases/tron/contract
 import type { EvmContractService } from "../application/use-cases/evm/contract-service.js";
 import type { PluginSignRequest } from "../application/services/plugins/plugin-signing.js";
 import type { RecipientResolver } from "../application/services/recipient-resolver.js";
+import type { DetachedCli, DetachedCliStart } from "../application/ports/cli-launcher.js";
 
 export type { MessagePayload, PluginSignRequest, TransactionPayload, TypedDataSignPayload };
 
@@ -89,6 +90,8 @@ export interface PluginAccounts {
 export interface PluginLifetime {
   // Keeps the process alive after the command returns and ends the command deadline.
   keepAlive(): void;
+  // Starts a detached copy of this CLI, however the core is installed.
+  startDetached(start: DetachedCliStart): DetachedCli;
   // Lines on stderr for a command that keeps serving after it returns.
   readonly log: PluginServerLog;
 }
