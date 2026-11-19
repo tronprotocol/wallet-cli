@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - "release_*"
+      - chore/node-sea-proof
   workflow_dispatch:
 
 permissions:
@@ -12,6 +13,8 @@ permissions:
 
 env:
   NODE_VERSION: "22"
+  # `node --build-sea` needs Node 26, and the executable embeds the Node that builds it.
+  SEA_NODE_VERSION: "26.13.1"
 
 jobs:
   quality:
@@ -57,29 +60,24 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            target: bun-linux-x64-baseline
             asset: linux-x64
             executable: wallet-cli
             archive: tar.gz
             glibc_max: "2.35"
           - os: ubuntu-22.04-arm
-            target: bun-linux-arm64
             asset: linux-arm64
             executable: wallet-cli
             archive: tar.gz
             glibc_max: "2.35"
           - os: macos-15-intel
-            target: bun-darwin-x64
             asset: macos-x64
             executable: wallet-cli
             archive: tar.gz
           - os: macos-15
-            target: bun-darwin-arm64
             asset: macos-arm64
             executable: wallet-cli
             archive: tar.gz
           - os: windows-2022
-            target: bun-windows-x64-baseline
             asset: windows-x64
             executable: wallet-cli.exe
             archive: zip
@@ -95,9 +93,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          # The runner image can lag behind the security releases that `engines` requires.
-          check-latest: true
+          node-version: ${{ env.SEA_NODE_VERSION }}
           cache: npm
           cache-dependency-path: ts/package-lock.json
 
@@ -105,10 +101,7 @@ jobs:
         run: npm ci
 
       - name: Build standalone executable
-        run: >-
-          npm run build:standalone --
-          --target ${{ matrix.target }}
-          --outfile standalone/${{ matrix.executable }}
+        run: node scripts/sea/build.mjs --outfile standalone/${{ matrix.executable }}
 
       - name: Verify executable and embedded Ledger addon
         run: node scripts/verify-standalone.mjs standalone/${{ matrix.executable }}
@@ -122,7 +115,7 @@ jobs:
           set -euo pipefail
           executable="standalone/${{ matrix.executable }}"
           native_addon="$(
-            ./node_modules/.bin/bun -e \
+            node --input-type=module -e \
               'import { resolveNodeHidAddon } from "./scripts/standalone/resolve-node-hid-addon.ts"; console.log(resolveNodeHidAddon().nativeAddon)'
           )"
           host_glibc="$(getconf GNU_LIBC_VERSION | awk '{print $2}')"
@@ -220,6 +213,8 @@ jobs:
           sha256sum BUILD_METADATA.txt wallet-cli-* > SHA256SUMS.txt
 
       - name: Attest standalone archives
+        # A proof build gets no public attestation.
+        if: github.ref != 'refs/heads/chore/node-sea-proof'
         uses: actions/attest@v4
         with:
           subject-checksums: standalone-assets/SHA256SUMS.txt
