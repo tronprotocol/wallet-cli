@@ -35,13 +35,30 @@ if (help.status !== 0 || !help.stdout.includes("Usage:  wallet-cli")) {
   );
 }
 
-// Ledger import loads the embedded addon; device_unavailable can mask addon load failures.
 const isolatedHome = mkdtempSync(join(tmpdir(), "wallet-cli-standalone-"));
+const isolatedEnv = { ...process.env, WALLET_CLI_HOME: isolatedHome };
 try {
-  const ledger = run(["import", "ledger", "--app", "tron", "--index", "0", "--output", "json"], {
-    ...process.env,
-    WALLET_CLI_HOME: isolatedHome,
-  });
+  // A config write runs the atomic file store on the target platform.
+  const write = run(["config", "timeoutMs", "120000", "--output", "json"], isolatedEnv);
+  const read = run(["config", "timeoutMs", "--output", "json"], isolatedEnv);
+  let stored;
+  try {
+    stored = JSON.parse(read.stdout)?.data?.value;
+  } catch {
+    // Report non-JSON output in the failure below.
+  }
+  if (write.status !== 0 || read.status !== 0 || stored !== 120000) {
+    throw new Error(
+      `config write smoke test failed: write status=${write.status}, output=${JSON.stringify(`${write.stdout}\n${write.stderr}`)}; ` +
+        `read status=${read.status}, output=${JSON.stringify(`${read.stdout}\n${read.stderr}`)}`,
+    );
+  }
+
+  // Ledger import loads the embedded addon; device_unavailable can mask addon load failures.
+  const ledger = run(
+    ["import", "ledger", "--app", "tron", "--index", "0", "--output", "json"],
+    isolatedEnv,
+  );
   const output = `${ledger.stdout}\n${ledger.stderr}`;
   let result;
   try {
