@@ -112,6 +112,7 @@ describe("PluginLoader", () => {
 
   it("publishes the API object and registers the SDK imports before the first import", async () => {
     const t = setup([plugin("alpha")]);
+    vi.mocked(registerPluginSdkImports).mockClear();
     await t.loader.load({ all: true }, t.warn);
     expect((globalThis as Record<symbol, unknown>)[PLUGIN_API_GLOBAL]).toBe(PLUGIN_API_OBJECT);
     const registered = vi.mocked(registerPluginSdkImports).mock.invocationCallOrder[0]!;

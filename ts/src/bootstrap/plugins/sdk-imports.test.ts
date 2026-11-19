@@ -2,10 +2,23 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import { PLUGIN_API_OBJECT, publishPluginApi } from "./api-object.js";
 import { vmLoaderImporter } from "./import-plugin.js";
 import { pluginSdkSource, registerPluginSdkImports } from "./sdk-imports.js";
+
+// Counts the calls and passes each on to Node, so the hooks under test are the real ones.
+const hooks = vi.hoisted(() => ({ registrations: 0 }));
+vi.mock("node:module", async (importOriginal) => {
+  const module = await importOriginal<typeof import("node:module")>();
+  return {
+    ...module,
+    registerHooks: (options: Parameters<typeof module.registerHooks>[0]) => {
+      hooks.registrations += 1;
+      return module.registerHooks(options);
+    },
+  };
+});
 
 const directory = mkdtempSync(join(tmpdir(), "sdk-imports-test-"));
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -22,6 +35,10 @@ beforeAll(() => {
   publishPluginApi();
   registerPluginSdkImports();
   registerPluginSdkImports();
+});
+
+it("registers the hooks once, however often it is called", () => {
+  expect(hooks.registrations).toBe(1);
 });
 
 it("serves the four runtime entries from the published API object, whoever imports them", async () => {
