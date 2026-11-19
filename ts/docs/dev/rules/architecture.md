@@ -59,8 +59,8 @@ use case. Logic that use cases share goes into a helper module in the same direc
 asserts the rule reports it. **test**.
 
 1.8 An outbound integration is a directory under `adapters/outbound/`, such as `chain/tron` or `ledger`. A chain
-node integration lives in `chain/<family>/`; a protocol or service integration has its own directory, whatever
-families it serves.
+node integration lives in `chain/<family>/`; a service integration has its own directory, whatever families it
+serves. A protocol built on a chain is a plugin (section 9).
 - SDKs are imported only inside integrations.
 - Integrations do not import each other. One that needs another's capability receives it through a port wired
   in `bootstrap`.
@@ -188,16 +188,16 @@ decision. **test**.
 
 5.1 Chain facts are defined once, in `domain`: address format, address encoding conversion, transaction hash
 format, units, and the zero address. No module writes them by hand.
-- Other code gets them through `domain/family`. Code in a `tron/` or `evm/` directory, or in a protocol's
-  directory, may use its own family's codec (for example `domain/address`) directly.
+- Other code gets them through `domain/family`. Code in a `tron/` or `evm/` directory, or in a plugin that
+  serves one family, may use its own family's codec (for example `domain/address`) directly.
 - Addresses are compared and stored in the canonical form that `domain/family` defines.
 - A `tron/` or `evm/` directory holds only that chain's own protocol. Code for a protocol built on a chain is
   not placed there.
 
 **review**.
 
-5.2 When a feature behaves differently per family (for example x402 schemes, or which use case a command runs),
-the feature module holds one table from family to behavior. It does not branch on the family in several places.
+5.2 When a feature behaves differently per family (for example which use case a command runs), the feature
+module holds one table from family to behavior. It does not branch on the family in several places.
 **review**.
 
 5.3 `application` owns one capability predicate per capability. The predicate decides over the network, the
@@ -216,8 +216,7 @@ origin. Call sites do not skip a step that applies to their mode.
 - Dry-run and build-only never sign or submit. Sign-only never submits.
 - Broadcasting an imported signed transaction never resolves a local signer or rewrites the signed body.
 - Confirmation follows the documented `--wait` policy; a contract call requires its execution result.
-- A write signed by a service (for example `sunpump launch`) follows its documented lifecycle with the same
-  side-effect guarantees.
+- A write signed by a service follows its documented lifecycle with the same side-effect guarantees.
 
 **type** for the mode-specific API, **test** for expiry, signer gates, early exits, and confirmation.
 
