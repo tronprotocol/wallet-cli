@@ -1,4 +1,4 @@
-// TronWeb drops extra AssetIssue tranches and lacks an UnfreezeAsset codec.
+// Validate TRC10 issuance fields and handle UnfreezeAsset, which TronWeb cannot encode.
 import { TronWeb, utils as tronUtils } from "tronweb";
 import { ChainError } from "../../../../domain/errors/index.js";
 import type { TronTransactionArtifact } from "../../../../domain/types/index.js";

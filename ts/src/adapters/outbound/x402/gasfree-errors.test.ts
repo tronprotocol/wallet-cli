@@ -1,6 +1,6 @@
 import { X402Service } from "../../../application/use-cases/x402-service.js";
 import { expect, it, vi } from "vitest";
-import { x402Client, wrapFetchWithPayment } from "@bankofai/x402-fetch";
+import { x402Client, wrapFetchWithPayment } from "@x402/fetch";
 import { ExactGasFreeTronScheme } from "@bankofai/x402-tron/gasfree/client";
 import { X402PaymentClient } from "./payment-client.js";
 import { CommandDeadline } from "../../../application/services/command-deadline.js";

@@ -26,9 +26,44 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-it.each(["tron:3448148188", "tron:0xcd8690dc"])(
-  "signs Nile %s through the existing TRON signer and SDK",
-  async (wireNetwork) => {
+const nileUsdt = "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf";
+const mainnetUsdt = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+const permit2 = { assetTransferMethod: "permit2" };
+
+const exactQuotes = [
+  {
+    name: "decimal Nile quote",
+    chainId: 3448148188,
+    wireNetwork: "tron:3448148188",
+    asset: nileUsdt,
+    extra: permit2,
+  },
+  {
+    name: "legacy hexadecimal Nile quote",
+    chainId: 3448148188,
+    wireNetwork: "tron:0xcd8690dc",
+    asset: nileUsdt,
+    extra: permit2,
+  },
+  {
+    name: "mainnet USDT quote without extra",
+    chainId: 728126428,
+    wireNetwork: "tron:728126428",
+    asset: mainnetUsdt,
+    extra: undefined,
+  },
+  {
+    name: "mainnet USDT quote with a domain and no method",
+    chainId: 728126428,
+    wireNetwork: "tron:728126428",
+    asset: mainnetUsdt,
+    extra: { name: "Tether USD", version: "1" },
+  },
+];
+
+it.each(exactQuotes)(
+  "sends a Permit2 payment for a $name",
+  async ({ chainId, wireNetwork, asset, extra }) => {
     const key = Wallet.createRandom().privateKey;
     const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
     const signTypedData = vi.fn((payload: TypedDataPayload) =>
@@ -40,16 +75,16 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
     };
     const challenge = {
       x402Version: 2,
-      resource: { url: "https://example.test/nile" },
+      resource: { url: "https://example.test/paid" },
       accepts: [
         {
           scheme: "exact",
           network: wireNetwork,
           amount: "1000000",
-          asset: "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+          asset,
           payTo: "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ",
           maxTimeoutSeconds: 300,
-          extra: { assetTransferMethod: "permit2" },
+          extra,
         },
       ],
     };
@@ -75,15 +110,15 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
     );
     await expect(
       client.pay(
-        { activeAccount: "nile-test", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
+        { activeAccount: "test", deadline: new CommandDeadline(0), emit: vi.fn() } as never,
         {
-          id: "tron:3448148188",
+          id: `tron:${chainId}`,
           family: "tron",
-          chainId: "3448148188",
+          chainId: String(chainId),
           httpEndpoint: "http://127.0.0.1:1",
         } as never,
         {
-          url: "https://example.test/nile",
+          url: challenge.resource.url,
           method: "GET",
           headers: [],
           token: "USDT",
@@ -91,22 +126,32 @@ it.each(["tron:3448148188", "tron:0xcd8690dc"])(
         },
       ),
     ).resolves.toMatchObject({ delivered: true, payer: { address } });
-    expect(signers.resolve).toHaveBeenCalledWith("nile-test", "tron");
+    expect(signers.resolve).toHaveBeenCalledWith("test", "tron");
     expect(signTypedData).toHaveBeenCalledOnce();
     const payload = signTypedData.mock.calls[0]![0];
     const signed = await signTypedData.mock.results[0]!.value;
-    expect(payload.domain.chainId).toBe(3448148188);
+    expect(payload).toMatchObject({
+      primaryType: "PermitWitnessTransferFrom",
+      domain: { name: "Permit2", chainId },
+    });
     expect(
       tronUtils.typedData
         .verifyTypedData(payload.domain, payload.types, payload.message, signed.signature)
         .toLowerCase(),
     ).toBe(`0x${TronWeb.address.toHex(address).slice(2)}`.toLowerCase());
     expect(fetcher).toHaveBeenCalledTimes(2);
-    expect((fetcher.mock.calls[1]![0] as Request).headers.has("payment-signature")).toBe(true);
+    const header = new Request(...fetcher.mock.calls[1]!).headers.get("payment-signature");
+    expect(header).toBeTruthy();
+    const payment = JSON.parse(Buffer.from(header!, "base64").toString("utf8"));
+    expect(payment.accepted.network).toBe(wireNetwork);
+    expect(payment.payload).toHaveProperty("permit2Authorization");
+    expect(payment.payload).not.toHaveProperty("authorization");
   },
 );
 
-it("uses the selected relay to construct and sign the final GasFree permit", async () => {
+const gasFreeCaps = [undefined, "10000"];
+
+it.each(gasFreeCaps)("signs the relay's GasFree permit with cap %s", async (cap) => {
   const key = Wallet.createRandom().privateKey;
   const address = TronWeb.address.fromPrivateKey(key.slice(2)) as string;
   const payTo = "TCLBgkbfVkJroVBJVqBEsxtPNQEQMTQCLQ";
@@ -192,7 +237,7 @@ it("uses the selected relay to construct and sign the final GasFree permit", asy
         headers: [],
         scheme: "exact_gasfree",
         gasfreeRelay: "https://relay.example/nile",
-        maxRawAmount: "10000",
+        maxRawAmount: cap,
         asset,
       },
     ),

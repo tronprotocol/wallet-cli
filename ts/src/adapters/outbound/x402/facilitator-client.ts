@@ -11,7 +11,7 @@ import {
   decodePaymentSignatureHeader,
   encodePaymentRequiredHeader,
   encodePaymentResponseHeader,
-} from "@bankofai/x402-core/http";
+} from "@x402/core/http";
 import type { NetworkDescriptor } from "../../../domain/types/index.js";
 import type { X402Scheme } from "../../../domain/x402/families.js";
 import type {
