@@ -7,6 +7,7 @@ import type { TypedDataPayload, UnsignedTx } from "../../../domain/types/index.j
 import { SigningService } from "../../../application/services/signing/signing-service.js";
 import { evmTransactionChainId } from "../chain/evm/evm.js";
 import { CommandDeadline } from "../../../application/services/command-deadline.js";
+import { X402_TOKENS } from "./tokens.js";
 
 // Node answers the signing entry checks chain identity against.
 const signing = new SigningService({
@@ -18,14 +19,18 @@ const signing = new SigningService({
 
 afterEach(() => vi.unstubAllGlobals());
 
-it.each(["56", "8453"])(
-  "signs an ERC20 approval extension with valid gas on EVM chain %s",
-  async (chainId) => {
+it.each([
+  ["56", "USDT", "1000000"],
+  ["97", "USDC", "1000000"],
+  ["8453", "USDC", "1000000"],
+  ["56", "USDT", "1000000000000000001"],
+  ["97", "USDC", "1000000000000000001"],
+])(
+  "applies the default spend cap to an approval offer on EVM chain %s (%s, %s atomic units)",
+  async (chainId, token, amount) => {
     const wallet = Wallet.createRandom();
-    const asset =
-      chainId === "8453"
-        ? "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-        : "0x55d398326f99059fF775485246999027B3197955";
+    const network = `eip155:${chainId}`;
+    const { address: asset, decimals } = X402_TOKENS[network]![token]!;
     const rpc = vi.fn<typeof fetch>(async (input, init) => {
       const request = new Request(input, init);
       expect(request.url).toBe("https://rpc.example/");
@@ -46,8 +51,8 @@ it.each(["56", "8453"])(
     const extension = "erc20ApprovalGasSponsoring";
     const requirement = {
       scheme: "exact",
-      network: `eip155:${chainId}`,
-      amount: "1000000",
+      network,
+      amount,
       asset,
       payTo: "0x2222222222222222222222222222222222222222",
       maxTimeoutSeconds: 300,
@@ -91,24 +96,32 @@ it.each(["56", "8453"])(
       undefined,
       signing,
     );
-    await expect(
-      client.pay(
-        { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never,
-        {
-          family: "evm",
-          chainId,
-          id: `eip155:${chainId}`,
-          httpEndpoint: "https://rpc.example",
-        } as never,
-        {
-          url: "https://payment.example",
-          method: "GET",
-          headers: [],
-          asset,
-          maxRawAmount: "1000000",
-        },
-      ),
-    ).resolves.toMatchObject({ delivered: true });
+    const payment = client.pay(
+      { activeAccount: "payer", deadline: new CommandDeadline(0), emit() {} } as never,
+      {
+        family: "evm",
+        chainId,
+        id: network,
+        httpEndpoint: "https://rpc.example",
+      } as never,
+      {
+        url: "https://payment.example",
+        method: "GET",
+        headers: [],
+        asset,
+      },
+    );
+    if (BigInt(amount) > 10n ** BigInt(decimals)) {
+      await expect(payment).rejects.toMatchObject({
+        code: "amount_exceeds_limit",
+        details: { paymentStatus: "not_sent" },
+      });
+      expect(sign).not.toHaveBeenCalled();
+      expect(signTypedData).not.toHaveBeenCalled();
+      expect(fetcher).toHaveBeenCalledOnce();
+      return;
+    }
+    await expect(payment).resolves.toMatchObject({ delivered: true });
     expect(sign).toHaveBeenCalledOnce();
     const signedInput = sign.mock.calls[0]![0] as Record<string, unknown>;
     expect(signedInput).not.toHaveProperty("gas");

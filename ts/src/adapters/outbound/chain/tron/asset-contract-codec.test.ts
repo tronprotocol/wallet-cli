@@ -81,7 +81,7 @@ const ISSUE_ONE = {
     "0a02f7c422080d5c9f3c08da635840a095f7b7fe335aa801080612a3010a2f747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e41737365744973737565436f6e747261637412700a15419756bae210f6e9591f311613cff8f19d6cef397112074d79546f6b656e1a034d544b2080809aa6eaafe3012a0a088080e983b1de16101e3001380640644880a0f1c2b1345080f284f0b434a2010a44656d6f205452433130aa011268747470733a2f2f6d79746f6b656e2e696f7097cdf3b7fe33",
 };
 
-describe("TRC10 contract types TronWeb cannot round-trip", () => {
+describe("TRC10 asset contract codec", () => {
   it("encodes UnfreezeAssetContract exactly as the node does", () => {
     const hex = encodeTransactionHex(UNFREEZE_FIXTURE);
     expect(decodeTransactionHex(hex).raw_data_hex).toBe(UNFREEZE_FIXTURE.raw_data_hex);
@@ -170,12 +170,14 @@ describe("TRC10 contract types TronWeb cannot round-trip", () => {
     ).toThrow(/raw_data_hex does not match raw_data/);
   });
 
-  it("documents that TronWeb's own serialiser still drops tranches after the first", () => {
+  it("matches TronWeb's multi-tranche AssetIssueContract encoding", () => {
     const viaTronWeb = tronUtils.transaction.txJsonToPb(ISSUE_THREE as never);
-    expect(tronUtils.transaction.txPbToRawDataHex(viaTronWeb).toLowerCase()).not.toBe(
+    expect(tronUtils.transaction.txPbToRawDataHex(viaTronWeb).toLowerCase()).toBe(
       ISSUE_THREE.raw_data_hex,
     );
+  });
 
+  it("provides UnfreezeAssetContract encoding absent from TronWeb", () => {
     expect(() => tronUtils.transaction.txJsonToPb(UNFREEZE_FIXTURE as never)).toThrow();
   });
 });
